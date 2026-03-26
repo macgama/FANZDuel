@@ -1,0 +1,166 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "The player's profile and game state.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "pseudo": { "type": "string" },
+        "email": { "type": "string" },
+        "favoriteTeams": { "type": "array", "items": { "type": "string" } },
+        "money": { "type": "number", "description": "Game currency ($)" },
+        "gems": { "type": "number", "description": "Rare currency" },
+        "boostPoints": { "type": "number" },
+        "energy": { "type": "number", "description": "Renewable resource (max 100)" },
+        "lastEnergyRefill": { "type": "string", "format": "date-time" },
+        "ferveurPoints": { "type": "number" },
+        "level": { "type": "number", "description": "1 to 15" },
+        "slots": { "type": "number", "default": 2 },
+        "role": { "type": "string", "enum": ["admin", "client"], "default": "client" }
+      },
+      "required": ["uid", "pseudo", "email", "money", "gems", "boostPoints", "energy", "ferveurPoints", "level", "role"]
+    },
+    "Fanz": {
+      "title": "Fanz",
+      "description": "A character used for duels.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "name": { "type": "string" },
+        "sport": { "type": "string" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "force": { "type": "number" },
+            "endurance": { "type": "number" },
+            "mental": { "type": "number" },
+            "bluff": { "type": "number" },
+            "creativity": { "type": "number" },
+            "social": { "type": "number" },
+            "intelligence": { "type": "number" },
+            "charisma": { "type": "number" }
+          }
+        },
+        "xp": { "type": "number" },
+        "level": { "type": "number", "description": "1 to 5" },
+        "ferveurPoints": { "type": "number" },
+        "ferveurLevel": { "type": "number", "description": "1 to 5" },
+        "energy": { "type": "number" }
+      }
+    },
+    "Duel": {
+      "title": "Duel",
+      "description": "A real-time match between fans.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["training", "1v1", "2v2", "5v5", "war_of_kops"] },
+        "status": { "type": "string", "enum": ["waiting", "active", "finished"] },
+        "matchId": { "type": "string", "description": "ID from api-football if applicable" },
+        "teamA": { "type": "string" },
+        "teamB": { "type": "string" },
+        "progress": { "type": "number", "description": "0 to 100 (tug of war)" },
+        "participants": { "type": "array" },
+        "scores": { "type": "object" }
+      }
+    },
+    "TeamFerveur": {
+      "title": "TeamFerveur",
+      "description": "Aggregated ferveur for a club or national team.",
+      "type": "object",
+      "properties": {
+        "teamId": { "type": "string" },
+        "name": { "type": "string" },
+        "totalFerveur": { "type": "number" },
+        "userCount": { "type": "number" },
+        "averageFerveur": { "type": "number" }
+      }
+    },
+    "League": {
+      "title": "League",
+      "description": "Football league/competition data from API",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "logo": { "type": "string" },
+        "country": { "type": "string" },
+        "countryCode": { "type": "string" },
+        "countryFlag": { "type": "string" },
+        "season": { "type": "number" }
+      },
+      "required": ["id", "name", "country", "season"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Football team data from API",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "country": { "type": "string" },
+        "founded": { "type": "number" },
+        "logo": { "type": "string" },
+        "venue": { "type": "object" }
+      },
+      "required": ["id", "name", "logo"]
+    },
+    "Standing": {
+      "title": "Standing",
+      "description": "League standings from API",
+      "type": "object",
+      "properties": {
+        "rank": { "type": "number" },
+        "teamId": { "type": "number" },
+        "points": { "type": "number" },
+        "goalsDiff": { "type": "number" },
+        "group": { "type": "string" },
+        "form": { "type": "string" },
+        "status": { "type": "string" },
+        "description": { "type": "string" },
+        "all": { "type": "object" },
+        "home": { "type": "object" },
+        "away": { "type": "object" },
+        "update": { "type": "string" },
+        "season": { "type": "number" }
+      },
+      "required": ["rank", "teamId", "points", "season"]
+    },
+    "Fixture": {
+      "title": "Fixture",
+      "description": "Match fixture data from API",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "referee": { "type": "string" },
+        "timezone": { "type": "string" },
+        "date": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "periods": { "type": "object" },
+        "venue": { "type": "object" },
+        "status": { "type": "object" },
+        "league": { "type": "object" },
+        "teams": { "type": "object" },
+        "goals": { "type": "object" },
+        "score": { "type": "object" },
+        "season": { "type": "number" }
+      },
+      "required": ["id", "date", "teams", "season"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/fanz/{fanzId}": { "schema": "Fanz", "description": "Characters owned by users" },
+    "/duels/{duelId}": { "schema": "Duel", "description": "Active and past duels" },
+    "/teams/{teamId}": { "schema": "TeamFerveur", "description": "Team ferveur rankings" },
+    "/leagues/{leagueId}": { "schema": "League", "description": "Imported football leagues" },
+    "/api_teams/{teamId}": { "schema": "Team", "description": "Imported football teams from API" },
+    "/leagues/{leagueId}/seasons/{season}/standings/{standingId}": { "schema": "Standing", "description": "Standings for a specific league and season" },
+    "/leagues/{leagueId}/seasons/{season}/fixtures/{fixtureId}": { "schema": "Fixture", "description": "Fixtures for a specific league and season" },
+    "/leagues/{leagueId}/seasons/{season}/teams/{teamId}": { "schema": "Team", "description": "Teams for a specific league and season" }
+  }
+}

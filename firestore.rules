@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: uid
+    // Fields:
+    //   - uid: string
+    //   - pseudo: string
+    //   - email: string (PII)
+    //   - favoriteTeams: list of strings
+    //   - money: number
+    //   - gems: number
+    //   - boostPoints: number
+    //   - energy: number
+    //   - lastEnergyRefill: string (ISO 8601)
+    //   - ferveurPoints: number
+    //   - level: number
+    //   - slots: number
+    //
+    // Collection: fanz
+    // Document ID: fanzId
+    // Fields:
+    //   - id: string
+    //   - ownerUid: string
+    //   - name: string
+    //   - sport: string
+    //   - stats: map (force, endurance, mental, bluff, creativity, social, intelligence, charisma)
+    //   - xp: number
+    //   - level: number
+    //   - ferveurPoints: number
+    //   - ferveurLevel: number
+    //   - energy: number
+    //
+    // Collection: duels
+    // Document ID: duelId
+    // Fields:
+    //   - id: string
+    //   - type: string (training, 1v1, 2v2, 5v5, war_of_kops)
+    //   - status: string (waiting, active, finished)
+    //   - teamA: string
+    //   - teamB: string
+    //   - progress: number
+    //   - participants: list of strings
+    //
+    // Collection: teams
+    // Document ID: teamId
+    // Fields:
+    //   - teamId: string
+    //   - name: string
+    //   - totalFerveur: number
+    //   - userCount: number
+    //   - averageFerveur: number
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.ownerUid;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          request.auth.token.email == "gael.manigley@gmail.com"); // Default admin
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'pseudo', 'email', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'slots', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.pseudo is string && data.pseudo.size() > 0 && data.pseudo.size() < 50 &&
+             isValidEmail(data.email) &&
+             data.favoriteTeams is list &&
+             data.money is number &&
+             data.gems is number &&
+             data.boostPoints is number &&
+             data.energy is number && data.energy >= 0 && data.energy <= 100 &&
+             isValidDateString(data.lastEnergyRefill) &&
+             data.ferveurPoints is number &&
+             data.level is number &&
+             data.slots is number &&
+             data.role in ['admin', 'client'];
+    }
+
+    function isValidFanz(data) {
+      return hasOnlyAllowedFields(['id', 'ownerUid', 'name', 'sport', 'stats', 'xp', 'level', 'ferveurPoints', 'ferveurLevel', 'energy']) &&
+             data.ownerUid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
+             data.sport is string &&
+             data.stats is map &&
+             data.xp is number &&
+             data.level is number &&
+             data.ferveurPoints is number &&
+             data.ferveurLevel is number &&
+             data.energy is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // PII Protection: Only owner can read their own profile
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(userId) && request.resource.data.role == 'client') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+    }
+
+    match /fanz/{fanzId} {
+      // FANZ can be seen by others (for duels) but only owned by one
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidFanz(request.resource.data);
+      allow update: if isDocOwner() && isValidFanz(request.resource.data);
+      allow delete: if isDocOwner();
+    }
+
+    match /duels/{duelId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+    }
+
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      
+      match /seasons/{season}/{allPaths=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+    }
+
+    match /metadata/{key} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /leagues/{leagueId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+      
+      match /seasons/{season}/{allPaths=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+
+      // Legacy paths
+      match /standings/{standingId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      match /fixtures/{fixtureId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    match /api_teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
