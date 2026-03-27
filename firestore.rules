@@ -20,7 +20,8 @@ service cloud.firestore {
     //   - lastEnergyRefill: string (ISO 8601)
     //   - ferveurPoints: number
     //   - level: number
-    //   - slots: number
+    //   - teamSlots: number
+    //   - cards: list of strings
     //
     // Collection: fanz
     // Document ID: fanzId
@@ -32,9 +33,23 @@ service cloud.firestore {
     //   - stats: map (force, endurance, mental, bluff, creativity, social, intelligence, charisma)
     //   - xp: number
     //   - level: number
+    //   - rank: number
+    //   - claimedRewards: list of strings
     //   - ferveurPoints: number
     //   - ferveurLevel: number
     //   - energy: number
+    //
+    // Collection: cards
+    // Document ID: cardId
+    // Fields:
+    //   - id: string
+    //   - name: string
+    //   - type: string
+    //   - rarity: string
+    //   - energyCost: number
+    //   - description: string
+    //   - effects: list
+    //   - unlockRequirements: list
     //
     // Collection: duels
     // Document ID: duelId
@@ -56,6 +71,19 @@ service cloud.firestore {
     //   - userCount: number
     //   - averageFerveur: number
     //
+    // Collection: fanz_templates
+    // Document ID: templateId
+    // Fields:
+    //   - id: string
+    //   - name: string
+    //   - description: string
+    //   - sport: string
+    //   - image: string
+    //   - video: string
+    //   - baseStats: map
+    //   - ferveurPath: list
+    //   - rankRewards: map
+    //
     // ===============================================================
 
     // ===============================================================
@@ -74,6 +102,16 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == resource.data.ownerUid;
     }
 
+    function uidUnchanged() {
+      return !('ownerUid' in request.resource.data) ||
+        request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('ownerUid' in request.resource.data) ||
+        request.resource.data.ownerUid == resource.data.ownerUid;
+    }
+
     function hasOnlyAllowedFields(fields) {
       return request.resource.data.keys().hasOnly(fields);
     }
@@ -88,8 +126,9 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          request.auth.token.email == "gael.manigley@gmail.com"); // Default admin
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+         request.auth.token.email == "gael.manigley@gmail.com"); // Default admin
     }
 
     // ===============================================================
@@ -97,10 +136,11 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'pseudo', 'email', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'slots', 'role']) &&
-             data.uid == request.auth.uid &&
+      return hasOnlyAllowedFields(['uid', 'pseudo', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'createdAt', 'updatedAt']) &&
+             data.uid is string &&
              data.pseudo is string && data.pseudo.size() > 0 && data.pseudo.size() < 50 &&
              isValidEmail(data.email) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 2000)) &&
              data.favoriteTeams is list &&
              data.money is number &&
              data.gems is number &&
@@ -109,21 +149,36 @@ service cloud.firestore {
              isValidDateString(data.lastEnergyRefill) &&
              data.ferveurPoints is number &&
              data.level is number &&
-             data.slots is number &&
+             data.teamSlots is number &&
+             data.cards is list &&
+             (!('skins' in data) || data.skins is list) &&
+             (!('emotes' in data) || data.emotes is list) &&
+             (!('language' in data) || (data.language is string && data.language.size() < 10)) &&
+             (!('activeAction' in data) || data.activeAction == null || (data.activeAction is map && data.activeAction.keys().hasOnly(['fanzId', 'actionId', 'startTime', 'durationMinutes']) && data.activeAction.fanzId is string && data.activeAction.actionId is string && isValidDateString(data.activeAction.startTime) && data.activeAction.durationMinutes is number)) &&
              data.role in ['admin', 'client'];
     }
 
     function isValidFanz(data) {
-      return hasOnlyAllowedFields(['id', 'ownerUid', 'name', 'sport', 'stats', 'xp', 'level', 'ferveurPoints', 'ferveurLevel', 'energy']) &&
-             data.ownerUid == request.auth.uid &&
+      return hasOnlyAllowedFields(['id', 'templateId', 'ownerUid', 'name', 'sport', 'imageUrl', 'videoUrl', 'stats', 'xp', 'level', 'rank', 'claimedRewards', 'ferveurPoints', 'ferveurLevel', 'energy', 'equippedCards', 'unlockedSkins', 'equippedSkin', 'unlockedEmotes', 'lifeActionProgress']) &&
+             (resource == null ? data.ownerUid == request.auth.uid : data.ownerUid == resource.data.ownerUid) &&
+             data.templateId is string && data.templateId.size() > 0 && data.templateId.size() < 50 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
              data.sport is string &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 2000)) &&
+             (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() < 2000)) &&
              data.stats is map &&
              data.xp is number &&
              data.level is number &&
+             (!('rank' in data) || (data.rank is number && data.rank >= 1 && data.rank <= 10)) &&
+             (!('claimedRewards' in data) || data.claimedRewards is list) &&
              data.ferveurPoints is number &&
              data.ferveurLevel is number &&
-             data.energy is number;
+             data.energy is number &&
+             (!('equippedCards' in data) || data.equippedCards is list) &&
+             (!('unlockedSkins' in data) || data.unlockedSkins is list) &&
+             (!('equippedSkin' in data) || data.equippedSkin == null || (data.equippedSkin is string && data.equippedSkin.size() < 100)) &&
+             (!('unlockedEmotes' in data) || data.unlockedEmotes is list) &&
+             (!('lifeActionProgress' in data) || data.lifeActionProgress is map);
     }
 
     // ===============================================================
@@ -137,14 +192,34 @@ service cloud.firestore {
                     ((isOwner(userId) && request.resource.data.role == 'client') || isAdmin());
       allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
                     ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+
+      match /user_cards/{cardId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
     }
 
     match /fanz/{fanzId} {
       // FANZ can be seen by others (for duels) but only owned by one
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidFanz(request.resource.data);
-      allow update: if isDocOwner() && isValidFanz(request.resource.data);
-      allow delete: if isDocOwner();
+      allow update: if (isDocOwner() || isAdmin()) && isValidFanz(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /fanz_templates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /life_actions/{actionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /cards/{cardId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /duels/{duelId} {

@@ -7,8 +7,18 @@ async function fetchApi(url: string) {
     const response = await fetch(url);
     if (!response.ok) {
       const errorText = await response.text();
+      let errorMessage = `API Error: ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.details) errorMessage = `${errorMessage} - ${JSON.stringify(errorJson.details)}`;
+        else if (errorJson.message) errorMessage = `${errorMessage} - ${errorJson.message}`;
+        else if (errorJson.error) errorMessage = `${errorMessage} - ${errorJson.error}`;
+      } catch (e) {
+        // Not JSON
+        if (errorText) errorMessage = `${errorMessage} - ${errorText.substring(0, 100)}`;
+      }
       console.error(`API Error (${response.status}): ${errorText}`);
-      throw new Error(`API Error: ${response.status}`);
+      throw new Error(errorMessage);
     }
     const data = await response.json();
     if (data.errors && Object.keys(data.errors).length > 0) {
@@ -25,7 +35,7 @@ async function fetchApi(url: string) {
 
 export const footballApi = {
   async getSeasons() {
-    const data = await fetchApi(`${BASE_URL}seasons`);
+    const data = await fetchApi(`${BASE_URL}leagues/seasons`);
     return data.response as number[];
   },
 

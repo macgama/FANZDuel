@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { Layout } from './components/Layout';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
@@ -15,9 +15,20 @@ import { LeagueDetails } from './components/LeagueDetails';
 import { TeamDetails } from './components/TeamDetails';
 import { UserProfile } from './types';
 import { FanzPage } from './components/FanzPage';
+import { FanzDetails } from './components/FanzDetails';
 import { Trophy, Activity, Database, Globe, Users, Star } from 'lucide-react';
 
+import { AlertProvider } from './context/AlertContext';
+
 export default function App() {
+  return (
+    <AlertProvider>
+      <AppContent />
+    </AlertProvider>
+  );
+}
+
+function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,30 +36,84 @@ export default function App() {
   const [selectedLeague, setSelectedLeague] = useState<{ id: number; season: number } | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<{ id: number; season: number } | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
+  const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [isDuelActive, setIsDuelActive] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        const docRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data() as UserProfile;
-          if (user.email === 'gael.manigley@gmail.com' && data.role !== 'admin') {
-            await setDoc(docRef, { ...data, role: 'admin' }, { merge: true });
-            setProfile({ ...data, role: 'admin' });
+    let unsubscribeSnapshot: () => void;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const docRef = doc(db, 'users', currentUser.uid);
+        
+        unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as UserProfile;
+            let needsUpdate = false;
+            let updatedData = { ...data };
+
+            // Check for 24h energy refill
+            const lastRefill = new Date(data.lastEnergyRefill || new Date().toISOString());
+            const now = new Date();
+            const hoursDiff = (now.getTime() - lastRefill.getTime()) / (1000 * 60 * 60);
+
+            if (hoursDiff >= 24) {
+              updatedData.energy = 100;
+              updatedData.lastEnergyRefill = now.toISOString();
+              needsUpdate = true;
+            }
+
+            // Check for admin role
+            if (currentUser.email === 'gael.manigley@gmail.com' && data.role !== 'admin') {
+              updatedData.role = 'admin';
+              needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+              await setDoc(docRef, updatedData, { merge: true });
+            } else {
+              setProfile(updatedData);
+            }
           } else {
-            setProfile(data);
+            setProfile(null);
           }
-        }
+          setLoading(false);
+        });
       } else {
         setProfile(null);
+        setLoading(false);
+        if (unsubscribeSnapshot) unsubscribeSnapshot();
       }
-      setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
   }, []);
+
+  // Periodic check for energy refill
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    const checkEnergy = async () => {
+      const lastRefill = new Date(profile.lastEnergyRefill || new Date().toISOString());
+      const now = new Date();
+      const hoursDiff = (now.getTime() - lastRefill.getTime()) / (1000 * 60 * 60);
+
+      if (hoursDiff >= 24 && profile.energy < 100) {
+        const docRef = doc(db, 'users', user.uid);
+        await setDoc(docRef, {
+          energy: 100,
+          lastEnergyRefill: now.toISOString()
+        }, { merge: true });
+      }
+    };
+
+    const interval = setInterval(checkEnergy, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [user, profile]);
 
   if (loading) {
     return (
@@ -58,10 +123,10 @@ export default function App() {
     );
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return (
       <Layout className="p-8">
-        <Auth onAuthSuccess={() => {}} />
+        <Auth onAuthSuccess={() => window.location.reload()} />
       </Layout>
     );
   }
@@ -137,6 +202,12 @@ export default function App() {
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
             />
+          ) : selectedFanzId ? (
+            <FanzDetails
+              fanzId={selectedFanzId}
+              userProfile={profile}
+              onBack={() => setSelectedFanzId(null)}
+            />
           ) : view === 'admin' && profile?.role === 'admin' ? (
             <AdminZone />
           ) : view === 'matches' ? (
@@ -154,7 +225,7 @@ export default function App() {
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
             />
           ) : view === 'fanz' ? (
-            <FanzPage userUid={user.uid} />
+            <FanzPage userUid={user.uid} onFanzClick={(id) => setSelectedFanzId(id)} />
           ) : (
             <Dashboard 
               onDuelStatusChange={setIsDuelActive}

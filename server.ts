@@ -3,6 +3,10 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import axios from "axios";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 async function startServer() {
   const app = express();
@@ -29,9 +33,10 @@ async function startServer() {
       socket.emit("duel-update", duelStates[duelId]);
     });
 
-    socket.on("click-ferveur", ({ duelId, team }) => {
+    socket.on("click-ferveur", ({ duelId, team, multiplier }) => {
       if (duelStates[duelId]) {
-        const delta = team === "A" ? 0.5 : -0.5;
+        const baseDelta = 0.5;
+        const delta = (team === "A" ? baseDelta : -baseDelta) * (multiplier || 1);
         duelStates[duelId].progress = Math.min(100, Math.max(0, duelStates[duelId].progress + delta));
         io.to(duelId).emit("duel-update", duelStates[duelId]);
         
@@ -41,11 +46,26 @@ async function startServer() {
       }
     });
 
-    socket.on("play-card", ({ duelId, team, cardPower }) => {
+    socket.on("play-card", ({ duelId, team, card }) => {
       if (duelStates[duelId]) {
-        const delta = team === "A" ? cardPower : -cardPower;
-        duelStates[duelId].progress = Math.min(100, Math.max(0, duelStates[duelId].progress + delta));
+        // Handle immediate effects on server state (like progress)
+        card.effects.forEach((effect: any) => {
+          if (effect.type === 'push_rope' && effect.value) {
+            const delta = team === "A" ? effect.value : -effect.value;
+            duelStates[duelId].progress = Math.min(100, Math.max(0, duelStates[duelId].progress + delta));
+          }
+        });
+        
+        // Broadcast the updated state to everyone
         io.to(duelId).emit("duel-update", duelStates[duelId]);
+        
+        // Broadcast the card play to the opponent for visual/status effects
+        socket.to(duelId).emit("enemy-card-played", { team, card });
+
+        // Check for win condition after card play
+        if (duelStates[duelId].progress >= 100 || duelStates[duelId].progress <= 0) {
+          io.to(duelId).emit("duel-finished", { winner: duelStates[duelId].progress >= 100 ? "A" : "B" });
+        }
       }
     });
 
@@ -59,37 +79,63 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Diagnostic route
+  app.get("/api/diag", (req, res) => {
+    res.json({
+      status: "ok",
+      env: {
+        hasFootballKey: !!process.env.VITE_FOOTBALL_API_KEY,
+        footballKeyLength: process.env.VITE_FOOTBALL_API_KEY?.length || 0,
+        nodeEnv: process.env.NODE_ENV,
+      }
+    });
+  });
+
   // Football API Proxy
   app.get("/api/football/*", async (req, res) => {
-    const endpoint = req.params[0];
-    const queryParams = new URLSearchParams(req.query as any).toString();
-    const url = `https://v3.football.api-sports.io/${endpoint}${queryParams ? `?${queryParams}` : ""}`;
+    const endpoint = req.params[0].replace(/^\//, '');
+    const queryParams = req.query;
+    const url = `https://v3.football.api-sports.io/${endpoint}`;
+    
+    console.log(`[Football Proxy] Requesting: ${url}`, queryParams);
     
     const apiKey = process.env.VITE_FOOTBALL_API_KEY;
     
     if (!apiKey) {
-      return res.status(500).json({ error: "VITE_FOOTBALL_API_KEY is not configured on the server." });
+      console.error("[Football Proxy] ERROR: VITE_FOOTBALL_API_KEY is missing in environment variables");
+      return res.status(500).json({ 
+        error: "VITE_FOOTBALL_API_KEY is not configured on the server.",
+        details: "Please add VITE_FOOTBALL_API_KEY to your environment variables in the AI Studio settings."
+      });
     }
 
     try {
-      const response = await fetch(url, {
+      const response = await axios.get(url, {
+        params: queryParams,
         headers: {
           "x-rapidapi-key": apiKey,
           "x-apisports-key": apiKey,
           "x-rapidapi-host": "v3.football.api-sports.io",
         },
+        timeout: 15000 // 15 seconds timeout
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).send(errorText);
-      }
-
-      const data = await response.json();
-      res.json(data);
-    } catch (error) {
-      console.error(`Proxy error for ${url}:`, error);
-      res.status(500).json({ error: "Failed to fetch from football API" });
+      console.log(`[Football Proxy] Success: ${url} - Status: ${response.status}`);
+      res.json(response.data);
+    } catch (error: any) {
+      const status = error.response?.status || 500;
+      const errorData = error.response?.data || error.message;
+      console.error(`[Football Proxy] ERROR for ${req.url}:`, {
+        status,
+        message: error.message,
+        data: errorData
+      });
+      
+      res.status(status).json({ 
+        error: "Failed to fetch from football API",
+        message: error.message,
+        details: errorData
+      });
     }
   });
 
@@ -108,8 +154,16 @@ async function startServer() {
     });
   }
 
+  // Error handling middleware
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("[Server Error]", err);
+    res.status(500).json({ error: "Internal Server Error", message: err.message });
+  });
+
   httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
+    console.log(`[Server] Environment: ${process.env.NODE_ENV}`);
+    console.log(`[Server] Football API Key: ${process.env.VITE_FOOTBALL_API_KEY ? 'Configured (length: ' + process.env.VITE_FOOTBALL_API_KEY.length + ')' : 'MISSING'}`);
   });
 }
 

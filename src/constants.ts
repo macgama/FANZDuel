@@ -18,7 +18,9 @@ export const INITIAL_USER_DATA = {
   energy: 100,
   ferveurPoints: 0,
   level: 1,
-  slots: 2,
+  teamSlots: 2,
+  cards: [],
+  language: 'fr',
 };
 
 export const STAT_NAMES = [

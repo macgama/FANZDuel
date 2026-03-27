@@ -8,6 +8,7 @@
         "uid": { "type": "string" },
         "pseudo": { "type": "string" },
         "email": { "type": "string" },
+        "photoURL": { "type": "string" },
         "favoriteTeams": { "type": "array", "items": { "type": "string" } },
         "money": { "type": "number", "description": "Game currency ($)" },
         "gems": { "type": "number", "description": "Rare currency" },
@@ -16,8 +17,12 @@
         "lastEnergyRefill": { "type": "string", "format": "date-time" },
         "ferveurPoints": { "type": "number" },
         "level": { "type": "number", "description": "1 to 15" },
-        "slots": { "type": "number", "default": 2 },
-        "role": { "type": "string", "enum": ["admin", "client"], "default": "client" }
+        "teamSlots": { "type": "number", "default": 2 },
+        "cards": { "type": "array", "items": { "type": "string" } },
+        "skins": { "type": "array", "items": { "type": "string" } },
+        "emotes": { "type": "array", "items": { "type": "string" } },
+        "role": { "type": "string", "enum": ["admin", "client"], "default": "client" },
+        "language": { "type": "string", "default": "fr" }
       },
       "required": ["uid", "pseudo", "email", "money", "gems", "boostPoints", "energy", "ferveurPoints", "level", "role"]
     },
@@ -27,9 +32,12 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "ownerUid": { "type": "string" },
+        "templateId": { "type": "string" },
+        "uid": { "type": "string" },
         "name": { "type": "string" },
         "sport": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
         "stats": {
           "type": "object",
           "properties": {
@@ -47,8 +55,36 @@
         "level": { "type": "number", "description": "1 to 5" },
         "ferveurPoints": { "type": "number" },
         "ferveurLevel": { "type": "number", "description": "1 to 5" },
-        "energy": { "type": "number" }
+        "energy": { "type": "number" },
+        "equippedCards": { "type": "array", "items": { "type": "string" } },
+        "unlockedSkins": { "type": "array", "items": { "type": "string" } },
+        "equippedSkin": { "type": "string" },
+        "unlockedEmotes": { "type": "array", "items": { "type": "string" } },
+        "rank": { "type": "number", "description": "1 to 10, paid with Money/Boosts" },
+        "claimedRewards": { "type": "array", "items": { "type": "string" } }
       }
+    },
+    "FanzTemplate": {
+      "title": "FanzTemplate",
+      "description": "A template for a Fanz character.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sport": { "type": "string" },
+        "rarity": { "type": "string", "enum": ["common", "rare", "epic", "legendary"] },
+        "image": { "type": "string" },
+        "video": { "type": "string" },
+        "description": { "type": "string" },
+        "baseStats": { "type": "object" },
+        "specialCards": { "type": "array", "items": { "type": "string" } },
+        "skins": { "type": "array" },
+        "emotes": { "type": "array" },
+        "ferveurPath": { "type": "array" },
+        "rankRewards": { "type": "object" },
+        "recurringReward": { "type": "object" }
+      },
+      "required": ["id", "name", "sport", "rarity", "image", "description", "baseStats"]
     },
     "Duel": {
       "title": "Duel",
@@ -130,6 +166,31 @@
       },
       "required": ["rank", "teamId", "points", "season"]
     },
+    "LifeAction": {
+      "title": "LifeAction",
+      "description": "A life action that a Fanz can perform",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fanzTemplateId": { "type": "string" },
+        "name": { "type": "string" },
+        "image": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "targetStat": { "type": "string" },
+        "xpGain": { "type": "number" },
+        "energyCost": { "type": "number" },
+        "moneyCost": { "type": "number" },
+        "gemsCost": { "type": "number" },
+        "boostCost": { "type": "number" },
+        "energyGain": { "type": "number" },
+        "moneyGain": { "type": "number" },
+        "gemsGain": { "type": "number" },
+        "boostGain": { "type": "number" },
+        "xpGains": { "type": "object" },
+        "durationMinutes": { "type": "number" }
+      },
+      "required": ["id", "fanzTemplateId", "name", "durationMinutes"]
+    },
     "Fixture": {
       "title": "Fixture",
       "description": "Match fixture data from API",
@@ -150,17 +211,52 @@
         "season": { "type": "number" }
       },
       "required": ["id", "date", "teams", "season"]
+    },
+    "Card": {
+      "title": "Card",
+      "description": "A template for a duel card.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["bonus", "malus", "neutral"] },
+        "rarity": { "type": "string", "enum": ["common", "rare", "epic", "legendary"] },
+        "energyCost": { "type": "number" },
+        "description": { "type": "string" },
+        "effects": { "type": "array" },
+        "imageUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "fanzIds": { "type": "array", "items": { "type": "string" } },
+        "unlockRequirements": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["id", "name", "type", "rarity", "energyCost"]
+    },
+    "UserCard": {
+      "title": "UserCard",
+      "description": "A user's instance of a card with level and XP.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The card template ID" },
+        "ownerUid": { "type": "string" },
+        "level": { "type": "number", "minimum": 1, "maximum": 5 },
+        "xp": { "type": "number" }
+      },
+      "required": ["id", "ownerUid", "level", "xp"]
     }
   },
   "firestore": {
     "/users/{uid}": { "schema": "User", "description": "User profiles" },
     "/fanz/{fanzId}": { "schema": "Fanz", "description": "Characters owned by users" },
+    "/fanz_templates/{templateId}": { "schema": "FanzTemplate", "description": "Fanz templates" },
+    "/life_actions/{actionId}": { "schema": "LifeAction", "description": "Life actions available for Fanz" },
     "/duels/{duelId}": { "schema": "Duel", "description": "Active and past duels" },
     "/teams/{teamId}": { "schema": "TeamFerveur", "description": "Team ferveur rankings" },
     "/leagues/{leagueId}": { "schema": "League", "description": "Imported football leagues" },
     "/api_teams/{teamId}": { "schema": "Team", "description": "Imported football teams from API" },
     "/leagues/{leagueId}/seasons/{season}/standings/{standingId}": { "schema": "Standing", "description": "Standings for a specific league and season" },
     "/leagues/{leagueId}/seasons/{season}/fixtures/{fixtureId}": { "schema": "Fixture", "description": "Fixtures for a specific league and season" },
-    "/leagues/{leagueId}/seasons/{season}/teams/{teamId}": { "schema": "Team", "description": "Teams for a specific league and season" }
+    "/leagues/{leagueId}/seasons/{season}/teams/{teamId}": { "schema": "Team", "description": "Teams for a specific league and season" },
+    "/cards/{cardId}": { "schema": "Card", "description": "Card templates" },
+    "/users/{uid}/user_cards/{cardId}": { "schema": "UserCard", "description": "User's card instances with level/XP" }
   }
 }

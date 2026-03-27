@@ -1,47 +1,90 @@
 import React, { useState, useEffect } from 'react';
+import { getImageUrl } from '../lib/utils';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Card } from './Layout';
-import { ALL_FANZ, FanzTemplate } from '../constants/fanz';
+import { collection, query, where, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
+import { Card, Button } from './Layout';
+import { FanzTemplate, Fanz } from '../types';
 import { Trophy, Lock, Star, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface FanzPageProps {
   userUid: string;
+  onFanzClick?: (fanzId: string) => void;
 }
 
-export function FanzPage({ userUid }: FanzPageProps) {
-  const [ownedFanzIds, setOwnedFanzIds] = useState<Set<string>>(new Set());
+export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
+  const [ownedFanz, setOwnedFanz] = useState<Map<string, Fanz>>(new Map()); // templateId -> Fanz object
+  const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all');
 
   useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'fanz_templates'));
+        const templates = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate));
+        setFanzTemplates(templates);
+      } catch (err) {
+        console.error("Error fetching fanz templates", err);
+      }
+    };
+    fetchTemplates();
+
     const q = query(collection(db, 'fanz'), where('ownerUid', '==', userUid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ids = new Set<string>();
+      const fanzMap = new Map<string, Fanz>();
       snapshot.forEach((doc) => {
-        const data = doc.data();
-        // Assuming the Fanz template ID is stored in a field or we use the document ID
-        // Let's assume there's a 'templateId' field in the Fanz document
+        const data = doc.data() as Fanz;
         if (data.templateId) {
-          ids.add(data.templateId);
+          fanzMap.set(data.templateId, data);
         }
       });
-      setOwnedFanzIds(ids);
+      setOwnedFanz(fanzMap);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [userUid]);
 
-  const filteredFanz = ALL_FANZ.filter((f) => {
-    if (filter === 'owned') return ownedFanzIds.has(f.id);
-    if (filter === 'missing') return !ownedFanzIds.has(f.id);
+  const filteredFanz = fanzTemplates.filter((f) => {
+    if (filter === 'owned') return ownedFanz.has(f.id);
+    if (filter === 'missing') return !ownedFanz.has(f.id);
     return true;
   });
 
-  const ownedCount = ownedFanzIds.size;
-  const totalCount = ALL_FANZ.length;
+  const ownedCount = ownedFanz.size;
+  const totalCount = fanzTemplates.length;
+
+  const handleUnlockFanz = async (template: FanzTemplate) => {
+    try {
+      const fanzRef = collection(db, 'fanz');
+      const newFanz = {
+        id: `fanz-${Date.now()}`,
+        templateId: template.id,
+        ownerUid: userUid,
+        name: template.name,
+        sport: template.sport || 'soccer',
+        imageUrl: template.image,
+        videoUrl: template.video || '',
+        rank: 1,
+        xp: 0,
+        level: 1,
+        energy: 100,
+        ferveurLevel: 1,
+        ferveurPoints: 0,
+        stats: { ...template.baseStats },
+        equippedCards: [],
+        claimedRewards: [],
+        unlockedSkins: ['default'],
+        unlockedEmotes: ['default'],
+        equippedSkin: 'default',
+        lifeActionProgress: {}
+      };
+      await addDoc(collection(db, 'fanz'), newFanz);
+    } catch (e) {
+      console.error("Error unlocking fanz", e);
+    }
+  };
 
   if (loading) {
     return (
@@ -119,11 +162,13 @@ export function FanzPage({ userUid }: FanzPageProps) {
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {ALL_FANZ.filter(f => ownedFanzIds.has(f.id)).map((fanz) => (
+              {fanzTemplates.filter(f => ownedFanz.has(f.id)).map((template) => (
                 <FanzCard 
-                  key={fanz.id} 
-                  fanz={fanz} 
+                  key={template.id} 
+                  template={template} 
+                  fanz={ownedFanz.get(template.id)}
                   isOwned={true} 
+                  onClick={() => onFanzClick && onFanzClick(ownedFanz.get(template.id)!.id)}
                 />
               ))}
             </div>
@@ -141,11 +186,12 @@ export function FanzPage({ userUid }: FanzPageProps) {
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {ALL_FANZ.filter(f => !ownedFanzIds.has(f.id)).map((fanz) => (
+              {fanzTemplates.filter(f => !ownedFanz.has(f.id)).map((template) => (
                 <FanzCard 
-                  key={fanz.id} 
-                  fanz={fanz} 
+                  key={template.id} 
+                  template={template} 
                   isOwned={false} 
+                  onUnlock={() => handleUnlockFanz(template)}
                 />
               ))}
             </div>
@@ -174,40 +220,70 @@ function FilterButton({ active, onClick, label, count }: { active: boolean; onCl
   );
 }
 
-function FanzCard({ fanz, isOwned }: { fanz: FanzTemplate; isOwned: boolean }) {
+function FanzCard({ template, fanz, isOwned, onClick, onUnlock }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; onClick?: () => void; onUnlock?: () => void }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const equippedSkinData = template.skins?.find(s => s.id === fanz?.equippedSkin);
+  const currentImageUrl = equippedSkinData?.imageUrl || fanz?.imageUrl || template.image;
+  const currentVideoUrl = equippedSkinData?.videoUrl || fanz?.videoUrl || template.video;
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`relative group ${!isOwned ? 'grayscale opacity-50' : ''}`}
+      className={`relative group ${!isOwned ? '' : 'cursor-pointer'}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={isOwned ? onClick : undefined}
     >
       <Card className={`overflow-hidden border-2 transition-all duration-500 ${
         isOwned 
           ? 'border-orange-500/30 hover:border-orange-500 shadow-lg hover:shadow-orange-500/20' 
-          : 'border-white/5 grayscale'
+          : 'border-white/5 grayscale hover:grayscale-0 hover:border-orange-500/50'
       }`}>
         <div className="aspect-[3/4] relative">
-          <img 
-            src={fanz.image} 
-            alt={fanz.name} 
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
+          {currentVideoUrl && isHovered ? (
+            <video
+              src={getImageUrl(currentVideoUrl)}
+              className="absolute inset-0 w-full h-full object-contain"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          ) : (
+            <img 
+              src={getImageUrl(currentImageUrl || '')} 
+              alt={template.name} 
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
+          )}
           
           {/* Rarity Badge */}
           <div className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${
-            fanz.rarity === 'legendary' ? 'bg-yellow-500 text-black' :
-            fanz.rarity === 'epic' ? 'bg-purple-500 text-white' :
-            fanz.rarity === 'rare' ? 'bg-blue-500 text-white' :
+            template.rarity === 'legendary' ? 'bg-yellow-500 text-black' :
+            template.rarity === 'epic' ? 'bg-purple-500 text-white' :
+            template.rarity === 'rare' ? 'bg-blue-500 text-white' :
             'bg-gray-500 text-white'
           }`}>
-            {fanz.rarity}
+            {template.rarity}
           </div>
 
           {!isOwned && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-              <Lock className="w-8 h-8 text-white/50" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity">
+              <Lock className="w-8 h-8 text-white/50 mb-2" />
+              <Button 
+                size="sm" 
+                className="bg-orange-600 hover:bg-orange-700 font-black italic uppercase text-[10px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnlock?.();
+                }}
+              >
+                Débloquer
+              </Button>
             </div>
           )}
 
@@ -222,7 +298,7 @@ function FanzCard({ fanz, isOwned }: { fanz: FanzTemplate; isOwned: boolean }) {
 
         <div className="p-3 space-y-1">
           <h3 className="font-black italic uppercase text-xs truncate">
-            {fanz.name}
+            {template.name}
           </h3>
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">

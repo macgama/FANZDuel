@@ -1,7 +1,15 @@
+export interface ActiveAction {
+  fanzId: string;
+  actionId: string;
+  startTime: string;
+  durationMinutes: number;
+}
+
 export interface UserProfile {
   uid: string;
   pseudo: string;
   email: string;
+  photoURL?: string;
   favoriteTeams: string[];
   money: number;
   gems: number;
@@ -10,8 +18,13 @@ export interface UserProfile {
   lastEnergyRefill: string;
   ferveurPoints: number;
   level: number;
-  slots: number;
+  teamSlots: number;
+  cards: string[];
+  skins: string[];
+  emotes: string[];
   role: 'admin' | 'client';
+  language?: string;
+  activeAction?: ActiveAction | null;
 }
 
 export interface FanzStats {
@@ -25,27 +38,170 @@ export interface FanzStats {
   charisma: number;
 }
 
+export interface LifeAction {
+  id: string;
+  fanzTemplateId?: string; // If undefined, applies to all Fanz
+  name: string;
+  image?: string;
+  videoUrl?: string;
+  targetStat?: keyof FanzStats; // Legacy, kept for compatibility
+  xpGain?: number; // Legacy, kept for compatibility
+  
+  // Costs
+  energyCost?: number;
+  moneyCost?: number;
+  gemsCost?: number;
+  boostCost?: number;
+
+  // Gains
+  energyGain?: number;
+  moneyGain?: number;
+  gemsGain?: number;
+  boostGain?: number;
+
+  // XP Gains per stat
+  xpGains?: Partial<FanzStats>;
+
+  durationMinutes: number;
+}
+
+export interface FanzSkin {
+  id: string;
+  fanzId: string;
+  name: string;
+  imageUrl: string;
+  videoUrl?: string;
+  price: { type: 'money' | 'gems' | 'boostPoints'; amount: number };
+}
+
+export interface FanzEmote {
+  id: string;
+  fanzId: string;
+  imageUrl: string;
+  name: string;
+}
+
+export interface FerveurLevel {
+  level: number;
+  pointsRequired: number;
+  reward?: {
+    type: 'money' | 'gems' | 'boost' | 'xp' | 'card' | 'skin' | 'emote' | 'choice';
+    amount?: number;
+    cardId?: string;
+    skinId?: string;
+    emoteId?: string;
+    statName?: keyof FanzStats;
+  };
+}
+
+export interface RankReward {
+  id: string; // rank-X-slot-Y
+  type: 'xp' | 'card' | 'choice' | 'skin' | 'emote';
+  amount?: number;
+  cardId?: string;
+  skinId?: string;
+  emoteId?: string;
+}
+
+export interface FanzTemplate {
+  id: string;
+  name: string;
+  sport: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  image: string;
+  video?: string;
+  description: string;
+  baseStats: FanzStats;
+  specialCards: string[];
+  skins: FanzSkin[];
+  emotes: FanzEmote[];
+  ferveurPath?: FerveurLevel[];
+  rankRewards?: Record<string, RankReward>;
+  recurringReward?: {
+    points: number;
+    type: 'money' | 'boost';
+    amount: number;
+  };
+}
+
 export interface Fanz {
   id: string;
+  templateId: string;
   ownerUid: string;
   name: string;
   sport: string;
+  imageUrl?: string;
+  videoUrl?: string;
   stats: FanzStats;
   xp: number;
   level: number;
+  rank: number; // 1 to 10, paid with Money/Boosts
   ferveurPoints: number;
   ferveurLevel: number;
   energy: number;
+  equippedCards: string[]; // Max 8
+  unlockedSkins: string[];
+  equippedSkin?: string;
+  unlockedEmotes: string[];
+  lifeActionProgress?: Record<string, { level: number; xp: number }>;
+  claimedRewards?: string[]; // Array of slot IDs like "rank-1-slot-1"
+}
+
+export type CardEffectType = 
+  | 'push_rope' 
+  | 'drain_energy' 
+  | 'refill_energy' 
+  | 'hide_button' 
+  | 'shrink_button' 
+  | 'move_button' 
+  | 'blur_view' 
+  | 'hide_score' 
+  | 'discard_enemy_cards' 
+  | 'shuffle_deck'
+  | 'freeze_button'
+  | 'double_points'
+  | 'shield'
+  | 'mirror'
+  | 'energy_regen_boost'
+  | 'earthquake'
+  | 'fake_buttons'
+  | 'card_lock'
+  | 'swap_hands'
+  | 'mimic'
+  | 'lucky_draw';
+
+export interface CardEffect {
+  type: CardEffectType;
+  value?: number;
+  duration?: number; // in seconds
+}
+
+export interface CardUnlockRequirement {
+  type: 'skill' | 'ferveur' | 'rank';
+  skillName?: keyof FanzStats;
+  minLevel: number;
 }
 
 export interface Card {
   id: string;
+  instanceId?: string; // For unique instances in hand
   name: string;
-  type: 'common' | 'specific';
-  power: number;
+  type: 'bonus' | 'malus' | 'neutral';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
   energyCost: number;
   description: string;
+  effects: CardEffect[];
+  imageUrl?: string;
+  videoUrl?: string;
   fanzIds?: string[]; // For specific cards
+  unlockRequirements?: CardUnlockRequirement[];
+}
+
+export interface UserCard {
+  id: string; // cardId
+  ownerUid: string;
+  level: number;
+  xp: number;
 }
 
 export interface Duel {
