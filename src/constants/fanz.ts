@@ -2,8 +2,8 @@ import { FanzStats, LifeAction, FanzSkin, FanzEmote, FanzTemplate } from '../typ
 
 export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
   const paddedId = String(i + 1).padStart(3, '0');
-  const imageUrl = `gs://thebestfanonlinegas.firebasestorage.app/public/fanz/imageFanz${paddedId}.png`;
-  const videoUrl = `gs://thebestfanonlinegas.firebasestorage.app/public/fanz/videoFanz${paddedId}.mp4`;
+  const imageUrl = `gs://thebestfanonlinegas.firebasestorage.app/public/fanz/imageFanz${paddedId}Skin000.png`;
+  const videoUrl = `gs://thebestfanonlinegas.firebasestorage.app/public/fanz/videoFanz${paddedId}Skin000.mp4`;
 
   if (i === 0) {
     return {
@@ -31,7 +31,7 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
           fanzId: 'fanz-1',
           name: 'Bébé Fanzzy Gold',
           imageUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/imageFanz001Skin001.png',
-          price: { type: 'gems', amount: 500 },
+          price: { gems: 500 },
         }
       ],
       emotes: [
@@ -47,6 +47,16 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
           name: 'Rigole',
           imageUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/emoteFanz001Laugh.png',
         }
+      ],
+      ferveurPath: [
+        { level: 1, pointsRequired: 249, reward: { type: 'money', amount: 100 } },
+        { level: 2, pointsRequired: 499, reward: { type: 'money', amount: 100 } },
+        { level: 3, pointsRequired: 749, reward: { type: 'money', amount: 100 } },
+        { level: 4, pointsRequired: 999, reward: { type: 'money', amount: 100 } },
+        { level: 5, pointsRequired: 1000, reward: { type: 'money', amount: 100 } }
+      ],
+      recurringRewards: [
+        { points: 20, type: 'money', amount: 100 }
       ]
     };
   }
@@ -71,5 +81,15 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
     specialCards: [],
     skins: [],
     emotes: [],
+    ferveurPath: [
+      { level: 1, pointsRequired: 249, reward: { type: 'money', amount: 100 } },
+      { level: 2, pointsRequired: 499, reward: { type: 'money', amount: 100 } },
+      { level: 3, pointsRequired: 749, reward: { type: 'money', amount: 100 } },
+      { level: 4, pointsRequired: 999, reward: { type: 'money', amount: 100 } },
+      { level: 5, pointsRequired: 1000, reward: { type: 'money', amount: 100 } }
+    ],
+    recurringRewards: [
+      { points: 20, type: 'money', amount: 100 }
+    ]
   };
 });

@@ -100,20 +100,20 @@ export function MatchDetails({ fixtureId, onBack, onTeamClick, onLeagueClick }: 
             className="flex-1 flex flex-col items-center gap-3 cursor-pointer group"
             onClick={() => onTeamClick(details.teams.home.id, details.league.season)}
           >
-            <img src={details.teams.home.logo} alt="" className="w-16 h-16 object-contain group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
-            <span className="font-black text-center uppercase italic tracking-tight text-lg group-hover:text-orange-500 transition-colors">
+            <img src={details.teams.home.logo} alt="" className="w-16 h-16 object-contain group-hover:scale-110 transition-transform" />
+            <span className="font-black text-center uppercase italic tracking-tight text-sm sm:text-base md:text-lg group-hover:text-orange-500 transition-colors">
               {details.teams.home.name}
             </span>
           </div>
 
           {/* Score */}
-          <div className="flex flex-col items-center min-w-[120px]">
-            <div className="flex items-center gap-4">
-              <span className={`text-5xl font-black ${isLive ? 'text-orange-500' : ''}`}>
+          <div className="flex flex-col items-center min-w-[80px] sm:min-w-[120px]">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <span className={`text-3xl sm:text-4xl md:text-5xl font-black ${isLive ? 'text-orange-500' : ''}`}>
                 {details.goals.home ?? 0}
               </span>
-              <span className="text-gray-700 text-3xl">-</span>
-              <span className={`text-5xl font-black ${isLive ? 'text-orange-500' : ''}`}>
+              <span className="text-gray-700 text-xl sm:text-3xl">-</span>
+              <span className={`text-3xl sm:text-4xl md:text-5xl font-black ${isLive ? 'text-orange-500' : ''}`}>
                 {details.goals.away ?? 0}
               </span>
             </div>
@@ -136,8 +136,8 @@ export function MatchDetails({ fixtureId, onBack, onTeamClick, onLeagueClick }: 
             className="flex-1 flex flex-col items-center gap-3 cursor-pointer group"
             onClick={() => onTeamClick(details.teams.away.id, details.league.season)}
           >
-            <img src={details.teams.away.logo} alt="" className="w-16 h-16 object-contain group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
-            <span className="font-black text-center uppercase italic tracking-tight text-lg group-hover:text-orange-500 transition-colors">
+            <img src={details.teams.away.logo} alt="" className="w-16 h-16 object-contain group-hover:scale-110 transition-transform" />
+            <span className="font-black text-center uppercase italic tracking-tight text-sm sm:text-base md:text-lg group-hover:text-orange-500 transition-colors">
               {details.teams.away.name}
             </span>
           </div>
@@ -268,7 +268,7 @@ function LineupsTab({ lineups }: { lineups: any[] }) {
         <div key={idx} className="space-y-6">
           <div className="flex items-center justify-between border-b border-white/10 pb-2">
             <div className="flex items-center gap-3">
-              <img src={lineup.team.logo} alt="" className="w-8 h-8 object-contain" referrerPolicy="no-referrer" />
+              <img src={lineup.team.logo} alt="" className="w-8 h-8 object-contain" />
               <h3 className="font-black italic uppercase text-sm tracking-wider">{lineup.team.name}</h3>
             </div>
             <span className="text-xs font-bold text-orange-500 bg-orange-500/10 px-2 py-1 rounded">

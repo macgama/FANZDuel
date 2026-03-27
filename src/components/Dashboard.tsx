@@ -201,14 +201,14 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(match.teams.home.id, match.league.season); }}>
                       <div className="flex items-center gap-3">
-                        <img src={match.teams.home.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                        <img src={match.teams.home.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" />
                         <span className="text-sm font-bold group-hover/team:text-orange-500 transition-colors">{match.teams.home.name}</span>
                       </div>
                       <span className="font-black text-lg">{match.goals.home ?? 0}</span>
                     </div>
                     <div className="flex justify-between items-center group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(match.teams.away.id, match.league.season); }}>
                       <div className="flex items-center gap-3">
-                        <img src={match.teams.away.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                        <img src={match.teams.away.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" />
                         <span className="text-sm font-bold group-hover/team:text-orange-500 transition-colors">{match.teams.away.name}</span>
                       </div>
                       <span className="font-black text-lg">{match.goals.away ?? 0}</span>
@@ -241,16 +241,14 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
                   {displayVideo ? (
                     <video 
                       key={getImageUrl(displayVideo)}
+                      src={getImageUrl(displayVideo)}
                       poster={getImageUrl(displayImage || '')}
                       className="w-full h-full object-contain"
                       autoPlay muted loop playsInline
                       preload="auto"
-                      crossOrigin="anonymous"
-                    >
-                      <source src={getImageUrl(displayVideo)} type="video/mp4" />
-                    </video>
+                    />
                   ) : displayImage ? (
-                    <img src={getImageUrl(displayImage)} alt={fanz.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                    <img src={getImageUrl(displayImage)} alt={fanz.name} className="w-full h-full object-contain" />
                   ) : (
                     <UserIcon className="text-orange-500" />
                   )}

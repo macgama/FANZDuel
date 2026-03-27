@@ -160,9 +160,9 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
             <ChevronLeft className="w-6 h-6" />
           </button>
           <div className="flex items-center gap-4">
-            <img src={team.team.logo} alt="" className="w-16 h-16 object-contain" referrerPolicy="no-referrer" />
+            <img src={team.team.logo} alt="" className="w-16 h-16 object-contain" />
             <div>
-              <h2 className="text-3xl font-black italic uppercase tracking-tighter">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter">
                 {team.team.name}
               </h2>
               <div className="flex items-center gap-3">
@@ -228,7 +228,6 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
                 src={team.venue.image || `https://picsum.photos/seed/${team.venue.id}/1200/400`} 
                 alt={team.venue.name} 
                 className="w-full h-full object-cover opacity-50"
-                referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
               <div className="absolute bottom-4 left-6">
@@ -354,7 +353,7 @@ function TeamRankingList({ title, data, label, valKey, icon }: { title: string; 
           return (
             <Card key={p.player.id} className="flex items-center justify-between p-3">
               <div className="flex items-center gap-3">
-                <img src={p.player.photo} alt="" className="w-8 h-8 rounded-full border border-white/10" referrerPolicy="no-referrer" />
+                <img src={p.player.photo} alt="" className="w-8 h-8 rounded-full border border-white/10" />
                 <span className="text-sm font-bold">{p.player.name}</span>
               </div>
               <div className="text-right">
@@ -419,7 +418,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, selectedSeason }: { 
               className="flex items-center gap-3 border-b-2 border-orange-500/20 pb-2 cursor-pointer hover:text-orange-500 transition-colors group"
               onClick={() => onLeagueClick(league.id, selectedSeason)}
             >
-              <img src={league.logo} alt="" className="w-8 h-8 object-contain" referrerPolicy="no-referrer" />
+              <img src={league.logo} alt="" className="w-8 h-8 object-contain" />
               <h2 className="text-xl font-black italic uppercase tracking-tight group-hover:translate-x-1 transition-transform">
                 {league.name}
               </h2>
@@ -454,7 +453,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, selectedSeason }: { 
                             <div className="flex flex-col gap-2">
                               <div className="flex justify-between items-center group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.home.id, selectedSeason); }}>
                                 <div className="flex items-center gap-3">
-                                  <img src={f.teams.home.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                                  <img src={f.teams.home.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" />
                                   <span className={`text-sm font-bold ${f.teams.home.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors`}>
                                     {f.teams.home.name}
                                   </span>
@@ -463,7 +462,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, selectedSeason }: { 
                               </div>
                               <div className="flex justify-between items-center group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.away.id, selectedSeason); }}>
                                 <div className="flex items-center gap-3">
-                                  <img src={f.teams.away.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                                  <img src={f.teams.away.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" />
                                   <span className={`text-sm font-bold ${f.teams.away.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors`}>
                                     {f.teams.away.name}
                                   </span>
@@ -509,7 +508,7 @@ function PlayersTab({ players }: { players: any[] }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {groupedByPos[pos].map((p: any) => (
                 <Card key={p.player.id} className="flex items-center gap-4 p-3 hover:bg-white/5 transition-colors">
-                  <img src={p.player.photo} alt="" className="w-12 h-12 rounded-full border border-white/10" referrerPolicy="no-referrer" />
+                  <img src={p.player.photo} alt="" className="w-12 h-12 rounded-full border border-white/10" />
                   <div>
                     <h4 className="text-sm font-bold">{p.player.name}</h4>
                     <div className="flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase">
@@ -551,7 +550,7 @@ function StandingsTab({ standings, teamId, onTeamClick, selectedSeason }: { stan
               <td className="px-4 py-3 text-center font-black italic text-sm text-orange-500">{s.rank}</td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <img src={s.team.logo} alt="" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
+                  <img src={s.team.logo} alt="" className="w-6 h-6 object-contain" />
                   <span className={`font-bold text-sm group-hover:text-orange-500 transition-colors ${s.team.id === teamId ? 'text-orange-500' : ''}`}>{s.team.name}</span>
                 </div>
               </td>

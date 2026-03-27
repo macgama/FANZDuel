@@ -160,9 +160,9 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
             <ChevronLeft className="w-6 h-6" />
           </button>
           <div className="flex items-center gap-4">
-            <img src={league.league.logo} alt="" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+            <img src={league.league.logo} alt="" className="w-12 h-12 object-contain" />
             <div>
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter">
+              <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter">
                 {league.league.name}
               </h2>
               <div className="flex items-center gap-3">
@@ -329,7 +329,7 @@ function StandingsTab({ standings, onTeamClick, selectedSeason }: { standings: a
               <td className="px-4 py-3 text-center font-black italic text-sm text-orange-500">{s.rank}</td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <img src={s.team.logo} alt="" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
+                  <img src={s.team.logo} alt="" className="w-6 h-6 object-contain" />
                   <span className="font-bold text-sm truncate max-w-[150px] group-hover:text-orange-500 transition-colors">{s.team.name}</span>
                 </div>
               </td>
@@ -409,7 +409,7 @@ function MatchesTab({ fixtures, onTeamClick, selectedSeason }: { fixtures: any[]
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center cursor-pointer group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.home.id, selectedSeason); }}>
                       <div className="flex items-center gap-3">
-                        <img src={f.teams.home.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                        <img src={f.teams.home.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" />
                         <span className={`text-sm font-bold ${f.teams.home.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors`}>
                           {f.teams.home.name}
                         </span>
@@ -418,7 +418,7 @@ function MatchesTab({ fixtures, onTeamClick, selectedSeason }: { fixtures: any[]
                     </div>
                     <div className="flex justify-between items-center cursor-pointer group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.away.id, selectedSeason); }}>
                       <div className="flex items-center gap-3">
-                        <img src={f.teams.away.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                        <img src={f.teams.away.logo} alt="" className="w-6 h-6 object-contain group-hover/team:scale-110 transition-transform" />
                         <span className={`text-sm font-bold ${f.teams.away.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors`}>
                           {f.teams.away.name}
                         </span>
@@ -473,7 +473,7 @@ function RankingList({ title, data, statLabel, statKey, icon, onTeamClick, selec
             >
               <div className="flex items-center gap-4">
                 <span className="w-4 text-xs font-black italic text-gray-600">{idx + 1}</span>
-                <img src={item.player.photo} alt="" className="w-10 h-10 rounded-full border border-white/10 group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                <img src={item.player.photo} alt="" className="w-10 h-10 rounded-full border border-white/10 group-hover:scale-110 transition-transform" />
                 <div>
                   <h4 className="text-sm font-bold group-hover:text-orange-500 transition-colors">{item.player.name}</h4>
                   <p className="text-[10px] text-gray-500 uppercase font-bold">{item.statistics[0].team.name}</p>
@@ -497,7 +497,7 @@ function TeamsTab({ teams, onTeamClick, selectedSeason }: { teams: any[]; onTeam
       {teams.map((t) => (
         <Card key={t.team.id} onClick={() => onTeamClick(t.team.id, selectedSeason)} className="flex flex-col items-center gap-4 p-6 hover:border-orange-500/50 transition-all group cursor-pointer">
           <div className="w-20 h-20 bg-white/5 rounded-2xl p-4 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
-            <img src={t.team.logo} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
+            <img src={t.team.logo} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
           </div>
           <div className="text-center">
             <h3 className="font-black italic uppercase text-sm tracking-widest group-hover:text-orange-500 transition-colors">{t.team.name}</h3>

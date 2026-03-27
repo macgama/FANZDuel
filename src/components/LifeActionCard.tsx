@@ -292,74 +292,99 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
 
   if (isThisActionActive) {
     return (
-      <Card className="p-0 border-orange-500 relative overflow-hidden bg-black">
-        <div className="absolute inset-0 bg-orange-900/10 animate-pulse"></div>
-        <div className="relative z-10 p-5">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <div className="text-orange-500 font-bold text-[10px] tracking-widest uppercase mb-1">Activité en cours</div>
-              <h4 className="text-2xl font-black text-white uppercase tracking-tighter">{action.name}</h4>
-              <div className="flex items-center gap-1 text-orange-500 mt-1">
-                <Star className="w-4 h-4 fill-current" />
-                <span className="font-bold text-sm">{currentLevel}</span>
+      <Card className="p-0 border-orange-500 relative overflow-hidden bg-black min-h-[380px] flex flex-col justify-end">
+        {/* Background Video/Image */}
+        <div className="absolute inset-0 z-0">
+          {action.videoUrl ? (
+            <video 
+              key={getImageUrl(action.videoUrl)}
+              src={getImageUrl(action.videoUrl)}
+              poster={getImageUrl(action.image)}
+              autoPlay 
+              loop 
+              muted 
+              playsInline 
+              className="w-full h-full object-cover" 
+            />
+          ) : action.image ? (
+            <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+              <Activity className="w-12 h-12 text-gray-700" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+        </div>
+
+        <div className="absolute inset-0 bg-orange-900/10 animate-pulse z-0"></div>
+        <div className="relative z-10 p-5 flex flex-col h-full justify-between">
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-1 pr-2">
+              <div className="text-orange-500 font-bold text-[10px] tracking-widest uppercase mb-1 drop-shadow-md">Activité en cours</div>
+              <h4 className="text-xl font-black text-white uppercase tracking-tighter drop-shadow-md leading-tight">{action.name}</h4>
+              <div className="flex items-center gap-1 text-orange-500 mt-1 drop-shadow-md">
+                <Star className="w-3 h-3 fill-current" />
+                <span className="font-bold text-xs">{currentLevel}</span>
               </div>
             </div>
-            <div className="w-16 h-16 rounded-full border-2 border-orange-500 flex items-center justify-center bg-black shadow-[0_0_15px_rgba(249,115,22,0.3)]">
-              <span className="font-black text-white text-sm tracking-widest">
+            <div className="w-14 h-14 rounded-full border-2 border-orange-500 flex items-center justify-center bg-black/80 backdrop-blur-md shadow-[0_0_15px_rgba(249,115,22,0.3)] shrink-0">
+              <span className="font-black text-white text-xs tracking-widest">
                 {timeLeft !== null ? formatTime(timeLeft) : '...'}
               </span>
             </div>
           </div>
 
-          <div className="bg-black/60 rounded-xl p-4 mb-3 border border-white/5 text-center">
-            <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Butin prévu</div>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> +{gainEnergy}</span>}
-              {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1"><Coins className="w-4 h-4" /> +{gainMoney}</span>}
-              {gainGems > 0 && <span className="text-pink-400 font-black flex items-center gap-1"><Gem className="w-4 h-4" /> +{gainGems}</span>}
-              {gainBoost > 0 && <span className="text-orange-500 font-black flex items-center gap-1"><Flame className="w-4 h-4" /> +{gainBoost}</span>}
-              
-              {action.targetStat && gainXp > 0 && (
-                <span className="text-blue-400 font-black flex items-center gap-1">
-                  {statIcons[action.targetStat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
-                  +{gainXp}
-                </span>
-              )}
-              
-              {action.xpGains && Object.entries(action.xpGains).map(([stat, gain]) => {
-                if (!gain) return null;
-                const scaledGain = Math.floor(gain * scaleFactor);
-                if (scaledGain <= 0) return null;
-                return (
-                  <span key={stat} className="text-blue-400 font-black flex items-center gap-1">
-                    {statIcons[stat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
-                    +{scaledGain}
+          <div>
+            <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 mb-3 border border-white/10 text-center">
+              <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Butin prévu</div>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> +{gainEnergy}</span>}
+                {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1"><Coins className="w-4 h-4" /> +{gainMoney}</span>}
+                {gainGems > 0 && <span className="text-pink-400 font-black flex items-center gap-1"><Gem className="w-4 h-4" /> +{gainGems}</span>}
+                {gainBoost > 0 && <span className="text-orange-500 font-black flex items-center gap-1"><Flame className="w-4 h-4" /> +{gainBoost}</span>}
+                
+                {action.targetStat && gainXp > 0 && (
+                  <span className="text-blue-400 font-black flex items-center gap-1">
+                    {statIcons[action.targetStat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
+                    +{gainXp}
                   </span>
-                );
-              })}
+                )}
+                
+                {action.xpGains && Object.entries(action.xpGains).map(([stat, gain]) => {
+                  if (!gain) return null;
+                  const scaledGain = Math.floor(gain * scaleFactor);
+                  if (scaledGain <= 0) return null;
+                  return (
+                    <span key={stat} className="text-blue-400 font-black flex items-center gap-1">
+                      {statIcons[stat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
+                      +{scaledGain}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div className="bg-black/60 rounded-xl p-3 mb-6 border border-white/5 text-center flex justify-center items-center gap-2">
-            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Coût :</span>
-            {costEnergy > 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> {costEnergy}</span>}
-            {costMoney > 0 && <span className="text-yellow-400 font-black text-sm flex items-center gap-1"><Coins className="w-4 h-4" /> {costMoney}</span>}
-            {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> 0</span>}
-          </div>
+            <div className="bg-black/60 backdrop-blur-md rounded-xl p-3 mb-4 border border-white/10 text-center flex justify-center items-center gap-2">
+              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Coût :</span>
+              {costEnergy > 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> {costEnergy}</span>}
+              {costMoney > 0 && <span className="text-yellow-400 font-black text-sm flex items-center gap-1"><Coins className="w-4 h-4" /> {costMoney}</span>}
+              {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> 0</span>}
+            </div>
 
-          <div className="flex gap-3">
-            <button 
-              onClick={handleCancelAction}
-              className="flex-1 py-3 rounded-xl border border-white/10 text-blue-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-white/5 hover:text-white transition-colors"
-            >
-              <Trash2 className="w-4 h-4" /> Abandon
-            </button>
-            <button 
-              onClick={handleAccelerate}
-              className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
-            >
-              <FastForward className="w-4 h-4 fill-current" /> Finir (1 TOK)
-            </button>
+            <div className="flex gap-3">
+              <button 
+                onClick={handleCancelAction}
+                className="flex-1 py-3 rounded-xl border border-white/10 bg-black/60 backdrop-blur-md text-blue-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <Trash2 className="w-4 h-4" /> Abandon
+              </button>
+              <button 
+                onClick={handleAccelerate}
+                className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
+              >
+                <FastForward className="w-4 h-4 fill-current" /> Finir (1 TOK)
+              </button>
+            </div>
           </div>
         </div>
       </Card>
@@ -367,67 +392,76 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
   }
 
   return (
-    <Card className={`p-0 overflow-hidden relative group ${isAnyActionActive ? 'opacity-50 grayscale pointer-events-none' : 'cursor-pointer hover:border-orange-500 transition-colors'}`} onClick={handleStartAction}>
-      <div className="h-48 bg-gray-800 relative">
+    <Card className={`p-0 overflow-hidden relative group min-h-[380px] flex flex-col justify-end ${isAnyActionActive ? 'opacity-50 grayscale pointer-events-none' : 'cursor-pointer hover:border-orange-500 transition-colors'}`} onClick={handleStartAction}>
+      {/* Background Video/Image */}
+      <div className="absolute inset-0 z-0">
         {action.videoUrl ? (
           <video 
             key={getImageUrl(action.videoUrl)}
+            src={getImageUrl(action.videoUrl)}
             poster={getImageUrl(action.image)}
             autoPlay 
             loop 
             muted 
             playsInline 
-            crossOrigin="anonymous"
             className="w-full h-full object-cover" 
-          >
-            <source src={getImageUrl(action.videoUrl)} type="video/mp4" />
-          </video>
+          />
         ) : action.image ? (
-          <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
             <Activity className="w-12 h-12 text-gray-700" />
           </div>
         )}
-        <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white font-black text-sm border border-white/10">
-          L.{currentLevel}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+      </div>
+
+      <div className="absolute top-3 left-3 z-10 bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white font-black text-sm border border-white/10">
+        L.{currentLevel}
+      </div>
+      <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+        <div className="bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-yellow-500 font-black text-sm border border-white/10 flex items-center gap-2">
+          <Zap className="w-4 h-4 fill-current" /> {costEnergy}
         </div>
-        <div className="absolute top-3 right-3 flex flex-col gap-2">
-          <div className="bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-yellow-500 font-black text-sm border border-white/10 flex items-center gap-2">
-            <Zap className="w-4 h-4 fill-current" /> {costEnergy}
-          </div>
-          <div className="bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-orange-500 font-black text-sm border border-white/10 flex items-center gap-2">
-            <Clock className="w-4 h-4" /> {action.durationMinutes >= 60 ? `${action.durationMinutes / 60}H` : `${action.durationMinutes}M`}
-          </div>
+        <div className="bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-orange-500 font-black text-sm border border-white/10 flex items-center gap-2">
+          <Clock className="w-4 h-4" /> {action.durationMinutes >= 60 ? `${action.durationMinutes / 60}H` : `${action.durationMinutes}M`}
         </div>
       </div>
-      <div className="p-4 bg-black">
-        <h4 className="font-black text-white uppercase tracking-tighter text-center text-lg mb-2">{action.name}</h4>
-        <div className="flex flex-wrap justify-center items-center gap-3 text-sm font-black">
-          {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> +{gainEnergy}</span>}
-          {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1"><Coins className="w-4 h-4" /> +{gainMoney}</span>}
-          {gainGems > 0 && <span className="text-pink-400 flex items-center gap-1"><Gem className="w-4 h-4" /> +{gainGems}</span>}
-          {gainBoost > 0 && <span className="text-orange-500 flex items-center gap-1"><Flame className="w-4 h-4" /> +{gainBoost}</span>}
-          
-          {action.targetStat && gainXp > 0 && (
-            <span className="text-blue-400 flex items-center gap-1">
-              {statIcons[action.targetStat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
-              +{gainXp}
-            </span>
-          )}
 
-          {action.xpGains && Object.entries(action.xpGains).map(([stat, gain]) => {
-            if (!gain) return null;
-            const scaledGain = Math.floor(gain * scaleFactor);
-            if (scaledGain <= 0) return null;
-            return (
-              <span key={stat} className="text-blue-400 flex items-center gap-1">
-                {statIcons[stat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
-                +{scaledGain}
+      <div className="relative z-10 p-4 flex flex-col justify-end mt-auto">
+        <div>
+          <h4 className="font-black text-white uppercase tracking-tighter text-center text-lg mb-2 drop-shadow-md">{action.name}</h4>
+          <div className="flex flex-wrap justify-center items-center gap-3 text-sm font-black mb-4 drop-shadow-md">
+            {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> +{gainEnergy}</span>}
+            {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1"><Coins className="w-4 h-4" /> +{gainMoney}</span>}
+            {gainGems > 0 && <span className="text-pink-400 flex items-center gap-1"><Gem className="w-4 h-4" /> +{gainGems}</span>}
+            {gainBoost > 0 && <span className="text-orange-500 flex items-center gap-1"><Flame className="w-4 h-4" /> +{gainBoost}</span>}
+            
+            {action.targetStat && gainXp > 0 && (
+              <span className="text-blue-400 flex items-center gap-1">
+                {statIcons[action.targetStat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
+                +{gainXp}
               </span>
-            );
-          })}
+            )}
+
+            {action.xpGains && Object.entries(action.xpGains).map(([stat, gain]) => {
+              if (!gain) return null;
+              const scaledGain = Math.floor(gain * scaleFactor);
+              if (scaledGain <= 0) return null;
+              return (
+                <span key={stat} className="text-blue-400 flex items-center gap-1">
+                  {statIcons[stat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
+                  +{scaledGain}
+                </span>
+              );
+            })}
+          </div>
         </div>
+        <button 
+          className="w-full py-3 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors shadow-lg"
+        >
+          Lancer l'action
+        </button>
       </div>
     </Card>
   );

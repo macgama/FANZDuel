@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile } from '../types';
-import { auth } from '../firebase';
+import { UserProfile, Fanz, FanzTemplate } from '../types';
+import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
+import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { 
   Coins, 
   Gem, 
@@ -9,19 +10,59 @@ import {
   TrendingUp, 
   LogOut, 
   User as UserIcon,
-  Clock
+  Clock,
+  Menu,
+  X
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { UserProfileModal } from './UserProfileModal';
-import { getImageUrl } from '../lib/utils';
+import { getImageUrl, cn } from '../lib/utils';
+import { FERVEUR_LEVELS } from '../constants';
 
 interface HeaderProps {
   profile: UserProfile;
+  onHomeClick?: () => void;
+  onMenuClick?: () => void;
+  absolute?: boolean;
 }
 
-export function Header({ profile }: HeaderProps) {
+export function Header({ profile, onHomeClick, onMenuClick, absolute = false }: HeaderProps) {
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>('');
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.photoURL || null);
+
+  useEffect(() => {
+    if (!profile.uid) return;
+
+    const q = query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (!snapshot.empty) {
+        const activeFanzDoc = snapshot.docs.find(d => d.id === profile.activeAction?.fanzId) || snapshot.docs[0];
+        const fanzData = activeFanzDoc.data() as Fanz;
+        
+        let imageUrl = fanzData.imageUrl;
+
+        if (fanzData.templateId) {
+          try {
+            const templateDoc = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
+            if (templateDoc.exists()) {
+              const templateData = templateDoc.data() as FanzTemplate;
+              const equippedSkinData = templateData.skins?.find(s => s.id === fanzData.equippedSkin);
+              imageUrl = equippedSkinData?.imageUrl || fanzData.imageUrl || templateData.image;
+            }
+          } catch (error) {
+            console.error("Error fetching template for avatar", error);
+          }
+        }
+        
+        setAvatarUrl(profile.photoURL || imageUrl || null);
+      } else {
+        setAvatarUrl(profile.photoURL || null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [profile.uid, profile.activeAction?.fanzId, profile.photoURL]);
 
   useEffect(() => {
     if (profile.energy >= 100) {
@@ -54,96 +95,93 @@ export function Header({ profile }: HeaderProps) {
     return () => clearInterval(interval);
   }, [profile.lastEnergyRefill, profile.energy]);
 
-  const handleLogout = () => {
-    signOut(auth);
-  };
-
-  // Calculate progress percentage (assuming 100,000 XP per level for now as seen in Dashboard)
-  const progress = (profile.ferveurPoints / 100000) * 100;
+  const currentFerveur = profile.ferveurPoints || 0;
+  let nextLevelPoints = FERVEUR_LEVELS[0];
+  let currentLevelPoints = 0;
+  
+  for (let i = 0; i < FERVEUR_LEVELS.length; i++) {
+    if (currentFerveur < FERVEUR_LEVELS[i]) {
+      nextLevelPoints = FERVEUR_LEVELS[i];
+      currentLevelPoints = FERVEUR_LEVELS[i - 1] || 0;
+      break;
+    }
+  }
+  
+  const ferveurProgressPercent = Math.min(100, Math.max(0, ((currentFerveur - currentLevelPoints) / (nextLevelPoints - currentLevelPoints)) * 100));
 
   return (
     <>
-      <header className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50 px-4 py-2 shadow-2xl">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          
-          {/* User Info & Level */}
-          <div className="flex items-center gap-4 min-w-[200px] cursor-pointer group" onClick={() => setShowProfileModal(true)}>
-            <div className="relative">
-              <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 shadow-lg shadow-orange-600/20 overflow-hidden group-hover:border-white transition-colors">
-                {profile.photoURL ? (
-                  <img src={getImageUrl(profile.photoURL)} alt={profile.pseudo} className="w-full h-full object-cover" />
-                ) : (
-                  <UserIcon className="w-6 h-6 text-white" />
-                )}
-              </div>
-              <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic">
-                L{profile.level}
-              </div>
+      <header className={cn(
+        "left-0 right-0 z-50 p-4 flex items-start justify-between",
+        absolute ? "absolute top-0 bg-gradient-to-b from-black/80 to-transparent" : "sticky top-0 bg-gray-900/80 backdrop-blur-xl border-b border-white/10"
+      )}>
+        {/* Left: Avatar & Level */}
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => onHomeClick ? onHomeClick() : setShowProfileModal(true)}>
+          <div className="relative">
+            <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 overflow-hidden">
+              {avatarUrl ? (
+                <img src={getImageUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <UserIcon className="w-6 h-6 text-white" />
+              )}
             </div>
-            
-            <div className="flex flex-col gap-1 flex-1">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-black italic uppercase tracking-tight text-white truncate max-w-[100px] group-hover:text-orange-500 transition-colors">
-                  {profile.pseudo}
-                </span>
-                <span className="text-[10px] font-mono text-gray-400">
-                  {Math.floor(progress)}%
-                </span>
-              </div>
-              <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  className="h-full bg-gradient-to-r from-orange-600 to-orange-400"
-                />
-              </div>
+            <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic">
+              {profile.level}
             </div>
           </div>
+        </div>
 
-          {/* Resources */}
-          <div className="flex items-center gap-3 md:gap-6 overflow-x-auto no-scrollbar py-1">
-            <ResourceItem 
-              icon={<Coins className="w-4 h-4 text-yellow-500" />} 
-              value={profile.money.toLocaleString()} 
-              label="Argent"
-            />
-            <ResourceItem 
-              icon={<Gem className="w-4 h-4 text-purple-500" />} 
-              value={profile.gems.toLocaleString()} 
-              label="Gemmes"
-            />
-            <ResourceItem 
-              icon={<TrendingUp className="w-4 h-4 text-blue-500" />} 
-              value={profile.boostPoints.toLocaleString()} 
-              label="Boost"
-            />
-            <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-default group relative">
-              <div className="group-hover:scale-110 transition-transform">
-                <Zap className="w-4 h-4 text-orange-500" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-black tracking-tight">{profile.energy}/100</span>
-                <span className="text-[8px] uppercase font-bold text-gray-500 leading-none">Énergie</span>
-              </div>
+        {/* Center: Attributes & Ferveur Progress */}
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 relative z-10">
+            <div className="flex items-center gap-1">
+              <Coins className="w-3 h-3 text-yellow-500" />
+              <span className="text-[10px] font-bold">{profile.money}</span>
+            </div>
+            <div className="w-px h-3 bg-white/20" />
+            <div className="flex items-center gap-1">
+              <Gem className="w-3 h-3 text-purple-500" />
+              <span className="text-[10px] font-bold">{profile.gems}</span>
+            </div>
+            <div className="w-px h-3 bg-white/20" />
+            <div className="flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-blue-500" />
+              <span className="text-[10px] font-bold">{profile.boostPoints}</span>
+            </div>
+            <div className="w-px h-3 bg-white/20" />
+            <div className="flex items-center gap-1 group relative">
+              <Zap className="w-3 h-3 text-orange-500" />
+              <span className="text-[10px] font-bold">{profile.energy}</span>
               {timeUntilRefill && (
-                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 text-[10px] font-mono text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded-full border border-orange-500/30">
-                  <Clock className="w-3 h-3" />
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 text-[8px] font-mono text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded-full border border-orange-500/30">
+                  <Clock className="w-2 h-2" />
                   {timeUntilRefill}
                 </div>
               )}
             </div>
           </div>
-
-          {/* Logout */}
-          <button 
-            onClick={handleLogout}
-            className="p-2 hover:bg-red-500/10 rounded-lg transition-colors group border border-transparent hover:border-red-500/20"
-            title="Déconnexion"
-          >
-            <LogOut className="w-5 h-5 text-gray-400 group-hover:text-red-500 transition-colors" />
-          </button>
-
+          
+          {/* Ferveur Progress Bar */}
+          <div className="mt-1 w-32 h-4 bg-black/60 rounded-full border border-white/10 overflow-hidden relative">
+            <div 
+              className="absolute top-0 left-0 h-full bg-orange-500 transition-all duration-500"
+              style={{ width: `${ferveurProgressPercent}%` }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[8px] font-black text-white uppercase tracking-tighter">
+                {currentFerveur} / {nextLevelPoints}
+              </span>
+            </div>
+          </div>
         </div>
+
+        {/* Right: Menu Button */}
+        <button 
+          onClick={() => onMenuClick?.()} 
+          className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
       </header>
 
       {showProfileModal && (
@@ -153,17 +191,5 @@ export function Header({ profile }: HeaderProps) {
         />
       )}
     </>
-  );
-}
-
-function ResourceItem({ icon, value, label }: { icon: React.ReactNode; value: string | number; label: string }) {
-  return (
-    <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-default group">
-      <div className="group-hover:scale-110 transition-transform">{icon}</div>
-      <div className="flex flex-col">
-        <span className="text-xs font-black tracking-tight">{value}</span>
-        <span className="text-[8px] uppercase font-bold text-gray-500 leading-none">{label}</span>
-      </div>
-    </div>
   );
 }

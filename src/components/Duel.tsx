@@ -29,8 +29,8 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
   const [hasMirror, setHasMirror] = useState(false);
   const [isEnergyRegenBoosted, setIsEnergyRegenBoosted] = useState(false);
 
-  const fanzRank = fanz?.rank || 1;
-  const rankBonus = (fanzRank - 1) * 0.02; // 2% per rank above 1
+  const fanzRank = fanz?.rank ?? 0;
+  const rankBonus = fanzRank * 0.02; // 2% per rank
   const multiplier = 1 + rankBonus;
   const [isEarthquake, setIsEarthquake] = useState(false);
   const [isFakeButtons, setIsFakeButtons] = useState(false);
@@ -123,7 +123,7 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
             const template = tplSnap.exists() ? tplSnap.data() as FanzTemplate : null;
             
             // Base gain + rank bonus (2% per rank)
-            const rankBonus = 1 + ((fanzData.rank || 1) - 1) * 0.02;
+            const rankBonus = 1 + (fanzData.rank ?? 0) * 0.02;
             const ferveurGain = Math.round(10 * rankBonus);
             
             let newPoints = (fanzData.ferveurPoints || 0) + ferveurGain;
@@ -138,22 +138,39 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
             }
 
             // Handle recurring rewards
-            if (template?.recurringReward) {
-              const pointsPerReward = template.recurringReward.points;
-              const oldRewardsCount = Math.floor((fanzData.ferveurPoints || 0) / pointsPerReward);
-              const newRewardsCount = Math.floor(newPoints / pointsPerReward);
+            if (template?.recurringRewards && template.recurringRewards.length > 0) {
+              const userRef = doc(db, 'users', fanzData.ownerUid);
+              const userSnap = await getDoc(userRef);
+              if (userSnap.exists()) {
+                const userData = userSnap.data();
+                const updates: any = {};
 
-              if (newRewardsCount > oldRewardsCount) {
-                const rewardAmount = (newRewardsCount - oldRewardsCount) * template.recurringReward.amount;
-                const userRef = doc(db, 'users', fanzData.ownerUid);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                  const userData = userSnap.data();
-                  if (template.recurringReward.type === 'money') {
-                    await updateDoc(userRef, { money: (userData.money || 0) + rewardAmount });
-                  } else if (template.recurringReward.type === 'boost') {
-                    await updateDoc(userRef, { boostPoints: (userData.boostPoints || 0) + rewardAmount });
+                for (const reward of template.recurringRewards) {
+                  const pointsPerReward = reward.points;
+                  const oldRewardsCount = Math.floor((fanzData.ferveurPoints || 0) / pointsPerReward);
+                  const newRewardsCount = Math.floor(newPoints / pointsPerReward);
+
+                  if (newRewardsCount > oldRewardsCount) {
+                    const rewardAmount = (newRewardsCount - oldRewardsCount) * reward.amount;
+                    if (reward.type === 'money') {
+                      updates.money = (updates.money || userData.money || 0) + rewardAmount;
+                    } else if (reward.type === 'gems') {
+                      updates.gems = (updates.gems || userData.gems || 0) + rewardAmount;
+                    } else if (reward.type === 'boost') {
+                      updates.boostPoints = (updates.boostPoints || userData.boostPoints || 0) + rewardAmount;
+                    } else if (reward.type === 'energy') {
+                      updates.energy = (updates.energy || userData.energy || 0) + rewardAmount;
+                    } else if (reward.type === 'xp' && reward.statName) {
+                      const currentStats = { ...(userData.stats || {}) };
+                      const currentStat = currentStats[reward.statName] || 0;
+                      currentStats[reward.statName] = currentStat + rewardAmount;
+                      updates.stats = currentStats;
+                    }
                   }
+                }
+
+                if (Object.keys(updates).length > 0) {
+                  await updateDoc(userRef, updates);
                 }
               }
             }

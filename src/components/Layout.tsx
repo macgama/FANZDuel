@@ -5,15 +5,21 @@ import { COLORS } from '../constants';
 interface LayoutProps {
   children: React.ReactNode;
   className?: string;
+  containerClassName?: string;
+  isMobileOnly?: boolean;
 }
 
-export function Layout({ children, className }: LayoutProps) {
+export function Layout({ children, className, containerClassName, isMobileOnly = true }: LayoutProps) {
   return (
     <div 
-      className={cn("min-h-screen text-white font-sans", className)}
+      className={cn("min-h-screen text-white font-sans flex justify-center bg-[#0a0a0a]", className)}
       style={{ backgroundColor: COLORS.bg }}
     >
-      <div className="max-w-7xl mx-auto">
+      <div className={cn(
+        "w-full min-h-screen relative flex flex-col overflow-hidden",
+        isMobileOnly ? "max-w-[450px] shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#121212] border-x border-white/5" : "max-w-7xl",
+        containerClassName
+      )}>
         {children}
       </div>
     </div>

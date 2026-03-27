@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { UserProfile } from '../types';
+import React, { useState, useEffect } from 'react';
+import { UserProfile, Fanz, FanzTemplate } from '../types';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, query, collection, where, onSnapshot, getDoc } from 'firebase/firestore';
 import { Card, Button } from './Layout';
 import { X, User as UserIcon, Check } from 'lucide-react';
 import { FLAG_AVATARS, FANZ_AVATARS, SKIN_AVATARS, LANGUAGES } from '../constants/avatars';
@@ -21,6 +21,38 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [avatarTab, setAvatarTab] = useState<'flags' | 'fanz' | 'skins'>('flags');
+  const [defaultFanzUrl, setDefaultFanzUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profile.uid) return;
+
+    const q = query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (!snapshot.empty) {
+        const activeFanzDoc = snapshot.docs.find(d => d.id === profile.activeAction?.fanzId) || snapshot.docs[0];
+        const fanzData = activeFanzDoc.data() as Fanz;
+        
+        let imageUrl = fanzData.imageUrl;
+
+        if (fanzData.templateId) {
+          try {
+            const templateDoc = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
+            if (templateDoc.exists()) {
+              const templateData = templateDoc.data() as FanzTemplate;
+              const equippedSkinData = templateData.skins?.find(s => s.id === fanzData.equippedSkin);
+              imageUrl = equippedSkinData?.imageUrl || fanzData.imageUrl || templateData.image;
+            }
+          } catch (error) {
+            console.error("Error fetching template for avatar", error);
+          }
+        }
+        
+        setDefaultFanzUrl(imageUrl || null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [profile.uid, profile.activeAction?.fanzId]);
 
   const handleSave = async () => {
     if (!pseudo.trim()) {
@@ -45,8 +77,8 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
   if (isAvatarPickerOpen) {
     return (
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <Card className="w-full max-w-2xl relative max-h-[80vh] flex flex-col">
+      <div className="absolute inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <Card className="w-full h-full max-h-[90%] relative flex flex-col p-4 sm:p-6">
           <button 
             onClick={() => setIsAvatarPickerOpen(false)}
             className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors z-10"
@@ -54,33 +86,33 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
             <X className="w-5 h-5 text-gray-400" />
           </button>
 
-          <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-6">
+          <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter mb-4 sm:mb-6 pr-8">
             Choisir un avatar
           </h2>
 
-          <div className="flex gap-4 mb-6 border-b border-white/10 pb-2">
+          <div className="flex gap-4 mb-4 sm:mb-6 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar">
             <button 
-              className={`font-bold uppercase text-sm ${avatarTab === 'flags' ? 'text-orange-500' : 'text-gray-500 hover:text-white'}`}
+              className={`font-bold uppercase text-xs sm:text-sm whitespace-nowrap ${avatarTab === 'flags' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-500 hover:text-white'}`}
               onClick={() => setAvatarTab('flags')}
             >
               Drapeaux
             </button>
             <button 
-              className={`font-bold uppercase text-sm ${avatarTab === 'fanz' ? 'text-orange-500' : 'text-gray-500 hover:text-white'}`}
+              className={`font-bold uppercase text-xs sm:text-sm whitespace-nowrap ${avatarTab === 'fanz' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-500 hover:text-white'}`}
               onClick={() => setAvatarTab('fanz')}
             >
               FANZ
             </button>
             <button 
-              className={`font-bold uppercase text-sm ${avatarTab === 'skins' ? 'text-orange-500' : 'text-gray-500 hover:text-white'}`}
+              className={`font-bold uppercase text-xs sm:text-sm whitespace-nowrap ${avatarTab === 'skins' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-500 hover:text-white'}`}
               onClick={() => setAvatarTab('skins')}
             >
               Skins
             </button>
           </div>
 
-          <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+          <div className="overflow-y-auto flex-1 pr-1 custom-scrollbar">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {(avatarTab === 'flags' ? FLAG_AVATARS : avatarTab === 'fanz' ? FANZ_AVATARS : SKIN_AVATARS).map(avatar => (
                 <button
                   key={avatar.id}
@@ -93,10 +125,10 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
                   }`}
                   title={avatar.label}
                 >
-                  <img src={getImageUrl(avatar.url)} alt={avatar.label} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={getImageUrl(avatar.url)} alt={avatar.label} className="w-full h-full object-cover" />
                   {photoURL === avatar.url && (
                     <div className="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
-                      <Check className="w-8 h-8 text-white drop-shadow-md" />
+                      <Check className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-md" />
                     </div>
                   )}
                 </button>
@@ -109,8 +141,8 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <Card className="w-full max-w-md relative">
+    <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <Card className="w-full max-w-sm relative max-h-[90%] overflow-y-auto custom-scrollbar">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"
@@ -118,7 +150,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
           <X className="w-5 h-5 text-gray-400" />
         </button>
 
-        <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-6">
+        <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter mb-6">
           Mon Profil
         </h2>
 
@@ -126,15 +158,22 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
           {/* Avatar Selection */}
           <div className="flex flex-col items-center gap-4">
             <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-orange-500 shadow-xl shadow-orange-500/20 relative bg-black/50 flex items-center justify-center">
-              {photoURL ? (
-                <img src={getImageUrl(photoURL)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              {photoURL || defaultFanzUrl ? (
+                <img src={getImageUrl(photoURL || defaultFanzUrl!)} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <UserIcon className="w-12 h-12 text-gray-500" />
               )}
             </div>
-            <Button variant="outline" onClick={() => setIsAvatarPickerOpen(true)} className="text-xs py-1">
-              Changer d'avatar
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsAvatarPickerOpen(true)} className="text-xs py-1">
+                Changer d'avatar
+              </Button>
+              {photoURL && (
+                <Button variant="outline" onClick={() => setPhotoURL('')} className="text-xs py-1 text-red-400 hover:text-red-300 border-red-500/30 hover:bg-red-500/10">
+                  Réinitialiser
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Form */}

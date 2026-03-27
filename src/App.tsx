@@ -16,14 +16,22 @@ import { TeamDetails } from './components/TeamDetails';
 import { UserProfile } from './types';
 import { FanzPage } from './components/FanzPage';
 import { FanzDetails } from './components/FanzDetails';
-import { Trophy, Activity, Database, Globe, Users, Star } from 'lucide-react';
+import { WeeklyStreakModal } from './components/WeeklyStreakModal';
+import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { signOut } from 'firebase/auth';
 
 import { AlertProvider } from './context/AlertContext';
+import { RewardProvider } from './context/RewardContext';
+
+import { Home } from './components/Home';
 
 export default function App() {
   return (
     <AlertProvider>
-      <AppContent />
+      <RewardProvider>
+        <AppContent />
+      </RewardProvider>
     </AlertProvider>
   );
 }
@@ -32,12 +40,14 @@ function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz'>('matches');
+  const [view, setView] = useState<'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz'>('home');
   const [selectedLeague, setSelectedLeague] = useState<{ id: number; season: number } | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<{ id: number; season: number } | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [isDuelActive, setIsDuelActive] = useState(false);
+  const [showStreakModal, setShowStreakModal] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     let unsubscribeSnapshot: () => void;
@@ -68,6 +78,47 @@ function AppContent() {
             if (currentUser.email === 'gael.manigley@gmail.com' && data.role !== 'admin') {
               updatedData.role = 'admin';
               needsUpdate = true;
+            }
+
+            // Weekly Streak Logic
+            const today = new Date().toISOString().split('T')[0];
+            const lastLogin = data.lastLoginDate;
+
+            if (!lastLogin) {
+              // First time login
+              updatedData.streak = 1;
+              updatedData.lastLoginDate = today;
+              updatedData.claimedStreakDays = [];
+              needsUpdate = true;
+              setShowStreakModal(true);
+            } else if (lastLogin !== today) {
+              const lastDate = new Date(lastLogin);
+              const todayDate = new Date(today);
+              const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+              if (diffDays === 1) {
+                // Consecutive login
+                if (data.streak >= 7) {
+                  updatedData.streak = 1;
+                  updatedData.claimedStreakDays = [];
+                } else {
+                  updatedData.streak = (data.streak || 0) + 1;
+                }
+              } else {
+                // Missed a day or more
+                updatedData.streak = 1;
+                updatedData.claimedStreakDays = [];
+              }
+              
+              updatedData.lastLoginDate = today;
+              needsUpdate = true;
+              setShowStreakModal(true);
+            } else {
+              // Already logged in today, check if reward claimed
+              if (!data.claimedStreakDays?.includes(data.streak || 1)) {
+                setShowStreakModal(true);
+              }
             }
 
             if (needsUpdate) {
@@ -117,69 +168,62 @@ function AppContent() {
 
   if (loading) {
     return (
-      <Layout className="flex items-center justify-center p-8">
+      <Layout containerClassName="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
       </Layout>
     );
   }
 
-  if (!user || !profile) {
+  if (!user || (!profile && !loading)) {
     return (
-      <Layout className="p-8">
-        <Auth onAuthSuccess={() => window.location.reload()} />
+      <Layout containerClassName="flex flex-col">
+        <Auth onAuthSuccess={() => {}} />
+      </Layout>
+    );
+  }
+
+  if (view === 'home') {
+    return (
+      <Layout>
+        <Home 
+          profile={profile} 
+          onNavigate={(v) => {
+            setView(v);
+            setSelectedLeague(null);
+            setSelectedTeam(null);
+            setSelectedMatchId(null);
+            setSelectedFanzId(null);
+          }} 
+          onMenuClick={() => setIsMenuOpen(true)}
+        />
       </Layout>
     );
   }
 
   return (
-    <Layout>
+    <Layout isMobileOnly={view !== 'admin'}>
       <div className="flex flex-col min-h-screen">
-        {profile && !isDuelActive && <Header profile={profile} />}
-        
-        {!isDuelActive && (
-          <div className="bg-gray-800/50 backdrop-blur-md border-b border-white/10 p-2 flex justify-center gap-2 md:gap-4 text-sm font-medium sticky top-[57px] z-40 overflow-x-auto no-scrollbar">
-            <NavButton 
-              active={view === 'matches'} 
-              onClick={() => setView('matches')}
-              icon={<Activity className="w-4 h-4" />}
-              label="Matchs"
-            />
-            <NavButton 
-              active={view === 'competitions'} 
-              onClick={() => setView('competitions')}
-              icon={<Globe className="w-4 h-4" />}
-              label="Compétitions"
-            />
-            <NavButton 
-              active={view === 'teams'} 
-              onClick={() => setView('teams')}
-              icon={<Users className="w-4 h-4" />}
-              label="Équipes"
-            />
-            <NavButton 
-              active={view === 'fanz'} 
-              onClick={() => setView('fanz')}
-              icon={<Star className="w-4 h-4" />}
-              label="FANZ"
-            />
-            <NavButton 
-              active={view === 'dashboard'} 
-              onClick={() => setView('dashboard')}
-              icon={<Trophy className="w-4 h-4" />}
-              label="Carrière"
-            />
-            {profile?.role === 'admin' && (
-              <NavButton 
-                active={view === 'admin'} 
-                onClick={() => setView('admin')}
-                icon={<Database className="w-4 h-4" />}
-                label="Admin"
-              />
-            )}
-          </div>
+        {profile && !isDuelActive && (
+          <Header 
+            profile={profile} 
+            onHomeClick={() => {
+              setView('home');
+              setSelectedLeague(null);
+              setSelectedTeam(null);
+              setSelectedMatchId(null);
+              setSelectedFanzId(null);
+            }} 
+            onMenuClick={() => setIsMenuOpen(true)}
+          />
         )}
-
+        
         <div className="flex-1 py-6 px-4">
+          {showStreakModal && profile && (
+            <WeeklyStreakModal 
+              profile={profile} 
+              onClose={() => setShowStreakModal(false)} 
+            />
+          )}
           {selectedTeam ? (
             <TeamDetails 
               teamId={selectedTeam.id} 
@@ -208,7 +252,7 @@ function AppContent() {
               userProfile={profile}
               onBack={() => setSelectedFanzId(null)}
             />
-          ) : view === 'admin' && profile?.role === 'admin' ? (
+          ) : view === 'admin' ? (
             <AdminZone />
           ) : view === 'matches' ? (
             <MatchesPage 
@@ -235,8 +279,76 @@ function AppContent() {
             />
           )}
         </div>
+
+        {/* SIDE MENU */}
+        <AnimatePresence>
+          {isMenuOpen && profile && (
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-0 z-[100] bg-[#0a0a0a] flex flex-col"
+            >
+              <div className="p-6 flex items-center justify-between border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 overflow-hidden">
+                    {profile.photoURL ? (
+                      <img src={profile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <Users className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-sm font-black italic uppercase tracking-wider text-orange-500">Menu</div>
+                    <div className="text-xs font-bold text-white/60">{profile.pseudo}</div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsMenuOpen(false)}
+                  className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10"
+                >
+                  <X className="w-6 h-6 text-white" />
+                </button>
+              </div>
+              
+              <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
+                <MenuButton icon={<Activity />} label="Matchs en direct" onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
+                <MenuButton icon={<Globe />} label="Compétitions" onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
+                <MenuButton icon={<Users />} label="Équipes" onClick={() => { setView('teams'); setIsMenuOpen(false); }} />
+                <MenuButton icon={<Star />} label="Mes FANZ" onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
+                
+                <MenuButton icon={<Settings />} label="Admin" onClick={() => { setView('admin'); setIsMenuOpen(false); }} />
+              </div>
+
+              <div className="p-8 mt-auto">
+                <button 
+                  onClick={() => signOut(auth)}
+                  className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 rounded-xl font-bold hover:bg-red-500/20 transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Déconnexion
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Layout>
+  );
+}
+
+function MenuButton({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className="w-full flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-orange-500 transition-all group"
+    >
+      <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
+        {icon}
+      </div>
+      <span className="text-lg font-black italic uppercase tracking-wider">{label}</span>
+    </button>
   );
 }
 

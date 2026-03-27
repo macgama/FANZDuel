@@ -11,7 +11,8 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Card, Button } from './Layout';
 import { INITIAL_USER_DATA } from '../constants';
 import { footballApi } from '../services/footballApi';
-import { Search, ChevronLeft } from 'lucide-react';
+import { Search, ChevronLeft, Star } from 'lucide-react';
+import { useAlert } from '../context/AlertContext';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -23,6 +24,7 @@ const GoogleIcon = () => (
 );
 
 export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
+  const { showAlert } = useAlert();
   const [step, setStep] = useState<'initial' | 'login_password' | 'register'>('initial');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,6 +37,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
     if (auth.currentUser) {
@@ -152,6 +155,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
       const teamPath = `teams/${teamId}`;
       let ferveurBonus = 0;
       let initialCards: string[] = [];
+      let isFirstFan = false;
 
       try {
         const teamRef = doc(db, teamPath);
@@ -159,6 +163,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
         if (!teamSnap.exists()) {
           ferveurBonus = 10;
           initialCards = ['card_first_supporter'];
+          isFirstFan = true;
           await setDoc(teamRef, {
             teamId: teamId,
             name: teamName,
@@ -197,25 +202,65 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           ownerUid: user.uid,
           name: `Bébé Fanzzy`,
           sport: 'soccer',
-          imageUrl: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Ffanz%2FimageFanz001.png?alt=media',
-          videoUrl: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Ffanz%2FvideoFanz001.mp4?alt=media',
+          imageUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/imageFanz001Skin000.png',
+          videoUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/videoFanz001Skin000.mp4',
           stats: {
             force: 1, endurance: 1, mental: 1, bluff: 2,
             creativity: 1, social: 101, intelligence: 1, charisma: 101
           },
           xp: 0,
           level: 1,
+          rank: 0,
           ferveurPoints: 0,
           ferveurLevel: 1,
           energy: 100,
           equippedCards: [],
-          unlockedSkins: [],
-          unlockedEmotes: []
+          unlockedSkins: ['default'],
+          unlockedEmotes: ['default'],
+          equippedSkin: 'default',
+          claimedRewards: [],
+          claimedChoices: {},
+          lifeActionProgress: {}
         });
       } catch (err) {
         handleFirestoreError(err, OperationType.CREATE, fanzPath);
       }
 
+      // Trigger sequential alerts
+      showAlert({
+        title: "Bienvenue sur FANZ!",
+        subtitle: "Préparez-vous à vibrer pour votre équipe.",
+        type: "success"
+      });
+
+      showAlert({
+        title: "Cadeau de Bienvenue",
+        subtitle: "Voici de quoi bien démarrer !",
+        rewards: [
+          { type: 'money', amount: INITIAL_USER_DATA.money },
+          { type: 'gems', amount: INITIAL_USER_DATA.gems },
+          { type: 'boost', amount: INITIAL_USER_DATA.boostPoints },
+          { type: 'energy', amount: INITIAL_USER_DATA.energy }
+        ],
+        type: "unlock"
+      });
+
+      if (isFirstFan) {
+        showAlert({
+          title: "Pionnier !",
+          subtitle: `Vous êtes le TOUT PREMIER fan de ${teamName} !`,
+          type: "success"
+        });
+      }
+
+      showAlert({
+        title: "Votre Premier FANZ",
+        subtitle: "Prenez-en soin et faites-le évoluer !",
+        videoUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/videoFanz001Skin000.mp4',
+        type: "unlock"
+      });
+
+      setIsRegistered(true);
       onAuthSuccess();
     } catch (err: any) {
       setError(err.message);
@@ -225,8 +270,8 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh]">
-      <Card className="w-full max-w-md">
+    <div className="flex items-center justify-center flex-1 p-4">
+      <Card className="w-full">
         <h2 className="text-3xl font-black mb-6 text-center italic uppercase tracking-tighter">
           {step === 'initial' ? 'Rejoindre le Kop' : step === 'login_password' ? 'Bon retour' : 'Finaliser l\'inscription'}
         </h2>
@@ -304,7 +349,17 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
         )}
 
         {step === 'register' && (
-          <form onSubmit={handleRegister} className="space-y-4">
+          isRegistered ? (
+            <div className="text-center py-8 space-y-4">
+              <div className="animate-bounce inline-block p-4 bg-orange-500 rounded-full mb-4">
+                <Star className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold italic uppercase">Bienvenue au club !</h3>
+              <p className="text-gray-400">Votre profil est en cours de création...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-orange-500 mx-auto mt-4"></div>
+            </div>
+          ) : (
+            <form onSubmit={handleRegister} className="space-y-4">
             {!auth.currentUser && (
               <div className="flex items-center gap-2 mb-4">
                 <button 
@@ -403,6 +458,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
               {loading ? 'Traitement...' : 'S\'inscrire'}
             </Button>
           </form>
+          )
         )}
       </Card>
     </div>

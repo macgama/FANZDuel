@@ -17,12 +17,11 @@ export function MatchesPage({ onMatchClick, onTeamClick, onLeagueClick }: { onMa
   const fetchFixtures = async () => {
     setLoading(true);
     try {
-      let data;
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      let data = await footballApi.getFixturesByDate(dateStr);
+      
       if (statusFilter === 'live') {
-        data = await footballApi.getLiveFixtures();
-      } else {
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        data = await footballApi.getFixturesByDate(dateStr);
+        data = data.filter((f: any) => ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short));
       }
       setFixtures(data || []);
     } catch (err) {
@@ -89,8 +88,8 @@ export function MatchesPage({ onMatchClick, onTeamClick, onLeagueClick }: { onMa
   return (
     <div className="space-y-6 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3">
-          <Activity className="text-orange-500" />
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2 sm:gap-3">
+          <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
           Matchs du jour
         </h1>
 
@@ -121,7 +120,7 @@ export function MatchesPage({ onMatchClick, onTeamClick, onLeagueClick }: { onMa
             placeholder="Rechercher une équipe ou ligue..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-orange-500 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 sm:py-3 pl-10 pr-4 focus:outline-none focus:border-orange-500 transition-colors text-sm sm:text-base"
           />
         </div>
 
@@ -195,7 +194,7 @@ function CountrySection({ country, onMatchClick, onTeamClick, onLeagueClick }: {
           <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-xs font-bold text-gray-400 group-hover:text-white transition-colors">
             {country.name.substring(0, 2).toUpperCase()}
           </div>
-          <h2 className="font-black italic uppercase tracking-wider text-sm">
+          <h2 className="font-black italic uppercase tracking-wider text-xs sm:text-sm">
             {country.name}
           </h2>
           <span className="text-[10px] font-bold px-2 py-0.5 bg-white/10 rounded-full text-gray-400">
@@ -224,8 +223,8 @@ function CountrySection({ country, onMatchClick, onTeamClick, onLeagueClick }: {
                   onClick={() => onLeagueClick(group.league.id, group.league.season)}
                   className="flex items-center gap-3 px-2 hover:text-orange-500 transition-colors group"
                 >
-                  <img src={group.league.logo} alt="" className="w-5 h-5 object-contain" referrerPolicy="no-referrer" />
-                  <h3 className="font-bold italic uppercase text-[11px] tracking-widest text-gray-500 group-hover:text-orange-500 transition-colors">
+                  <img src={group.league.logo} alt="" className="w-5 h-5 object-contain" />
+                  <h3 className="font-bold italic uppercase text-[10px] sm:text-[11px] tracking-widest text-gray-500 group-hover:text-orange-500 transition-colors">
                     {group.league.name}
                   </h3>
                 </button>
@@ -253,14 +252,15 @@ function FilterButton({ active, onClick, icon, label, color = "text-white" }: { 
   return (
     <button 
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl border transition-all font-bold text-xs uppercase italic ${
+      className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2.5 sm:py-3 rounded-xl border transition-all font-bold text-[10px] sm:text-xs uppercase italic ${
         active 
           ? 'bg-orange-600 border-orange-500 text-white' 
           : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
       }`}
     >
       <span className={active ? 'text-white' : color}>{icon}</span>
-      {label}
+      <span className="hidden xs:inline">{label}</span>
+      <span className="xs:hidden">{label.slice(0, 3)}</span>
     </button>
   );
 }
@@ -283,7 +283,7 @@ function MatchCard({ match, onClick, onTeamClick }: { match: any; onClick: () =>
           }}
         >
           <span className="font-bold text-sm md:text-base text-right">{match.teams.home.name}</span>
-          <img src={match.teams.home.logo} alt="" className="w-8 h-8 object-contain" referrerPolicy="no-referrer" />
+          <img src={match.teams.home.logo} alt="" className="w-8 h-8 object-contain" />
         </div>
 
         {/* Score / Time */}
@@ -329,7 +329,7 @@ function MatchCard({ match, onClick, onTeamClick }: { match: any; onClick: () =>
             onTeamClick(match.teams.away.id, match.league.season);
           }}
         >
-          <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" referrerPolicy="no-referrer" />
+          <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" />
           <span className="font-bold text-sm md:text-base">{match.teams.away.name}</span>
         </div>
       </div>

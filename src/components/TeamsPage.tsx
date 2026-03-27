@@ -171,8 +171,8 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
     <div className="space-y-6 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3">
-            <Users className="w-8 h-8 text-orange-500" />
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2 sm:gap-3">
+            <Users className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
             Équipes
           </h1>
           {lastUpdatedLeagues && (
@@ -200,7 +200,7 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
             <input 
               type="text"
               placeholder="Rechercher une équipe..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-orange-500 transition-colors h-10"
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs sm:text-sm focus:outline-none focus:border-orange-500 transition-colors h-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -242,7 +242,7 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
                   onClick={() => onTeamClick(item.team.id, footballDataService.getCurrentSeasonYear())}
                 >
                   <div className="w-24 h-24 bg-white/5 rounded-2xl p-4 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
-                    <img src={item.team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                    <img src={item.team.logo} alt="" className="w-full h-full object-contain" />
                   </div>
                   <div className="text-center">
                     <h3 className="font-black italic uppercase text-sm tracking-widest group-hover:text-orange-500 transition-colors">{item.team.name}</h3>
@@ -289,7 +289,7 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
                     >
                       <div className="flex items-center gap-4">
                         {data.flag ? (
-                          <img src={data.flag} alt="" className="w-8 h-6 object-cover rounded shadow-lg" referrerPolicy="no-referrer" />
+                          <img src={data.flag} alt="" className="w-8 h-6 object-cover rounded shadow-lg" />
                         ) : (
                           <Globe className="w-6 h-6 text-gray-500" />
                         )}
@@ -315,7 +315,7 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
                                   className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl transition-all"
                                 >
                                   <div className="flex items-center gap-3">
-                                    <img src={l.league.logo} alt="" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
+                                    <img src={l.league.logo} alt="" className="w-6 h-6 object-contain" />
                                     <span className="font-bold text-sm">{l.league.name}</span>
                                     <span className="text-[10px] bg-orange-500/20 text-orange-500 px-1.5 py-0.5 rounded font-black italic">
                                       {latestSeason}
@@ -348,7 +348,7 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
                                               onClick={() => onTeamClick(t.team.id, latestSeason)}
                                             >
                                               <div className="w-16 h-16 bg-white/5 rounded-xl p-3 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
-                                                <img src={t.team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                                <img src={t.team.logo} alt="" className="w-full h-full object-contain" />
                                               </div>
                                               <div className="text-center">
                                                 <h3 className="font-black italic uppercase text-[11px] tracking-widest group-hover:text-orange-500 transition-colors leading-tight">{t.team.name}</h3>

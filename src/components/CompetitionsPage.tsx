@@ -137,8 +137,8 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
     <div className="space-y-6 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3">
-            <Trophy className="w-8 h-8 text-orange-500" />
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2 sm:gap-3">
+            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
             Compétitions
           </h1>
           {lastUpdated && (
@@ -166,7 +166,7 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
             <input 
               type="text"
               placeholder="Rechercher une compétition..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-orange-500 transition-colors h-10"
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs sm:text-sm focus:outline-none focus:border-orange-500 transition-colors h-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -205,7 +205,7 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
                     >
                       <div className="flex items-center gap-4">
                         {data.flag ? (
-                          <img src={data.flag} alt="" className="w-8 h-6 object-cover rounded shadow-lg" referrerPolicy="no-referrer" />
+                          <img src={data.flag} alt="" className="w-8 h-6 object-cover rounded shadow-lg" />
                         ) : (
                           <Globe className="w-6 h-6 text-gray-500" />
                         )}
@@ -234,7 +234,7 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                       <div className="w-12 h-12 bg-white/5 rounded-xl p-2 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
-                                        <img src={l.league.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                        <img src={l.league.logo} alt="" className="w-full h-full object-contain" />
                                       </div>
                                       <div>
                                         <h3 className="font-bold text-sm group-hover:text-orange-500 transition-colors">{l.league.name}</h3>

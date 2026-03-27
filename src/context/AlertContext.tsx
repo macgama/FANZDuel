@@ -35,20 +35,24 @@ export function useAlert() {
 }
 
 export function AlertProvider({ children }: { children: React.ReactNode }) {
-  const [activeAlert, setActiveAlert] = useState<GameAlert | null>(null);
+  const [alertQueue, setAlertQueue] = useState<GameAlert[]>([]);
 
   const showAlert = useCallback((alert: Omit<GameAlert, 'id'>) => {
-    setActiveAlert({ ...alert, id: Math.random().toString(36).substring(7) });
+    setAlertQueue(prev => [...prev, { ...alert, id: Math.random().toString(36).substring(7) }]);
   }, []);
 
-  const closeAlert = () => setActiveAlert(null);
+  const closeAlert = () => {
+    setAlertQueue(prev => prev.slice(1));
+  };
+
+  const activeAlert = alertQueue[0] || null;
 
   return (
     <AlertContext.Provider value={{ showAlert }}>
       {children}
       <AnimatePresence>
         {activeAlert && (
-          <FullScreenAlert alert={activeAlert} onClose={closeAlert} />
+          <FullScreenAlert key={activeAlert.id} alert={activeAlert} onClose={closeAlert} />
         )}
       </AnimatePresence>
     </AlertContext.Provider>
@@ -68,21 +72,18 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
         {alert.videoUrl ? (
           <video
             key={getImageUrl(alert.videoUrl)}
+            src={getImageUrl(alert.videoUrl)}
             autoPlay
             loop
             muted
             playsInline
-            crossOrigin="anonymous"
             className="w-full h-full object-cover opacity-60"
-          >
-            <source src={getImageUrl(alert.videoUrl)} type="video/mp4" />
-          </video>
+          />
         ) : alert.imageUrl ? (
           <img
             src={getImageUrl(alert.imageUrl)}
             alt=""
             className="w-full h-full object-cover opacity-60"
-            referrerPolicy="no-referrer"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-orange-900/20 to-black" />

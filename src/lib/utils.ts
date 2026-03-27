@@ -49,12 +49,17 @@ export function getImageUrl(url: string | undefined | null): string {
     }
   } else if (!cleanUrl.includes('://')) {
     // It's just a path
-    path = cleanUrl;
+    path = cleanUrl.startsWith('/') ? cleanUrl.substring(1) : cleanUrl;
   } else {
     return cleanUrl;
   }
 
   if (!path) return '';
+
+  // Normalize bucket name (remove .appspot.com if present, prefer .firebasestorage.app)
+  if (bucket.endsWith('.appspot.com')) {
+    bucket = bucket.replace('.appspot.com', '.firebasestorage.app');
+  }
 
   // Return normalized Firebase Storage URL
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;

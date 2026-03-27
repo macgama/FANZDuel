@@ -21,8 +21,15 @@
         "cards": { "type": "array", "items": { "type": "string" } },
         "skins": { "type": "array", "items": { "type": "string" } },
         "emotes": { "type": "array", "items": { "type": "string" } },
-        "role": { "type": "string", "enum": ["admin", "client"], "default": "client" },
-        "language": { "type": "string", "default": "fr" }
+        "role": { "type": "string", "enum": ["admin", "moderator", "client"], "default": "client" },
+        "language": { "type": "string", "default": "fr" },
+        "streak": { "type": "number", "default": 0 },
+        "lastLoginDate": { "type": "string" },
+        "claimedStreakDays": { "type": "array", "items": { "type": "number" } },
+        "passId": { "type": "string" },
+        "passPoints": { "type": "number", "default": 0 },
+        "isPassPremium": { "type": "boolean", "default": false },
+        "claimedPassRewards": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["uid", "pseudo", "email", "money", "gems", "boostPoints", "energy", "ferveurPoints", "level", "role"]
     },
@@ -82,7 +89,18 @@
         "emotes": { "type": "array" },
         "ferveurPath": { "type": "array" },
         "rankRewards": { "type": "object" },
-        "recurringReward": { "type": "object" }
+        "recurringRewards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "points": { "type": "number" },
+              "type": { "type": "string", "enum": ["money", "gems", "boost", "energy", "xp"] },
+              "amount": { "type": "number" },
+              "statName": { "type": "string" }
+            }
+          }
+        }
       },
       "required": ["id", "name", "sport", "rarity", "image", "description", "baseStats"]
     },
@@ -242,6 +260,54 @@
         "xp": { "type": "number" }
       },
       "required": ["id", "ownerUid", "level", "xp"]
+    },
+    "Mission": {
+      "title": "Mission",
+      "description": "A mission for users to complete.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["duel", "action", "social", "collection"] },
+        "targetValue": { "type": "number" },
+        "reward": { "type": "object" },
+        "isActive": { "type": "boolean" }
+      }
+    },
+    "Pass": {
+      "title": "Pass",
+      "description": "A seasonal pass (e.g., World Cup Pass).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "levels": { "type": "array" },
+        "premiumPrice": { "type": "object" }
+      }
+    },
+    "GlobalFervorConfig": {
+      "title": "GlobalFervorConfig",
+      "description": "Global fervor path configuration for users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "levels": { "type": "array" },
+        "recurringRewards": { "type": "array" }
+      }
+    },
+    "WeeklyStreakConfig": {
+      "title": "WeeklyStreakConfig",
+      "description": "Configuration for daily login rewards.",
+      "type": "object",
+      "properties": {
+        "day": { "type": "number" },
+        "reward": { "type": "object" }
+      }
     }
   },
   "firestore": {
@@ -257,6 +323,10 @@
     "/leagues/{leagueId}/seasons/{season}/fixtures/{fixtureId}": { "schema": "Fixture", "description": "Fixtures for a specific league and season" },
     "/leagues/{leagueId}/seasons/{season}/teams/{teamId}": { "schema": "Team", "description": "Teams for a specific league and season" },
     "/cards/{cardId}": { "schema": "Card", "description": "Card templates" },
-    "/users/{uid}/user_cards/{cardId}": { "schema": "UserCard", "description": "User's card instances with level/XP" }
+    "/users/{uid}/user_cards/{cardId}": { "schema": "UserCard", "description": "User's card instances with level/XP" },
+    "/missions/{missionId}": { "schema": "Mission", "description": "Global missions" },
+    "/passes/{passId}": { "schema": "Pass", "description": "Seasonal passes" },
+    "/global_configs/user_fervor": { "schema": "GlobalFervorConfig", "description": "Global user fervor path" },
+    "/weekly_streak_config/{day}": { "schema": "WeeklyStreakConfig", "description": "Weekly streak rewards" }
   }
 }

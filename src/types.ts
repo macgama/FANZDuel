@@ -8,6 +8,7 @@ export interface ActiveAction {
 export interface UserProfile {
   uid: string;
   pseudo: string;
+  displayName?: string;
   email: string;
   photoURL?: string;
   favoriteTeams: string[];
@@ -22,9 +23,18 @@ export interface UserProfile {
   cards: string[];
   skins: string[];
   emotes: string[];
-  role: 'admin' | 'client';
+  unlockedActions?: string[];
+  role: 'admin' | 'moderator' | 'client';
   language?: string;
   activeAction?: ActiveAction | null;
+  streak: number;
+  lastLoginDate?: string;
+  claimedStreakDays: number[]; // Days claimed in current week (1-7)
+  missionsProgress?: Record<string, UserMissionProgress>;
+  passId?: string;
+  passPoints: number;
+  isPassPremium: boolean;
+  claimedPassRewards: string[]; // "level-X-free" or "level-X-premium"
 }
 
 export interface FanzStats {
@@ -71,25 +81,38 @@ export interface FanzSkin {
   name: string;
   imageUrl: string;
   videoUrl?: string;
-  price: { type: 'money' | 'gems' | 'boostPoints'; amount: number };
+  price: {
+    money?: number;
+    gems?: number;
+    boostPoints?: number;
+  };
 }
 
 export interface FanzEmote {
   id: string;
   fanzId: string;
   imageUrl: string;
+  videoUrl?: string;
   name: string;
+  price?: {
+    money?: number;
+    gems?: number;
+    boostPoints?: number;
+  };
 }
 
 export interface FerveurLevel {
-  level: number;
+  id?: string;
+  level?: number;
+  isIntermediate?: boolean;
   pointsRequired: number;
   reward?: {
-    type: 'money' | 'gems' | 'boost' | 'xp' | 'card' | 'skin' | 'emote' | 'choice';
+    type: 'money' | 'gems' | 'boost' | 'energy' | 'xp' | 'card' | 'skin' | 'emote' | 'action' | 'choice';
     amount?: number;
     cardId?: string;
     skinId?: string;
     emoteId?: string;
+    actionId?: string;
     statName?: keyof FanzStats;
   };
 }
@@ -101,6 +124,13 @@ export interface RankReward {
   cardId?: string;
   skinId?: string;
   emoteId?: string;
+}
+
+export interface RecurringReward {
+  points: number;
+  type: 'money' | 'gems' | 'boost' | 'energy' | 'xp';
+  amount: number;
+  statName?: keyof FanzStats;
 }
 
 export interface FanzTemplate {
@@ -117,11 +147,7 @@ export interface FanzTemplate {
   emotes: FanzEmote[];
   ferveurPath?: FerveurLevel[];
   rankRewards?: Record<string, RankReward>;
-  recurringReward?: {
-    points: number;
-    type: 'money' | 'boost';
-    amount: number;
-  };
+  recurringRewards?: RecurringReward[];
 }
 
 export interface Fanz {
@@ -143,7 +169,9 @@ export interface Fanz {
   unlockedSkins: string[];
   equippedSkin?: string;
   unlockedEmotes: string[];
+  unlockedActions?: string[];
   lifeActionProgress?: Record<string, { level: number; xp: number }>;
+  claimedChoices?: Record<string, any>;
   claimedRewards?: string[]; // Array of slot IDs like "rank-1-slot-1"
 }
 
@@ -202,6 +230,65 @@ export interface UserCard {
   ownerUid: string;
   level: number;
   xp: number;
+}
+
+export interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  type: 'duel' | 'action' | 'social' | 'collection' | 'duel_count' | 'win_count' | 'fanz_duel' | 'life_action';
+  target: number;
+  reward: FerveurLevel['reward'];
+  isActive: boolean;
+}
+
+export interface UserMissionProgress {
+  missionId: string;
+  currentValue: number;
+  isClaimed: boolean;
+  isCompleted: boolean;
+}
+
+export interface PassLevel {
+  level: number;
+  pointsRequired: number;
+  freeReward?: FerveurLevel['reward'];
+  premiumReward?: FerveurLevel['reward'];
+}
+
+export interface Pass {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string;
+  startDate: string;
+  endDate: string;
+  levels: PassLevel[];
+  priceGems: number;
+  isActive: boolean;
+  premiumPrice: {
+    money?: number;
+    gems?: number;
+    boostPoints?: number;
+  };
+}
+
+export interface WeeklyStreakConfig {
+  day: number; // 1 to 7
+  reward: FerveurLevel['reward'];
+}
+
+export interface WeeklyStreakCycle {
+  id: string;
+  name: string;
+  isActive: boolean;
+  days: WeeklyStreakConfig[];
+}
+
+export interface GlobalFervorConfig {
+  id: string; // 'default'
+  levels: FerveurLevel[];
+  recurringRewards?: RecurringReward[];
 }
 
 export interface Duel {
