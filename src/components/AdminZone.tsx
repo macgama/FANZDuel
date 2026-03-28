@@ -3,18 +3,22 @@ import { footballApi } from '../services/footballApi';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where } from 'firebase/firestore';
 import { Card, Button } from './Layout';
-import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle } from '../types';
-import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Zap, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog } from 'lucide-react';
+import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle, DuelConfig } from '../types';
+import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { RewardSelector } from './RewardSelector';
 import { BASE_CARDS } from '../constants/cards';
 import { ALL_FANZ } from '../constants/fanz';
+import { LOGOS } from '../constants';
 
 import { footballDataService } from '../services/footballDataService';
 
 export function AdminZone() {
-  const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users'>('football');
+  const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
+  
+  // Duel Config state
+  const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
   
   // Football state
   const [seasons, setSeasons] = useState<number[]>([]);
@@ -56,6 +60,8 @@ export function AdminZone() {
       fetchFanzTemplates();
     } else if (activeTab === 'users') {
       fetchUserData();
+    } else if (activeTab === 'duelConfig') {
+      fetchDuelConfig();
     }
   }, [activeTab]);
 
@@ -127,8 +133,7 @@ export function AdminZone() {
             level: i + 1,
             pointsRequired: (i + 1) * 6666, // roughly 100k at level 15
             reward: { type: 'money', amount: 1000 }
-          })),
-          recurringRewards: []
+          }))
         };
         setUserFervorConfig(defaultConfig);
       }
@@ -146,6 +151,64 @@ export function AdminZone() {
     } catch (err) {
       console.error("Error fetching streak cycles", err);
       handleFirestoreError(err, OperationType.GET, 'weekly_streak_cycles');
+    }
+  };
+
+  const fetchDuelConfig = async () => {
+    setLoading(true);
+    try {
+      const docSnap = await getDocs(collection(db, 'global_configs'));
+      const configDoc = docSnap.docs.find(d => d.id === 'duel_config');
+      if (configDoc) {
+        setDuelConfig({ id: configDoc.id, ...configDoc.data() } as DuelConfig);
+      } else {
+        // Initialize if missing
+        const defaultConfig: DuelConfig = {
+          id: 'duel_config',
+          statEffects: [
+            { statName: 'force', effectType: 'click_power', baseValue: 0.005, multiplierPerLevel: 0.001, description: 'Force : Augmente la puissance du clic (Ferveur +X%)' },
+            { statName: 'endurance', effectType: 'energy_regen', baseValue: 2, multiplierPerLevel: 0.5, description: 'Endurance : Augmente la régénération d\'excitation par seconde' },
+            { statName: 'mental', effectType: 'malus_duration', baseValue: 1, multiplierPerLevel: 0.1, description: 'Mental : Augmente la durée des malus infligés à l\'adversaire' },
+            { statName: 'bluff', effectType: 'visual_malus_duration', baseValue: 1, multiplierPerLevel: 0.1, description: 'Bluff : Augmente la durée des effets visuels (Flou, Bouton fou, etc.)' },
+            { statName: 'creativity', effectType: 'card_cost_reduction', baseValue: 0, multiplierPerLevel: 0.02, description: 'Créativité : Réduit le coût en excitation des cartes' },
+            { statName: 'social', effectType: 'ferveur_bonus', baseValue: 0, multiplierPerLevel: 0.05, description: 'Social : Bonus de Ferveur gagnée à la fin du duel' },
+            { statName: 'intelligence', effectType: 'rarity_chance', baseValue: 0, multiplierPerLevel: 0.02, description: 'Intelligence : Chance de piocher une carte légendaire' },
+            { statName: 'charisma', effectType: 'card_power', baseValue: 1, multiplierPerLevel: 0.05, description: 'Charisme : Augmente la puissance des cartes bonus' },
+            { statName: 'endurance', effectType: 'max_energy', baseValue: 10, multiplierPerLevel: 1, description: 'Endurance : Augmente la jauge d\'excitation maximale' },
+            { statName: 'force', effectType: 'start_energy', baseValue: 5, multiplierPerLevel: 1, description: 'Force : Augmente l\'excitation de départ' },
+            { statName: 'mental', effectType: 'button_visibility', baseValue: 3000, multiplierPerLevel: 200, description: 'Durée de visibilité du bouton (ms)' },
+            { statName: 'mental', effectType: 'button_hidden', baseValue: 2000, multiplierPerLevel: -100, description: 'Durée de disparition du bouton (ms)' },
+        ],
+          costs: {
+            training: { money: 5, energy: 5 },
+            '1v1': { money: 10, energy: 10 },
+            '2v2': { money: 15, energy: 15 },
+            '5v5': { money: 20, energy: 20 },
+            war_of_kops: { money: 30, energy: 30 }
+          }
+        };
+        setDuelConfig(defaultConfig);
+      }
+    } catch (err) {
+      console.error("Error fetching duel config", err);
+      handleFirestoreError(err, OperationType.GET, 'global_configs/duel_config');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveDuelConfig = async () => {
+    if (!duelConfig) return;
+    setLoading(true);
+    try {
+      const configRef = doc(db, 'global_configs', 'duel_config');
+      await setDoc(configRef, duelConfig);
+      setStatus({ type: 'success', message: 'Configuration des duels sauvegardée !' });
+    } catch (err) {
+      console.error("Error saving duel config", err);
+      handleFirestoreError(err, OperationType.WRITE, 'global_configs/duel_config');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -533,6 +596,7 @@ export function AdminZone() {
       rarity: 'common',
       image: '',
       description: 'Description du FANZ...',
+      baseExcitement: 5,
       baseStats: {
         force: 1, endurance: 1, mental: 1, bluff: 1,
         creativity: 1, social: 1, intelligence: 1, charisma: 1
@@ -547,8 +611,7 @@ export function AdminZone() {
         { level: 4, pointsRequired: 999, reward: { type: 'money', amount: 100 } },
         { level: 5, pointsRequired: 1000, reward: { type: 'money', amount: 100 } }
       ],
-      rankRewards: {},
-      recurringRewards: []
+      rankRewards: {}
     });
   };
 
@@ -633,7 +696,8 @@ export function AdminZone() {
       name: 'Nouvelle Carte',
       type: 'neutral',
       rarity: 'common',
-      energyCost: 20,
+      energyCost: 5,
+      fervorValue: 0,
       description: 'Description de la carte...',
       effects: [],
       imageUrl: '',
@@ -908,6 +972,12 @@ export function AdminZone() {
           onClick={() => setActiveTab('users')}
         >
           Zone UTILISATEURS
+        </button>
+        <button
+          className={`pb-2 px-4 font-bold ${activeTab === 'duelConfig' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          onClick={() => setActiveTab('duelConfig')}
+        >
+          Config DUEL
         </button>
       </div>
 
@@ -1477,6 +1547,132 @@ export function AdminZone() {
         </div>
       )}
 
+      {activeTab === 'duelConfig' && duelConfig && (
+        <Card className="p-6 space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <Activity className="w-6 h-6 text-orange-500" />
+              Configuration des Compétences en Duel
+            </h3>
+            <Button onClick={handleSaveDuelConfig} disabled={loading}>
+              <Save className="w-4 h-4 mr-2" /> Sauvegarder la Configuration
+            </Button>
+          </div>
+
+          <p className="text-sm text-gray-400 italic">
+            Ajustez comment chaque compétence influence le déroulement des duels. 
+            La formule utilisée est généralement : <code className="bg-gray-800 px-1 rounded text-orange-400">Valeur = Base + (Niveau * Multiplicateur)</code>
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {duelConfig.statEffects.map((effect, idx) => (
+              <div key={idx} className="p-4 rounded-xl bg-gray-900/50 border border-gray-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-orange-500/10 rounded-lg">
+                      {effect.statName === 'force' && <Flame className="w-5 h-5 text-orange-500" />}
+                      {effect.statName === 'endurance' && <Activity className="w-5 h-5 text-green-500" />}
+                      {effect.statName === 'mental' && <Brain className="w-5 h-5 text-purple-500" />}
+                      {effect.statName === 'bluff' && <Eye className="w-5 h-5 text-yellow-500" />}
+                      {effect.statName === 'creativity' && <Star className="w-5 h-5 text-pink-500" />}
+                      {effect.statName === 'social' && <Users className="w-5 h-5 text-blue-500" />}
+                      {effect.statName === 'intelligence' && <Search className="w-5 h-5 text-cyan-500" />}
+                      {effect.statName === 'charisma' && <Trophy className="w-5 h-5 text-amber-500" />}
+                    </div>
+                    <span className="font-bold uppercase tracking-wider text-sm">{effect.description.split(' : ')[0]}</span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase px-2 py-1 bg-gray-800 rounded text-gray-400">
+                    {effect.effectType}
+                  </span>
+                </div>
+
+                <p className="text-xs text-gray-400">{effect.description.split(' : ')[1]}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Valeur de Base</label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={effect.baseValue}
+                      onChange={(e) => {
+                        const newEffects = [...duelConfig.statEffects];
+                        newEffects[idx] = { ...effect, baseValue: parseFloat(e.target.value) };
+                        setDuelConfig({ ...duelConfig, statEffects: newEffects });
+                      }}
+                      className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Mult. par Niveau</label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={effect.multiplierPerLevel}
+                      onChange={(e) => {
+                        const newEffects = [...duelConfig.statEffects];
+                        newEffects[idx] = { ...effect, multiplierPerLevel: parseFloat(e.target.value) };
+                        setDuelConfig({ ...duelConfig, statEffects: newEffects });
+                      }}
+                      className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-800">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-gray-500 uppercase font-bold">Exemple Niveau 5 :</span>
+                    <span className="text-orange-400 font-black">
+                      {(effect.baseValue + (5 * effect.multiplierPerLevel)).toFixed(3)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-8 border-t border-gray-800">
+            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-blue-500" />
+              Coûts d'Entrée par Type de Duel
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {duelConfig.costs && Object.entries(duelConfig.costs).map(([type, cost]) => (
+                <div key={type} className="p-4 rounded-xl bg-gray-900/50 border border-gray-800 space-y-3">
+                  <span className="text-[10px] font-black uppercase text-gray-500">{type.replace('_', ' ')}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-400 w-12">Argent</span>
+                      <input
+                        type="number"
+                        value={cost.money}
+                        onChange={(e) => {
+                          const newCosts = { ...duelConfig.costs, [type]: { ...cost, money: parseInt(e.target.value) } };
+                          setDuelConfig({ ...duelConfig, costs: newCosts });
+                        }}
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded p-1 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-400 w-12">Excitation</span>
+                      <input
+                        type="number"
+                        value={cost.energy}
+                        onChange={(e) => {
+                          const newCosts = { ...duelConfig.costs, [type]: { ...cost, energy: parseInt(e.target.value) } };
+                          setDuelConfig({ ...duelConfig, costs: newCosts });
+                        }}
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded p-1 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
       {activeTab === 'football' && (
       <Card className="p-6 space-y-6">
         <div className="flex flex-wrap items-end gap-4">
@@ -1569,6 +1765,30 @@ export function AdminZone() {
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Gestion des Cartes DUEL</h2>
             <div className="flex gap-3">
+              <Button onClick={async () => {
+                setLoading(true);
+                setStatus({ type: 'info', message: 'Mise à jour des coûts...' });
+                try {
+                  const cardsSnap = await getDocs(collection(db, 'cards'));
+                  const batch = writeBatch(db);
+                  cardsSnap.docs.forEach(doc => {
+                    const data = doc.data();
+                    if (data.energyCost > 10) {
+                      batch.update(doc.ref, { energyCost: Math.max(1, Math.round(data.energyCost / 10)) });
+                    }
+                  });
+                  await batch.commit();
+                  setStatus({ type: 'success', message: 'Coûts d\'excitation divisés par 10 !' });
+                  fetchDuelCards();
+                } catch (err) {
+                  console.error(err);
+                  setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
+                } finally {
+                  setLoading(false);
+                }
+              }} variant="outline" className="flex items-center gap-2">
+                <RefreshCw className="w-5 h-5" /> Diviser Coûts par 10
+              </Button>
               <Button onClick={handleSyncBaseCards} variant="outline" className="flex items-center gap-2">
                 <RefreshCw className="w-5 h-5" /> Synchroniser Base
               </Button>
@@ -1645,11 +1865,22 @@ export function AdminZone() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Coût Énergie</label>
+                    <label className="text-sm font-medium text-gray-500">Coût Excitation</label>
                     <input
                       type="number"
                       value={editingCard.energyCost}
                       onChange={e => setEditingCard({...editingCard, energyCost: Number(e.target.value)})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                      required
+                      min="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Valeur Ferveur</label>
+                    <input
+                      type="number"
+                      value={editingCard.fervorValue}
+                      onChange={e => setEditingCard({...editingCard, fervorValue: Number(e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                       required
                       min="0"
@@ -1710,6 +1941,16 @@ export function AdminZone() {
                       value={editingCard.fanzIds?.join(', ') || ''}
                       onChange={e => setEditingCard({...editingCard, fanzIds: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
                       placeholder="Ex: fanz-1, fanz-2 (Laissez vide pour tous)"
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Fanz Bloqués (Optionnel)</label>
+                    <input
+                      type="text"
+                      value={editingCard.blockedFanzIds?.join(', ') || ''}
+                      onChange={e => setEditingCard({...editingCard, blockedFanzIds: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
+                      placeholder="Ex: fanz-3, fanz-4 (Laissez vide pour aucun)"
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                     />
                   </div>
@@ -1810,8 +2051,8 @@ export function AdminZone() {
                             className="w-full p-2 bg-white text-gray-900 rounded border-none text-sm"
                           >
                             <option value="push_rope">Pousser Corde (%)</option>
-                            <option value="drain_energy">Drainer Énergie (Adverse)</option>
-                            <option value="refill_energy">Remplir Énergie (Soi)</option>
+                            <option value="drain_energy">Drainer Excitation (Adverse)</option>
+                            <option value="refill_energy">Remplir Excitation (Soi)</option>
                             <option value="hide_button">Cacher Bouton (Adverse)</option>
                             <option value="shrink_button">Réduire Bouton (Adverse)</option>
                             <option value="move_button">Bouger Bouton (Adverse)</option>
@@ -1895,7 +2136,7 @@ export function AdminZone() {
                     <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" />
                   )}
                   <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                    <Zap size={10} className="text-yellow-400" /> {card.energyCost}
+                    <img src={LOGOS.energy} alt="Energy" className="w-2.5 h-2.5 object-contain" /> {card.energyCost}
                   </div>
                   <div className={`absolute top-2 left-2 text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
                     card.type === 'bonus' ? 'bg-green-500' : card.type === 'malus' ? 'bg-red-500' : 'bg-gray-500'
@@ -2245,6 +2486,18 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Excitation de Base (1-10)</label>
+                    <input
+                      type="number"
+                      value={editingFanz.baseExcitement || 5}
+                      onChange={e => setEditingFanz({...editingFanz, baseExcitement: Number(e.target.value)})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                      min="1"
+                      max="10"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">URL Image</label>
                     <div className="flex gap-4">
                       <input
@@ -2315,7 +2568,7 @@ export function AdminZone() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h4 className="font-bold flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-blue-500" /> Chemin de la Ferveur
+                      <img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> Chemin de la Ferveur
                     </h4>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => setEditingFanz({
@@ -2396,94 +2649,6 @@ export function AdminZone() {
                             return p;
                           });
                           setEditingFanz({...editingFanz, ferveurPath: newPath});
-                        }}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-bold flex items-center gap-2 text-orange-800">
-                      <RefreshCw className="w-5 h-5" /> Récompenses Récurrentes (Hors Niveau)
-                    </h4>
-                    <Button type="button" size="sm" onClick={() => setEditingFanz({
-                      ...editingFanz,
-                      recurringRewards: [...(editingFanz.recurringRewards || []), { points: 20, type: 'money', amount: 100 }]
-                    })}>
-                      Ajouter Récompense
-                    </Button>
-                  </div>
-                  <div className="space-y-3">
-                    {(editingFanz.recurringRewards || []).map((reward, idx) => (
-                      <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-white p-3 rounded-lg border border-orange-200">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase text-gray-400">Tous les X points</label>
-                          <input
-                            type="number"
-                            value={reward.points}
-                            onChange={e => {
-                              const newRewards = [...(editingFanz.recurringRewards || [])];
-                              newRewards[idx] = { ...reward, points: Number(e.target.value) };
-                              setEditingFanz({...editingFanz, recurringRewards: newRewards});
-                            }}
-                            className="w-full p-2 bg-gray-50 text-gray-900 rounded border border-gray-200 text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase text-gray-400">Type de gain</label>
-                          <select
-                            value={reward.type}
-                            onChange={e => {
-                              const newRewards = [...(editingFanz.recurringRewards || [])];
-                              newRewards[idx] = { ...reward, type: e.target.value as any };
-                              setEditingFanz({...editingFanz, recurringRewards: newRewards});
-                            }}
-                            className="w-full p-2 bg-gray-50 text-gray-900 rounded border border-gray-200 text-xs"
-                          >
-                            <option value="money">Argent</option>
-                            <option value="gems">Gemmes</option>
-                            <option value="boost">Boost</option>
-                            <option value="energy">Énergie</option>
-                            <option value="xp">XP Compétence</option>
-                          </select>
-                        </div>
-                        {reward.type === 'xp' && (
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Compétence</label>
-                            <select
-                              value={reward.statName || 'force'}
-                              onChange={e => {
-                                const newRewards = [...(editingFanz.recurringRewards || [])];
-                                newRewards[idx] = { ...reward, statName: e.target.value as any };
-                                setEditingFanz({...editingFanz, recurringRewards: newRewards});
-                              }}
-                              className="w-full p-2 bg-gray-50 text-gray-900 rounded border border-gray-200 text-xs"
-                            >
-                              {Object.keys(editingFanz.baseStats).map(stat => (
-                                <option key={stat} value={stat}>{stat}</option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase text-gray-400">Montant</label>
-                          <input
-                            type="number"
-                            value={reward.amount}
-                            onChange={e => {
-                              const newRewards = [...(editingFanz.recurringRewards || [])];
-                              newRewards[idx] = { ...reward, amount: Number(e.target.value) };
-                              setEditingFanz({...editingFanz, recurringRewards: newRewards});
-                            }}
-                            className="w-full p-2 bg-gray-50 text-gray-900 rounded border border-gray-200 text-xs"
-                          />
-                        </div>
-                        <Button type="button" variant="outline" size="sm" className="text-red-500" onClick={() => {
-                          const newRewards = (editingFanz.recurringRewards || []).filter((_, i) => i !== idx);
-                          setEditingFanz({...editingFanz, recurringRewards: newRewards});
                         }}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -2911,8 +3076,7 @@ export function AdminZone() {
                   ];
                   setEditingFanz({
                     ...template,
-                    ferveurPath: template.ferveurPath && template.ferveurPath.length > 0 ? template.ferveurPath : defaultPath,
-                    recurringRewards: template.recurringRewards && template.recurringRewards.length > 0 ? template.recurringRewards : [{ points: 20, type: 'money', amount: 100 }]
+                    ferveurPath: template.ferveurPath && template.ferveurPath.length > 0 ? template.ferveurPath : defaultPath
                   });
                 }}
               >

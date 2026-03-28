@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Star, Zap, Coins, Sparkles, X, Activity, MessageCircle } from 'lucide-react';
+import { Trophy, Star, Sparkles, X, Activity, MessageCircle } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
+import { LOGOS } from '../constants';
 
 export interface RewardData {
   type: 'money' | 'gems' | 'boost' | 'energy' | 'xp' | 'card' | 'skin' | 'emote' | 'action' | 'choice';
@@ -141,10 +142,10 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                     animate={{ rotate: [0, 10, -10, 0] }}
                     transition={{ repeat: Infinity, duration: 2 }}
                   >
-                    {reward.type === 'money' && <Coins size={80} className="text-white mx-auto mb-2" />}
-                    {reward.type === 'gems' && <Star size={80} className="text-white mx-auto mb-2" />}
-                    {reward.type === 'boost' && <Zap size={80} className="text-white mx-auto mb-2" />}
-                    {reward.type === 'energy' && <Zap size={80} className="text-white mx-auto mb-2" />}
+                    {reward.type === 'money' && <img src={LOGOS.money} alt="Money" className="w-20 h-20 mx-auto mb-2 object-contain" />}
+                    {reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className="w-20 h-20 mx-auto mb-2 object-contain" />}
+                    {reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className="w-20 h-20 mx-auto mb-2 object-contain" />}
+                    {reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className="w-20 h-20 mx-auto mb-2 object-contain" />}
                     {reward.type === 'xp' && <Trophy size={80} className="text-white mx-auto mb-2" />}
                   </motion.div>
                   <div className="text-6xl font-black italic text-white tracking-tighter">+{reward.amount}</div>

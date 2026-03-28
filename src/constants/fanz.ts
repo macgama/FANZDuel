@@ -54,9 +54,6 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
         { level: 3, pointsRequired: 749, reward: { type: 'money', amount: 100 } },
         { level: 4, pointsRequired: 999, reward: { type: 'money', amount: 100 } },
         { level: 5, pointsRequired: 1000, reward: { type: 'money', amount: 100 } }
-      ],
-      recurringRewards: [
-        { points: 20, type: 'money', amount: 100 }
       ]
     };
   }
@@ -87,9 +84,6 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
       { level: 3, pointsRequired: 749, reward: { type: 'money', amount: 100 } },
       { level: 4, pointsRequired: 999, reward: { type: 'money', amount: 100 } },
       { level: 5, pointsRequired: 1000, reward: { type: 'money', amount: 100 } }
-    ],
-    recurringRewards: [
-      { points: 20, type: 'money', amount: 100 }
     ]
   };
 });

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { Layout } from './components/Layout';
+import { Layout, Card } from './components/Layout';
+import { cn } from './lib/utils';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { AdminZone } from './components/AdminZone';
@@ -195,6 +196,11 @@ function AppContent() {
             setSelectedFanzId(null);
           }} 
           onMenuClick={() => setIsMenuOpen(true)}
+          onMatchClick={(id) => {
+            console.log("onMatchClick called with id:", id);
+            setSelectedMatchId(id);
+            setView('matches');
+          }}
         />
       </Layout>
     );
@@ -217,7 +223,7 @@ function AppContent() {
           />
         )}
         
-        <div className="flex-1 py-6 px-4">
+        <div className={cn("flex-1", !selectedFanzId && "py-6 px-[30px]")}>
           {showStreakModal && profile && (
             <WeeklyStreakModal 
               profile={profile} 
@@ -242,6 +248,7 @@ function AppContent() {
           ) : selectedMatchId ? (
             <MatchDetails 
               fixtureId={selectedMatchId} 
+              user={profile}
               onBack={() => setSelectedMatchId(null)}
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
@@ -257,6 +264,7 @@ function AppContent() {
           ) : view === 'matches' ? (
             <MatchesPage 
               onMatchClick={(id) => setSelectedMatchId(id)}
+              onJoinDuel={(id) => setSelectedMatchId(id)}
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
             />
@@ -276,6 +284,7 @@ function AppContent() {
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
               onMatchClick={(id) => setSelectedMatchId(id)}
+              onFanzClick={(id) => setSelectedFanzId(id)}
             />
           )}
         </div>

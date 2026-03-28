@@ -7,7 +7,7 @@ import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { MatchDetails } from './MatchDetails';
 
-export function MatchesPage({ onMatchClick, onTeamClick, onLeagueClick }: { onMatchClick: (id: number) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
+export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { onMatchClick: (id: number) => void; onJoinDuel: (id: number) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,6 +171,7 @@ export function MatchesPage({ onMatchClick, onTeamClick, onLeagueClick }: { onMa
               key={country.name} 
               country={country} 
               onMatchClick={onMatchClick}
+              onJoinDuel={onJoinDuel}
               onTeamClick={onTeamClick}
               onLeagueClick={onLeagueClick}
             />
@@ -181,7 +182,7 @@ export function MatchesPage({ onMatchClick, onTeamClick, onLeagueClick }: { onMa
   );
 }
 
-function CountrySection({ country, onMatchClick, onTeamClick, onLeagueClick }: { country: any; onMatchClick: (id: number) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
+function CountrySection({ country, onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { country: any; onMatchClick: (id: number) => void; onJoinDuel: (id: number) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -235,6 +236,7 @@ function CountrySection({ country, onMatchClick, onTeamClick, onLeagueClick }: {
                       key={match.fixture.id} 
                       match={match} 
                       onClick={() => onMatchClick(match.fixture.id)}
+                      onJoinDuel={() => onJoinDuel(match.fixture.id)}
                       onTeamClick={onTeamClick}
                     />
                   ))}
@@ -265,7 +267,7 @@ function FilterButton({ active, onClick, icon, label, color = "text-white" }: { 
   );
 }
 
-function MatchCard({ match, onClick, onTeamClick }: { match: any; onClick: () => void; onTeamClick: (id: number, season: number) => void }) {
+function MatchCard({ match, onClick, onJoinDuel, onTeamClick }: { match: any; onClick: () => void; onJoinDuel: () => void; onTeamClick: (id: number, season: number) => void }) {
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT'].includes(match.fixture.status.short);
   const isFinished = ['FT', 'AET', 'PEN'].includes(match.fixture.status.short);
 
@@ -273,64 +275,86 @@ function MatchCard({ match, onClick, onTeamClick }: { match: any; onClick: () =>
     <Card 
       className="p-4 hover:bg-white/10 transition-colors group cursor-pointer"
     >
-      <div className="flex items-center justify-between gap-4">
-        {/* Home Team */}
-        <div 
-          className="flex-1 flex items-center justify-end gap-3 hover:text-orange-500 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTeamClick(match.teams.home.id, match.league.season);
-          }}
-        >
-          <span className="font-bold text-sm md:text-base text-right">{match.teams.home.name}</span>
-          <img src={match.teams.home.logo} alt="" className="w-8 h-8 object-contain" />
-        </div>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4">
+          {/* Home Team */}
+          <div 
+            className="flex-1 flex items-center justify-end gap-3 hover:text-orange-500 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTeamClick(match.teams.home.id, match.league.season);
+            }}
+          >
+            <span className="font-bold text-sm md:text-base text-right">{match.teams.home.name}</span>
+            <img src={match.teams.home.logo} alt="" className="w-8 h-8 object-contain" />
+          </div>
 
-        {/* Score / Time */}
-        <div 
-          className="flex flex-col items-center min-w-[80px] px-2"
-          onClick={onClick}
-        >
-          {isFinished || isLive ? (
-            <div className="flex items-center gap-2">
-              <span className={`text-2xl font-black ${isLive ? 'text-orange-500' : ''}`}>
-                {match.goals.home ?? 0}
-              </span>
-              <span className="text-gray-600">-</span>
-              <span className={`text-2xl font-black ${isLive ? 'text-orange-500' : ''}`}>
-                {match.goals.away ?? 0}
-              </span>
-            </div>
-          ) : (
-            <div className="text-xs font-bold text-white/80 bg-white/5 px-2 py-1 rounded border border-white/10">
-              {format(new Date(match.fixture.date), 'dd/MM/yyyy HH:mm')}
-            </div>
-          )}
-          
-          <div className="mt-1">
-            {isLive ? (
-              <span className="flex items-center gap-1 text-[10px] font-black text-red-500 animate-pulse uppercase">
-                <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                {match.fixture.status.elapsed}'
-              </span>
+          {/* Score / Time */}
+          <div 
+            className="flex flex-col items-center min-w-[80px] px-2"
+            onClick={onClick}
+          >
+            {isFinished || isLive ? (
+              <div className="flex items-center gap-2">
+                <span className={`text-2xl font-black ${isLive ? 'text-orange-500' : ''}`}>
+                  {match.goals.home ?? 0}
+                </span>
+                <span className="text-gray-600">-</span>
+                <span className={`text-2xl font-black ${isLive ? 'text-orange-500' : ''}`}>
+                  {match.goals.away ?? 0}
+                </span>
+              </div>
             ) : (
-              <span className="text-[10px] font-bold text-gray-500 uppercase">
-                {match.fixture.status.long}
-              </span>
+              <div className="text-xs font-bold text-white/80 bg-white/5 px-2 py-1 rounded border border-white/10">
+                {format(new Date(match.fixture.date), 'dd/MM/yyyy HH:mm')}
+              </div>
             )}
+            
+            <div className="mt-1">
+              {isLive ? (
+                <span className="flex items-center gap-1 text-[10px] font-black text-red-500 animate-pulse uppercase">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                  {match.fixture.status.elapsed}'
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-gray-500 uppercase">
+                  {match.fixture.status.long}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Away Team */}
+          <div 
+            className="flex-1 flex items-center gap-3 hover:text-orange-500 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTeamClick(match.teams.away.id, match.league.season);
+            }}
+          >
+            <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" />
+            <span className="font-bold text-sm md:text-base">{match.teams.away.name}</span>
           </div>
         </div>
 
-        {/* Away Team */}
-        <div 
-          className="flex-1 flex items-center gap-3 hover:text-orange-500 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTeamClick(match.teams.away.id, match.league.season);
-          }}
-        >
-          <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" />
-          <span className="font-bold text-sm md:text-base">{match.teams.away.name}</span>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1 text-[10px] font-black uppercase tracking-widest h-8"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+          >
+            Match
+          </Button>
+          {!isFinished && (
+            <Button 
+              size="sm" 
+              className="flex-1 text-[10px] font-black uppercase tracking-widest h-8 bg-orange-600 hover:bg-orange-700"
+              onClick={(e) => { e.stopPropagation(); onJoinDuel(); }}
+            >
+              Rejoindre
+            </Button>
+          )}
         </div>
       </div>
     </Card>

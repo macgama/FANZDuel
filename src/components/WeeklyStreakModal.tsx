@@ -3,8 +3,9 @@ import { db, auth } from '../firebase';
 import { collection, getDocs, doc, updateDoc, increment, arrayUnion, query, where } from 'firebase/firestore';
 import { WeeklyStreakConfig, UserProfile, WeeklyStreakCycle, Card, FanzSkin, FanzEmote, LifeAction } from '../types';
 import { useReward } from '../context/RewardContext';
-import { Gift, CheckCircle2, Lock, Star, Sparkles, Coins, Gem, Zap, X, Shield, Smile, Activity, Layers } from 'lucide-react';
+import { Gift, CheckCircle2, Lock, Star, Sparkles, X, Shield, Smile, Activity, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { LOGOS } from '../constants';
 
 enum OperationType {
   CREATE = 'create',
@@ -242,10 +243,10 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
                     <span className="text-[10px] font-bold text-gray-400 uppercase mb-2">Jour {config.day}</span>
                     
                     <div className="mb-2">
-                      {config.reward.type === 'money' && <Coins className={`w-6 h-6 ${isCurrent ? 'text-yellow-400' : 'text-gray-500'}`} />}
-                      {config.reward.type === 'gems' && <Gem className={`w-6 h-6 ${isCurrent ? 'text-blue-400' : 'text-gray-500'}`} />}
-                      {config.reward.type === 'boost' && <Zap className={`w-6 h-6 ${isCurrent ? 'text-orange-400' : 'text-gray-500'}`} />}
-                      {config.reward.type === 'energy' && <Zap className={`w-6 h-6 ${isCurrent ? 'text-green-400' : 'text-gray-500'}`} />}
+                      {config.reward.type === 'money' && <img src={LOGOS.money} alt="Money" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
+                      {config.reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
+                      {config.reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
+                      {config.reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
                       {config.reward.type === 'xp' && <Star className={`w-6 h-6 ${isCurrent ? 'text-purple-400' : 'text-gray-500'}`} />}
                       {config.reward.type === 'card' && <Layers className={`w-6 h-6 ${isCurrent ? 'text-indigo-400' : 'text-gray-500'}`} />}
                       {config.reward.type === 'skin' && <Shield className={`w-6 h-6 ${isCurrent ? 'text-pink-400' : 'text-gray-500'}`} />}

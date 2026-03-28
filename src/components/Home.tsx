@@ -28,9 +28,10 @@ interface HomeProps {
   profile: UserProfile;
   onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz') => void;
   onMenuClick: () => void;
+  onMatchClick: (matchId: number) => void;
 }
 
-export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
+export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
@@ -41,10 +42,12 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
-      const scrollAmount = direction === 'left' ? -356 : 356;
+      const scrollAmount = direction === 'left' ? -scrollContainerRef.current.clientWidth : scrollContainerRef.current.clientWidth;
       scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
+
+  const currentActiveAction = lifeActions.find(a => a.id === profile.activeAction?.actionId && profile.activeAction?.fanzId === activeFanz?.id);
 
   useEffect(() => {
     if (!profile.uid) return;
@@ -64,7 +67,11 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
               setFanzTemplate(templateData);
               
               const equippedSkinData = templateData.skins?.find(s => s.id === fanzData.equippedSkin);
-              setVideoUrl(equippedSkinData?.videoUrl || fanzData.videoUrl || templateData.video || null);
+              
+              // Use active action video if available
+              const activeAction = lifeActions.find(a => a.id === profile.activeAction?.actionId && profile.activeAction?.fanzId === fanzData.id);
+              
+              setVideoUrl(activeAction?.videoUrl || equippedSkinData?.videoUrl || fanzData.videoUrl || templateData.video || null);
             }
           } catch (error) {
             console.error("Error fetching template", error);
@@ -74,17 +81,15 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
     });
 
     return () => unsubscribe();
-  }, [profile.uid, profile.activeAction?.fanzId]);
+  }, [profile.uid, profile.activeAction?.fanzId, lifeActions]);
 
   useEffect(() => {
     // Fetch some live matches
     const fetchMatches = async () => {
       try {
-        const dateStr = format(new Date(), 'yyyy-MM-dd');
-        const todayFixtures = await footballApi.getFixturesByDate(dateStr);
-        const liveFixtures = todayFixtures.filter((f: any) => ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short));
-        // Limit to 5 matches for the home page
-        setLiveMatches(liveFixtures.slice(0, 5));
+        const liveFixtures = await footballApi.getLiveFixtures();
+        // Show all live matches
+        setLiveMatches(liveFixtures);
       } catch (error) {
         console.error("Error fetching matches", error);
       }
@@ -121,8 +126,8 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
 
       {/* BODY: Video Background (4:3) and Content Below */}
       <div className="flex-1 flex flex-col relative overflow-y-auto pb-16 no-scrollbar">
-        {/* Video Section (9:16 Aspect Ratio) */}
-        <div className="w-full aspect-[9/16] relative shrink-0">
+        {/* Video Section (4:3 Aspect Ratio) */}
+        <div className="w-full aspect-[4/3] relative shrink-0">
           {videoUrl ? (
             <video 
               src={getImageUrl(videoUrl)} 
@@ -153,13 +158,22 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
               )}
             </div>
 
+            {currentActiveAction && (
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                <p className="text-xs font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
+                  {currentActiveAction.name}
+                </p>
+              </div>
+            )}
+
             {fanzTemplate && (
               <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mt-1">
                 {fanzTemplate.rarity}
               </p>
             )}
 
-            {activeFanz && (
+            {!currentActiveAction && activeFanz && (
               <div className="mt-2 w-full max-w-[200px]">
                 <div className="h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
                   <div 
@@ -186,7 +200,7 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
           )}
 
           {liveMatches.length > 0 && (
-            <div className="flex justify-between items-center px-6 mb-4">
+            <div className="flex justify-between items-center px-[30px] mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-xs font-black uppercase tracking-widest">EN DIRECT ({liveMatches.length})</span>
@@ -208,12 +222,12 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
 
             <div 
               ref={scrollContainerRef}
-              className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory scroll-px-10"
+              className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory scroll-px-[30px]"
             >
-              <div className="flex flex-nowrap gap-4 px-10 w-fit mx-auto">
+              <div className="flex flex-nowrap gap-4 px-[30px] w-fit mx-auto">
                 {liveMatches.length > 0 ? (
                 liveMatches.map(match => (
-                  <div key={match.fixture.id} className="snap-center shrink-0 w-[280px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group">
+                  <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group">
                     {/* Header: Country & League */}
                     <div className="flex justify-between items-center text-[8px] font-black text-gray-400 uppercase tracking-widest">
                       <div className="flex items-center gap-1.5">
@@ -281,12 +295,13 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
                     {/* Buttons */}
                     <div className="flex gap-3 mt-4">
                       <button 
-                        onClick={() => onNavigate('matches')}
+                        onClick={(e) => { e.stopPropagation(); console.log("MATCH clicked", match.fixture.id); onMatchClick(match.fixture.id); }}
                         className="flex-1 py-3 rounded-xl border border-white/20 bg-white/5 text-white font-black text-xs uppercase tracking-wider hover:bg-white/10 transition-colors"
                       >
                         MATCH
                       </button>
                       <button 
+                        onClick={(e) => { e.stopPropagation(); console.log("REJOINDRE clicked", match.fixture.id); onMatchClick(match.fixture.id); }}
                         className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors"
                       >
                         REJOINDRE
@@ -299,7 +314,7 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
                   lifeActions
                     .filter(action => action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId)
                     .map(action => (
-                      <div key={action.id} className="snap-center shrink-0 w-[280px]">
+                      <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
                         <LifeActionCard 
                           action={action} 
                           fanz={activeFanz} 
@@ -308,7 +323,7 @@ export function Home({ profile, onNavigate, onMenuClick }: HomeProps) {
                       </div>
                     ))
                 ) : (
-                  <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-10">
+                  <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-[30px]">
                     Aucun match en direct et aucun FANZ actif
                   </div>
                 )

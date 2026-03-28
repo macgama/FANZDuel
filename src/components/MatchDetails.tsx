@@ -10,26 +10,31 @@ import {
   AlertCircle,
   ArrowRightLeft,
   Square,
-  CircleDot
+  CircleDot,
+  Swords
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { UserProfile } from '../types';
+import { DuelManager } from './Duel';
 
 interface MatchDetailsProps {
   fixtureId: number;
+  user: UserProfile | null;
   onBack: () => void;
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
 }
 
-export function MatchDetails({ fixtureId, onBack, onTeamClick, onLeagueClick }: MatchDetailsProps) {
+export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick }: MatchDetailsProps) {
   const [details, setDetails] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [lineups, setLineups] = useState<any[]>([]);
   const [stats, setStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'summary' | 'lineups' | 'stats'>('summary');
+  const [selectedDuelType, setSelectedDuelType] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,6 +72,18 @@ export function MatchDetails({ fixtureId, onBack, onTeamClick, onLeagueClick }: 
 
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT'].includes(details.fixture.status.short);
 
+  if (selectedDuelType && user) {
+    return (
+      <DuelManager 
+        user={user} 
+        onExit={() => setSelectedDuelType(null)} 
+        matchId={fixtureId.toString()}
+        teamA={details.teams.home.name}
+        teamB={details.teams.away.name}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
@@ -88,6 +105,36 @@ export function MatchDetails({ fixtureId, onBack, onTeamClick, onLeagueClick }: 
             {format(new Date(details.fixture.date), 'dd/MM/yyyy, HH:mm')}
           </p>
         </div>
+      </div>
+
+      {/* Duel Options */}
+      <div className="flex flex-wrap gap-3">
+        {details.fixture.status.short === 'NS' ? (
+          <Button 
+            onClick={() => setSelectedDuelType('training')}
+            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-black italic uppercase text-xs py-3 flex items-center justify-center gap-2"
+          >
+            <Swords className="w-4 h-4" />
+            S'entraîner
+          </Button>
+        ) : isLive ? (
+          <>
+            <Button 
+              onClick={() => setSelectedDuelType('1v1')}
+              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-black italic uppercase text-xs py-3 flex items-center justify-center gap-2"
+            >
+              <Swords className="w-4 h-4" />
+              Duel 1V1
+            </Button>
+            <Button 
+              onClick={() => setSelectedDuelType('war_of_kops')}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black italic uppercase text-xs py-3 flex items-center justify-center gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Guerre des Kops
+            </Button>
+          </>
+        ) : null}
       </div>
 
       {/* Scoreboard */}

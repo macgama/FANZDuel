@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Zap, Coins, Gem, Flame, Star, Trophy, CheckCircle2, X, Activity, Users, Database } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
+import { LOGOS } from '../constants';
 
 export interface Reward {
   type: 'money' | 'gems' | 'boost' | 'xp' | 'energy' | 'card' | 'team' | 'fanz';
@@ -199,10 +200,10 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
 
 function RewardIcon({ type, stat }: { type: Reward['type']; stat?: string }) {
   switch (type) {
-    case 'money': return <Coins className="w-8 h-8 text-yellow-400" />;
-    case 'gems': return <Gem className="w-8 h-8 text-pink-400" />;
-    case 'boost': return <Flame className="w-8 h-8 text-orange-500" />;
-    case 'energy': return <Zap className="w-8 h-8 text-yellow-500" />;
+    case 'money': return <img src={LOGOS.money} alt="Money" className="w-8 h-8 object-contain" />;
+    case 'gems': return <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 object-contain" />;
+    case 'boost': return <img src={LOGOS.boost} alt="Boost" className="w-8 h-8 object-contain" />;
+    case 'energy': return <img src={LOGOS.energy} alt="Energy" className="w-8 h-8 object-contain" />;
     case 'xp': return <Activity className="w-8 h-8 text-blue-400" />;
     case 'card': return <Database className="w-8 h-8 text-orange-500" />;
     case 'team': return <Users className="w-8 h-8 text-green-500" />;

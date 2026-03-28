@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getImageUrl } from '../lib/utils';
+import { getImageUrl, cn } from '../lib/utils';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
 import { Card, Button } from './Layout';
@@ -68,21 +68,36 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
     <div className="space-y-8 pb-20">
       {/* Header & Stats */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-black italic uppercase tracking-tighter">
+        <button 
+          onClick={() => setFilter('all')}
+          className="text-xl font-black italic uppercase tracking-tighter hover:text-orange-500 transition-colors"
+        >
           Collection FANZ
-        </h1>
+        </button>
 
         <div className="flex flex-col gap-1.5 min-w-[140px]">
           <div className="bg-white/5 border border-white/10 rounded-lg p-1.5 flex items-center justify-center gap-3">
-            <div className="text-center">
+            <button 
+              onClick={() => setFilter(filter === 'owned' ? 'all' : 'owned')}
+              className={cn(
+                "text-center transition-all",
+                filter === 'owned' ? "opacity-100 scale-110" : "opacity-50 hover:opacity-100"
+              )}
+            >
               <div className="text-sm font-black text-orange-500 leading-none">{ownedCount}</div>
               <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">Gagnés</div>
-            </div>
+            </button>
             <div className="h-4 w-px bg-white/10"></div>
-            <div className="text-center">
+            <button 
+              onClick={() => setFilter(filter === 'missing' ? 'all' : 'missing')}
+              className={cn(
+                "text-center transition-all",
+                filter === 'missing' ? "opacity-100 scale-110" : "opacity-50 hover:opacity-100"
+              )}
+            >
               <div className="text-sm font-black text-gray-400 leading-none">{totalCount - ownedCount}</div>
               <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">À Gagner</div>
-            </div>
+            </button>
           </div>
           
           {/* Progress Bar */}
@@ -97,28 +112,6 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 w-fit mx-auto">
-        <FilterButton 
-          active={filter === 'all'} 
-          onClick={() => setFilter('all')} 
-          label="Tous" 
-          count={totalCount}
-        />
-        <FilterButton 
-          active={filter === 'owned'} 
-          onClick={() => setFilter('owned')} 
-          label="Gagnés" 
-          count={ownedCount}
-        />
-        <FilterButton 
-          active={filter === 'missing'} 
-          onClick={() => setFilter('missing')} 
-          label="À Gagner" 
-          count={totalCount - ownedCount}
-        />
       </div>
 
       {/* Grid */}
@@ -172,24 +165,6 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
   );
 }
 
-function FilterButton({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
-  return (
-    <button 
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg transition-all font-bold text-[10px] uppercase italic flex items-center gap-2 ${
-        active 
-          ? 'bg-orange-600 text-white shadow-lg' 
-          : 'text-gray-400 hover:text-white hover:bg-white/5'
-      }`}
-    >
-      {label}
-      <span className={`text-[8px] px-1 py-0.5 rounded-full ${active ? 'bg-white/20' : 'bg-white/10'}`}>
-        {count}
-      </span>
-    </button>
-  );
-}
-
 function FanzCard({ template, fanz, isOwned, onClick, onUnlock }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; onClick?: () => void; onUnlock?: () => void }) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -225,7 +200,7 @@ function FanzCard({ template, fanz, isOwned, onClick, onUnlock }: { template: Fa
           ) : (
             <img 
               src={getImageUrl(currentImageUrl || '')} 
-              alt={template.name} 
+              alt={equippedSkinData?.name || template.name} 
               className="w-full h-full object-cover"
             />
           )}
@@ -274,7 +249,7 @@ function FanzCard({ template, fanz, isOwned, onClick, onUnlock }: { template: Fa
               </div>
             )}
             <h3 className="font-black italic uppercase text-[10px] leading-tight truncate text-white">
-              {template.name}
+              {equippedSkinData?.name || template.name}
             </h3>
             <div className="flex items-center justify-between">
               <span className="text-[7px] font-bold text-gray-300 uppercase tracking-widest">

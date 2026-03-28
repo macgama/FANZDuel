@@ -126,13 +126,6 @@ export interface RankReward {
   emoteId?: string;
 }
 
-export interface RecurringReward {
-  points: number;
-  type: 'money' | 'gems' | 'boost' | 'energy' | 'xp';
-  amount: number;
-  statName?: keyof FanzStats;
-}
-
 export interface FanzTemplate {
   id: string;
   name: string;
@@ -141,13 +134,13 @@ export interface FanzTemplate {
   image: string;
   video?: string;
   description: string;
+  baseExcitement?: number; // 1 to 10
   baseStats: FanzStats;
   specialCards: string[];
   skins: FanzSkin[];
   emotes: FanzEmote[];
   ferveurPath?: FerveurLevel[];
   rankRewards?: Record<string, RankReward>;
-  recurringRewards?: RecurringReward[];
 }
 
 export interface Fanz {
@@ -158,6 +151,7 @@ export interface Fanz {
   sport: string;
   imageUrl?: string;
   videoUrl?: string;
+  baseExcitement?: number; // 1 to 10
   stats: FanzStats;
   xp: number;
   level: number;
@@ -166,6 +160,7 @@ export interface Fanz {
   ferveurLevel: number;
   energy: number;
   equippedCards: string[]; // Max 8
+  deck: string[]; // Max 8
   unlockedSkins: string[];
   equippedSkin?: string;
   unlockedEmotes: string[];
@@ -217,11 +212,13 @@ export interface Card {
   type: 'bonus' | 'malus' | 'neutral';
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   energyCost: number;
+  fervorValue: number; // Value added to rope progress
   description: string;
   effects: CardEffect[];
   imageUrl?: string;
   videoUrl?: string;
   fanzIds?: string[]; // For specific cards
+  blockedFanzIds?: string[]; // Blocked Fanz templates
   unlockRequirements?: CardUnlockRequirement[];
 }
 
@@ -288,18 +285,52 @@ export interface WeeklyStreakCycle {
 export interface GlobalFervorConfig {
   id: string; // 'default'
   levels: FerveurLevel[];
-  recurringRewards?: RecurringReward[];
+}
+
+export interface DuelStatEffect {
+  statName: keyof FanzStats;
+  effectType: 'click_power' | 'energy_regen' | 'malus_duration' | 'visual_malus_duration' | 'card_cost_reduction' | 'ferveur_bonus' | 'rarity_chance' | 'card_power' | 'max_energy' | 'start_energy' | 'button_visibility' | 'button_hidden';
+  baseValue: number;
+  multiplierPerLevel: number;
+  description: string;
+}
+
+export interface DuelConfig {
+  id: string; // 'default'
+  statEffects: DuelStatEffect[];
+  costs: {
+    training: { money: number; energy: number };
+    '1v1': { money: number; energy: number };
+    '2v2': { money: number; energy: number };
+    '5v5': { money: number; energy: number };
+    war_of_kops: { money: number; energy: number };
+  };
+}
+
+export interface DuelParticipant {
+  uid: string;
+  pseudo: string;
+  team: 'A' | 'B';
+  fanzId: string;
+  ready: boolean;
+  progress: number;
+  energy: number;
+  hand: string[]; // card IDs
+  deck: string[]; // card IDs
 }
 
 export interface Duel {
   id: string;
   type: 'training' | '1v1' | '2v2' | '5v5' | 'war_of_kops';
-  status: 'waiting' | 'active' | 'finished';
+  status: 'waiting' | 'starting' | 'active' | 'finished';
   matchId?: string;
-  teamA: string;
-  teamB: string;
-  progress: number;
-  participants: string[];
+  teamA: string; // Team name or ID
+  teamB: string; // Team name or ID
+  progress: number; // 0 to 100 (50 is center)
+  participants: DuelParticipant[];
+  startTime?: string;
+  winner?: 'A' | 'B';
+  createdAt: string;
 }
 
 export interface League {

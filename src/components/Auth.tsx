@@ -210,7 +210,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           },
           xp: 0,
           level: 1,
-          rank: 0,
+          rank: 1,
           ferveurPoints: 0,
           ferveurLevel: 1,
           energy: 100,

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { LifeAction, UserProfile, Fanz, FanzStats } from '../types';
 import { Card } from './Layout';
-import { Zap, Coins, Clock, Trash2, FastForward, Activity, Star, Gem, Flame, Shield, Brain, Eye, Users, Info } from 'lucide-react';
+import { Clock, Trash2, FastForward, Activity, Star, Flame, Shield, Brain, Eye, Users, Info } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
+import { LOGOS } from '../constants';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteField } from 'firebase/firestore';
 import { useAlert, Reward } from '../context/AlertContext';
@@ -39,7 +40,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
   const gainXp = Math.floor((action.xpGain || 0) * scaleFactor);
 
   const statIcons = {
-    force: <Zap className="w-4 h-4 text-yellow-500" />,
+    force: <img src={LOGOS.energy} alt="Force" className="w-4 h-4 object-contain" />,
     endurance: <Shield className="w-4 h-4 text-green-500" />,
     mental: <Brain className="w-4 h-4 text-purple-500" />,
     bluff: <Eye className="w-4 h-4 text-blue-500" />,
@@ -293,20 +294,9 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
   if (isThisActionActive) {
     return (
       <Card className="p-0 border-orange-500 relative overflow-hidden bg-black min-h-[380px] flex flex-col justify-end">
-        {/* Background Video/Image */}
+        {/* Background Image (No video when active as requested) */}
         <div className="absolute inset-0 z-0">
-          {action.videoUrl ? (
-            <video 
-              key={getImageUrl(action.videoUrl)}
-              src={getImageUrl(action.videoUrl)}
-              poster={getImageUrl(action.image)}
-              autoPlay 
-              loop 
-              muted 
-              playsInline 
-              className="w-full h-full object-cover" 
-            />
-          ) : action.image ? (
+          {action.image ? (
             <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
@@ -338,10 +328,10 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 mb-3 border border-white/10 text-center">
               <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Butin prévu</div>
               <div className="flex flex-wrap items-center justify-center gap-3">
-                {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> +{gainEnergy}</span>}
-                {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1"><Coins className="w-4 h-4" /> +{gainMoney}</span>}
-                {gainGems > 0 && <span className="text-pink-400 font-black flex items-center gap-1"><Gem className="w-4 h-4" /> +{gainGems}</span>}
-                {gainBoost > 0 && <span className="text-orange-500 font-black flex items-center gap-1"><Flame className="w-4 h-4" /> +{gainBoost}</span>}
+                {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> +{gainEnergy}</span>}
+                {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> +{gainMoney}</span>}
+                {gainGems > 0 && <span className="text-pink-400 font-black flex items-center gap-1"><img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> +{gainGems}</span>}
+                {gainBoost > 0 && <span className="text-orange-500 font-black flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" /> +{gainBoost}</span>}
                 
                 {action.targetStat && gainXp > 0 && (
                   <span className="text-blue-400 font-black flex items-center gap-1">
@@ -366,9 +356,9 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
 
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-3 mb-4 border border-white/10 text-center flex justify-center items-center gap-2">
               <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Coût :</span>
-              {costEnergy > 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> {costEnergy}</span>}
-              {costMoney > 0 && <span className="text-yellow-400 font-black text-sm flex items-center gap-1"><Coins className="w-4 h-4" /> {costMoney}</span>}
-              {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> 0</span>}
+              {costEnergy > 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}</span>}
+              {costMoney > 0 && <span className="text-yellow-400 font-black text-sm flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> {costMoney}</span>}
+              {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> 0</span>}
             </div>
 
             <div className="flex gap-3">
@@ -416,12 +406,12 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
       </div>
 
-      <div className="absolute top-3 left-3 z-10 bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white font-black text-sm border border-white/10">
-        L.{currentLevel}
+      <div className="absolute top-3 left-3 z-10 bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white font-black text-sm border border-white/10 flex items-center gap-1">
+        <img src={LOGOS.level} alt="Level" className="w-4 h-4 object-contain" /> L.{currentLevel}
       </div>
       <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
         <div className="bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-yellow-500 font-black text-sm border border-white/10 flex items-center gap-2">
-          <Zap className="w-4 h-4 fill-current" /> {costEnergy}
+          <img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}
         </div>
         <div className="bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-orange-500 font-black text-sm border border-white/10 flex items-center gap-2">
           <Clock className="w-4 h-4" /> {action.durationMinutes >= 60 ? `${action.durationMinutes / 60}H` : `${action.durationMinutes}M`}
@@ -432,10 +422,10 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
         <div>
           <h4 className="font-black text-white uppercase tracking-tighter text-center text-lg mb-2 drop-shadow-md">{action.name}</h4>
           <div className="flex flex-wrap justify-center items-center gap-3 text-sm font-black mb-4 drop-shadow-md">
-            {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1"><Zap className="w-4 h-4 fill-current" /> +{gainEnergy}</span>}
-            {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1"><Coins className="w-4 h-4" /> +{gainMoney}</span>}
-            {gainGems > 0 && <span className="text-pink-400 flex items-center gap-1"><Gem className="w-4 h-4" /> +{gainGems}</span>}
-            {gainBoost > 0 && <span className="text-orange-500 flex items-center gap-1"><Flame className="w-4 h-4" /> +{gainBoost}</span>}
+            {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> +{gainEnergy}</span>}
+            {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> +{gainMoney}</span>}
+            {gainGems > 0 && <span className="text-pink-400 flex items-center gap-1"><img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> +{gainGems}</span>}
+            {gainBoost > 0 && <span className="text-orange-500 flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" /> +{gainBoost}</span>}
             
             {action.targetStat && gainXp > 0 && (
               <span className="text-blue-400 flex items-center gap-1">

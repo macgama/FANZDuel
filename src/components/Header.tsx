@@ -4,10 +4,6 @@ import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { 
-  Coins, 
-  Gem, 
-  Zap, 
-  TrendingUp, 
   LogOut, 
   User as UserIcon,
   Clock,
@@ -17,7 +13,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfileModal } from './UserProfileModal';
 import { getImageUrl, cn } from '../lib/utils';
-import { FERVEUR_LEVELS } from '../constants';
+import { FERVEUR_LEVELS, LOGOS } from '../constants';
 
 interface HeaderProps {
   profile: UserProfile;
@@ -125,7 +121,8 @@ export function Header({ profile, onHomeClick, onMenuClick, absolute = false }: 
                 <UserIcon className="w-6 h-6 text-white" />
               )}
             </div>
-            <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic">
+            <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic flex items-center gap-1">
+              <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" />
               {profile.level}
             </div>
           </div>
@@ -135,22 +132,22 @@ export function Header({ profile, onHomeClick, onMenuClick, absolute = false }: 
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 relative z-10">
             <div className="flex items-center gap-1">
-              <Coins className="w-3 h-3 text-yellow-500" />
+              <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 object-contain" />
               <span className="text-[10px] font-bold">{profile.money}</span>
             </div>
             <div className="w-px h-3 bg-white/20" />
             <div className="flex items-center gap-1">
-              <Gem className="w-3 h-3 text-purple-500" />
+              <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 object-contain" />
               <span className="text-[10px] font-bold">{profile.gems}</span>
             </div>
             <div className="w-px h-3 bg-white/20" />
             <div className="flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-blue-500" />
+              <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 object-contain" />
               <span className="text-[10px] font-bold">{profile.boostPoints}</span>
             </div>
             <div className="w-px h-3 bg-white/20" />
             <div className="flex items-center gap-1 group relative">
-              <Zap className="w-3 h-3 text-orange-500" />
+              <img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 object-contain" />
               <span className="text-[10px] font-bold">{profile.energy}</span>
               {timeUntilRefill && (
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 text-[8px] font-mono text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded-full border border-orange-500/30">

@@ -4,9 +4,10 @@ import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/f
 import { footballApi } from '../services/footballApi';
 import { Card, Button } from './Layout';
 import { UserProfile, Fanz, Duel, LifeAction, FanzTemplate } from '../types';
-import { Coins, Gem, Zap, Trophy, User as UserIcon, Swords, Activity, Star } from 'lucide-react';
+import { Trophy, User as UserIcon, Swords, Activity, Star } from 'lucide-react';
 import { motion } from 'motion/react';
-import { DuelScreen } from './Duel';
+import { LOGOS } from '../constants';
+import { DuelManager } from './Duel';
 import { LifeActionCard } from './LifeActionCard';
 import { ALL_FANZ } from '../constants/fanz';
 import { getImageUrl } from '../lib/utils';
@@ -16,14 +17,16 @@ interface DashboardProps {
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
   onMatchClick: (matchId: number) => void;
+  onFanzClick?: (fanzId: string) => void;
 }
 
-export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMatchClick }: DashboardProps) {
+export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMatchClick, onFanzClick }: DashboardProps) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [fanzList, setFanzList] = useState<Fanz[]>([]);
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
+  const [selectedDuelType, setSelectedDuelType] = useState<Duel['type'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,35 +82,8 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
     };
   }, []);
 
-  const handleStartDuel = async (type: Duel['type']) => {
-    if (!user || !auth.currentUser || user.energy < 10) return;
-    if (user.activeAction) {
-      alert("Vous avez une action en cours ! Terminez-la avant de lancer un duel.");
-      return;
-    }
-
-    try {
-      const duelId = Math.random().toString(36).substring(7);
-      const newDuel: Duel = {
-        id: duelId,
-        type,
-        status: 'active',
-        teamA: user.favoriteTeams[0],
-        teamB: 'Rival Team',
-        progress: 50,
-        participants: [user.uid]
-      };
-
-      setActiveDuel(newDuel);
-      
-      const userPath = `users/${auth.currentUser.uid}`;
-      await updateDoc(doc(db, userPath), {
-        energy: user.energy - 10,
-        money: user.money - 50
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `users/${auth.currentUser?.uid}`);
-    }
+  const handleStartDuel = (type: Duel['type']) => {
+    setSelectedDuelType(type);
   };
 
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
@@ -116,7 +92,7 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
     const fetchLive = async () => {
       try {
         const data = await footballApi.getLiveFixtures();
-        setLiveMatches(data.slice(0, 5));
+        setLiveMatches(data);
       } catch (err) {
         console.error('Failed to fetch live matches', err);
       }
@@ -131,9 +107,16 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
   const activeFanz = user?.activeAction ? fanzList.find(f => f.id === user.activeAction?.fanzId) : null;
   const activeActionDetails = lifeActions.find(a => a.id === user?.activeAction?.actionId);
 
-  if (activeDuel) {
-    const fanzToUse = activeFanz || fanzList[0];
-    return <DuelScreen duel={activeDuel} onExit={() => setActiveDuel(null)} user={user} fanzId={fanzToUse?.id} />;
+  if (selectedDuelType) {
+    return (
+      <DuelManager 
+        user={user} 
+        matchId="global" 
+        teamA="KOP A"
+        teamB="KOP B"
+        onExit={() => setSelectedDuelType(null)} 
+      />
+    );
   }
 
   return (
@@ -151,10 +134,10 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
 
       {/* Header Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={<Coins className="text-yellow-500" />} label="Money" value={`$${user.money}`} />
-        <StatCard icon={<Gem className="text-purple-500" />} label="Gems" value={user.gems} />
-        <StatCard icon={<Zap className="text-orange-500" />} label="Energy" value={`${user.energy}/100`} />
-        <StatCard icon={<Trophy className="text-blue-500" />} label="Ferveur" value={user.ferveurPoints} />
+        <StatCard icon={<img src={LOGOS.money} alt="Money" className="w-6 h-6 object-contain" />} label="Money" value={`$${user.money}`} />
+        <StatCard icon={<img src={LOGOS.gems} alt="Gems" className="w-6 h-6 object-contain" />} label="Gems" value={user.gems} />
+        <StatCard icon={<img src={LOGOS.energy} alt="Energy" className="w-6 h-6 object-contain" />} label="Energy" value={`${user.energy}/100`} />
+        <StatCard icon={<img src={LOGOS.level} alt="Level" className="w-6 h-6 object-contain" />} label="Level" value={user.level} />
       </div>
 
       {/* User Level Progress */}
@@ -236,44 +219,56 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
               const displayVideo = equippedSkin?.videoUrl || fanz.videoUrl || template?.video;
 
               return (
-              <Card key={fanz.id} className="flex items-center gap-4 group relative overflow-hidden">
-                <div className="w-16 h-16 bg-orange-600/20 rounded-full flex items-center justify-center border border-orange-500 overflow-hidden relative z-10">
-                  {displayVideo ? (
-                    <video 
-                      key={getImageUrl(displayVideo)}
-                      src={getImageUrl(displayVideo)}
-                      poster={getImageUrl(displayImage || '')}
-                      className="w-full h-full object-contain"
-                      autoPlay muted loop playsInline
-                      preload="auto"
-                    />
-                  ) : displayImage ? (
-                    <img src={getImageUrl(displayImage)} alt={fanz.name} className="w-full h-full object-contain" />
-                  ) : (
-                    <UserIcon className="text-orange-500" />
-                  )}
-                </div>
-                <div className="flex-1 z-10">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold">{fanz.name}</h4>
-                    {fanz.equippedSkin && fanz.equippedSkin !== 'default' && (
-                      <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
+                <Card 
+                  key={fanz.id} 
+                  className="flex items-center gap-4 group relative overflow-hidden cursor-pointer hover:border-orange-500/50 transition-all"
+                  onClick={() => onFanzClick?.(fanz.id)}
+                >
+                  <div className="w-16 h-16 bg-orange-600/20 rounded-full flex items-center justify-center border border-orange-500 overflow-hidden relative z-10">
+                    {displayVideo ? (
+                      <video 
+                        key={getImageUrl(displayVideo)}
+                        src={getImageUrl(displayVideo)}
+                        poster={getImageUrl(displayImage || '')}
+                        className="w-full h-full object-contain"
+                        autoPlay muted loop playsInline
+                        preload="auto"
+                      />
+                    ) : displayImage ? (
+                      <img src={getImageUrl(displayImage)} alt={equippedSkin?.name || fanz.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <UserIcon className="text-orange-500" />
                     )}
                   </div>
-                  <div className="flex gap-2 text-xs text-gray-400">
-                    <span className="font-bold text-orange-500">LVL {fanz.level}</span>
-                    <span>•</span>
-                    <span>{fanz.xp} XP</span>
-                    {equippedSkin && (
-                      <>
-                        <span>•</span>
-                        <span className="text-purple-400 italic">{equippedSkin.name}</span>
-                      </>
-                    )}
+                  <div className="flex-1 z-10">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold">{equippedSkin?.name || fanz.name}</h4>
+                      {fanz.equippedSkin && fanz.equippedSkin !== 'default' && (
+                        <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
+                      )}
+                      {/* Reward Badge */}
+                      {(() => {
+                        const hasUnclaimed = (fanz.rank || 0) > 0 && 
+                          Array.from({ length: fanz.rank || 0 }).some((_, i) => !fanz.claimedRewards?.includes(`rank-${i + 1}`));
+                        
+                        if (hasUnclaimed) {
+                          return (
+                            <div className="px-1.5 py-0.5 bg-green-500 rounded text-[8px] font-black text-white uppercase animate-pulse">
+                              Récompense !
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                    <div className="flex gap-2 text-xs text-gray-400">
+                      <span className="font-bold text-orange-500">LVL {fanz.level}</span>
+                      <span>•</span>
+                      <span>RANG {fanz.rank || 1}</span>
+                    </div>
                   </div>
-                </div>
-                <Button variant="outline" className="px-3 py-1 text-xs z-10">Stats</Button>
-              </Card>
+                  <Button variant="outline" className="px-3 py-1 text-xs z-10">Stats</Button>
+                </Card>
               );
             })}
           </div>

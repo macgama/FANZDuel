@@ -19,58 +19,212 @@ async function startServer() {
 
   const PORT = 3000;
 
-  // Simple game state for active duels (tug of war)
-  const duelStates: Record<string, { progress: number; teamA: number; teamB: number }> = {};
+  // Enhanced game state for duels
+    const duels: Record<string, {
+    id: string;
+    type: string;
+    status: 'waiting' | 'starting' | 'active' | 'finished';
+    progress: number;
+    participants: any[];
+    matchId?: number;
+    startTime?: number;
+    timer?: NodeJS.Timeout;
+    scores?: { A: number; B: number };
+    clickCounts: { A: number; B: number };
+    cardCounts: { A: number; B: number };
+  }> = {};
 
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("join-duel", (duelId) => {
-      socket.join(duelId);
-      if (!duelStates[duelId]) {
-        duelStates[duelId] = { progress: 50, teamA: 0, teamB: 0 };
+    socket.on("join-duel", ({ user, fanz, type, matchId }) => {
+      // Matchmaking logic
+      let duelId = '';
+      
+      if (type === 'training') {
+        duelId = `training_${socket.id}`;
+      } else if (type === 'war_of_kops') {
+        duelId = `war_of_kops_${matchId || 'global'}`;
+      } else {
+        // Find a waiting duel of same type and match
+        const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10 }[type as '1v1' | '2v2' | '5v5'] || 2;
+        const availableDuel = Object.values(duels).find(d => 
+          d.type === type && 
+          d.status === 'waiting' && 
+          d.participants.length < requiredPlayers &&
+          (!matchId || d.matchId === matchId)
+        );
+        
+        if (availableDuel) {
+          duelId = availableDuel.id;
+        } else {
+          duelId = `duel_${Math.random().toString(36).substring(7)}`;
+        }
       }
-      socket.emit("duel-update", duelStates[duelId]);
+
+      if (!duels[duelId]) {
+        duels[duelId] = {
+          id: duelId,
+          type: type || '1v1',
+          status: type === 'training' || type === 'war_of_kops' ? 'active' : 'waiting',
+          progress: 50,
+          participants: [],
+          matchId,
+          scores: type === 'war_of_kops' ? { A: 0, B: 0 } : undefined,
+          clickCounts: { A: 0, B: 0 },
+          cardCounts: { A: 0, B: 0 }
+        };
+      }
+
+      const duel = duels[duelId];
+      socket.join(duelId);
+      
+      // Add participant if not already there
+      if (!duel.participants.find(p => p.uid === user.uid)) {
+        let team: 'A' | 'B' = 'A';
+        if (type === 'war_of_kops') {
+          const teamACount = duel.participants.filter(p => p.team === 'A').length;
+          const teamBCount = duel.participants.filter(p => p.team === 'B').length;
+          team = teamACount <= teamBCount ? 'A' : 'B';
+        } else if (type !== 'training') {
+          const maxPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[type as '1v1' | '2v2' | '5v5'] || 1;
+          const teamACount = duel.participants.filter(p => p.team === 'A').length;
+          if (teamACount < maxPerTeam) team = 'A';
+          else team = 'B';
+        }
+        
+        duel.participants.push({ ...user, fanz, team, socketId: socket.id });
+      }
+
+      io.to(duelId).emit("duel-update", { 
+        progress: duel.progress, 
+        status: duel.status, 
+        participants: duel.participants,
+        scores: duel.scores
+      });
+
+      // Check if duel should start
+      const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10, 'training': 1, 'war_of_kops': 1 }[duel.type as keyof typeof requiredPlayers] || 2;
+      
+      if (duel.status === 'waiting' && duel.participants.length >= requiredPlayers) {
+        duel.status = 'starting';
+        const startTime = Date.now() + 5000;
+        io.to(duelId).emit("duel-starting", { startTime });
+        
+        duel.timer = setTimeout(() => {
+          duel.status = 'active';
+          io.to(duelId).emit("duel-started");
+        }, 5000) as any;
+      }
+
+      // Training mode: Start bot logic
+      if (duel.type === 'training' && duel.status === 'active') {
+        const botInterval = setInterval(() => {
+          if (duel.status !== 'active') {
+            clearInterval(botInterval);
+            return;
+          }
+          const botMultiplier = 1;
+          const baseDelta = 0.5;
+          duel.progress = Math.min(100, Math.max(0, duel.progress - (baseDelta * botMultiplier)));
+          io.to(duelId).emit("duel-update", { progress: duel.progress, status: duel.status, participants: duel.participants });
+
+          if (duel.progress <= 0) {
+            duel.status = 'finished';
+            io.to(duelId).emit("duel-finished", { winner: "B" });
+            clearInterval(botInterval);
+          }
+        }, 1500 + Math.random() * 1000);
+      }
     });
 
     socket.on("click-ferveur", ({ duelId, team, multiplier }) => {
-      if (duelStates[duelId]) {
+      const duel = duels[duelId];
+      if (duel && duel.status === 'active') {
+        duel.clickCounts[team]++;
         const baseDelta = 0.5;
         const delta = (team === "A" ? baseDelta : -baseDelta) * (multiplier || 1);
-        duelStates[duelId].progress = Math.min(100, Math.max(0, duelStates[duelId].progress + delta));
-        io.to(duelId).emit("duel-update", duelStates[duelId]);
+        duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
         
-        if (duelStates[duelId].progress >= 100 || duelStates[duelId].progress <= 0) {
-          io.to(duelId).emit("duel-finished", { winner: duelStates[duelId].progress >= 100 ? "A" : "B" });
+        if (duel.type === 'war_of_kops') {
+          if (duel.progress >= 100 || duel.progress <= 0) {
+            if (duel.scores) {
+              if (duel.progress >= 100) duel.scores.A++;
+              else duel.scores.B++;
+            }
+            duel.progress = 50; // Reset for continuous battle
+          }
+        } else if (duel.progress >= 100 || duel.progress <= 0) {
+          duel.status = 'finished';
+          const winner = duel.progress >= 100 ? "A" : "B";
+          io.to(duelId).emit("duel-finished", { winner });
         }
+        
+        io.to(duelId).emit("duel-update", { 
+          progress: duel.progress, 
+          status: duel.status, 
+          participants: duel.participants,
+          scores: duel.scores
+        });
       }
     });
 
     socket.on("play-card", ({ duelId, team, card }) => {
-      if (duelStates[duelId]) {
-        // Handle immediate effects on server state (like progress)
+      const duel = duels[duelId];
+      if (duel && duel.status === 'active') {
+        duel.cardCounts[team]++;
+        
+        if (card.fervorValue) {
+          const delta = team === "A" ? card.fervorValue : -card.fervorValue;
+          duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
+        }
+
         card.effects.forEach((effect: any) => {
-          if (effect.type === 'push_rope' && effect.value) {
+          if (effect.type === 'push_rope' && effect.value && !card.fervorValue) {
             const delta = team === "A" ? effect.value : -effect.value;
-            duelStates[duelId].progress = Math.min(100, Math.max(0, duelStates[duelId].progress + delta));
+            duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
           }
         });
         
-        // Broadcast the updated state to everyone
-        io.to(duelId).emit("duel-update", duelStates[duelId]);
-        
-        // Broadcast the card play to the opponent for visual/status effects
-        socket.to(duelId).emit("enemy-card-played", { team, card });
-
-        // Check for win condition after card play
-        if (duelStates[duelId].progress >= 100 || duelStates[duelId].progress <= 0) {
-          io.to(duelId).emit("duel-finished", { winner: duelStates[duelId].progress >= 100 ? "A" : "B" });
+        if (duel.type === 'war_of_kops') {
+          if (duel.progress >= 100 || duel.progress <= 0) {
+            if (duel.scores) {
+              if (duel.progress >= 100) duel.scores.A++;
+              else duel.scores.B++;
+            }
+            duel.progress = 50;
+          }
+        } else if (duel.progress >= 100 || duel.progress <= 0) {
+          duel.status = 'finished';
+          const winner = duel.progress >= 100 ? "A" : "B";
+          io.to(duelId).emit("duel-finished", { winner });
         }
+        
+        io.to(duelId).emit("duel-update", { 
+          progress: duel.progress, 
+          status: duel.status, 
+          participants: duel.participants,
+          scores: duel.scores
+        });
+        socket.to(duelId).emit("enemy-card-played", { team, card });
       }
     });
 
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
+      // Clean up participants
+      Object.values(duels).forEach(duel => {
+        const index = duel.participants.findIndex(p => p.socketId === socket.id);
+        if (index !== -1) {
+          duel.participants.splice(index, 1);
+          if (duel.participants.length === 0 && duel.type !== 'war_of_kops') {
+            if (duel.timer) clearTimeout(duel.timer);
+            delete duels[duel.id];
+          } else {
+            io.to(duel.id).emit("duel-update", { participants: duel.participants });
+          }
+        }
+      });
     });
   });
 
