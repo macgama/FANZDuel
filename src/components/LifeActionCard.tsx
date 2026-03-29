@@ -6,6 +6,7 @@ import { getImageUrl } from '../lib/utils';
 import { LOGOS } from '../constants';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteField } from 'firebase/firestore';
+import { logTransaction } from '../services/transactionService';
 import { useAlert, Reward } from '../context/AlertContext';
 
 interface LifeActionCardProps {
@@ -114,6 +115,11 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
           durationMinutes: action.durationMinutes
         }
       });
+
+      if (costEnergy > 0) await logTransaction(userProfile.uid, 'energy', -costEnergy, `Démarrage action: ${action.title}`);
+      if (costMoney > 0) await logTransaction(userProfile.uid, 'money', -costMoney, `Démarrage action: ${action.title}`);
+      if (costGems > 0) await logTransaction(userProfile.uid, 'gems', -costGems, `Démarrage action: ${action.title}`);
+      if (costBoost > 0) await logTransaction(userProfile.uid, 'boost', -costBoost, `Démarrage action: ${action.title}`);
     } catch (error) {
       console.error("Erreur lors du lancement de l'action:", error);
     } finally {
@@ -147,6 +153,11 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
         boostPoints: (userProfile.boostPoints || 0) + gainBoost,
         activeAction: deleteField()
       });
+
+      if (gainEnergy > 0) await logTransaction(userProfile.uid, 'energy', gainEnergy, `Fin action: ${action.title}`);
+      if (gainMoney > 0) await logTransaction(userProfile.uid, 'money', gainMoney, `Fin action: ${action.title}`);
+      if (gainGems > 0) await logTransaction(userProfile.uid, 'gems', gainGems, `Fin action: ${action.title}`);
+      if (gainBoost > 0) await logTransaction(userProfile.uid, 'boost', gainBoost, `Fin action: ${action.title}`);
 
       // Update Fanz
       const newActionXp = actionProgress.xp + 10; // Fixed XP per action for leveling up the action itself
@@ -228,6 +239,12 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
         boostPoints: (userProfile.boostPoints || 0) + gainBoost,
         activeAction: deleteField()
       });
+
+      await logTransaction(userProfile.uid, 'gems', -1, `Accélération action: ${action.title}`);
+      if (gainEnergy > 0) await logTransaction(userProfile.uid, 'energy', gainEnergy, `Fin action: ${action.title}`);
+      if (gainMoney > 0) await logTransaction(userProfile.uid, 'money', gainMoney, `Fin action: ${action.title}`);
+      if (gainGems > 0) await logTransaction(userProfile.uid, 'gems', gainGems, `Fin action: ${action.title}`);
+      if (gainBoost > 0) await logTransaction(userProfile.uid, 'boost', gainBoost, `Fin action: ${action.title}`);
 
       // Update Fanz
       const newActionXp = actionProgress.xp + 10; // Fixed XP per action for leveling up the action itself

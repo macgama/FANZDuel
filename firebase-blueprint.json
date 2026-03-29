@@ -295,6 +295,17 @@
         "day": { "type": "number" },
         "reward": { "type": "object" }
       }
+    },
+    "MatchScore": {
+      "title": "MatchScore",
+      "description": "Score of a duel associated with a real match.",
+      "type": "object",
+      "properties": {
+        "matchId": { "type": "string" },
+        "scoreA": { "type": "number" },
+        "scoreB": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -314,6 +325,7 @@
     "/missions/{missionId}": { "schema": "Mission", "description": "Global missions" },
     "/passes/{passId}": { "schema": "Pass", "description": "Seasonal passes" },
     "/global_configs/user_fervor": { "schema": "GlobalFervorConfig", "description": "Global user fervor path" },
-    "/weekly_streak_config/{day}": { "schema": "WeeklyStreakConfig", "description": "Weekly streak rewards" }
+    "/weekly_streak_config/{day}": { "schema": "WeeklyStreakConfig", "description": "Weekly streak rewards" },
+    "/match_scores/{duelId}": { "schema": "MatchScore", "description": "Scores for individual duels linked to a match" }
   }
 }

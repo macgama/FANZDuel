@@ -160,11 +160,22 @@ export function AdminZone() {
       const docSnap = await getDocs(collection(db, 'global_configs'));
       const configDoc = docSnap.docs.find(d => d.id === 'duel_config');
       if (configDoc) {
-        setDuelConfig({ id: configDoc.id, ...configDoc.data() } as DuelConfig);
+        const data = configDoc.data() as DuelConfig;
+        if (!data.rewards) {
+          data.rewards = {
+            training: { winXp: 5, loseXp: 5 },
+            '1v1': { winXp: 10, loseXp: 10 },
+            '2v2': { winXp: 20, loseXp: 20 },
+            '5v5': { winXp: 300, loseXp: 30 },
+            war_of_kops: { winXp: 10, loseXp: 10 }
+          };
+        }
+        setDuelConfig({ id: configDoc.id, ...data });
       } else {
         // Initialize if missing
         const defaultConfig: DuelConfig = {
           id: 'duel_config',
+          baseExcitementRegenTime: 5,
           statEffects: [
             { statName: 'force', effectType: 'click_power', baseValue: 0.005, multiplierPerLevel: 0.001, description: 'Force : Augmente la puissance du clic (Ferveur +X%)' },
             { statName: 'endurance', effectType: 'energy_regen', baseValue: 2, multiplierPerLevel: 0.5, description: 'Endurance : Augmente la régénération d\'excitation par seconde' },
@@ -185,6 +196,13 @@ export function AdminZone() {
             '2v2': { money: 15, energy: 15 },
             '5v5': { money: 20, energy: 20 },
             war_of_kops: { money: 30, energy: 30 }
+          },
+          rewards: {
+            training: { winXp: 5, loseXp: 5 },
+            '1v1': { winXp: 10, loseXp: 10 },
+            '2v2': { winXp: 20, loseXp: 20 },
+            '5v5': { winXp: 300, loseXp: 30 },
+            war_of_kops: { winXp: 10, loseXp: 10 }
           }
         };
         setDuelConfig(defaultConfig);
@@ -1564,6 +1582,22 @@ export function AdminZone() {
             La formule utilisée est généralement : <code className="bg-gray-800 px-1 rounded text-orange-400">Valeur = Base + (Niveau * Multiplicateur)</code>
           </p>
 
+          <div className="p-4 rounded-xl bg-gray-900/50 border border-gray-800 space-y-4">
+            <h4 className="font-bold text-orange-500 uppercase">Paramètres Globaux</h4>
+            <div className="flex items-center gap-4">
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Temps de base pour 1 pt d'excitation (secondes)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={duelConfig.baseExcitementRegenTime || 5}
+                  onChange={(e) => setDuelConfig({ ...duelConfig, baseExcitementRegenTime: parseFloat(e.target.value) })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {duelConfig.statEffects.map((effect, idx) => (
               <div key={idx} className="p-4 rounded-xl bg-gray-900/50 border border-gray-800 space-y-4">
@@ -1661,6 +1695,46 @@ export function AdminZone() {
                         onChange={(e) => {
                           const newCosts = { ...duelConfig.costs, [type]: { ...cost, energy: parseInt(e.target.value) } };
                           setDuelConfig({ ...duelConfig, costs: newCosts });
+                        }}
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded p-1 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-8 border-t border-gray-800">
+            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-500" />
+              Gains d'XP par Type de Duel
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {duelConfig.rewards && Object.entries(duelConfig.rewards).map(([type, reward]) => (
+                <div key={type} className="p-4 rounded-xl bg-gray-900/50 border border-gray-800 space-y-3">
+                  <span className="text-[10px] font-black uppercase text-gray-500">{type.replace('_', ' ')}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-green-400 w-12">Victoire</span>
+                      <input
+                        type="number"
+                        value={reward.winXp}
+                        onChange={(e) => {
+                          const newRewards = { ...duelConfig.rewards, [type]: { ...reward, winXp: parseInt(e.target.value) } };
+                          setDuelConfig({ ...duelConfig, rewards: newRewards as any });
+                        }}
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded p-1 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-red-400 w-12">Défaite</span>
+                      <input
+                        type="number"
+                        value={reward.loseXp}
+                        onChange={(e) => {
+                          const newRewards = { ...duelConfig.rewards, [type]: { ...reward, loseXp: parseInt(e.target.value) } };
+                          setDuelConfig({ ...duelConfig, rewards: newRewards as any });
                         }}
                         className="flex-1 bg-gray-800 border border-gray-700 rounded p-1 text-xs font-mono"
                       />

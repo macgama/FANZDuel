@@ -27,6 +27,8 @@ import { RewardProvider } from './context/RewardContext';
 
 import { Home } from './components/Home';
 
+import { TransactionsPage } from './components/TransactionsPage';
+
 export default function App() {
   return (
     <AlertProvider>
@@ -41,7 +43,7 @@ function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz'>('home');
+  const [view, setView] = useState<'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions'>('home');
   const [selectedLeague, setSelectedLeague] = useState<{ id: number; season: number } | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<{ id: number; season: number } | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
@@ -201,6 +203,10 @@ function AppContent() {
             setSelectedMatchId(id);
             setView('matches');
           }}
+          onJoinDuel={(id, isLive) => {
+            setSelectedMatchId(id);
+            setView('matches');
+          }}
         />
       </Layout>
     );
@@ -220,6 +226,7 @@ function AppContent() {
               setSelectedFanzId(null);
             }} 
             onMenuClick={() => setIsMenuOpen(true)}
+            onTransactionsClick={() => setView('transactions')}
           />
         )}
         
@@ -264,7 +271,11 @@ function AppContent() {
           ) : view === 'matches' ? (
             <MatchesPage 
               onMatchClick={(id) => setSelectedMatchId(id)}
-              onJoinDuel={(id) => setSelectedMatchId(id)}
+              onJoinDuel={(id, isLive) => {
+                setSelectedMatchId(id);
+                // We don't have a direct way to pass isLive to MatchDetails from here yet,
+                // but MatchDetails fetches the match and determines isLive itself.
+              }}
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
             />
@@ -278,6 +289,8 @@ function AppContent() {
             />
           ) : view === 'fanz' ? (
             <FanzPage userUid={user.uid} onFanzClick={(id) => setSelectedFanzId(id)} />
+          ) : view === 'transactions' ? (
+            <TransactionsPage profile={profile} onBack={() => setView('home')} />
           ) : (
             <Dashboard 
               onDuelStatusChange={setIsDuelActive}

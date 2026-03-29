@@ -19,10 +19,11 @@ interface HeaderProps {
   profile: UserProfile;
   onHomeClick?: () => void;
   onMenuClick?: () => void;
+  onTransactionsClick?: () => void;
   absolute?: boolean;
 }
 
-export function Header({ profile, onHomeClick, onMenuClick, absolute = false }: HeaderProps) {
+export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick, absolute = false }: HeaderProps) {
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.photoURL || null);
@@ -130,7 +131,10 @@ export function Header({ profile, onHomeClick, onMenuClick, absolute = false }: 
 
         {/* Center: Attributes & Ferveur Progress */}
         <div className="flex flex-col items-center">
-          <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 relative z-10">
+          <div 
+            className="flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 relative z-10 cursor-pointer hover:bg-white/10 transition-colors"
+            onClick={() => onTransactionsClick && onTransactionsClick()}
+          >
             <div className="flex items-center gap-1">
               <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 object-contain" />
               <span className="text-[10px] font-bold">{profile.money}</span>
@@ -159,7 +163,10 @@ export function Header({ profile, onHomeClick, onMenuClick, absolute = false }: 
           </div>
           
           {/* Ferveur Progress Bar */}
-          <div className="mt-1 w-32 h-4 bg-black/60 rounded-full border border-white/10 overflow-hidden relative">
+          <div 
+            className="mt-1 w-32 h-4 bg-black/60 rounded-full border border-white/10 overflow-hidden relative cursor-pointer hover:border-white/30 transition-colors"
+            onClick={() => onTransactionsClick && onTransactionsClick()}
+          >
             <div 
               className="absolute top-0 left-0 h-full bg-orange-500 transition-all duration-500"
               style={{ width: `${ferveurProgressPercent}%` }}

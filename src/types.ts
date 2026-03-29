@@ -1,3 +1,13 @@
+export interface ResourceTransaction {
+  id: string;
+  userId: string;
+  type: 'money' | 'gems' | 'boost' | 'energy' | 'ferveur_general' | 'ferveur_fanz';
+  amount: number;
+  description: string;
+  fanzId?: string; // For ferveur_fanz
+  createdAt: string;
+}
+
 export interface ActiveAction {
   fanzId: string;
   actionId: string;
@@ -297,6 +307,7 @@ export interface DuelStatEffect {
 
 export interface DuelConfig {
   id: string; // 'default'
+  baseExcitementRegenTime?: number; // Time in seconds to regenerate 1 point of excitement
   statEffects: DuelStatEffect[];
   costs: {
     training: { money: number; energy: number };
@@ -304,6 +315,13 @@ export interface DuelConfig {
     '2v2': { money: number; energy: number };
     '5v5': { money: number; energy: number };
     war_of_kops: { money: number; energy: number };
+  };
+  rewards?: {
+    training: { winXp: number; loseXp: number };
+    '1v1': { winXp: number; loseXp: number };
+    '2v2': { winXp: number; loseXp: number };
+    '5v5': { winXp: number; loseXp: number };
+    war_of_kops: { winXp: number; loseXp: number };
   };
 }
 
@@ -391,7 +409,7 @@ export interface Fixture {
   timestamp: number;
   periods: { first?: number; second?: number };
   venue: { id?: number; name?: string; city?: string };
-  status: { long: string; short: string; elapsed?: number };
+  status: { long: string; short: string; elapsed?: number; extra?: number };
   league: { id: number; name: string; country: string; logo: string; flag?: string; season: number; round: string };
   teams: {
     home: { id: number; name: string; logo: string; winner?: boolean };

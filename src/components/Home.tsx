@@ -26,15 +26,17 @@ import { Header } from './Header';
 
 interface HomeProps {
   profile: UserProfile;
-  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz') => void;
+  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
+  onJoinDuel: (matchId: number, isLive: boolean) => void;
 }
 
-export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomeProps) {
+export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDuel }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
+  const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -90,6 +92,33 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomePro
         const liveFixtures = await footballApi.getLiveFixtures();
         // Show all live matches
         setLiveMatches(liveFixtures);
+        
+        // Fetch scores for these matches
+        if (liveFixtures.length > 0) {
+          const matchIds = liveFixtures.map((m: any) => m.fixture.id.toString());
+          const scoresMap: Record<string, { scoreA: number, scoreB: number }> = {};
+          
+          // Chunk matchIds into arrays of 10
+          const chunkSize = 10;
+          for (let i = 0; i < matchIds.length; i += chunkSize) {
+            const chunk = matchIds.slice(i, i + chunkSize);
+            const scoresQuery = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
+            const scoresSnapshot = await getDocs(scoresQuery);
+            
+            scoresSnapshot.forEach(doc => {
+              const data = doc.data();
+              if (data.matchId) {
+                if (!scoresMap[data.matchId]) {
+                  scoresMap[data.matchId] = { scoreA: 0, scoreB: 0 };
+                }
+                scoresMap[data.matchId].scoreA += data.scoreA || 0;
+                scoresMap[data.matchId].scoreB += data.scoreB || 0;
+              }
+            });
+          }
+          
+          setMatchScores(scoresMap);
+        }
       } catch (error) {
         console.error("Error fetching matches", error);
       }
@@ -121,6 +150,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomePro
         profile={profile} 
         onMenuClick={onMenuClick}
         onHomeClick={() => setShowProfileModal(true)}
+        onTransactionsClick={() => onNavigate('transactions')}
         absolute
       />
 
@@ -226,7 +256,15 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomePro
             >
               <div className="flex flex-nowrap gap-4 px-[30px] w-fit mx-auto">
                 {liveMatches.length > 0 ? (
-                liveMatches.map(match => (
+                liveMatches.map(match => {
+                  const matchId = match.fixture.id.toString();
+                  const scoreA = matchScores[matchId]?.scoreA || 0;
+                  const scoreB = matchScores[matchId]?.scoreB || 0;
+                  const totalScore = scoreA + scoreB;
+                  const dominanceA = totalScore > 0 ? Math.round((scoreA / totalScore) * 100) : 50;
+                  const dominanceB = totalScore > 0 ? Math.round((scoreB / totalScore) * 100) : 50;
+
+                  return (
                   <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group">
                     {/* Header: Country & League */}
                     <div className="flex justify-between items-center text-[8px] font-black text-gray-400 uppercase tracking-widest">
@@ -250,7 +288,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomePro
                         <span className="font-black text-[10px] text-center uppercase leading-tight h-6 flex items-center">{match.teams.home.name}</span>
                         <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
                           <Flame className="w-2.5 h-2.5 text-orange-500" />
-                          <span className="text-[8px] font-black text-orange-500">0 PTS</span>
+                          <span className="text-[8px] font-black text-orange-500">{scoreA} PTS</span>
                         </div>
                       </div>
 
@@ -262,7 +300,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomePro
                           <span>{match.goals.away ?? 0}</span>
                         </div>
                         <div className="mt-1 bg-orange-500/20 border border-orange-500/30 rounded-full w-6 h-6 flex items-center justify-center">
-                          <span className="text-[8px] font-black text-orange-500">{match.fixture.status.elapsed ? `${match.fixture.status.elapsed}'` : match.fixture.status.short}</span>
+                          <span className="text-[8px] font-black text-orange-500">{match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'` : match.fixture.status.short}</span>
                         </div>
                       </div>
 
@@ -272,9 +310,9 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomePro
                           <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" />
                         </div>
                         <span className="font-black text-[10px] text-center uppercase leading-tight h-6 flex items-center">{match.teams.away.name}</span>
-                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
-                          <Flame className="w-2.5 h-2.5 text-orange-500" />
-                          <span className="text-[8px] font-black text-orange-500">0 PTS</span>
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
+                          <Flame className="w-2.5 h-2.5 text-blue-500" />
+                          <span className="text-[8px] font-black text-blue-500">{scoreB} PTS</span>
                         </div>
                       </div>
                     </div>
@@ -282,13 +320,14 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomePro
                     {/* Dominance Bar */}
                     <div className="mt-2">
                       <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                        <span>50%</span>
+                        <span className="text-orange-500">{dominanceA}%</span>
                         <span>DOMINANCE MONDIALE</span>
-                        <span>50%</span>
+                        <span className="text-blue-500">{dominanceB}%</span>
                       </div>
-                      <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden flex">
-                        <div className="h-full bg-orange-500 w-1/2 rounded-l-full" />
-                        <div className="h-full bg-gray-600 w-1/2 rounded-r-full" />
+                      <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden flex relative">
+                        <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${dominanceA}%` }} />
+                        <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${dominanceB}%` }} />
+                        <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
                       </div>
                     </div>
 
@@ -301,14 +340,14 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick }: HomePro
                         MATCH
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); console.log("REJOINDRE clicked", match.fixture.id); onMatchClick(match.fixture.id); }}
+                        onClick={(e) => { e.stopPropagation(); console.log("REJOINDRE clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
                         className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors"
                       >
                         REJOINDRE
                       </button>
                     </div>
                   </div>
-                ))
+                )})
               ) : (
                 activeFanz && fanzTemplate ? (
                   lifeActions

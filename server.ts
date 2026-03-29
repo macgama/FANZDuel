@@ -5,6 +5,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import axios from "axios";
 import * as dotenv from "dotenv";
+import { BASE_CARDS } from "./src/constants/cards";
 
 dotenv.config();
 
@@ -34,15 +35,62 @@ async function startServer() {
     cardCounts: { A: number; B: number };
   }> = {};
 
+  function finishDuel(duelId: string, winner: string) {
+    const duel = duels[duelId];
+    if (!duel) return;
+    duel.status = 'finished';
+    
+    const teamAActions = duel.clickCounts.A + duel.cardCounts.A;
+    const teamBActions = duel.clickCounts.B + duel.cardCounts.B;
+    const totalActions = teamAActions + teamBActions;
+    
+    let scoreA = winner === 'A' ? 20 : 0;
+    let scoreB = winner === 'B' ? 20 : 0;
+    
+    if (totalActions > 0) {
+      scoreA += Math.round((teamAActions / totalActions) * 80);
+      scoreB += Math.round((teamBActions / totalActions) * 80);
+    } else {
+      scoreA += 40;
+      scoreB += 40;
+    }
+    
+    // Ensure total is exactly 100
+    if (scoreA + scoreB !== 100) {
+      if (scoreA > scoreB) scoreA += (100 - (scoreA + scoreB));
+      else scoreB += (100 - (scoreA + scoreB));
+    }
+
+    io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB });
+  }
+
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("join-duel", ({ user, fanz, type, matchId }) => {
+    socket.on("join-duel", ({ duelId: clientDuelId, user, fanz, type, matchId }) => {
+      // Check for reconnection
+      if (clientDuelId && duels[clientDuelId]) {
+        const existingDuel = duels[clientDuelId];
+        const participant = existingDuel.participants.find(p => p.uid === user.uid);
+        if (participant) {
+          participant.socketId = socket.id;
+          socket.join(clientDuelId);
+          io.to(clientDuelId).emit("duel-update", { 
+            duelId: existingDuel.id,
+            progress: existingDuel.progress, 
+            status: existingDuel.status, 
+            participants: existingDuel.participants,
+            scores: existingDuel.scores
+          });
+          return;
+        }
+      }
+
       // Matchmaking logic
       let duelId = '';
       
       if (type === 'training') {
-        duelId = `training_${socket.id}`;
+        duelId = clientDuelId || `training_${socket.id}`;
       } else if (type === 'war_of_kops') {
         duelId = `war_of_kops_${matchId || 'global'}`;
       } else {
@@ -58,7 +106,7 @@ async function startServer() {
         if (availableDuel) {
           duelId = availableDuel.id;
         } else {
-          duelId = `duel_${Math.random().toString(36).substring(7)}`;
+          duelId = clientDuelId || `duel_${Math.random().toString(36).substring(7)}`;
         }
       }
 
@@ -97,6 +145,7 @@ async function startServer() {
       }
 
       io.to(duelId).emit("duel-update", { 
+        duelId: duel.id,
         progress: duel.progress, 
         status: duel.status, 
         participants: duel.participants,
@@ -127,12 +176,29 @@ async function startServer() {
           const botMultiplier = 1;
           const baseDelta = 0.5;
           duel.progress = Math.min(100, Math.max(0, duel.progress - (baseDelta * botMultiplier)));
-          io.to(duelId).emit("duel-update", { progress: duel.progress, status: duel.status, participants: duel.participants });
+          
+          // Occasional bot card play (10% chance per tick)
+          if (Math.random() < 0.1) {
+            const randomCard = BASE_CARDS[Math.floor(Math.random() * BASE_CARDS.length)];
+            duel.cardCounts['B']++;
+            
+            if (randomCard.fervorValue) {
+              duel.progress = Math.max(0, duel.progress - randomCard.fervorValue);
+            }
+            randomCard.effects.forEach((effect: any) => {
+              if (effect.type === 'push_rope' && effect.value && !randomCard.fervorValue) {
+                duel.progress = Math.max(0, duel.progress - effect.value);
+              }
+            });
+            
+            io.to(duelId).emit("enemy-card-played", { team: 'B', card: randomCard });
+          }
+
+          io.to(duelId).emit("duel-update", { duelId: duel.id, progress: duel.progress, status: duel.status, participants: duel.participants });
 
           if (duel.progress <= 0) {
-            duel.status = 'finished';
-            io.to(duelId).emit("duel-finished", { winner: "B" });
             clearInterval(botInterval);
+            finishDuel(duelId, "B");
           }
         }, 1500 + Math.random() * 1000);
       }
@@ -155,12 +221,12 @@ async function startServer() {
             duel.progress = 50; // Reset for continuous battle
           }
         } else if (duel.progress >= 100 || duel.progress <= 0) {
-          duel.status = 'finished';
           const winner = duel.progress >= 100 ? "A" : "B";
-          io.to(duelId).emit("duel-finished", { winner });
+          finishDuel(duelId, winner);
         }
         
         io.to(duelId).emit("duel-update", { 
+          duelId: duel.id,
           progress: duel.progress, 
           status: duel.status, 
           participants: duel.participants,
@@ -195,12 +261,12 @@ async function startServer() {
             duel.progress = 50;
           }
         } else if (duel.progress >= 100 || duel.progress <= 0) {
-          duel.status = 'finished';
           const winner = duel.progress >= 100 ? "A" : "B";
-          io.to(duelId).emit("duel-finished", { winner });
+          finishDuel(duelId, winner);
         }
         
         io.to(duelId).emit("duel-update", { 
+          duelId: duel.id,
           progress: duel.progress, 
           status: duel.status, 
           participants: duel.participants,
@@ -221,7 +287,7 @@ async function startServer() {
             if (duel.timer) clearTimeout(duel.timer);
             delete duels[duel.id];
           } else {
-            io.to(duel.id).emit("duel-update", { participants: duel.participants });
+            io.to(duel.id).emit("duel-update", { duelId: duel.id, participants: duel.participants });
           }
         }
       });
@@ -229,6 +295,12 @@ async function startServer() {
   });
 
   // API Routes
+  app.get("/api/duels/:matchId", (req, res) => {
+    const matchId = parseInt(req.params.matchId, 10);
+    const activeDuels = Object.values(duels).filter(d => d.matchId === matchId && d.status === 'waiting');
+    res.json(activeDuels);
+  });
+
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });

@@ -7,7 +7,7 @@ import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { MatchDetails } from './MatchDetails';
 
-export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { onMatchClick: (id: number) => void; onJoinDuel: (id: number) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
+export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { onMatchClick: (id: number) => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,7 +182,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   );
 }
 
-function CountrySection({ country, onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { country: any; onMatchClick: (id: number) => void; onJoinDuel: (id: number) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
+function CountrySection({ country, onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { country: any; onMatchClick: (id: number) => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -236,7 +236,7 @@ function CountrySection({ country, onMatchClick, onJoinDuel, onTeamClick, onLeag
                       key={match.fixture.id} 
                       match={match} 
                       onClick={() => onMatchClick(match.fixture.id)}
-                      onJoinDuel={() => onJoinDuel(match.fixture.id)}
+                      onJoinDuel={(isLive) => onJoinDuel(match.fixture.id, isLive)}
                       onTeamClick={onTeamClick}
                     />
                   ))}
@@ -267,9 +267,10 @@ function FilterButton({ active, onClick, icon, label, color = "text-white" }: { 
   );
 }
 
-function MatchCard({ match, onClick, onJoinDuel, onTeamClick }: { match: any; onClick: () => void; onJoinDuel: () => void; onTeamClick: (id: number, season: number) => void }) {
-  const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT'].includes(match.fixture.status.short);
-  const isFinished = ['FT', 'AET', 'PEN'].includes(match.fixture.status.short);
+function MatchCard({ match, onClick, onJoinDuel, onTeamClick }: { match: any; onClick: () => void; onJoinDuel: (isLive: boolean) => void; onTeamClick: (id: number, season: number) => void }) {
+  const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(match.fixture.status.short);
+  const isUpcoming = ['TBD', 'NS'].includes(match.fixture.status.short);
+  const isFinished = !isLive && !isUpcoming;
 
   return (
     <Card 
@@ -314,7 +315,7 @@ function MatchCard({ match, onClick, onJoinDuel, onTeamClick }: { match: any; on
               {isLive ? (
                 <span className="flex items-center gap-1 text-[10px] font-black text-red-500 animate-pulse uppercase">
                   <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                  {match.fixture.status.elapsed}'
+                  {match.fixture.status.elapsed}{match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'
                 </span>
               ) : (
                 <span className="text-[10px] font-bold text-gray-500 uppercase">
@@ -350,7 +351,7 @@ function MatchCard({ match, onClick, onJoinDuel, onTeamClick }: { match: any; on
             <Button 
               size="sm" 
               className="flex-1 text-[10px] font-black uppercase tracking-widest h-8 bg-orange-600 hover:bg-orange-700"
-              onClick={(e) => { e.stopPropagation(); onJoinDuel(); }}
+              onClick={(e) => { e.stopPropagation(); onJoinDuel(isLive); }}
             >
               Rejoindre
             </Button>

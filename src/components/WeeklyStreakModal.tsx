@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, getDocs, doc, updateDoc, increment, arrayUnion, query, where } from 'firebase/firestore';
+import { logTransaction } from '../services/transactionService';
 import { WeeklyStreakConfig, UserProfile, WeeklyStreakCycle, Card, FanzSkin, FanzEmote, LifeAction } from '../types';
 import { useReward } from '../context/RewardContext';
 import { Gift, CheckCircle2, Lock, Star, Sparkles, X, Shield, Smile, Activity, Layers } from 'lucide-react';
@@ -139,6 +140,26 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
       }
 
       await updateDoc(userRef, updates);
+
+      if (config.reward) {
+        const amount = config.reward.amount || 0;
+        if (amount > 0) {
+          switch (config.reward.type) {
+            case 'money':
+              await logTransaction(userId, 'money', amount, `Récompense journalière (Jour ${day})`);
+              break;
+            case 'gems':
+              await logTransaction(userId, 'gems', amount, `Récompense journalière (Jour ${day})`);
+              break;
+            case 'boost':
+              await logTransaction(userId, 'boost', amount, `Récompense journalière (Jour ${day})`);
+              break;
+            case 'energy':
+              await logTransaction(userId, 'energy', amount, `Récompense journalière (Jour ${day})`);
+              break;
+          }
+        }
+      }
       
       if (cardToCreate) {
         const { setDoc } = await import('firebase/firestore');

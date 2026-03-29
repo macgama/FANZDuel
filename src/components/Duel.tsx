@@ -1,3 +1,4 @@
+import { footballApi } from '../services/footballApi';
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Duel, UserProfile, Card as GameCard, CardEffect, UserCard, Fanz, FanzTemplate, DuelConfig, FanzStats } from '../types';
@@ -6,16 +7,41 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield, RefreshCw, Activity, Lock, Flame, Brain, Star, Users, Search, Trophy, Target, CreditCard, Layers } from 'lucide-react';
 import { BASE_CARDS } from '../constants/cards';
 import { LOGOS } from '../constants';
+import { getImageUrl } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where } from 'firebase/firestore';
+import { logTransaction } from '../services/transactionService';
 
-export function DuelManager({ user, matchId, teamA, teamB, onExit }: { user: UserProfile; matchId: string; teamA: string; teamB: string; onExit: () => void }) {
+export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean }) {
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [selectedArena, setSelectedArena] = useState<string | null>(initialDuelType && !initialDuelId ? initialDuelType : null);
   const [userFanzs, setUserFanzs] = useState<Fanz[]>([]);
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [joiningDuelId, setJoiningDuelId] = useState<string | null>(initialDuelId || null);
+
+  // Calculate Stat Bonuses for Impact Estimation
+  const getStatEffectValue = (effectType: string, fanz: Fanz | null) => {
+    if (!duelConfig || !fanz) return 0;
+    const effect = duelConfig.statEffects.find(e => e.effectType === effectType);
+    if (!effect) return 0;
+    const statLevel = (fanz.stats as any)[effect.statName] || 1;
+    return effect.baseValue + (statLevel * effect.multiplierPerLevel);
+  };
+
+  const selectedFanz = userFanzs.find(f => f.id === selectedFanzId) || null;
+  const fanzRank = selectedFanz?.rank ?? 0;
+  const rankBonus = fanzRank * 0.02; // 2% per rank
+  const forceBonus = getStatEffectValue('click_power', selectedFanz);
+  const baseExcitementMultiplier = (selectedFanz?.baseExcitement || 5) / 5;
+  const multiplier = baseExcitementMultiplier + rankBonus + forceBonus;
+  
+  const baseArena = 0.5;
+  const totalImpact = selectedFanz ? (baseArena * multiplier).toFixed(2) : "0.00";
+  const bonusJoueurPct = ((baseExcitementMultiplier - 1) * 100).toFixed(0);
+  const maitriseFanPct = ((rankBonus + forceBonus) * 100).toFixed(1);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,7 +79,10 @@ export function DuelManager({ user, matchId, teamA, teamB, onExit }: { user: Use
         energy: increment(-cost.energy)
       });
 
-      const duelId = type === 'training' ? `training_${user.uid}_${Date.now()}` : `${matchId}_${type}`;
+      if (cost.money > 0) await logTransaction(user.uid, 'money', -cost.money, `Inscription duel: ${type}`);
+      if (cost.energy > 0) await logTransaction(user.uid, 'energy', -cost.energy, `Inscription duel: ${type}`);
+
+      const duelId = joiningDuelId || (type === 'training' ? `training_${user.uid}_${Date.now()}` : type === 'war_of_kops' ? `war_of_kops_${matchId}` : `duel_${Math.random().toString(36).substring(7)}`);
       
       setActiveDuel({
         id: duelId,
@@ -72,108 +101,242 @@ export function DuelManager({ user, matchId, teamA, teamB, onExit }: { user: Use
   };
 
   if (activeDuel) {
-    return <DuelScreen duel={activeDuel} user={user} fanzId={selectedFanzId!} onExit={() => setActiveDuel(null)} />;
+    return <DuelScreen duel={activeDuel} user={user} fanzId={selectedFanzId!} teamA={teamA} teamB={teamB} onExit={() => setActiveDuel(null)} />;
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col p-6 overflow-y-auto">
-      <div className="flex justify-between items-center mb-8">
-        <button onClick={onExit} className="p-2 hover:bg-white/10 rounded-full">
-          <ChevronLeft />
-        </button>
-        <h2 className="text-2xl font-black italic uppercase tracking-tighter">Salon des Duels</h2>
-        <div className="w-10" />
-      </div>
+    <div className="fixed inset-0 z-50 flex justify-center bg-[#1a1a1a] overflow-y-auto">
+      <div className="w-full max-w-md relative flex flex-col min-h-full">
+        {/* Header */}
+        <div className="pt-8 pb-6 px-6 text-center relative z-10">
+          <button onClick={onExit} className="absolute left-4 top-8 p-2 hover:bg-white/10 rounded-full text-gray-400">
+            <ChevronLeft />
+          </button>
+          <h2 className="text-4xl font-black text-[#f97316] uppercase tracking-tighter mb-1">Hub de Duel</h2>
+        </div>
 
-      <div className="max-w-4xl mx-auto w-full space-y-8">
-        {/* Fanz Selection */}
-        <section className="space-y-4">
-          <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest">Choisir mon FANZ</h3>
-          <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-            {userFanzs.map(fanz => (
-              <button
-                key={fanz.id}
-                onClick={() => setSelectedFanzId(fanz.id)}
-                className={`min-w-[120px] p-3 rounded-xl border-2 transition-all ${
-                  selectedFanzId === fanz.id ? 'border-orange-500 bg-orange-600/20' : 'border-white/10 bg-white/5'
-                }`}
-              >
-                <img src={fanz.imageUrl} alt={fanz.name} className="w-full aspect-square object-contain mb-2" />
-                <p className="text-[10px] font-black uppercase truncate">{fanz.name}</p>
-                <p className="text-[8px] text-gray-500">Niv.{fanz.level}</p>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Team Selection */}
-        <section className="space-y-4">
-          <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest">Choisir mon Équipe à soutenir</h3>
-          <div className="flex gap-4">
-            {[teamA, teamB].map(team => (
-              <button
-                key={team}
-                onClick={() => setSelectedTeam(team)}
-                className={`flex-1 p-4 rounded-xl border-2 transition-all font-black uppercase italic ${
-                  selectedTeam === team ? 'border-orange-500 bg-orange-600/20' : 'border-white/10 bg-white/5'
-                }`}
-              >
-                {team}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Duel Types */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { id: 'training', name: 'Entraînement', icon: Target, desc: 'Contre un bot miroir' },
-            { id: '1v1', name: 'Duel 1v1', icon: Swords, desc: 'Contre un autre supporter' },
-            { id: '2v2', name: 'Duel 2v2', icon: Users, desc: 'Match en équipe' },
-            { id: '5v5', name: 'Duel 5v5', icon: Layers, desc: 'Grosse mêlée' },
-            { id: 'war_of_kops', name: 'Guerre des KOPs', icon: Flame, desc: 'Ouvert à tous' }
-          ].map(type => {
-            const cost = duelConfig?.costs[type.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
-            return (
-              <button
-                key={type.id}
-                disabled={!selectedFanzId || !selectedTeam}
-                onClick={() => handleStartDuel(type.id as any)}
-                className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-left disabled:opacity-50"
-              >
-                <div className="p-3 bg-orange-600 rounded-xl">
-                  <type.icon size={24} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-black italic uppercase text-lg">{type.name}</h4>
-                  <p className="text-xs text-gray-400">{type.desc}</p>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 text-xs font-bold text-orange-500">
-                    <CreditCard size={12} /> {cost.money}$
+        <div className="flex-1 px-4 pb-28 space-y-8 relative z-10">
+          
+          {/* Fanz Selection */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-[#f97316] mb-2">
+              <Star size={16} />
+              <h3 className="text-xs font-black uppercase tracking-widest text-gray-300">0. Choisir votre FANZ</h3>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar snap-x">
+              {userFanzs.map(fanz => (
+                <button
+                  key={fanz.id}
+                  onClick={() => setSelectedFanzId(fanz.id)}
+                  className={`flex-none w-[calc(50%-6px)] p-0 overflow-hidden rounded-xl border-2 transition-all flex flex-col snap-start ${
+                    selectedFanzId === fanz.id ? 'border-[#f97316] bg-[#f97316]/10' : 'border-white/5 bg-white/5'
+                  }`}
+                >
+                  <div className="w-full aspect-square p-0 bg-black/40">
+                    <img src={getImageUrl(fanz.imageUrl)} alt={fanz.name} className="w-full h-full object-cover" />
                   </div>
-                  <div className="flex items-center gap-1 text-xs font-bold text-yellow-500">
-                    <Activity size={12} /> {cost.energy}
+                  <div className="p-2 text-center">
+                    <p className="text-[10px] font-black uppercase truncate text-white">{fanz.name}</p>
                   </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Team Selection */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-[#f97316] mb-2">
+              <Trophy size={16} />
+              <h3 className="text-xs font-black uppercase tracking-widest text-gray-300">1. Choisir votre camp</h3>
+            </div>
+            <div className="flex gap-3">
+              {[
+                { name: teamA, logo: teamALogo },
+                { name: teamB, logo: teamBLogo }
+              ].map(team => (
+                <button
+                  key={team.name}
+                  onClick={() => setSelectedTeam(team.name)}
+                  className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${
+                    selectedTeam === team.name ? 'border-[#f97316] bg-[#f97316]/10' : 'border-white/5 bg-[#1e1e1e]'
+                  }`}
+                >
+                  {team.logo ? (
+                    <img src={team.logo} alt={team.name} className="w-12 h-12 object-contain mb-2" />
+                  ) : (
+                    <Shield className="w-12 h-12 text-gray-600 mb-2" />
+                  )}
+                  <span className="text-[10px] font-black uppercase text-center text-white">{team.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Arena Selection */}
+          {!joiningDuelId && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-[#f97316] mb-2">
+                <Target size={16} />
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-300">2. Sélectionner l'arène</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/back1v1.png', fullWidth: false },
+                  { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/back1v1.png', fullWidth: false },
+                  { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/back2v2.png', fullWidth: false },
+                  { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/back5v5.png', fullWidth: false },
+                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/backKOP.png', fullWidth: true }
+                ].filter(arena => isLiveMatch || arena.id === 'training').map(arena => {
+                  const cost = duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
+                  const bgUrl = getImageUrl(arena.bg);
+                  
+                  return (
+                    <button
+                      key={arena.id}
+                      onClick={() => setSelectedArena(arena.id)}
+                      className={`relative overflow-hidden rounded-xl border-2 transition-all text-left min-h-[110px] group p-0 ${
+                        arena.fullWidth ? 'col-span-2' : 'col-span-1'
+                      } ${
+                        selectedArena === arena.id ? 'border-[#f97316] shadow-[0_0_15px_rgba(249,115,22,0.3)]' : 'border-transparent'
+                      }`}
+                    >
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                        style={{ backgroundImage: `url('${bgUrl}')` }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+                      
+                      <div className="relative z-10 p-3 h-full flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-black text-white text-[11px] uppercase leading-tight">{arena.title}</h4>
+                          <p className="text-[9px] font-bold text-gray-300 uppercase mt-0.5">{arena.subtitle}</p>
+                        </div>
+                        <div className="flex justify-between items-center mt-2">
+                          <div className="flex items-center gap-1 text-yellow-500 font-black text-xs">
+                            {cost.energy} ⚡
+                          </div>
+                          <div className="flex items-center gap-1 text-green-500 font-black text-xs">
+                            {cost.money} $
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Impact Estimé */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-[#f97316] mb-2">
+              <Activity size={16} />
+              <h3 className="text-xs font-black uppercase tracking-widest text-gray-300">Votre impact estimé</h3>
+            </div>
+            <div className="bg-[#1e1e1e] border border-white/5 rounded-2xl p-5">
+              <div className="space-y-3 mb-5">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase">
+                  <span className="text-gray-400">Base Arène</span>
+                  <span className="text-white">{baseArena.toFixed(2)}</span>
                 </div>
-              </button>
-            );
-          })}
-        </section>
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase">
+                  <span className="text-gray-400">Bonus Joueur (Excitation)</span>
+                  <span className={Number(bonusJoueurPct) >= 0 ? "text-green-500" : "text-red-500"}>
+                    {Number(bonusJoueurPct) > 0 ? '+' : ''}{bonusJoueurPct}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase">
+                  <span className="text-[#f97316]">Maitrise Fan (L.{selectedFanz?.level || 1})</span>
+                  <span className="text-[#f97316]">+{maitriseFanPct}%</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase">
+                  <span className="text-gray-400">Équipement & Synergie</span>
+                  <span className="text-gray-500">+0%</span>
+                </div>
+              </div>
+              <div className="pt-5 border-t border-white/10 text-center">
+                <div className="text-3xl font-black text-white mb-1">{totalImpact}</div>
+                <div className="text-[10px] font-bold text-[#f97316] uppercase tracking-widest">Pts par clic</div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Bottom Button */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#1a1a1a] via-[#1a1a1a] to-transparent z-20 flex justify-center">
+          <div className="w-full max-w-md">
+            <button 
+              onClick={() => handleStartDuel((joiningDuelId ? initialDuelType : selectedArena) as any)}
+              disabled={!selectedFanzId || !selectedTeam || (!joiningDuelId && !selectedArena)}
+              className="w-full py-4 text-sm font-black uppercase tracking-widest bg-[#b45309] hover:bg-[#92400e] text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {joiningDuelId ? "Rejoindre ce duel" : "Rejoindre l'arène"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: UserProfile; onExit: () => void, fanzId: string }) {
+interface FloatingEffect {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  color: string;
+}
+
+export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel: Duel; user: UserProfile; onExit: () => void, fanzId: string, teamA?: string, teamB?: string }) {
   const [progress, setProgress] = useState(50);
   const [excitement, setExcitement] = useState(5);
   const maxExcitement = 10;
   const [socket, setSocket] = useState<Socket | null>(null);
   const [winner, setWinner] = useState<string | null>(null);
+  const [duelResult, setDuelResult] = useState<{ winner: string, ferveurGain: number, teamGain: number, scoreA?: number, scoreB?: number } | null>(null);
   const [status, setStatus] = useState<'waiting' | 'starting' | 'active' | 'finished'>(duel.status);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [participants, setParticipants] = useState<any[]>(duel.participants || []);
+  const [currentDuelId, setCurrentDuelIdState] = useState<string>(duel.id);
+  const currentDuelIdRef = useRef(duel.id);
+  const [floatingEffects, setFloatingEffects] = useState<FloatingEffect[]>([]);
+  const [matchDetails, setMatchDetails] = useState<any>(null);
+
+  useEffect(() => {
+    if (duel.matchId && duel.matchId !== 'global') {
+      const fetchMatch = async () => {
+        try {
+          const details = await footballApi.getFixtureDetails(parseInt(duel.matchId!));
+          setMatchDetails(details);
+        } catch (err) {
+          console.error('Failed to fetch match details', err);
+        }
+      };
+      fetchMatch();
+      const interval = setInterval(fetchMatch, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [duel.matchId]);
+
+  const addFloatingEffect = (text: string, x: number, y: number, color: string = 'text-white') => {
+    const id = Math.random().toString(36).substring(7);
+    
+    // Clamp coordinates to keep text on screen (assuming ~200px width for text)
+    const padding = 20;
+    const textWidth = 150; // Estimate
+    const clampedX = Math.max(padding, Math.min(x - textWidth / 2, window.innerWidth - textWidth - padding));
+    const clampedY = Math.max(padding + 100, Math.min(y, window.innerHeight - padding));
+
+    setFloatingEffects(prev => [...prev, { id, text, x: clampedX, y: clampedY, color }]);
+    setTimeout(() => {
+      setFloatingEffects(prev => prev.filter(e => e.id !== id));
+    }, 1500);
+  };
+
+  const setCurrentDuelId = (id: string) => {
+    setCurrentDuelIdState(id);
+    currentDuelIdRef.current = id;
+  };
   
   const [hand, setHand] = useState<GameCard[]>([]);
   const [deck, setDeck] = useState<GameCard[]>([]);
@@ -300,12 +463,15 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      newSocket.emit('join-duel', { duelId: duel.id, user, fanz, type: duel.type });
+      newSocket.emit('join-duel', { duelId: currentDuelIdRef.current, user, fanz, type: duel.type });
     });
 
-    newSocket.on('duel-update', (state: { progress: number; status: any; participants?: any[] }) => {
+    newSocket.on('duel-update', (state: { duelId?: string; progress: number; status: any; participants?: any[] }) => {
       setProgress(state.progress);
       setStatus(state.status);
+      if (state.duelId) {
+        setCurrentDuelId(state.duelId);
+      }
       if (state.participants) {
         setParticipants(state.participants);
       }
@@ -329,49 +495,122 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
       setStatus('active');
     });
 
-    newSocket.on('duel-finished', async ({ winner }: { winner: string }) => {
+    newSocket.on('duel-finished', async ({ winner, scoreA, scoreB }: { winner: string, scoreA: number, scoreB: number }) => {
       setWinner(winner);
+      let ferveurGain = 0;
+      let teamGain = 0;
       
-      if (winner === 'A' && fanzId) {
+      // Save match score to Firestore
+      if (duel.matchId && duel.matchId !== 'global' && duel.type !== 'training') {
+        try {
+          await setDoc(doc(db, 'match_scores', currentDuelIdRef.current), {
+            matchId: duel.matchId,
+            scoreA,
+            scoreB,
+            timestamp: new Date().toISOString()
+          }, { merge: true });
+        } catch (e) {
+          console.error("Error saving match score", e);
+        }
+      }
+
+      if (fanzId) {
         try {
           const fanzRef = doc(db, 'fanz', fanzId);
-          const fanzSnap = await getDoc(fanzRef);
-          if (fanzSnap.exists()) {
+          const userRef = doc(db, 'users', user.uid);
+          
+          const [fanzSnap, userSnap, configSnap] = await Promise.all([
+            getDoc(fanzRef),
+            getDoc(userRef),
+            getDoc(doc(db, 'global_configs', 'duel_config'))
+          ]);
+
+          if (fanzSnap.exists() && userSnap.exists()) {
             const fanzData = fanzSnap.data() as Fanz;
+            const userData = userSnap.data() as UserProfile;
+            const configData = configSnap.exists() ? configSnap.data() as DuelConfig : null;
+            
             const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
             const template = tplSnap.exists() ? tplSnap.data() as FanzTemplate : null;
             
-            // Base gain + rank bonus (2% per rank) + social bonus
-            const rankBonus = 1 + (fanzData.rank ?? 0) * 0.02;
-            const socialBonus = getStatEffectValue('ferveur_bonus');
-            const ferveurGain = Math.round(10 * (rankBonus + socialBonus));
+            const myParticipant = duel.participants?.find(p => p.uid === user.uid);
+            const myTeam = myParticipant?.team || 'A';
+            const isWin = winner === myTeam;
+            const duelType = duel.type as keyof NonNullable<DuelConfig['rewards']>;
             
-            let newPoints = (fanzData.ferveurPoints || 0) + ferveurGain;
-            let newLevel = fanzData.ferveurLevel || 1;
+            // Get base rewards from config or use defaults
+            const baseWinXp = configData?.rewards?.[duelType]?.winXp ?? (duelType === 'training' ? 5 : duelType === '1v1' ? 10 : duelType === '2v2' ? 20 : duelType === '5v5' ? 300 : 10);
+            const baseLoseXp = configData?.rewards?.[duelType]?.loseXp ?? (duelType === 'training' ? 5 : duelType === '1v1' ? 10 : duelType === '2v2' ? 20 : duelType === '5v5' ? 30 : 10);
+            
+            let ferveurGainFanz = 0;
+            let ferveurGainGeneral = 0;
+            
+            if (isWin) {
+              const rankBonus = 1 + (fanzData.rank ?? 0) * 0.02;
+              const socialBonus = getStatEffectValue('ferveur_bonus');
+              ferveurGainFanz = Math.round(baseWinXp * (rankBonus + socialBonus));
+              ferveurGainGeneral = ferveurGainFanz;
+            } else {
+              ferveurGainFanz = -baseLoseXp;
+              ferveurGainGeneral = 0;
+            }
+            
+            // Update FANZ
+            let newFanzPoints = Math.max(0, (fanzData.ferveurPoints || 0) + ferveurGainFanz);
+            let newFanzLevel = fanzData.ferveurLevel || 1;
             
             if (template?.ferveurPath) {
-              // Check if we reached a new level
-              const nextLevel = template.ferveurPath.find(p => p.level === newLevel + 1);
-              if (nextLevel && newPoints >= nextLevel.pointsRequired) {
-                newLevel += 1;
+              const nextLevel = template.ferveurPath.find(p => p.level === newFanzLevel + 1);
+              if (nextLevel && newFanzPoints >= nextLevel.pointsRequired) {
+                newFanzLevel += 1;
               }
             }
             
             await updateDoc(fanzRef, {
-              ferveurPoints: newPoints,
-              ferveurLevel: newLevel
+              ferveurPoints: newFanzPoints,
+              ferveurLevel: newFanzLevel
             });
             
-            setFanz(prev => prev ? { ...prev, ferveurPoints: newPoints, ferveurLevel: newLevel } : null);
+            if (ferveurGainFanz !== 0) {
+              await logTransaction(
+                user.uid,
+                'ferveur_fanz',
+                ferveurGainFanz,
+                isWin ? 'Victoire en duel' : 'Défaite en duel',
+                fanzId
+              );
+            }
+            
+            setFanz(prev => prev ? { ...prev, ferveurPoints: newFanzPoints, ferveurLevel: newFanzLevel } : null);
+            
+            // Update User General
+            if (ferveurGainGeneral > 0) {
+              let newUserPoints = (userData.ferveurPoints || 0) + ferveurGainGeneral;
+              await updateDoc(userRef, {
+                ferveurPoints: newUserPoints
+              });
+              await logTransaction(
+                user.uid,
+                'ferveur_general',
+                ferveurGainGeneral,
+                'Victoire en duel'
+              );
+            }
+            
+            ferveurGain = ferveurGainFanz;
+            teamGain = ferveurGainGeneral;
           }
         } catch (e) {
           console.error("Error updating ferveur", e);
         }
       }
+      
+      setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB });
     });
 
     newSocket.on('enemy-card-played', ({ card }: { team: string, card: GameCard }) => {
       setLastEnemyCard(card);
+      addFloatingEffect(`Ennemi joue: ${card.name}`, window.innerWidth / 2, 100, 'text-red-400 font-bold');
 
       const isMalus = card.effects.some(e => 
         ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock'].includes(e.type)
@@ -380,11 +619,13 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
       if (isMalus) {
         if (hasMirror) {
           setHasMirror(false);
-          socket?.emit('play-card', { duelId: duel.id, team: 'A', card, reflected: true });
+          addFloatingEffect('Miroir: Attaque renvoyée!', window.innerWidth / 2, 150, 'text-purple-400');
+          socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: 'A', card, reflected: true });
           return;
         }
         if (hasShield) {
           setHasShield(false);
+          addFloatingEffect('Bouclier: Attaque bloquée!', window.innerWidth / 2, 150, 'text-blue-300');
           return;
         }
       }
@@ -397,48 +638,60 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
           case 'blur_view':
             setIsBlurred(true);
             setTimeout(() => setIsBlurred(false), (effect.duration || 5) * 1000 * bluffBonus);
+            addFloatingEffect('Vue Troublée!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'hide_button':
             setIsButtonHidden(true);
             setTimeout(() => setIsButtonHidden(false), (effect.duration || 4) * 1000 * mentalBonus);
+            addFloatingEffect('Bouton Caché!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'shrink_button':
             setIsButtonShrunk(true);
             setTimeout(() => setIsButtonShrunk(false), (effect.duration || 6) * 1000 * bluffBonus);
+            addFloatingEffect('Bouton Rétréci!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'move_button':
             setIsButtonMoving(true);
             setTimeout(() => setIsButtonMoving(false), (effect.duration || 8) * 1000 * bluffBonus);
+            addFloatingEffect('Bouton Fou!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'hide_score':
             setIsScoreHidden(true);
             setTimeout(() => setIsScoreHidden(false), (effect.duration || 7) * 1000 * bluffBonus);
+            addFloatingEffect('Score Caché!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'drain_energy':
             setExcitement(prev => Math.max(0, prev - (effect.value || 0)));
+            addFloatingEffect(`-${effect.value} Énergie!`, window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'discard_enemy_cards':
             setHand(prev => prev.slice(1));
             setTimeout(drawCard, 2000);
+            addFloatingEffect('Carte Défaussée!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'shuffle_deck':
             setHand(prev => [...prev].sort(() => Math.random() - 0.5));
+            addFloatingEffect('Main Mélangée!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'freeze_button':
             setIsButtonHidden(true);
             setTimeout(() => setIsButtonHidden(false), (effect.duration || 3) * 1000 * mentalBonus);
+            addFloatingEffect('Bouton Gelé!', window.innerWidth / 2, 200, 'text-blue-400');
             break;
           case 'earthquake':
             setIsEarthquake(true);
             setTimeout(() => setIsEarthquake(false), (effect.duration || 3) * 1000 * bluffBonus);
+            addFloatingEffect('Tremblement de Terre!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'fake_buttons':
             setIsFakeButtons(true);
             setTimeout(() => setIsFakeButtons(false), (effect.duration || 5) * 1000 * bluffBonus);
+            addFloatingEffect('Faux Boutons!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'card_lock':
             setIsCardLocked(true);
             setTimeout(() => setIsCardLocked(false), (effect.duration || 5) * 1000 * mentalBonus);
+            addFloatingEffect('Carte Bloquée!', window.innerWidth / 2, 200, 'text-red-400');
             break;
         }
       });
@@ -461,22 +714,26 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
     return () => clearTimeout(timeout);
   }, [status, isButtonHidden, buttonVisibilityDuration, buttonHiddenDuration, winner]);
 
-  const handleAction = () => {
+  const handleAction = (e: React.MouseEvent) => {
     if (winner || isButtonHidden) return;
     
     // Find the user's actual team
     const myParticipant = participants.find(p => p.uid === user.uid);
     const myTeam = myParticipant?.team || 'A';
     
-    console.log('Action clicked!', { duelId: duel.id, team: myTeam, multiplier });
-    socket?.emit('click-ferveur', { duelId: duel.id, team: myTeam, multiplier });
+    console.log('Action clicked!', { duelId: currentDuelIdRef.current, team: myTeam, multiplier });
+    socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: myTeam, multiplier });
     
+    const ferveurGain = (0.5 * multiplier).toFixed(1);
+    addFloatingEffect(`+${ferveurGain} Ferveur`, e.clientX, e.clientY, 'text-yellow-400');
+
     if (isDoublePoints) {
-      socket?.emit('click-ferveur', { duelId: duel.id, team: myTeam, multiplier });
+      socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: myTeam, multiplier });
+      addFloatingEffect(`+${ferveurGain} Ferveur (x2)`, e.clientX, e.clientY - 20, 'text-yellow-400');
     }
   };
 
-  const playCard = async (card: GameCard) => {
+  const playCard = async (card: GameCard, e?: React.MouseEvent) => {
     const actualCost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
     if (winner || excitement < actualCost || isCardLocked) return;
     
@@ -485,6 +742,10 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
     setTimeout(drawCard, 3000); // Draw new card after 3s
 
     setExcitement(prev => prev - actualCost);
+    
+    const x = e ? e.clientX : window.innerWidth / 2;
+    const y = e ? e.clientY - 50 : window.innerHeight / 2;
+    addFloatingEffect(`Carte jouée: ${card.name}`, x, y, 'text-blue-400 font-bold');
     
     // XP Gain and Leveling
     try {
@@ -531,17 +792,18 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
 
       // Apply level bonus to effects
       const levelBonus = 1 + (currentLevel - 1) * 0.2; // 20% per level
-      const charismaBonus = getStatEffectValue('card_power');
-      const creativityBonus = getStatEffectValue('card_cost_reduction');
+      const rawCharismaBonus = getStatEffectValue('card_power'); // Base is 1
+      const charismaBonus = 1 + (rawCharismaBonus - 1) * 0.2; // Scale down to 20% effectiveness
+      const creativityBonus = getStatEffectValue('card_cost_reduction'); // Base is 0
       
       const boostedCard = {
         ...card,
         energyCost: Math.max(1, Math.round(card.energyCost * (1 - creativityBonus))),
-        fervorValue: card.fervorValue ? Math.round(card.fervorValue * levelBonus * (1 + charismaBonus)) : card.fervorValue,
+        fervorValue: card.fervorValue ? Math.round(card.fervorValue * levelBonus * charismaBonus) : card.fervorValue,
         effects: card.effects.map(e => ({
           ...e,
-          value: e.value ? Math.round(e.value * levelBonus * (1 + charismaBonus)) : e.value,
-          duration: e.duration ? Math.round(e.duration * levelBonus * (1 + charismaBonus)) : e.duration
+          value: e.value ? Math.round(e.value * levelBonus * charismaBonus) : e.value,
+          duration: e.duration ? Math.round(e.duration * levelBonus * charismaBonus) : e.duration
         }))
       };
 
@@ -549,20 +811,25 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
       boostedCard.effects.forEach(effect => {
         if (effect.type === 'refill_energy') {
           setExcitement(prev => Math.min(maxExcitement, prev + (effect.value || 0)));
+          addFloatingEffect(`+${effect.value} Énergie!`, x, y - 30, 'text-yellow-400');
         }
         if (effect.type === 'double_points') {
           setIsDoublePoints(true);
           setTimeout(() => setIsDoublePoints(false), (effect.duration || 5) * 1000);
+          addFloatingEffect('Points x2!', x, y - 30, 'text-orange-400');
         }
         if (effect.type === 'shield') {
           setHasShield(true);
+          addFloatingEffect('Bouclier Actif!', x, y - 30, 'text-blue-300');
         }
         if (effect.type === 'mirror') {
           setHasMirror(true);
+          addFloatingEffect('Miroir Actif!', x, y - 30, 'text-purple-400');
         }
         if (effect.type === 'energy_regen_boost') {
           setIsEnergyRegenBoosted(true);
           setTimeout(() => setIsEnergyRegenBoosted(false), (effect.duration || 10) * 1000);
+          addFloatingEffect('Régénération Boostée!', x, y - 30, 'text-green-400');
         }
         if (effect.type === 'lucky_draw') {
           const intelligenceBonus = getStatEffectValue('rarity_chance');
@@ -577,6 +844,7 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
               newHand[index] = { ...randomLegendary, instanceId: Math.random().toString(36).substr(2, 9) };
               return newHand;
             });
+            addFloatingEffect('Carte Légendaire!', x, y - 30, 'text-yellow-400');
           } else if (epicCards.length > 0) {
             const randomEpic = epicCards[Math.floor(Math.random() * epicCards.length)];
             setHand(prev => {
@@ -585,24 +853,31 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
               newHand[index] = { ...randomEpic, instanceId: Math.random().toString(36).substr(2, 9) };
               return newHand;
             });
+            addFloatingEffect('Carte Épique!', x, y - 30, 'text-purple-400');
           }
         }
         if (effect.type === 'mimic') {
           if (lastEnemyCard) {
             setHand(prev => [...prev, { ...lastEnemyCard, instanceId: Math.random().toString(36).substr(2, 9) }]);
+            addFloatingEffect('Carte Copiée!', x, y - 30, 'text-blue-400');
           }
         }
         if (effect.type === 'swap_hands') {
           // This would ideally be handled by the server to get the actual enemy hand
           // For now, let's just shuffle our own hand as a placeholder or wait for server implementation
           setHand(prev => [...prev].sort(() => Math.random() - 0.5));
+          addFloatingEffect('Mains Échangées!', x, y - 30, 'text-purple-400');
         }
       });
 
       const myParticipant = participants.find(p => p.uid === user.uid);
       const myTeam = myParticipant?.team || 'A';
 
-      socket?.emit('play-card', { duelId: duel.id, team: myTeam, card: boostedCard });
+      if (boostedCard.fervorValue) {
+        addFloatingEffect(`+${boostedCard.fervorValue}% Ferveur!`, x, y - 60, 'text-yellow-400 font-black');
+      }
+
+      socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam, card: boostedCard });
     } catch (err) {
       console.error("Error playing card and updating XP", err);
     }
@@ -612,12 +887,25 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
   useEffect(() => {
     if (status !== 'active') return;
     const interval = setInterval(() => {
-      const baseRegen = isEnergyRegenBoosted ? 2 : 1;
+      // Base time in seconds to regenerate 1 point
+      const baseRegenTime = duelConfig?.baseExcitementRegenTime || 5;
+      
+      // If boosted, regenerate twice as fast
+      const effectiveRegenTime = isEnergyRegenBoosted ? baseRegenTime / 2 : baseRegenTime;
+      
+      // Endurance bonus reduces the time needed (e.g., enduranceBonus of 2 means 2% faster)
       const enduranceBonus = getStatEffectValue('energy_regen');
-      setExcitement(prev => Math.min(maxExcitement, prev + (baseRegen + enduranceBonus) * 0.5));
+      const timeReductionMultiplier = 1 - (enduranceBonus * 0.01);
+      
+      const finalRegenTime = Math.max(0.5, effectiveRegenTime * timeReductionMultiplier);
+      
+      // Interval is 500ms (0.5s), so amount per tick is 0.5 / finalRegenTime
+      const regenAmount = 0.5 / finalRegenTime;
+      
+      setExcitement(prev => Math.min(maxExcitement, prev + regenAmount));
     }, 500);
     return () => clearInterval(interval);
-  }, [isEnergyRegenBoosted, duelConfig, fanz, status]);
+  }, [isEnergyRegenBoosted, duelConfig, fanz, status, maxExcitement]);
 
   // Button movement effect
   useEffect(() => {
@@ -635,21 +923,34 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
   }, [isButtonMoving]);
 
   return (
-    <div className={`fixed inset-0 bg-black z-50 flex flex-col p-4 transition-all duration-500 ${isBlurred ? 'blur-xl' : ''} ${isEarthquake ? 'animate-bounce' : ''}`}>
-      <div className="flex justify-between items-center mb-8">
-        <button onClick={onExit} className="p-2 hover:bg-white/10 rounded-full">
-          <ChevronLeft />
-        </button>
-        <div className={`text-center transition-opacity duration-500 ${isScoreHidden ? 'opacity-0' : 'opacity-100'}`}>
-          <h2 className="text-xl font-black italic uppercase tracking-tighter">{duel.type.replace('_', ' ')}</h2>
-          <p className="text-xs text-gray-500">{duel.teamA} vs {duel.teamB}</p>
-        </div>
-        <div className="flex gap-2">
-          <div className="flex items-center gap-2 bg-yellow-600/20 px-3 py-1 rounded-full border border-yellow-500" title="Excitation">
-            <span className="text-yellow-500 font-black text-sm">⚡ {Math.floor(excitement)}/10</span>
+    <div className="fixed inset-0 z-50 flex justify-center bg-[#0a0a0a]">
+      <div className={`w-full h-full max-w-[450px] relative flex flex-col p-4 bg-black border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isBlurred ? 'blur-xl' : ''} ${isEarthquake ? 'animate-bounce' : ''}`}>
+        <div className="flex justify-between items-center mb-2">
+          <button onClick={onExit} className="p-2 hover:bg-white/10 rounded-full">
+            <ChevronLeft />
+          </button>
+          <div className="text-[10px] text-yellow-500 font-black uppercase tracking-widest">
+            {duel.type.replace('_', ' ')}
           </div>
+          <div className="w-10"></div>
         </div>
-      </div>
+
+      {/* Floating Effects */}
+      <AnimatePresence>
+        {floatingEffects.map(effect => (
+          <motion.div
+            key={effect.id}
+            initial={{ opacity: 1, y: effect.y, x: effect.x, scale: 0.5 }}
+            animate={{ opacity: 0, y: effect.y - 100, scale: 1.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className={`fixed pointer-events-none z-[100] font-black text-2xl drop-shadow-lg ${effect.color}`}
+            style={{ left: 0, top: 0 }}
+          >
+            {effect.text}
+          </motion.div>
+        ))}
+      </AnimatePresence>
 
       {/* Countdown Overlay */}
       <AnimatePresence>
@@ -685,8 +986,38 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
         )}
       </AnimatePresence>
 
-      {/* Tug of War */}
-      <div className="flex-1 flex flex-col justify-center items-center gap-12">
+      {/* Middle Section: Match Info, Tug of War, Action Button */}
+      <div className="flex-1 flex flex-col justify-center items-center gap-6">
+        
+        {/* Match Info (Teams, Logos, Score) */}
+        <div className={`w-full flex flex-col items-center transition-opacity duration-500 ${isScoreHidden ? 'opacity-0' : 'opacity-100'}`}>
+          {matchDetails ? (
+            <div className="flex justify-between items-center w-full px-2">
+              <div className="flex flex-col items-center gap-2 flex-1">
+                <img src={matchDetails.teams.home.logo} alt={matchDetails.teams.home.name} className="w-12 h-12 object-contain drop-shadow-lg" />
+                <span className={`text-lg font-black italic uppercase text-center leading-tight ${progress > 50 ? 'text-orange-500' : 'text-white/80'}`}>{duel.teamA}</span>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                <span className="font-black text-4xl drop-shadow-md">{matchDetails.goals.home ?? 0} - {matchDetails.goals.away ?? 0}</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
+                  {matchDetails.fixture.status.elapsed ? `${matchDetails.fixture.status.elapsed}${matchDetails.fixture.status.extra ? `+${matchDetails.fixture.status.extra}` : ''}'` : matchDetails.fixture.status.short}
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-2 flex-1">
+                <img src={matchDetails.teams.away.logo} alt={matchDetails.teams.away.name} className="w-12 h-12 object-contain drop-shadow-lg" />
+                <span className={`text-lg font-black italic uppercase text-center leading-tight ${progress < 50 ? 'text-orange-500' : 'text-white/80'}`}>{duel.teamB}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center w-full px-4 text-2xl font-black italic uppercase">
+              <span className={`text-center flex-1 leading-tight ${progress > 50 ? 'text-orange-500' : 'text-white/80'}`}>{duel.teamA}</span>
+              <span className="text-gray-500 px-4 text-sm">VS</span>
+              <span className={`text-center flex-1 leading-tight ${progress < 50 ? 'text-orange-500' : 'text-white/80'}`}>{duel.teamB}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Tug of War Bar */}
         <div className={`w-full max-w-2xl relative h-8 bg-white/10 rounded-full border-2 border-white/20 overflow-hidden transition-opacity duration-500 ${isScoreHidden ? 'opacity-0' : 'opacity-100'}`}>
           {/* Center line */}
           <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-white/50 z-10" />
@@ -706,24 +1037,8 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
           </motion.div>
         </div>
 
-        <div className={`flex justify-between w-full max-w-2xl text-4xl font-black italic uppercase transition-opacity duration-500 ${isScoreHidden ? 'opacity-0' : 'opacity-100'}`}>
-          <span className={progress > 50 ? 'text-orange-500' : 'text-white/20'}>{duel.teamA}</span>
-          <span className={progress < 50 ? 'text-orange-500' : 'text-white/20'}>{duel.teamB}</span>
-        </div>
-
-        <AnimatePresence>
-          {winner && (
-            <motion.div 
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-6xl font-black italic uppercase text-orange-500 text-center"
-            >
-              {winner === 'A' ? 'Victoire !' : 'Défaite'}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="relative">
+        {/* Action Button */}
+        <div className="relative mt-2">
           <motion.button 
             onClick={handleAction}
             disabled={!!winner}
@@ -733,7 +1048,7 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
               scale: isButtonShrunk ? 0.5 : isButtonHidden ? 0 : 1,
               opacity: isButtonHidden ? 0 : 1
             }}
-            className="w-48 h-48 rounded-full bg-orange-600 hover:bg-orange-700 border-8 border-white/10 shadow-2xl flex flex-col items-center justify-center transition-transform active:scale-90 disabled:opacity-50 relative z-10"
+            className="w-40 h-40 sm:w-48 sm:h-48 rounded-full bg-orange-600 hover:bg-orange-700 border-8 border-white/10 shadow-2xl flex flex-col items-center justify-center transition-transform active:scale-95 disabled:opacity-50 relative z-10"
           >
             <span className="font-black italic text-2xl uppercase">Cliquer</span>
             <span className="text-xs uppercase font-bold opacity-70">Ferveur +0.5%</span>
@@ -744,44 +1059,45 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
               <motion.button 
                 initial={{ x: -100, y: -100, opacity: 0 }}
                 animate={{ x: -150, y: -100, opacity: 0.8 }}
-                className="absolute w-32 h-32 rounded-full bg-orange-600/50 border-4 border-white/10 flex items-center justify-center z-0"
+                className="absolute w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-orange-600/50 border-4 border-white/10 flex items-center justify-center z-0"
               >
-                <span className="font-black italic text-xs uppercase">Cliquer</span>
+                <span className="font-black italic text-[10px] uppercase">Cliquer</span>
               </motion.button>
               <motion.button 
                 initial={{ x: 100, y: 100, opacity: 0 }}
                 animate={{ x: 150, y: 100, opacity: 0.8 }}
-                className="absolute w-32 h-32 rounded-full bg-orange-600/50 border-4 border-white/10 flex items-center justify-center z-0"
+                className="absolute w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-orange-600/50 border-4 border-white/10 flex items-center justify-center z-0"
               >
-                <span className="font-black italic text-xs uppercase">Cliquer</span>
+                <span className="font-black italic text-[10px] uppercase">Cliquer</span>
               </motion.button>
             </>
           )}
         </div>
       </div>
 
-      {/* Status Indicators */}
-      <div className="flex flex-wrap justify-center gap-4 mb-4">
-        {isBlurred && <div className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase"><EyeOff size={14} /> Vue Troublée</div>}
-        {isButtonHidden && <div className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase"><Ghost size={14} /> Bouton Invisible</div>}
-        {isButtonShrunk && <div className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase"><Minimize2 size={14} /> Bouton Réduit</div>}
-        {isButtonMoving && <div className="flex items-center gap-1 text-xs font-bold text-gray-400 uppercase"><Move size={14} /> Bouton Fou</div>}
-        {isDoublePoints && <div className="flex items-center gap-1 text-xs font-bold text-orange-500 uppercase"><img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 object-contain" /> Double Ferveur</div>}
-        {hasShield && <div className="flex items-center gap-1 text-xs font-bold text-blue-500 uppercase"><Shield size={14} /> Bouclier Actif</div>}
-        {hasMirror && <div className="flex items-center gap-1 text-xs font-bold text-purple-500 uppercase"><RefreshCw size={14} /> Miroir Actif</div>}
-        {isEnergyRegenBoosted && <div className="flex items-center gap-1 text-xs font-bold text-yellow-500 uppercase"><img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 object-contain" /> Regen Boost</div>}
-        {isEarthquake && <div className="flex items-center gap-1 text-xs font-bold text-red-500 uppercase"><Activity size={14} /> Séisme</div>}
-        {isCardLocked && <div className="flex items-center gap-1 text-xs font-bold text-red-500 uppercase"><Lock size={14} /> Cartes Bloquées</div>}
-      </div>
+      {/* Bottom Section: Status, Cards, Excitement */}
+      <div className="mt-auto pt-4 flex flex-col gap-3">
+        {/* Status Indicators */}
+        <div className="flex flex-wrap justify-center gap-2">
+          {isBlurred && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><EyeOff size={12} /> Vue Troublée</div>}
+          {isButtonHidden && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><Ghost size={12} /> Bouton Invisible</div>}
+          {isButtonShrunk && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><Minimize2 size={12} /> Bouton Réduit</div>}
+          {isButtonMoving && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><Move size={12} /> Bouton Fou</div>}
+          {isDoublePoints && <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase"><img src={LOGOS.energy} alt="Energy" className="w-3 h-3 object-contain" /> Double Ferveur</div>}
+          {hasShield && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-500 uppercase"><Shield size={12} /> Bouclier Actif</div>}
+          {hasMirror && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-500 uppercase"><RefreshCw size={12} /> Miroir Actif</div>}
+          {isEnergyRegenBoosted && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500 uppercase"><img src={LOGOS.energy} alt="Energy" className="w-3 h-3 object-contain" /> Regen Boost</div>}
+          {isEarthquake && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase"><Activity size={12} /> Séisme</div>}
+          {isCardLocked && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase"><Lock size={12} /> Cartes Bloquées</div>}
+        </div>
 
-      {/* Cards Hand */}
-      <div className="mt-auto pt-8">
-        <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+        {/* Cards Hand */}
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x justify-center">
           <AnimatePresence>
             {hand.map(card => {
               const userCard = userCards[card.id] || { level: 1, xp: 0 };
               const xpForNextLevel = userCard.level * 10;
-              const progress = (userCard.xp / xpForNextLevel) * 100;
+              const xpProgress = (userCard.xp / xpForNextLevel) * 100;
               const actualCost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
 
               return (
@@ -791,39 +1107,36 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
                   initial={{ y: 50, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: -50, opacity: 0 }}
-                  whileHover={{ y: -10 }}
-                  onClick={() => playCard(card)}
-                  className={`min-w-[140px] h-[220px] rounded-xl border-2 p-4 flex flex-col cursor-pointer transition-colors relative ${
+                  whileHover={{ y: -5 }}
+                  onClick={(e) => playCard(card, e)}
+                  className={`min-w-[85px] w-[85px] h-[135px] snap-center shrink-0 rounded-lg border-2 p-2 flex flex-col cursor-pointer transition-colors relative ${
                     excitement >= actualCost ? 'border-yellow-500 bg-yellow-600/10' : 'border-white/10 bg-white/5 opacity-50'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] uppercase font-bold text-yellow-500">{card.rarity}</span>
-                    <div className="flex items-center gap-1 text-xs font-bold text-yellow-500">
-                      ⚡ {actualCost}
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-[8px] uppercase font-bold text-yellow-500 truncate pr-1">{card.rarity.substring(0, 3)}</span>
+                    <div className="flex items-center gap-0.5 text-[10px] font-black text-yellow-500">
+                      ⚡{actualCost}
                     </div>
                   </div>
-                  <h5 className="font-black italic uppercase text-sm leading-tight mb-2">{card.name}</h5>
-                  <p className="text-[10px] text-gray-400 flex-1 line-clamp-2">{card.description}</p>
+                  <h5 className="font-black italic uppercase text-[10px] leading-tight mb-1 line-clamp-2">{card.name}</h5>
+                  <p className="text-[8px] text-gray-400 flex-1 line-clamp-3 leading-tight">{card.description}</p>
                   
-                  <div className="mt-2 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-0.5 text-[8px] font-black text-yellow-500 uppercase">
-                        <img src={LOGOS.level} alt="Level" className="w-2 h-2 object-contain" /> Niv.{userCard.level}
-                      </div>
-                      <div className="text-[8px] font-bold text-gray-500">{userCard.xp}/{xpForNextLevel} XP</div>
+                  <div className="mt-1 flex justify-between items-center">
+                    <div className="flex items-center gap-0.5 text-[8px] font-black text-yellow-500 uppercase">
+                      Niv.{userCard.level}
                     </div>
-                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(progress, 100)}%` }}
-                      />
-                    </div>
+                  </div>
+                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-1">
+                    <div 
+                      className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(xpProgress, 100)}%` }}
+                    />
                   </div>
 
-                  <div className="mt-2 pt-2 border-t border-white/10 text-center font-black text-orange-500">
+                  <div className="mt-1 pt-1 border-t border-white/10 text-center font-black text-orange-500">
                     {card.effects.map(e => (
-                      <div key={e.type} className="text-[10px] uppercase">
+                      <div key={e.type} className="text-[8px] uppercase truncate">
                         {e.type === 'push_rope' ? `+${Math.round(e.value * (1 + (userCard.level - 1) * 0.2))}%` : e.type.replace('_', ' ')}
                       </div>
                     ))}
@@ -833,7 +1146,88 @@ export function DuelScreen({ duel, user, onExit, fanzId }: { duel: Duel; user: U
             })}
           </AnimatePresence>
         </div>
+
+        {/* Excitement Gauge */}
+        <div className="flex flex-col items-center gap-1 px-2 pb-2">
+          <div className="flex justify-between w-full px-1">
+            <span className="text-yellow-500 font-black text-[10px] italic uppercase tracking-wider">Excitation</span>
+            <span className="text-yellow-400 font-black text-xs">{Math.floor(excitement)}/10</span>
+          </div>
+          <div className="flex gap-1 w-full justify-center">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div 
+                key={i} 
+                className={`flex-1 h-3 rounded-sm skew-x-[-15deg] transition-all duration-300 ${
+                  i < Math.floor(excitement) 
+                    ? 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)]' 
+                    : 'bg-white/10'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Duel Result Modal */}
+      <AnimatePresence>
+        {duelResult && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-gray-900 border-2 border-orange-500 rounded-3xl p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(255,102,0,0.3)]"
+            >
+              <h2 className={`text-5xl font-black italic uppercase mb-2 ${duelResult.winner === 'A' ? 'text-orange-500' : 'text-gray-500'}`}>
+                {duelResult.winner === 'A' ? 'Victoire !' : 'Défaite'}
+              </h2>
+              
+              <div className="space-y-4 my-8">
+                <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                  <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains du Fanz</p>
+                  <p className="text-3xl font-black text-yellow-400">+{duelResult.ferveurGain} XP</p>
+                </div>
+                
+                {duelResult.teamGain > 0 && (
+                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                    <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains de l'Équipe</p>
+                    <p className="text-3xl font-black text-orange-400">+{duelResult.teamGain} XP</p>
+                  </div>
+                )}
+                
+                {duelResult.scoreA !== undefined && duelResult.scoreB !== undefined && (
+                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 col-span-2">
+                    <p className="text-sm text-gray-400 font-bold uppercase mb-2 text-center">Score du Duel</p>
+                    <div className="flex justify-between items-center">
+                      <div className="text-center">
+                        <p className="text-sm text-gray-400">{teamA || 'Équipe A'}</p>
+                        <p className={`text-2xl font-black ${duelResult.scoreA > duelResult.scoreB ? 'text-green-400' : 'text-white'}`}>{duelResult.scoreA}</p>
+                      </div>
+                      <div className="text-2xl font-black text-gray-600">-</div>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-400">{teamB || 'Équipe B'}</p>
+                        <p className={`text-2xl font-black ${duelResult.scoreB > duelResult.scoreA ? 'text-green-400' : 'text-white'}`}>{duelResult.scoreB}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button 
+                onClick={onExit}
+                className="w-full py-4 text-lg"
+              >
+                Retour au match
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
     </div>
   );
 }

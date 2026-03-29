@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getImageUrl } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
+import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
 import { UserProfile, Fanz, ActiveAction, LifeAction, UserCard, Card as DuelCard, FanzTemplate, FanzSkin, FanzEmote } from '../types';
 import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check } from 'lucide-react';
@@ -265,6 +266,10 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         name: skin.name
       });
 
+      if (skin.price.money) await logTransaction(userProfile.uid, 'money', -skin.price.money, `Achat skin: ${skin.name}`);
+      if (skin.price.gems) await logTransaction(userProfile.uid, 'gems', -skin.price.gems, `Achat skin: ${skin.name}`);
+      if (skin.price.boostPoints) await logTransaction(userProfile.uid, 'boost', -skin.price.boostPoints, `Achat skin: ${skin.name}`);
+
       setAlertModal({
         title: 'Skin acheté !',
         message: `Vous avez débloqué le skin ${skin.name}.`,
@@ -307,6 +312,10 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       await updateDoc(fanzRef, {
         unlockedEmotes: updatedEmotes
       });
+
+      if (emote.price.money) await logTransaction(userProfile.uid, 'money', -emote.price.money, `Achat emote: ${emote.name}`);
+      if (emote.price.gems) await logTransaction(userProfile.uid, 'gems', -emote.price.gems, `Achat emote: ${emote.name}`);
+      if (emote.price.boostPoints) await logTransaction(userProfile.uid, 'boost', -emote.price.boostPoints, `Achat emote: ${emote.name}`);
 
       setAlertModal({
         title: 'Emote acheté !',
@@ -701,6 +710,10 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                           
                                           await updateDoc(fanzRef, updates);
                                           if (Object.keys(userUpdates).length > 0) await updateDoc(userRef, userUpdates);
+
+                                          if (step.reward?.type === 'money' && step.reward.amount) await logTransaction(userProfile.uid, 'money', step.reward.amount, `Récompense palier ${step.level}`);
+                                          if (step.reward?.type === 'gems' && step.reward.amount) await logTransaction(userProfile.uid, 'gems', step.reward.amount, `Récompense palier ${step.level}`);
+                                          if (step.reward?.type === 'boost' && step.reward.amount) await logTransaction(userProfile.uid, 'boost', step.reward.amount, `Récompense palier ${step.level}`);
                                           
                                           setFanz({ 
                                             ...fanz, 
@@ -923,6 +936,10 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       money: userProfile.money - costMoney,
                                       boostPoints: userProfile.boostPoints - costBoost
                                     });
+
+                                    if (costMoney > 0) await logTransaction(userProfile.uid, 'money', -costMoney, `Passage Rang ${(fanz.rank ?? 0) + 1} (${fanz.name})`);
+                                    if (costBoost > 0) await logTransaction(userProfile.uid, 'boost', -costBoost, `Passage Rang ${(fanz.rank ?? 0) + 1} (${fanz.name})`);
+
                                     setFanz({ ...fanz, rank: (fanz.rank ?? 0) + 1 });
                                     setAlertModal({
                                       title: "Rang débloqué !",

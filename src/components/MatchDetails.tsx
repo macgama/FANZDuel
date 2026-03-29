@@ -11,13 +11,16 @@ import {
   ArrowRightLeft,
   Square,
   CircleDot,
-  Swords
+  Swords,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserProfile } from '../types';
 import { DuelManager } from './Duel';
+import { db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface MatchDetailsProps {
   fixtureId: number;
@@ -35,6 +38,28 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'summary' | 'lineups' | 'stats'>('summary');
   const [selectedDuelType, setSelectedDuelType] = useState<string | null>(null);
+  const [selectedDuelId, setSelectedDuelId] = useState<string | null>(null);
+  const [matchScore, setMatchScore] = useState<{ scoreA: number, scoreB: number } | null>(null);
+  const [activeDuels, setActiveDuels] = useState<any[]>([]);
+  const [showDuelsList, setShowDuelsList] = useState(false);
+
+  useEffect(() => {
+    const fetchActiveDuels = async () => {
+      try {
+        const res = await fetch(`/api/duels/${fixtureId}`);
+        if (res.ok) {
+          const data = await res.json();
+          // filter out duels where the user is already a participant
+          setActiveDuels(data.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)));
+        }
+      } catch (err) {
+        console.error('Failed to fetch active duels', err);
+      }
+    };
+    fetchActiveDuels();
+    const interval = setInterval(fetchActiveDuels, 5000);
+    return () => clearInterval(interval);
+  }, [fixtureId, user.uid]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,6 +84,33 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
     fetchData();
   }, [fixtureId]);
 
+  useEffect(() => {
+    const fetchScores = async () => {
+      if (selectedDuelType !== null) return; // Don't fetch while in duel
+      try {
+        const q = query(collection(db, 'match_scores'), where('matchId', '==', fixtureId.toString()));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          let totalA = 0;
+          let totalB = 0;
+          querySnapshot.forEach(doc => {
+            totalA += doc.data().scoreA || 0;
+            totalB += doc.data().scoreB || 0;
+          });
+          setMatchScore({
+            scoreA: totalA,
+            scoreB: totalB
+          });
+        } else {
+          setMatchScore(null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch match scores', err);
+      }
+    };
+    fetchScores();
+  }, [fixtureId, selectedDuelType]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
@@ -70,126 +122,203 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
 
   if (!details) return null;
 
-  const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT'].includes(details.fixture.status.short);
+  const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(details.fixture.status.short);
+  const isUpcoming = ['TBD', 'NS'].includes(details.fixture.status.short);
+  const isFinished = !isLive && !isUpcoming;
 
   if (selectedDuelType && user) {
     return (
       <DuelManager 
         user={user} 
-        onExit={() => setSelectedDuelType(null)} 
+        onExit={() => {
+          setSelectedDuelType(null);
+          setSelectedDuelId(null);
+        }} 
         matchId={fixtureId.toString()}
         teamA={details.teams.home.name}
         teamB={details.teams.away.name}
+        teamALogo={details.teams.home.logo}
+        teamBLogo={details.teams.away.logo}
+        initialDuelId={selectedDuelId || undefined}
+        initialDuelType={selectedDuelType || undefined}
+        isLiveMatch={isLive}
       />
     );
   }
 
+  const totalScore = (matchScore?.scoreA || 0) + (matchScore?.scoreB || 0);
+  const dominanceA = totalScore > 0 ? Math.round(((matchScore?.scoreA || 0) / totalScore) * 100) : 50;
+  const dominanceB = totalScore > 0 ? Math.round(((matchScore?.scoreB || 0) / totalScore) * 100) : 50;
+
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 mb-2">
         <button 
           onClick={onBack}
           className="p-2 hover:bg-white/10 rounded-lg transition-colors border border-white/10"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <div className="flex-1">
-          <h2 
-            className="text-sm font-bold text-gray-500 uppercase tracking-widest italic cursor-pointer hover:text-orange-500 transition-colors"
-            onClick={() => onLeagueClick(details.league.id, details.league.season)}
-          >
-            {details.league.name} - {details.league.round}
-          </h2>
-          <p className="text-[10px] font-medium text-gray-600 uppercase tracking-tight">
-            {format(new Date(details.fixture.date), 'dd/MM/yyyy, HH:mm')}
-          </p>
+      </div>
+
+      {/* Gaming Scoreboard */}
+      <div className="bg-[#1e1e1e] rounded-[2rem] p-4 sm:p-6 shadow-2xl relative overflow-hidden border border-white/5">
+        {/* Top row: Country & League */}
+        <div className="flex justify-between items-center mb-6 text-[9px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">
+          <div className="flex items-center gap-2">
+            {details.league.flag && <img src={details.league.flag} alt="" className="w-4 h-3 object-cover rounded-sm" />}
+            <span className="truncate max-w-[80px] sm:max-w-none">{details.league.country}</span>
+          </div>
+          <div className="flex items-center gap-2 text-right cursor-pointer hover:text-orange-500 transition-colors truncate" onClick={() => onLeagueClick(details.league.id, details.league.season)}>
+            {details.league.logo && <img src={details.league.logo} alt="" className="w-4 h-4 object-contain flex-shrink-0" />}
+            <span className="truncate max-w-[120px] sm:max-w-none">{details.league.name} - {details.league.round}</span>
+          </div>
         </div>
-      </div>
 
-      {/* Duel Options */}
-      <div className="flex flex-wrap gap-3">
-        {details.fixture.status.short === 'NS' ? (
-          <Button 
-            onClick={() => setSelectedDuelType('training')}
-            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-black italic uppercase text-xs py-3 flex items-center justify-center gap-2"
-          >
-            <Swords className="w-4 h-4" />
-            S'entraîner
-          </Button>
-        ) : isLive ? (
-          <>
-            <Button 
-              onClick={() => setSelectedDuelType('1v1')}
-              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-black italic uppercase text-xs py-3 flex items-center justify-center gap-2"
-            >
-              <Swords className="w-4 h-4" />
-              Duel 1V1
-            </Button>
-            <Button 
-              onClick={() => setSelectedDuelType('war_of_kops')}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black italic uppercase text-xs py-3 flex items-center justify-center gap-2"
-            >
-              <Users className="w-4 h-4" />
-              Guerre des Kops
-            </Button>
-          </>
-        ) : null}
-      </div>
-
-      {/* Scoreboard */}
-      <Card className="relative overflow-hidden border-orange-500/20">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-50"></div>
-        
-        <div className="flex items-center justify-between gap-4 py-4">
+        {/* Middle row: Teams & Score */}
+        <div className="flex justify-between items-center mb-8">
           {/* Home Team */}
-          <div 
-            className="flex-1 flex flex-col items-center gap-3 cursor-pointer group"
-            onClick={() => onTeamClick(details.teams.home.id, details.league.season)}
-          >
-            <img src={details.teams.home.logo} alt="" className="w-16 h-16 object-contain group-hover:scale-110 transition-transform" />
-            <span className="font-black text-center uppercase italic tracking-tight text-sm sm:text-base md:text-lg group-hover:text-orange-500 transition-colors">
+          <div className="flex-1 flex flex-col items-center gap-2 sm:gap-3 cursor-pointer group" onClick={() => onTeamClick(details.teams.home.id, details.league.season)}>
+            <div className="w-14 h-14 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center p-2 shadow-lg group-hover:scale-105 transition-transform">
+              <img src={details.teams.home.logo} alt="" className="w-full h-full object-contain" />
+            </div>
+            <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-sm text-white group-hover:text-orange-500 transition-colors line-clamp-2">
               {details.teams.home.name}
             </span>
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 bg-[#2a2a2a] border border-orange-500/20 rounded-full mt-1">
+              <span className="text-orange-500 text-[10px] sm:text-xs">🔥</span>
+              <span className="text-orange-500 font-black text-[9px] sm:text-xs">{matchScore?.scoreA || 0} PTS</span>
+            </div>
           </div>
 
-          {/* Score */}
-          <div className="flex flex-col items-center min-w-[80px] sm:min-w-[120px]">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <span className={`text-3xl sm:text-4xl md:text-5xl font-black ${isLive ? 'text-orange-500' : ''}`}>
-                {details.goals.home ?? 0}
-              </span>
-              <span className="text-gray-700 text-xl sm:text-3xl">-</span>
-              <span className={`text-3xl sm:text-4xl md:text-5xl font-black ${isLive ? 'text-orange-500' : ''}`}>
-                {details.goals.away ?? 0}
-              </span>
+          {/* Score & Time */}
+          <div className="flex flex-col items-center justify-center px-2 sm:px-4">
+            <div className="text-3xl sm:text-5xl font-black text-white tracking-tighter mb-2">
+              {details.goals.home ?? 0}:{details.goals.away ?? 0}
             </div>
-            <div className="mt-4">
-              {isLive ? (
-                <span className="flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full text-xs font-black text-red-500 animate-pulse uppercase">
-                  <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                  {details.fixture.status.elapsed}'
-                </span>
-              ) : (
-                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-gray-400 uppercase">
-                  {details.fixture.status.long}
-                </span>
-              )}
-            </div>
+            {isLive ? (
+              <div className="px-2 sm:px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-500 font-black text-[10px] sm:text-sm">
+                {details.fixture.status.elapsed}{details.fixture.status.extra ? `+${details.fixture.status.extra}` : ''}'
+              </div>
+            ) : (
+              <div className="px-2 sm:px-3 py-1 bg-white/10 border border-white/10 rounded-full text-gray-400 font-black text-[9px] sm:text-xs uppercase">
+                {details.fixture.status.short}
+              </div>
+            )}
           </div>
 
           {/* Away Team */}
-          <div 
-            className="flex-1 flex flex-col items-center gap-3 cursor-pointer group"
-            onClick={() => onTeamClick(details.teams.away.id, details.league.season)}
-          >
-            <img src={details.teams.away.logo} alt="" className="w-16 h-16 object-contain group-hover:scale-110 transition-transform" />
-            <span className="font-black text-center uppercase italic tracking-tight text-sm sm:text-base md:text-lg group-hover:text-orange-500 transition-colors">
+          <div className="flex-1 flex flex-col items-center gap-2 sm:gap-3 cursor-pointer group" onClick={() => onTeamClick(details.teams.away.id, details.league.season)}>
+            <div className="w-14 h-14 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center p-2 shadow-lg group-hover:scale-105 transition-transform">
+              <img src={details.teams.away.logo} alt="" className="w-full h-full object-contain" />
+            </div>
+            <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-sm text-white group-hover:text-orange-500 transition-colors line-clamp-2">
               {details.teams.away.name}
             </span>
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 bg-[#2a2a2a] border border-blue-500/20 rounded-full mt-1">
+              <span className="text-blue-500 text-[10px] sm:text-xs">🔥</span>
+              <span className="text-blue-500 font-black text-[9px] sm:text-xs">{matchScore?.scoreB || 0} PTS</span>
+            </div>
           </div>
         </div>
-      </Card>
+
+        {/* Dominance Mondiale */}
+        <div className="mb-4 sm:mb-6 px-1 sm:px-2">
+          <div className="text-center mb-3">
+            <span className="text-[10px] sm:text-xs font-black text-yellow-500 tracking-[0.2em] uppercase bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
+              Dominance Mondiale
+            </span>
+          </div>
+          
+          <div className="flex justify-between items-end mb-2 px-2">
+            <div className="flex flex-col items-start">
+              <span className="text-2xl sm:text-4xl font-black text-orange-500 leading-none">
+                {dominanceA}
+                <span className="text-sm sm:text-lg text-orange-500/50 ml-1">%</span>
+              </span>
+            </div>
+            
+            <div className="flex flex-col items-end">
+              <span className="text-2xl sm:text-4xl font-black text-blue-500 leading-none">
+                {dominanceB}
+                <span className="text-sm sm:text-lg text-blue-500/50 ml-1">%</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="relative h-3 sm:h-4 bg-gray-800 rounded-full overflow-hidden flex border border-gray-700 shadow-inner">
+            <div 
+              className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-1000 ease-out relative" 
+              style={{ width: `${dominanceA}%` }}
+            >
+              <div className="absolute inset-0 bg-white/20 w-full animate-pulse"></div>
+            </div>
+            <div 
+              className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-1000 ease-out" 
+              style={{ width: `${dominanceB}%` }}
+            ></div>
+            
+            {/* Center Marker */}
+            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        {!isFinished && (
+          <div className="flex gap-2 sm:gap-4 mt-6">
+            <button 
+              className={`py-3 sm:py-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white font-black text-[10px] sm:text-sm uppercase tracking-widest transition-colors ${activeDuels.length > 0 ? 'flex-1' : 'w-full'}`}
+              onClick={() => setSelectedDuelType(isLive ? 'war_of_kops' : 'training')}
+            >
+              Duel
+            </button>
+            {activeDuels.length > 0 && isLive && (
+              <button 
+                className="flex-1 py-3 sm:py-4 rounded-xl bg-[#ff6b00] hover:bg-[#ff8533] text-white font-black text-[10px] sm:text-sm uppercase tracking-widest transition-colors shadow-lg shadow-orange-500/20"
+                onClick={() => setShowDuelsList(true)}
+              >
+                Rejoindre ({activeDuels.length})
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {showDuelsList && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-black text-white uppercase italic">Duels en attente</h3>
+              <button onClick={() => setShowDuelsList(false)} className="text-gray-400 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-3">
+              {activeDuels.map(duel => (
+                <div key={duel.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-orange-500 font-black text-sm uppercase">{duel.type}</div>
+                    <div className="text-white text-xs mt-1">
+                      {duel.participants.length} joueur(s) en attente
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowDuelsList(false);
+                      setSelectedDuelId(duel.id);
+                      setSelectedDuelType(duel.type);
+                    }}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-bold text-xs uppercase"
+                  >
+                    Rejoindre
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10">
@@ -235,7 +364,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return (
     <button 
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg transition-all font-bold text-xs uppercase italic ${
+      className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-3 rounded-lg transition-all font-bold text-[10px] sm:text-xs uppercase italic ${
         active 
           ? 'bg-orange-600 text-white shadow-lg' 
           : 'text-gray-400 hover:text-white hover:bg-white/5'

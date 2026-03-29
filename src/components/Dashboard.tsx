@@ -179,7 +179,7 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
                     >
                       {match.league.name}
                     </span>
-                    <span className="text-orange-500 animate-pulse">{match.fixture.status.elapsed}'</span>
+                    <span className="text-orange-500 animate-pulse">{match.fixture.status.elapsed}{match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'</span>
                   </div>
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(match.teams.home.id, match.league.season); }}>

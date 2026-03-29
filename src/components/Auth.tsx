@@ -8,6 +8,7 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
 import { INITIAL_USER_DATA } from '../constants';
 import { footballApi } from '../services/footballApi';
@@ -189,6 +190,11 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           lastEnergyRefill: new Date().toISOString(),
           role: (user.email || email) === 'gael.manigley@gmail.com' ? 'admin' : 'client',
         });
+
+        await logTransaction(user.uid, 'money', INITIAL_USER_DATA.money, 'Cadeau de Bienvenue');
+        await logTransaction(user.uid, 'gems', INITIAL_USER_DATA.gems, 'Cadeau de Bienvenue');
+        await logTransaction(user.uid, 'boost', INITIAL_USER_DATA.boostPoints, 'Cadeau de Bienvenue');
+        await logTransaction(user.uid, 'energy', INITIAL_USER_DATA.energy, 'Cadeau de Bienvenue');
       } catch (err) {
         handleFirestoreError(err, OperationType.CREATE, userPath);
       }
