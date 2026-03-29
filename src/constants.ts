@@ -4,6 +4,7 @@ export const LOGOS = {
   boost: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoBoost.png?alt=media',
   energy: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoEnergy.png?alt=media',
   level: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoLevel.png?alt=media',
+  ferveur: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoFerveur.png?alt=media',
 };
 
 export const COLORS = {

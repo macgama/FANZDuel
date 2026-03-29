@@ -1,29 +1,73 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { footballApi } from '../services/footballApi';
 import { Card, Button } from './Layout';
-import { Search, Calendar as CalendarIcon, Activity, Clock, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, Activity, Clock, CheckCircle, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 import { format, addDays, subDays, isSameDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { MatchDetails } from './MatchDetails';
+import { db } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
-export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { onMatchClick: (id: number) => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
+export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'finished'>('all');
 
+  const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
+
   const fetchFixtures = async () => {
     setLoading(true);
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      let data = await footballApi.getFixturesByDate(dateStr);
+      let data;
+      
+      if (statusFilter === 'live' && isSameDay(selectedDate, new Date())) {
+        data = await footballApi.getLiveFixtures();
+        // Fetch events for live matches to get scorers
+        if (data && data.length > 0) {
+          const liveEvents = await Promise.all(
+            data.slice(0, 10).map((f: any) => footballApi.getFixtureEvents(f.fixture.id).catch(() => []))
+          );
+          data = data.map((f: any, i: number) => ({
+            ...f,
+            events: liveEvents[i] || []
+          }));
+        }
+      } else {
+        data = await footballApi.getFixturesByDate(dateStr);
+      }
       
       if (statusFilter === 'live') {
         data = data.filter((f: any) => ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short));
       }
       setFixtures(data || []);
+
+      // Fetch match scores for live matches
+      if (data && data.length > 0) {
+        const matchIds = data.map((f: any) => f.fixture.id.toString());
+        
+        if (matchIds.length > 0) {
+          const scoresMap: Record<string, { scoreA: number, scoreB: number }> = {};
+          const chunkSize = 10;
+          for (let i = 0; i < matchIds.length; i += chunkSize) {
+            const chunk = matchIds.slice(i, i + chunkSize);
+            const scoresQuery = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
+            const scoresSnapshot = await getDocs(scoresQuery);
+            scoresSnapshot.forEach(doc => {
+              const d = doc.data();
+              if (d.matchId) {
+                if (!scoresMap[d.matchId]) scoresMap[d.matchId] = { scoreA: 0, scoreB: 0 };
+                scoresMap[d.matchId].scoreA += d.scoreA || 0;
+                scoresMap[d.matchId].scoreB += d.scoreB || 0;
+              }
+            });
+          }
+          setMatchScores(scoresMap);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch fixtures', err);
     } finally {
@@ -58,6 +102,25 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
     });
   }, [fixtures, searchTerm, statusFilter]);
 
+  const [activeDuels, setActiveDuels] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchActiveDuels = async () => {
+      try {
+        const res = await fetch('/api/duels');
+        if (res.ok) {
+          const data = await res.json();
+          setActiveDuels(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch active duels', err);
+      }
+    };
+    fetchActiveDuels();
+    const interval = setInterval(fetchActiveDuels, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   const groupedByCountry = useMemo(() => {
     const countries: { [key: string]: { name: string; leagues: { [key: string]: { league: any; matches: any[] } } } } = {};
     
@@ -87,69 +150,67 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2 sm:gap-3">
-          <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
-          Matchs du jour
-        </h1>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+            <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+            Matchs du jour
+          </h1>
 
-        <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10">
-          <button 
-            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="px-4 font-bold min-w-[140px] text-center">
-            {isSameDay(selectedDate, new Date()) ? "Aujourd'hui" : format(selectedDate, 'dd/MM/yyyy')}
+          <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10 text-sm">
+            <button 
+              onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="px-2 font-bold min-w-[100px] text-center">
+              {isSameDay(selectedDate, new Date()) ? "Aujourd'hui" : format(selectedDate, 'dd/MM/yyyy')}
+            </div>
+            <button 
+              onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-          <button 
-            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-          <input 
-            type="text"
-            placeholder="Rechercher une équipe ou ligue..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 sm:py-3 pl-10 pr-4 focus:outline-none focus:border-orange-500 transition-colors text-sm sm:text-base"
-          />
         </div>
 
-        <div className="flex gap-2">
-          <FilterButton 
-            active={statusFilter === 'all'} 
-            onClick={() => setStatusFilter('all')}
-            icon={<Clock className="w-4 h-4" />}
-            label="Tous"
-          />
-          <FilterButton 
-            active={statusFilter === 'live'} 
-            onClick={() => setStatusFilter('live')}
-            icon={<Activity className="w-4 h-4" />}
-            label="Live"
-            color="text-red-500"
-          />
-          <FilterButton 
-            active={statusFilter === 'upcoming'} 
-            onClick={() => setStatusFilter('upcoming')}
-            icon={<Clock className="w-4 h-4" />}
-            label="À venir"
-          />
-          <FilterButton 
-            active={statusFilter === 'finished'} 
-            onClick={() => setStatusFilter('finished')}
-            icon={<CheckCircle className="w-4 h-4" />}
-            label="Terminés"
-          />
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <FilterButton 
+              active={statusFilter === 'all'} 
+              onClick={() => setStatusFilter('all')}
+              label="Tous"
+            />
+            <FilterButton 
+              active={statusFilter === 'live'} 
+              onClick={() => setStatusFilter('live')}
+              label="Live"
+              color="text-red-500"
+            />
+            <FilterButton 
+              active={statusFilter === 'upcoming'} 
+              onClick={() => setStatusFilter('upcoming')}
+              label="À venir"
+            />
+            <FilterButton 
+              active={statusFilter === 'finished'} 
+              onClick={() => setStatusFilter('finished')}
+              label="Terminés"
+            />
+          </div>
+
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input 
+              type="text"
+              placeholder="Rechercher une équipe ou une compétition..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-4 focus:outline-none focus:border-orange-500 transition-colors text-sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -170,6 +231,8 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
             <CountrySection 
               key={country.name} 
               country={country} 
+              activeDuels={activeDuels}
+              matchScores={matchScores}
               onMatchClick={onMatchClick}
               onJoinDuel={onJoinDuel}
               onTeamClick={onTeamClick}
@@ -182,23 +245,31 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   );
 }
 
-function CountrySection({ country, onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { country: any; onMatchClick: (id: number) => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
+function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { country: any; activeDuels: any[]; matchScores: any; onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
   const [isOpen, setIsOpen] = useState(true);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = direction === 'left' ? -scrollContainerRef.current.clientWidth : scrollContainerRef.current.clientWidth;
+      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 max-w-[420px] mx-auto w-full">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors group"
+        className="w-full flex items-center justify-between p-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors group"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-xs font-bold text-gray-400 group-hover:text-white transition-colors">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 bg-gray-800 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">
             {country.name.substring(0, 2).toUpperCase()}
           </div>
-          <h2 className="font-black italic uppercase tracking-wider text-xs sm:text-sm">
+          <h2 className="font-black italic uppercase tracking-wider text-[11px] sm:text-xs">
             {country.name}
           </h2>
-          <span className="text-[10px] font-bold px-2 py-0.5 bg-white/10 rounded-full text-gray-400">
+          <span className="text-[9px] font-bold px-1.5 py-0.5 bg-white/10 rounded-full text-gray-400">
             {country.leagues.reduce((acc: number, l: any) => acc + l.matches.length, 0)}
           </span>
         </div>
@@ -206,7 +277,7 @@ function CountrySection({ country, onMatchClick, onJoinDuel, onTeamClick, onLeag
           animate={{ rotate: isOpen ? 0 : -90 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronRight className="w-5 h-5 text-gray-500" />
+          <ChevronRight className="w-4 h-4 text-gray-500" />
         </motion.div>
       </button>
 
@@ -216,30 +287,57 @@ function CountrySection({ country, onMatchClick, onJoinDuel, onTeamClick, onLeag
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden space-y-4 pt-2 pl-4 border-l border-white/5"
+            className="overflow-hidden space-y-3 pt-1"
           >
             {country.leagues.map((group: any) => (
-              <div key={`${group.league.id}-${group.league.season}`} className="space-y-3">
+              <div key={`${group.league.id}-${group.league.season}`} className="space-y-2 relative">
                 <button 
                   onClick={() => onLeagueClick(group.league.id, group.league.season)}
-                  className="flex items-center gap-3 px-2 hover:text-orange-500 transition-colors group"
+                  className="flex items-center gap-2 hover:text-orange-500 transition-colors group px-1"
                 >
-                  <img src={group.league.logo} alt="" className="w-5 h-5 object-contain" />
-                  <h3 className="font-bold italic uppercase text-[10px] sm:text-[11px] tracking-widest text-gray-500 group-hover:text-orange-500 transition-colors">
+                  <img src={group.league.logo} alt="" className="w-4 h-4 object-contain" />
+                  <h3 className="font-bold italic uppercase text-[9px] sm:text-[10px] tracking-widest text-gray-500 group-hover:text-orange-500 transition-colors">
                     {group.league.name}
                   </h3>
                 </button>
                 
-                <div className="grid gap-2">
-                  {group.matches.map((match: any) => (
-                    <MatchCard 
-                      key={match.fixture.id} 
-                      match={match} 
-                      onClick={() => onMatchClick(match.fixture.id)}
-                      onJoinDuel={(isLive) => onJoinDuel(match.fixture.id, isLive)}
-                      onTeamClick={onTeamClick}
-                    />
-                  ))}
+                <div className="relative group/scroll">
+                  {group.matches.length > 1 && (
+                    <>
+                      <button 
+                        onClick={() => scroll('left')}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => scroll('right')}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+
+                  <div 
+                    ref={scrollContainerRef}
+                    className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
+                  >
+                    <div className="flex flex-nowrap gap-4 w-fit px-0.5">
+                      {group.matches.map((match: any) => (
+                        <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-60px)] sm:w-[400px]">
+                          <MatchCard 
+                            match={match} 
+                            hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
+                            matchScore={matchScores[match.fixture.id.toString()]}
+                            onClick={(tab) => onMatchClick(match.fixture.id, tab)}
+                            onJoinDuel={(isLive) => onJoinDuel(match.fixture.id, isLive)}
+                            onTeamClick={onTeamClick}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -250,76 +348,92 @@ function CountrySection({ country, onMatchClick, onJoinDuel, onTeamClick, onLeag
   );
 }
 
-function FilterButton({ active, onClick, icon, label, color = "text-white" }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; color?: string }) {
+function FilterButton({ active, onClick, label, color = "text-white" }: { active: boolean; onClick: () => void; label: string; color?: string }) {
   return (
     <button 
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2.5 sm:py-3 rounded-xl border transition-all font-bold text-[10px] sm:text-xs uppercase italic ${
+      className={`flex-1 flex items-center justify-center px-3 py-2.5 sm:py-3 rounded-xl border transition-all font-bold text-[10px] sm:text-xs uppercase italic min-w-[80px] ${
         active 
           ? 'bg-orange-600 border-orange-500 text-white' 
           : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
       }`}
     >
-      <span className={active ? 'text-white' : color}>{icon}</span>
-      <span className="hidden xs:inline">{label}</span>
-      <span className="xs:hidden">{label.slice(0, 3)}</span>
+      <span className={active ? 'text-white' : color}>{label}</span>
     </button>
   );
 }
 
-function MatchCard({ match, onClick, onJoinDuel, onTeamClick }: { match: any; onClick: () => void; onJoinDuel: (isLive: boolean) => void; onTeamClick: (id: number, season: number) => void }) {
+function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTeamClick }: { match: any; hasActiveDuel: boolean; matchScore?: { scoreA: number, scoreB: number }; onClick: (tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (isLive: boolean) => void; onTeamClick: (id: number, season: number) => void }) {
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(match.fixture.status.short);
   const isUpcoming = ['TBD', 'NS'].includes(match.fixture.status.short);
   const isFinished = !isLive && !isUpcoming;
 
+  // Extract scorers
+  const scorers = match.events?.filter((e: any) => e.type?.toLowerCase() === 'goal') || [];
+
+  const scoreA = matchScore?.scoreA || 0;
+  const scoreB = matchScore?.scoreB || 0;
+  const totalScore = scoreA + scoreB;
+  const dominanceA = totalScore > 0 ? Math.round((scoreA / totalScore) * 100) : 50;
+  const dominanceB = totalScore > 0 ? Math.round((scoreB / totalScore) * 100) : 50;
+
   return (
     <Card 
-      className="p-4 hover:bg-white/10 transition-colors group cursor-pointer"
+      className="p-4 hover:bg-white/10 transition-colors group cursor-pointer bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl"
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
           {/* Home Team */}
           <div 
-            className="flex-1 flex items-center justify-end gap-3 hover:text-orange-500 transition-colors"
+            className="flex-1 flex flex-col items-center gap-2 hover:text-orange-500 transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               onTeamClick(match.teams.home.id, match.league.season);
             }}
           >
-            <span className="font-bold text-sm md:text-base text-right">{match.teams.home.name}</span>
-            <img src={match.teams.home.logo} alt="" className="w-8 h-8 object-contain" />
+            <div className="w-10 h-10 bg-white rounded-full p-1 flex items-center justify-center">
+              <img src={match.teams.home.logo} alt="" className="w-7 h-7 object-contain" />
+            </div>
+            <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight w-full">{match.teams.home.name}</span>
+            {(isLive || isFinished) && (
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
+                <Flame className="w-2.5 h-2.5 text-orange-500" />
+                <span className="text-[8px] font-black text-orange-500">{scoreA} PTS</span>
+              </div>
+            )}
           </div>
 
           {/* Score / Time */}
           <div 
-            className="flex flex-col items-center min-w-[80px] px-2"
-            onClick={onClick}
+            className="flex flex-col items-center min-w-[90px] px-2"
+            onClick={() => onClick()}
           >
             {isFinished || isLive ? (
               <div className="flex items-center gap-2">
                 <span className={`text-2xl font-black ${isLive ? 'text-orange-500' : ''}`}>
                   {match.goals.home ?? 0}
                 </span>
-                <span className="text-gray-600">-</span>
+                <span className="text-orange-500 font-black">:</span>
                 <span className={`text-2xl font-black ${isLive ? 'text-orange-500' : ''}`}>
                   {match.goals.away ?? 0}
                 </span>
               </div>
             ) : (
-              <div className="text-xs font-bold text-white/80 bg-white/5 px-2 py-1 rounded border border-white/10">
-                {format(new Date(match.fixture.date), 'dd/MM/yyyy HH:mm')}
+              <div className="text-[10px] font-bold text-white/80 bg-white/5 px-2 py-1 rounded border border-white/10">
+                {format(new Date(match.fixture.date), 'HH:mm')}
               </div>
             )}
             
             <div className="mt-1">
               {isLive ? (
-                <span className="flex items-center gap-1 text-[10px] font-black text-red-500 animate-pulse uppercase">
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                  {match.fixture.status.elapsed}{match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'
-                </span>
+                <div className="bg-orange-500/20 border border-orange-500/30 rounded-full px-2 py-0.5 flex items-center justify-center">
+                  <span className="text-[10px] font-black text-orange-500 animate-pulse uppercase">
+                    {match.fixture.status.elapsed}{match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'
+                  </span>
+                </div>
               ) : (
                 <span className="text-[10px] font-bold text-gray-500 uppercase">
-                  {match.fixture.status.long}
+                  {match.fixture.status.short}
                 </span>
               )}
             </div>
@@ -327,36 +441,91 @@ function MatchCard({ match, onClick, onJoinDuel, onTeamClick }: { match: any; on
 
           {/* Away Team */}
           <div 
-            className="flex-1 flex items-center gap-3 hover:text-orange-500 transition-colors"
+            className="flex-1 flex flex-col items-center gap-2 hover:text-orange-500 transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               onTeamClick(match.teams.away.id, match.league.season);
             }}
           >
-            <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" />
-            <span className="font-bold text-sm md:text-base">{match.teams.away.name}</span>
+            <div className="w-10 h-10 bg-transparent flex items-center justify-center">
+              <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" />
+            </div>
+            <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight w-full">{match.teams.away.name}</span>
+            {(isLive || isFinished) && (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
+                <Flame className="w-2.5 h-2.5 text-blue-500" />
+                <span className="text-[8px] font-black text-blue-500">{scoreB} PTS</span>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 text-[10px] font-black uppercase tracking-widest h-8"
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
-          >
-            Match
-          </Button>
-          {!isFinished && (
-            <Button 
-              size="sm" 
-              className="flex-1 text-[10px] font-black uppercase tracking-widest h-8 bg-orange-600 hover:bg-orange-700"
-              onClick={(e) => { e.stopPropagation(); onJoinDuel(isLive); }}
+        {/* Dominance Bar (Live or Finished) */}
+        {(isLive || isFinished) && (
+          <div className="mt-1">
+            <div className="flex justify-between items-center text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+              <span className="text-orange-500">{dominanceA}%</span>
+              <span>DOMINANCE MONDIALE</span>
+              <span className="text-blue-500">{dominanceB}%</span>
+            </div>
+            <div className="h-1 w-full bg-black/60 rounded-full overflow-hidden flex relative">
+              <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${dominanceA}%` }} />
+              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${dominanceB}%` }} />
+              <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
+            </div>
+          </div>
+        )}
+
+        {/* Scorers Section */}
+        {scorers.length > 0 && (
+          <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-3">
+            <div className="space-y-1">
+              {scorers.filter((e: any) => e.team.id === match.teams.home.id).map((e: any, i: number) => (
+                <div key={i} className="flex items-center justify-end gap-1.5 text-[9px] text-gray-400 font-bold">
+                  <span>{e.player.name}</span>
+                  <span className="text-orange-500">{e.time.elapsed}{e.time.extra ? `+${e.time.extra}` : ''}'</span>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-1">
+              {scorers.filter((e: any) => e.team.id === match.teams.away.id).map((e: any, i: number) => (
+                <div key={i} className="flex items-center gap-1.5 text-[9px] text-gray-400 font-bold">
+                  <span className="text-orange-500">{e.time.elapsed}{e.time.extra ? `+${e.time.extra}` : ''}'</span>
+                  <span>{e.player.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {isLive && (
+          <div className="mt-1 flex gap-2">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onClick(); }}
+              className="flex-1 py-2 rounded-xl border border-white/20 bg-white/5 text-white font-black text-[10px] uppercase tracking-wider hover:bg-white/10 transition-colors"
             >
-              Rejoindre
-            </Button>
-          )}
-        </div>
+              MATCH
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onJoinDuel(isLive); }}
+              className="flex-1 py-2 rounded-xl bg-orange-500 text-white font-black text-[10px] uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+            >
+              {hasActiveDuel && <Activity className="w-3 h-3 animate-pulse" />}
+              REJOINDRE
+            </button>
+          </div>
+        )}
+
+        {isFinished && (
+          <div className="mt-1 flex gap-2">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onClick('duels'); }}
+              className="flex-1 py-2 rounded-xl bg-white/10 text-white font-black text-[10px] uppercase tracking-wider hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+            >
+              RÉSUMÉ
+            </button>
+          </div>
+        )}
       </div>
     </Card>
   );

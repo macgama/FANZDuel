@@ -5,7 +5,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import axios from "axios";
 import * as dotenv from "dotenv";
-import { BASE_CARDS } from "./src/constants/cards";
+import { BASE_CARDS } from "./src/constants/cards.ts";
 
 dotenv.config();
 
@@ -33,6 +33,7 @@ async function startServer() {
     scores?: { A: number; B: number };
     clickCounts: { A: number; B: number };
     cardCounts: { A: number; B: number };
+    botInterval?: NodeJS.Timeout;
   }> = {};
 
   function finishDuel(duelId: string, winner: string) {
@@ -40,25 +41,32 @@ async function startServer() {
     if (!duel) return;
     duel.status = 'finished';
     
-    const teamAActions = duel.clickCounts.A + duel.cardCounts.A;
-    const teamBActions = duel.clickCounts.B + duel.cardCounts.B;
+    const teamAActions = (duel.clickCounts.A || 0) + (duel.cardCounts.A || 0);
+    const teamBActions = (duel.clickCounts.B || 0) + (duel.cardCounts.B || 0);
     const totalActions = teamAActions + teamBActions;
     
-    let scoreA = winner === 'A' ? 20 : 0;
-    let scoreB = winner === 'B' ? 20 : 0;
+    let scoreA = 0;
+    let scoreB = 0;
     
     if (totalActions > 0) {
-      scoreA += Math.round((teamAActions / totalActions) * 80);
-      scoreB += Math.round((teamBActions / totalActions) * 80);
+      // Winner gets 60 base, the rest is proportional
+      if (winner === 'A') {
+        scoreA = Math.round(60 + (40 * teamAActions / totalActions));
+        scoreB = Math.round(40 * teamBActions / totalActions);
+      } else {
+        scoreB = Math.round(60 + (40 * teamBActions / totalActions));
+        scoreA = Math.round(40 * teamAActions / totalActions);
+      }
     } else {
-      scoreA += 40;
-      scoreB += 40;
+      scoreA = winner === 'A' ? 100 : 0;
+      scoreB = winner === 'B' ? 100 : 0;
     }
     
     // Ensure total is exactly 100
-    if (scoreA + scoreB !== 100) {
-      if (scoreA > scoreB) scoreA += (100 - (scoreA + scoreB));
-      else scoreB += (100 - (scoreA + scoreB));
+    const sum = scoreA + scoreB;
+    if (sum !== 100 && sum > 0) {
+      scoreA = Math.round((scoreA / sum) * 100);
+      scoreB = 100 - scoreA;
     }
 
     io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB });
@@ -144,6 +152,13 @@ async function startServer() {
         duel.participants.push({ ...user, fanz, team, socketId: socket.id });
       }
 
+      const participant = duel.participants.find(p => p.uid === user.uid);
+      socket.emit("duel-joined", { 
+        team: participant?.team || 'A', 
+        duelId: duel.id, 
+        participants: duel.participants 
+      });
+
       io.to(duelId).emit("duel-update", { 
         duelId: duel.id,
         progress: duel.progress, 
@@ -167,10 +182,11 @@ async function startServer() {
       }
 
       // Training mode: Start bot logic
-      if (duel.type === 'training' && duel.status === 'active') {
+      if (duel.type === 'training' && duel.status === 'active' && !duel.botInterval) {
         const botInterval = setInterval(() => {
           if (duel.status !== 'active') {
             clearInterval(botInterval);
+            delete duel.botInterval;
             return;
           }
           const botMultiplier = 1;
@@ -198,9 +214,11 @@ async function startServer() {
 
           if (duel.progress <= 0) {
             clearInterval(botInterval);
+            delete duel.botInterval;
             finishDuel(duelId, "B");
           }
         }, 1500 + Math.random() * 1000);
+        duel.botInterval = botInterval;
       }
     });
 
@@ -295,6 +313,11 @@ async function startServer() {
   });
 
   // API Routes
+  app.get("/api/duels", (req, res) => {
+    const activeDuels = Object.values(duels).filter(d => d.status === 'waiting');
+    res.json(activeDuels);
+  });
+
   app.get("/api/duels/:matchId", (req, res) => {
     const matchId = parseInt(req.params.matchId, 10);
     const activeDuels = Object.values(duels).filter(d => d.matchId === matchId && d.status === 'waiting');
@@ -317,10 +340,22 @@ async function startServer() {
     });
   });
 
-  // Football API Proxy
+  // Football API Proxy with Caching
+  const footballCache: Record<string, { data: any; timestamp: number }> = {};
+  const CACHE_TTL = 60 * 1000; // 1 minute cache
+
   app.get("/api/football/*", async (req, res) => {
-    const endpoint = req.params[0].replace(/^\//, '');
+    const endpoint = req.params[0].replace(/^\//, "");
     const queryParams = req.query;
+    const cacheKey = `${endpoint}?${JSON.stringify(queryParams)}`;
+
+    // Check cache
+    const cached = footballCache[cacheKey];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      console.log(`[Football Proxy] Serving from cache: ${cacheKey}`);
+      return res.json(cached.data);
+    }
+
     const url = `https://v3.football.api-sports.io/${endpoint}`;
     
     console.log(`[Football Proxy] Requesting: ${url}`, queryParams);
@@ -346,7 +381,26 @@ async function startServer() {
         timeout: 15000 // 15 seconds timeout
       });
 
+      // Handle API-Sports specific errors that return 200 OK
+      if (response.data && response.data.errors && Object.keys(response.data.errors).length > 0) {
+        console.warn(`[Football Proxy] API returned errors:`, response.data.errors);
+        // If it's a rate limit error, don't cache it
+        if (response.data.errors.rateLimit) {
+          return res.status(429).json({ 
+            error: "Rate limit exceeded", 
+            details: response.data.errors 
+          });
+        }
+      }
+
       console.log(`[Football Proxy] Success: ${url} - Status: ${response.status}`);
+      
+      // Cache the successful response
+      footballCache[cacheKey] = {
+        data: response.data,
+        timestamp: Date.now()
+      };
+
       res.json(response.data);
     } catch (error: any) {
       const status = error.response?.status || 500;

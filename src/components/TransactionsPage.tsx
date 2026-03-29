@@ -21,7 +21,7 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
 
   useEffect(() => {
     // Fetch Fanz to display names for ferveur_fanz transactions
-    const qFanz = query(collection(db, 'fanz'), where('userId', '==', profile.uid));
+    const qFanz = query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid));
     const unsubscribeFanz = onSnapshot(qFanz, (snapshot) => {
       const fanzMap: Record<string, Fanz> = {};
       snapshot.docs.forEach(doc => {

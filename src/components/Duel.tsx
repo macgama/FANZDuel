@@ -448,6 +448,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
     initDuel();
   }, [fanzId, user.uid]);
 
+  const [myTeam, setMyTeam] = useState<'A' | 'B' | null>(null);
+
   const drawCard = () => {
     setHand(prev => {
       if (prev.length >= 4) return prev;
@@ -464,6 +466,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
 
     newSocket.on('connect', () => {
       newSocket.emit('join-duel', { duelId: currentDuelIdRef.current, user, fanz, type: duel.type });
+    });
+
+    newSocket.on('duel-joined', ({ team, duelId: serverDuelId, participants: serverParticipants }: { team: 'A' | 'B', duelId: string, participants: any[] }) => {
+      setMyTeam(team);
+      setCurrentDuelId(serverDuelId);
+      if (serverParticipants) setParticipants(serverParticipants);
     });
 
     newSocket.on('duel-update', (state: { duelId?: string; progress: number; status: any; participants?: any[] }) => {
@@ -1182,8 +1190,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
               animate={{ scale: 1, y: 0 }}
               className="bg-gray-900 border-2 border-orange-500 rounded-3xl p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(255,102,0,0.3)]"
             >
-              <h2 className={`text-5xl font-black italic uppercase mb-2 ${duelResult.winner === 'A' ? 'text-orange-500' : 'text-gray-500'}`}>
-                {duelResult.winner === 'A' ? 'Victoire !' : 'Défaite'}
+              <h2 className={`text-5xl font-black italic uppercase mb-2 ${duelResult.winner === (myTeam || participants.find(p => p.uid === user.uid)?.team || 'A') ? 'text-orange-500' : 'text-gray-500'}`}>
+                {duelResult.winner === (myTeam || participants.find(p => p.uid === user.uid)?.team || 'A') ? 'Victoire !' : 'Défaite'}
               </h2>
               
               <div className="space-y-4 my-8">

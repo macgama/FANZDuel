@@ -12,6 +12,7 @@ import {
   Square,
   CircleDot,
   Swords,
+  Trophy,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,20 +29,22 @@ interface MatchDetailsProps {
   onBack: () => void;
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
+  initialTab?: 'summary' | 'lineups' | 'stats' | 'duels';
 }
 
-export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick }: MatchDetailsProps) {
+export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick, initialTab = 'summary' }: MatchDetailsProps) {
   const [details, setDetails] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [lineups, setLineups] = useState<any[]>([]);
   const [stats, setStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'summary' | 'lineups' | 'stats'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'lineups' | 'stats' | 'duels'>(initialTab);
   const [selectedDuelType, setSelectedDuelType] = useState<string | null>(null);
   const [selectedDuelId, setSelectedDuelId] = useState<string | null>(null);
   const [matchScore, setMatchScore] = useState<{ scoreA: number, scoreB: number } | null>(null);
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
   const [showDuelsList, setShowDuelsList] = useState(false);
+  const [duelHistory, setDuelHistory] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchActiveDuels = async () => {
@@ -93,16 +96,21 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         if (!querySnapshot.empty) {
           let totalA = 0;
           let totalB = 0;
+          const history: any[] = [];
           querySnapshot.forEach(doc => {
-            totalA += doc.data().scoreA || 0;
-            totalB += doc.data().scoreB || 0;
+            const data = doc.data();
+            totalA += data.scoreA || 0;
+            totalB += data.scoreB || 0;
+            history.push({ id: doc.id, ...data });
           });
           setMatchScore({
             scoreA: totalA,
             scoreB: totalB
           });
+          setDuelHistory(history.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
         } else {
           setMatchScore(null);
+          setDuelHistory([]);
         }
       } catch (err) {
         console.error('Failed to fetch match scores', err);
@@ -340,6 +348,12 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           icon={<BarChart3 className="w-4 h-4" />}
           label="Stats"
         />
+        <TabButton 
+          active={activeTab === 'duels'} 
+          onClick={() => setActiveTab('duels')}
+          icon={<Trophy className="w-4 h-4" />}
+          label="Duels"
+        />
       </div>
 
       {/* Content */}
@@ -354,6 +368,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           {activeTab === 'summary' && <SummaryTab events={events} teams={details.teams} />}
           {activeTab === 'lineups' && <LineupsTab lineups={lineups} />}
           {activeTab === 'stats' && <StatsTab stats={stats} teams={details.teams} />}
+          {activeTab === 'duels' && <DuelsTab history={duelHistory} teams={details.teams} />}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -412,6 +427,68 @@ function SummaryTab({ events, teams }: { events: any[]; teams: any }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function DuelsTab({ history, teams }: { history: any[]; teams: any }) {
+  if (history.length === 0) {
+    return (
+      <Card className="py-10 text-center text-gray-500">
+        Aucun duel enregistré pour ce match.
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 text-center">
+          <div className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">Total {teams.home.name}</div>
+          <div className="text-2xl font-black text-white">
+            {history.reduce((acc, curr) => acc + (curr.scoreA || 0), 0)}
+          </div>
+        </div>
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 text-center">
+          <div className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Total {teams.away.name}</div>
+          <div className="text-2xl font-black text-white">
+            {history.reduce((acc, curr) => acc + (curr.scoreB || 0), 0)}
+          </div>
+        </div>
+      </div>
+
+      <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Historique des Duels</h3>
+      
+      <div className="space-y-3">
+        {history.map((duel, idx) => (
+          <div key={duel.id || idx} className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-[10px] font-black text-orange-500 uppercase tracking-wider bg-orange-500/10 px-2 py-0.5 rounded">
+                {duel.type || 'Duel'}
+              </span>
+              <span className="text-[10px] font-bold text-gray-500 italic">
+                {duel.timestamp?.seconds ? new Date(duel.timestamp.seconds * 1000).toLocaleDateString() : ''}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 flex flex-col items-center">
+                <span className="text-lg font-black text-white">{duel.scoreA || 0}</span>
+                <span className="text-[8px] font-bold text-gray-500 uppercase truncate w-full text-center">{teams.home.name}</span>
+              </div>
+              
+              <div className="flex flex-col items-center px-4">
+                <div className="h-0.5 w-8 bg-white/10" />
+              </div>
+              
+              <div className="flex-1 flex flex-col items-center">
+                <span className="text-lg font-black text-white">{duel.scoreB || 0}</span>
+                <span className="text-[8px] font-bold text-gray-500 uppercase truncate w-full text-center">{teams.away.name}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

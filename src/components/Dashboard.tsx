@@ -16,7 +16,7 @@ interface DashboardProps {
   onDuelStatusChange?: (isActive: boolean) => void;
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
-  onMatchClick: (matchId: number) => void;
+  onMatchClick: (matchId: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void;
   onFanzClick?: (fanzId: string) => void;
 }
 

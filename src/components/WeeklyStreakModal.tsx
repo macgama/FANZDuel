@@ -146,16 +146,16 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
         if (amount > 0) {
           switch (config.reward.type) {
             case 'money':
-              await logTransaction(userId, 'money', amount, `Récompense journalière (Jour ${day})`);
+              await logTransaction(userId, 'money', amount, `Récompense journalière (Jour ${currentDay})`);
               break;
             case 'gems':
-              await logTransaction(userId, 'gems', amount, `Récompense journalière (Jour ${day})`);
+              await logTransaction(userId, 'gems', amount, `Récompense journalière (Jour ${currentDay})`);
               break;
             case 'boost':
-              await logTransaction(userId, 'boost', amount, `Récompense journalière (Jour ${day})`);
+              await logTransaction(userId, 'boost', amount, `Récompense journalière (Jour ${currentDay})`);
               break;
             case 'energy':
-              await logTransaction(userId, 'energy', amount, `Récompense journalière (Jour ${day})`);
+              await logTransaction(userId, 'energy', amount, `Récompense journalière (Jour ${currentDay})`);
               break;
           }
         }

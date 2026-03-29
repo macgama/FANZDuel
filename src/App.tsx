@@ -47,6 +47,7 @@ function AppContent() {
   const [selectedLeague, setSelectedLeague] = useState<{ id: number; season: number } | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<{ id: number; season: number } | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
+  const [selectedMatchTab, setSelectedMatchTab] = useState<'summary' | 'lineups' | 'stats' | 'duels'>('summary');
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [isDuelActive, setIsDuelActive] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
@@ -198,9 +199,10 @@ function AppContent() {
             setSelectedFanzId(null);
           }} 
           onMenuClick={() => setIsMenuOpen(true)}
-          onMatchClick={(id) => {
+          onMatchClick={(id, tab = 'summary') => {
             console.log("onMatchClick called with id:", id);
             setSelectedMatchId(id);
+            setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
             setView('matches');
           }}
           onJoinDuel={(id, isLive) => {
@@ -230,7 +232,7 @@ function AppContent() {
           />
         )}
         
-        <div className={cn("flex-1", !selectedFanzId && "py-6 px-[30px]")}>
+        <div className={cn("flex-1", (!selectedFanzId && !selectedMatchId && view !== 'matches') && "py-6 px-[30px]", (selectedMatchId || view === 'matches') && "py-6 px-0")}>
           {showStreakModal && profile && (
             <WeeklyStreakModal 
               profile={profile} 
@@ -256,7 +258,11 @@ function AppContent() {
             <MatchDetails 
               fixtureId={selectedMatchId} 
               user={profile}
-              onBack={() => setSelectedMatchId(null)}
+              initialTab={selectedMatchTab}
+              onBack={() => {
+                setSelectedMatchId(null);
+                setSelectedMatchTab('summary');
+              }}
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
             />
@@ -270,11 +276,13 @@ function AppContent() {
             <AdminZone />
           ) : view === 'matches' ? (
             <MatchesPage 
-              onMatchClick={(id) => setSelectedMatchId(id)}
+              onMatchClick={(id, tab = 'summary') => {
+                setSelectedMatchId(id);
+                setSelectedMatchTab(tab);
+              }}
               onJoinDuel={(id, isLive) => {
                 setSelectedMatchId(id);
-                // We don't have a direct way to pass isLive to MatchDetails from here yet,
-                // but MatchDetails fetches the match and determines isLive itself.
+                setSelectedMatchTab('summary');
               }}
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
@@ -296,7 +304,10 @@ function AppContent() {
               onDuelStatusChange={setIsDuelActive}
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
-              onMatchClick={(id) => setSelectedMatchId(id)}
+              onMatchClick={(id, tab = 'summary') => {
+                setSelectedMatchId(id);
+                setSelectedMatchTab(tab);
+              }}
               onFanzClick={(id) => setSelectedFanzId(id)}
             />
           )}
