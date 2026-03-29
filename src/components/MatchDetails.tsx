@@ -159,103 +159,103 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   const dominanceB = totalScore > 0 ? Math.round(((matchScore?.scoreB || 0) / totalScore) * 100) : 50;
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-2 pb-20">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-2">
+      <div className="flex items-center gap-2 mb-1">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors border border-white/10"
+          className="p-1 hover:bg-white/10 rounded-lg transition-colors border border-white/10"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="w-4 h-4" />
         </button>
       </div>
 
       {/* Gaming Scoreboard */}
-      <div className="bg-[#1e1e1e] rounded-[1.5rem] p-3 sm:p-5 shadow-2xl relative overflow-hidden border border-white/5">
+      <div className="bg-[#1e1e1e] rounded-[1rem] p-2 sm:p-4 shadow-2xl relative overflow-hidden border border-white/5">
         {/* Top row: Country & League */}
-        <div className="flex justify-between items-center mb-4 text-[8px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {details.league.flag && <img src={details.league.flag} alt="" className="w-3 h-2.5 object-cover rounded-sm flex-shrink-0" />}
+        <div className="flex justify-between items-center mb-2 text-[7px] sm:text-[9px] font-black text-gray-400 uppercase tracking-wider">
+          <div className="flex items-center gap-1 min-w-0">
+            {details.league.flag && <img src={details.league.flag} alt="" className="w-2.5 h-2 object-cover rounded-xs flex-shrink-0" />}
             <span className="truncate">{details.league.country}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-right cursor-pointer hover:text-orange-500 transition-colors min-w-0" onClick={() => onLeagueClick(details.league.id, details.league.season)}>
-            {details.league.logo && <img src={details.league.logo} alt="" className="w-3 h-3 object-contain flex-shrink-0" />}
+          <div className="flex items-center gap-1 text-right cursor-pointer hover:text-orange-500 transition-colors min-w-0" onClick={() => onLeagueClick(details.league.id, details.league.season)}>
+            {details.league.logo && <img src={details.league.logo} alt="" className="w-2.5 h-2.5 object-contain flex-shrink-0" />}
             <span className="truncate">{details.league.name} - {details.league.round}</span>
           </div>
         </div>
 
         {/* Middle row: Teams & Score */}
-        <div className="flex justify-between items-center mb-6 gap-2">
+        <div className="flex justify-between items-center mb-4 gap-1">
           {/* Home Team */}
-          <div className="flex-1 flex flex-col items-center gap-1.5 sm:gap-2 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.home.id, details.league.season)}>
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform">
+          <div className="flex-1 flex flex-col items-center gap-1 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.home.id, details.league.season)}>
+            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-full flex items-center justify-center p-1 shadow-lg group-hover:scale-105 transition-transform">
               <img src={details.teams.home.logo} alt="" className="w-full h-full object-contain" />
             </div>
-            <span className="font-black text-center uppercase tracking-tight text-[9px] sm:text-xs text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full">
+            <span className="font-black text-center uppercase tracking-tight text-[8px] sm:text-[10px] text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full leading-tight">
               {details.teams.home.name}
             </span>
-            <div className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 bg-[#2a2a2a] border border-orange-500/20 rounded-full mt-0.5">
-              <span className="text-orange-500 text-[8px] sm:text-[10px]">🔥</span>
-              <span className="text-orange-500 font-black text-[8px] sm:text-[10px]">{matchScore?.scoreA || 0} PTS</span>
+            <div className="flex items-center gap-0.5 px-1 py-0.5 bg-[#2a2a2a] border border-orange-500/20 rounded-full mt-0.5">
+              <span className="text-orange-500 text-[7px] sm:text-[9px]">🔥</span>
+              <span className="text-orange-500 font-black text-[7px] sm:text-[9px]">{matchScore?.scoreA || 0}</span>
             </div>
           </div>
 
           {/* Score & Time */}
-          <div className="flex flex-col items-center justify-center px-1 sm:px-2 shrink-0">
-            <div className="text-2xl sm:text-4xl font-black text-white tracking-tighter mb-1">
+          <div className="flex flex-col items-center justify-center px-1 shrink-0">
+            <div className="text-xl sm:text-3xl font-black text-white tracking-tighter mb-0.5">
               {details.goals.home ?? 0}:{details.goals.away ?? 0}
             </div>
             {isLive ? (
-              <div className="px-1.5 sm:px-2 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-500 font-black text-[9px] sm:text-xs">
+              <div className="px-1 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-500 font-black text-[8px] sm:text-[10px]">
                 {details.fixture.status.elapsed}{details.fixture.status.extra ? `+${details.fixture.status.extra}` : ''}'
               </div>
             ) : (
-              <div className="px-1.5 sm:px-2 py-0.5 bg-white/10 border border-white/10 rounded-full text-gray-400 font-black text-[8px] sm:text-[10px] uppercase">
+              <div className="px-1 py-0.5 bg-white/10 border border-white/10 rounded-full text-gray-400 font-black text-[7px] sm:text-[9px] uppercase">
                 {details.fixture.status.short}
               </div>
             )}
           </div>
 
           {/* Away Team */}
-          <div className="flex-1 flex flex-col items-center gap-1.5 sm:gap-2 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.away.id, details.league.season)}>
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform">
+          <div className="flex-1 flex flex-col items-center gap-1 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.away.id, details.league.season)}>
+            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-full flex items-center justify-center p-1 shadow-lg group-hover:scale-105 transition-transform">
               <img src={details.teams.away.logo} alt="" className="w-full h-full object-contain" />
             </div>
-            <span className="font-black text-center uppercase tracking-tight text-[9px] sm:text-xs text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full">
+            <span className="font-black text-center uppercase tracking-tight text-[8px] sm:text-[10px] text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full leading-tight">
               {details.teams.away.name}
             </span>
-            <div className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 bg-[#2a2a2a] border border-blue-500/20 rounded-full mt-0.5">
-              <span className="text-blue-500 text-[8px] sm:text-[10px]">🔥</span>
-              <span className="text-blue-500 font-black text-[8px] sm:text-[10px]">{matchScore?.scoreB || 0} PTS</span>
+            <div className="flex items-center gap-0.5 px-1 py-0.5 bg-[#2a2a2a] border border-blue-500/20 rounded-full mt-0.5">
+              <span className="text-blue-500 text-[7px] sm:text-[9px]">🔥</span>
+              <span className="text-blue-500 font-black text-[7px] sm:text-[9px]">{matchScore?.scoreB || 0}</span>
             </div>
           </div>
         </div>
 
         {/* Dominance Mondiale */}
-        <div className="mb-3 sm:mb-4 px-1">
-          <div className="text-center mb-2">
-            <span className="text-[8px] sm:text-[10px] font-black text-yellow-500 tracking-[0.15em] uppercase bg-yellow-500/10 px-2.5 py-0.5 rounded-full border border-yellow-500/20">
+        <div className="mb-2 sm:mb-3 px-1">
+          <div className="text-center mb-1.5">
+            <span className="text-[7px] sm:text-[9px] font-black text-yellow-500 tracking-[0.15em] uppercase bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20">
               Dominance Mondiale
             </span>
           </div>
           
-          <div className="flex justify-between items-end mb-1.5 px-1">
+          <div className="flex justify-between items-end mb-1 px-1">
             <div className="flex flex-col items-start">
-              <span className="text-xl sm:text-3xl font-black text-orange-500 leading-none">
+              <span className="text-lg sm:text-2xl font-black text-orange-500 leading-none">
                 {dominanceA}
-                <span className="text-xs sm:text-base text-orange-500/50 ml-0.5">%</span>
+                <span className="text-[10px] sm:text-sm text-orange-500/50 ml-0.5">%</span>
               </span>
             </div>
             
             <div className="flex flex-col items-end">
-              <span className="text-xl sm:text-3xl font-black text-blue-500 leading-none">
+              <span className="text-lg sm:text-2xl font-black text-blue-500 leading-none">
                 {dominanceB}
-                <span className="text-xs sm:text-base text-blue-500/50 ml-0.5">%</span>
+                <span className="text-[10px] sm:text-sm text-blue-500/50 ml-0.5">%</span>
               </span>
             </div>
           </div>
 
-          <div className="relative h-2 sm:h-3 bg-gray-800 rounded-full overflow-hidden flex border border-gray-700 shadow-inner">
+          <div className="relative h-1.5 sm:h-2 bg-gray-800 rounded-full overflow-hidden flex border border-gray-700 shadow-inner">
             <div 
               className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-1000 ease-out relative" 
               style={{ width: `${dominanceA}%` }}
@@ -274,16 +274,16 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
 
         {/* Buttons */}
         {!isFinished && (
-          <div className="flex gap-2 sm:gap-3 mt-4">
+          <div className="flex gap-1.5 sm:gap-2 mt-2">
             <button 
-              className={`py-2.5 sm:py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white font-black text-[9px] sm:text-xs uppercase tracking-wider transition-colors ${activeDuels.length > 0 ? 'flex-1' : 'w-full'}`}
+              className={`py-2 sm:py-2.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white font-black text-[8px] sm:text-[10px] uppercase tracking-wider transition-colors ${activeDuels.length > 0 ? 'flex-1' : 'w-full'}`}
               onClick={() => setSelectedDuelType(isLive ? 'war_of_kops' : 'training')}
             >
               Duel
             </button>
             {activeDuels.length > 0 && isLive && (
               <button 
-                className="flex-1 py-2.5 sm:py-3 rounded-xl bg-[#ff6b00] hover:bg-[#ff8533] text-white font-black text-[9px] sm:text-xs uppercase tracking-wider transition-colors shadow-lg shadow-orange-500/20"
+                className="flex-1 py-2 sm:py-2.5 rounded-lg bg-[#ff6b00] hover:bg-[#ff8533] text-white font-black text-[8px] sm:text-[10px] uppercase tracking-wider transition-colors shadow-lg shadow-orange-500/20"
                 onClick={() => setShowDuelsList(true)}
               >
                 Rejoindre ({activeDuels.length})
@@ -329,29 +329,29 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10">
+      <div className="flex gap-1 p-1 bg-white/5 rounded-lg border border-white/10">
         <TabButton 
           active={activeTab === 'summary'} 
           onClick={() => setActiveTab('summary')}
-          icon={<Activity className="w-4 h-4" />}
+          icon={<Activity className="w-3 h-3" />}
           label="Résumé"
         />
         <TabButton 
           active={activeTab === 'lineups'} 
           onClick={() => setActiveTab('lineups')}
-          icon={<Users className="w-4 h-4" />}
+          icon={<Users className="w-3 h-3" />}
           label="Compos"
         />
         <TabButton 
           active={activeTab === 'stats'} 
           onClick={() => setActiveTab('stats')}
-          icon={<BarChart3 className="w-4 h-4" />}
+          icon={<BarChart3 className="w-3 h-3" />}
           label="Stats"
         />
         <TabButton 
           active={activeTab === 'duels'} 
           onClick={() => setActiveTab('duels')}
-          icon={<Trophy className="w-4 h-4" />}
+          icon={<Trophy className="w-3 h-3" />}
           label="Duels"
         />
       </div>
@@ -379,9 +379,9 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return (
     <button 
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2.5 rounded-lg transition-all font-bold text-[9px] sm:text-xs uppercase italic ${
+      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md transition-all font-bold text-[9px] uppercase italic ${
         active 
-          ? 'bg-orange-600 text-white shadow-lg' 
+          ? 'bg-orange-600 text-white shadow-md' 
           : 'text-gray-400 hover:text-white hover:bg-white/5'
       }`}
     >

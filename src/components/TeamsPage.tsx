@@ -168,43 +168,42 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
   }, [groupedLeagues, searchTerm]);
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2 sm:gap-3">
-            <Users className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
-            Équipes
-          </h1>
-          {lastUpdatedLeagues && (
-            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase italic tracking-widest">
-              <Clock className="w-3 h-3" />
-              Mis à jour le {format(lastUpdatedLeagues, 'dd/MM/yyyy HH:mm')}
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-3">
+    <div className="space-y-2 pb-20">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-orange-500" />
+            <h1 className="text-sm font-black italic uppercase tracking-tighter">Équipes</h1>
+          </div>
+          
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleRefreshLeagues}
             disabled={refreshingLeagues || loadingLeagues}
-            className="flex items-center gap-2 text-[10px] font-black uppercase italic tracking-widest h-10"
+            className="flex items-center gap-1 text-[8px] font-black uppercase italic tracking-widest h-7 px-1.5"
           >
-            <RefreshCw className={`w-3 h-3 ${refreshingLeagues ? 'animate-spin' : ''}`} />
-            {refreshingLeagues ? 'Mise à jour...' : 'Actualiser'}
+            <RefreshCw className={`w-2 h-2 ${refreshingLeagues ? 'animate-spin' : ''}`} />
+            {refreshingLeagues ? '...' : 'Actualiser'}
           </Button>
+        </div>
 
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input 
-              type="text"
-              placeholder="Rechercher une équipe..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs sm:text-sm focus:outline-none focus:border-orange-500 transition-colors h-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        {lastUpdatedLeagues && (
+          <div className="flex items-center gap-1 text-[7px] font-bold text-gray-500 uppercase italic tracking-widest">
+            <Clock className="w-2 h-2" />
+            Mis à jour le {format(lastUpdatedLeagues, 'dd/MM HH:mm')}
           </div>
+        )}
+        
+        <div className="relative w-full group">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
+          <input 
+            type="text"
+            placeholder="Rechercher une équipe..."
+            className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-8 pr-3 text-[10px] font-bold focus:outline-none focus:border-orange-500/50 transition-all h-8 placeholder:text-gray-600"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
@@ -215,47 +214,47 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
         </div>
       ) : searchTerm.length >= 3 ? (
         <div className="space-y-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-white/10" />
-            <h2 className="text-xl font-black italic uppercase tracking-widest text-orange-500/50">
+            <h2 className="text-sm font-black italic uppercase tracking-widest text-orange-500/50">
               Résultats de recherche
             </h2>
             <div className="h-px flex-1 bg-white/10" />
           </div>
 
           {loadingSearch ? (
-            <div className="flex items-center gap-3 text-gray-500 py-10 justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-orange-500"></div>
-              <span className="text-sm font-bold uppercase italic">Recherche en cours...</span>
+            <div className="flex items-center gap-2 text-gray-500 py-10 justify-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-orange-500"></div>
+              <span className="text-xs font-bold uppercase italic">Recherche en cours...</span>
             </div>
           ) : searchResults.length === 0 ? (
             <Card className="py-20 text-center text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p className="font-bold uppercase italic tracking-widest">Aucune équipe trouvée pour "{searchTerm}".</p>
+              <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
+              <p className="text-xs font-bold uppercase italic tracking-widest">Aucune équipe trouvée pour "{searchTerm}".</p>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
               {searchResults.map((item) => (
                 <Card 
                   key={item.team.id} 
-                  className="flex flex-col items-center gap-4 p-6 hover:border-orange-500/50 transition-all group cursor-pointer"
+                  className="flex flex-col items-center gap-1.5 p-2 hover:border-orange-500/50 transition-all group cursor-pointer"
                   onClick={() => onTeamClick(item.team.id, footballDataService.getCurrentSeasonYear())}
                 >
-                  <div className="w-24 h-24 bg-white/5 rounded-2xl p-4 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
+                  <div className="w-12 h-12 bg-white/5 rounded-lg p-2 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
                     <img src={item.team.logo} alt="" className="w-full h-full object-contain" />
                   </div>
-                  <div className="text-center">
-                    <h3 className="font-black italic uppercase text-sm tracking-widest group-hover:text-orange-500 transition-colors">{item.team.name}</h3>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">{item.venue.city}</p>
+                  <div className="text-center min-w-0 w-full">
+                    <h3 className="font-black italic uppercase text-[9px] tracking-widest group-hover:text-orange-500 transition-colors truncate leading-tight">{item.team.name}</h3>
+                    <p className="text-[7px] text-gray-500 font-bold uppercase mt-0.5 truncate">{item.venue.city}</p>
                   </div>
-                  <div className="w-full pt-4 border-t border-white/5 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <Trophy className="w-3 h-3" />
-                      <span className="text-[10px] font-bold uppercase truncate">{item.team.country}</span>
+                  <div className="w-full pt-1.5 border-t border-white/5 flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1 text-gray-500">
+                      <Trophy className="w-2 h-2" />
+                      <span className="text-[7px] font-bold uppercase truncate">{item.team.country}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <Globe className="w-3 h-3" />
-                      <span className="text-[10px] font-bold uppercase truncate">{item.venue.name}</span>
+                    <div className="flex items-center gap-1 text-gray-500">
+                      <Globe className="w-2 h-2" />
+                      <span className="text-[7px] font-bold uppercase truncate">{item.venue.name}</span>
                     </div>
                   </div>
                 </Card>
@@ -269,33 +268,33 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
           <p className="font-bold uppercase italic tracking-widest">Aucune équipe ou ligue trouvée.</p>
         </Card>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-6">
           {Object.entries(filteredContinents).map(([continent, countries]) => (
-            <div key={continent} className="space-y-6">
-              <div className="flex items-center gap-4">
+            <div key={continent} className="space-y-3">
+              <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-white/10" />
-                <h2 className="text-xl font-black italic uppercase tracking-widest text-orange-500/50">
+                <h2 className="text-sm font-black italic uppercase tracking-widest text-orange-500/50">
                   {continent}
                 </h2>
                 <div className="h-px flex-1 bg-white/10" />
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {Object.entries(countries).map(([country, data]) => (
-                  <div key={country} className="space-y-2">
+                  <div key={country} className="space-y-1.5">
                     <button 
                       onClick={() => toggleCountry(country)}
-                      className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all"
+                      className="w-full flex items-center justify-between p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         {data.flag ? (
-                          <img src={data.flag} alt="" className="w-8 h-6 object-cover rounded shadow-lg" />
+                          <img src={data.flag} alt="" className="w-6 h-4 object-cover rounded-sm shadow-sm" />
                         ) : (
-                          <Globe className="w-6 h-6 text-gray-500" />
+                          <Globe className="w-4 h-4 text-gray-500" />
                         )}
-                        <span className="font-black italic uppercase tracking-tighter text-lg">{country}</span>
+                        <span className="font-black italic uppercase tracking-tighter text-sm">{country}</span>
                       </div>
-                      <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${expandedCountries.has(country) ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${expandedCountries.has(country) ? 'rotate-180' : ''}`} />
                     </button>
 
                     <AnimatePresence>
@@ -304,24 +303,24 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden pl-4 space-y-2"
+                          className="overflow-hidden pl-2 space-y-1.5"
                         >
                           {data.leagues.map(l => {
                             const latestSeason = l.seasons?.sort((a: any, b: any) => b.year - a.year)[0]?.year || footballDataService.getCurrentSeasonYear();
                             return (
-                              <div key={l.league.id} className="space-y-2">
+                              <div key={l.league.id} className="space-y-1.5">
                                 <button 
                                   onClick={() => toggleLeague(l.league.id, latestSeason)}
-                                  className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl transition-all"
+                                  className="w-full flex items-center justify-between p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-all"
                                 >
-                                  <div className="flex items-center gap-3">
-                                    <img src={l.league.logo} alt="" className="w-6 h-6 object-contain" />
-                                    <span className="font-bold text-sm">{l.league.name}</span>
-                                    <span className="text-[10px] bg-orange-500/20 text-orange-500 px-1.5 py-0.5 rounded font-black italic">
+                                  <div className="flex items-center gap-2">
+                                    <img src={l.league.logo} alt="" className="w-5 h-5 object-contain" />
+                                    <span className="font-bold text-xs">{l.league.name}</span>
+                                    <span className="text-[8px] bg-orange-500/20 text-orange-500 px-1 py-0.5 rounded font-black italic">
                                       {latestSeason}
                                     </span>
                                   </div>
-                                  <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${expandedLeagues.has(l.league.id) ? 'rotate-180' : ''}`} />
+                                  <ChevronDown className={`w-3.5 h-3.5 text-gray-600 transition-transform ${expandedLeagues.has(l.league.id) ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 <AnimatePresence>
@@ -330,29 +329,29 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
                                       initial={{ height: 0, opacity: 0 }}
                                       animate={{ height: 'auto', opacity: 1 }}
                                       exit={{ height: 0, opacity: 0 }}
-                                      className="overflow-hidden py-4"
+                                      className="overflow-hidden py-2"
                                     >
                                       {loadingTeams[l.league.id] ? (
-                                        <div className="flex items-center gap-3 text-gray-500 py-4">
-                                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-orange-500"></div>
-                                          <span className="text-xs font-bold uppercase italic">Chargement des équipes...</span>
+                                        <div className="flex items-center gap-2 text-gray-500 py-2">
+                                          <div className="animate-spin rounded-full h-3.5 w-3.5 border-t-2 border-orange-500"></div>
+                                          <span className="text-[10px] font-bold uppercase italic">Chargement...</span>
                                         </div>
                                       ) : teams[l.league.id]?.length === 0 ? (
-                                        <p className="text-xs text-gray-500 italic py-4">Aucune équipe trouvée.</p>
+                                        <p className="text-[10px] text-gray-500 italic py-2">Aucune équipe trouvée.</p>
                                       ) : (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
                                           {teams[l.league.id]?.map((t: any) => (
                                             <Card 
                                               key={t.team.id} 
-                                              className="flex flex-col items-center gap-3 p-4 hover:border-orange-500/50 transition-all group cursor-pointer"
+                                              className="flex flex-col items-center gap-2 p-2 hover:border-orange-500/50 transition-all group cursor-pointer"
                                               onClick={() => onTeamClick(t.team.id, latestSeason)}
                                             >
-                                              <div className="w-16 h-16 bg-white/5 rounded-xl p-3 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
+                                              <div className="w-12 h-12 bg-white/5 rounded-lg p-2 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
                                                 <img src={t.team.logo} alt="" className="w-full h-full object-contain" />
                                               </div>
                                               <div className="text-center">
-                                                <h3 className="font-black italic uppercase text-[11px] tracking-widest group-hover:text-orange-500 transition-colors leading-tight">{t.team.name}</h3>
-                                                <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">{t.venue.city}</p>
+                                                <h3 className="font-black italic uppercase text-[9px] tracking-widest group-hover:text-orange-500 transition-colors leading-tight">{t.team.name}</h3>
+                                                <p className="text-[7px] text-gray-500 font-bold uppercase mt-0.5">{t.venue.city}</p>
                                               </div>
                                             </Card>
                                           ))}

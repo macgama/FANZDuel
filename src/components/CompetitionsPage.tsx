@@ -134,43 +134,42 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
   }, [groupedLeagues, searchTerm]);
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase tracking-tighter flex items-center gap-2 sm:gap-3">
-            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
-            Compétitions
-          </h1>
-          {lastUpdated && (
-            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase italic tracking-widest">
-              <Clock className="w-3 h-3" />
-              Mis à jour le {format(lastUpdated, 'dd/MM/yyyy HH:mm')}
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-3">
+    <div className="space-y-2 pb-20">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-orange-500" />
+            <h1 className="text-sm font-black italic uppercase tracking-tighter">Compétitions</h1>
+          </div>
+          
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleRefresh}
             disabled={refreshing || loading}
-            className="flex items-center gap-2 text-[10px] font-black uppercase italic tracking-widest h-10"
+            className="flex items-center gap-1 text-[8px] font-black uppercase italic tracking-widest h-7 px-1.5"
           >
-            <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Mise à jour...' : 'Actualiser'}
+            <RefreshCw className={`w-2 h-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? '...' : 'Actualiser'}
           </Button>
+        </div>
 
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input 
-              type="text"
-              placeholder="Rechercher une compétition..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs sm:text-sm focus:outline-none focus:border-orange-500 transition-colors h-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        {lastUpdated && (
+          <div className="flex items-center gap-1 text-[7px] font-bold text-gray-500 uppercase italic tracking-widest">
+            <Clock className="w-2 h-2" />
+            Mis à jour le {format(lastUpdated, 'dd/MM HH:mm')}
           </div>
+        )}
+        
+        <div className="relative w-full group">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
+          <input 
+            type="text"
+            placeholder="Rechercher une compétition..."
+            className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-8 pr-3 text-[10px] font-bold focus:outline-none focus:border-orange-500/50 transition-all h-8 placeholder:text-gray-600"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
@@ -185,33 +184,33 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
           <p className="font-bold uppercase italic tracking-widest">Aucune compétition trouvée.</p>
         </Card>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-6">
           {Object.entries(filteredContinents).map(([continent, countries]) => (
-            <div key={continent} className="space-y-6">
-              <div className="flex items-center gap-4">
+            <div key={continent} className="space-y-3">
+              <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-white/10" />
-                <h2 className="text-xl font-black italic uppercase tracking-widest text-orange-500/50">
+                <h2 className="text-sm font-black italic uppercase tracking-widest text-orange-500/50">
                   {continent}
                 </h2>
                 <div className="h-px flex-1 bg-white/10" />
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {Object.entries(countries).map(([country, data]) => (
-                  <div key={country} className="space-y-2">
+                  <div key={country} className="space-y-1.5">
                     <button 
                       onClick={() => toggleCountry(country)}
-                      className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all"
+                      className="w-full flex items-center justify-between p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         {data.flag ? (
-                          <img src={data.flag} alt="" className="w-8 h-6 object-cover rounded shadow-lg" />
+                          <img src={data.flag} alt="" className="w-6 h-4 object-cover rounded-sm shadow-sm" />
                         ) : (
-                          <Globe className="w-6 h-6 text-gray-500" />
+                          <Globe className="w-4 h-4 text-gray-500" />
                         )}
-                        <span className="font-black italic uppercase tracking-tighter text-lg">{country}</span>
+                        <span className="font-black italic uppercase tracking-tighter text-sm">{country}</span>
                       </div>
-                      <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${expandedCountries.has(country) ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${expandedCountries.has(country) ? 'rotate-180' : ''}`} />
                     </button>
 
                     <AnimatePresence>
@@ -220,33 +219,33 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden pl-4 py-4"
+                          className="overflow-hidden pl-2 py-2"
                         >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
                             {data.leagues.map(l => {
                               const latestSeason = l.seasons?.sort((a: any, b: any) => b.year - a.year)[0]?.year || footballDataService.getCurrentSeasonYear();
                               return (
                                 <Card 
                                   key={l.league.id} 
-                                  className="group cursor-pointer hover:border-orange-500/50 transition-all"
+                                  className="group cursor-pointer hover:border-orange-500/50 transition-all p-1.5"
                                   onClick={() => onLeagueClick(l.league.id, latestSeason)}
                                 >
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                      <div className="w-12 h-12 bg-white/5 rounded-xl p-2 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-8 h-8 bg-white/5 rounded-lg p-1 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
                                         <img src={l.league.logo} alt="" className="w-full h-full object-contain" />
                                       </div>
                                       <div>
-                                        <h3 className="font-bold text-sm group-hover:text-orange-500 transition-colors">{l.league.name}</h3>
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-[10px] text-gray-500 uppercase font-bold">{l.league.type}</p>
-                                          <span className="text-[10px] bg-orange-500/20 text-orange-500 px-1.5 py-0.5 rounded font-black italic">
+                                        <h3 className="font-bold text-[10px] group-hover:text-orange-500 transition-colors leading-tight truncate max-w-[150px]">{l.league.name}</h3>
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                          <p className="text-[7px] text-gray-500 uppercase font-bold">{l.league.type}</p>
+                                          <span className="text-[7px] bg-orange-500/20 text-orange-500 px-1 py-0.5 rounded font-black italic">
                                             {latestSeason}
                                           </span>
                                         </div>
                                       </div>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-orange-500 transition-colors" />
+                                    <ChevronRight className="w-3.5 h-3.5 text-gray-600 group-hover:text-orange-500 transition-colors" />
                                   </div>
                                 </Card>
                               );
