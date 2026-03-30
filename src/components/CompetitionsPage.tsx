@@ -134,12 +134,12 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
   }, [groupedLeagues, searchTerm]);
 
   return (
-    <div className="space-y-2 pb-20">
+    <div className="space-y-3 pb-20">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-orange-500" />
-            <h1 className="text-sm font-black italic uppercase tracking-tighter">Compétitions</h1>
+            <Trophy className="w-5 h-5 text-orange-500" />
+            <h1 className="text-lg font-black italic uppercase tracking-tighter text-white">Compétitions</h1>
           </div>
           
           <Button 
@@ -147,7 +147,7 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
             size="sm" 
             onClick={handleRefresh}
             disabled={refreshing || loading}
-            className="flex items-center gap-1 text-[8px] font-black uppercase italic tracking-widest h-7 px-1.5"
+            className="flex items-center gap-1 text-[8px] font-black uppercase italic tracking-widest h-7 px-2"
           >
             <RefreshCw className={`w-2 h-2 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? '...' : 'Actualiser'}
@@ -175,42 +175,44 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
-          <p className="text-gray-500 font-bold animate-pulse uppercase italic tracking-widest">Chargement des compétitions...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-orange-500"></div>
+          <p className="text-[10px] text-gray-500 font-black animate-pulse uppercase italic tracking-widest">Chargement...</p>
         </div>
       ) : Object.keys(filteredContinents).length === 0 ? (
-        <Card className="py-20 text-center text-gray-500">
-          <Globe className="w-12 h-12 mx-auto mb-4 opacity-20" />
-          <p className="font-bold uppercase italic tracking-widest">Aucune compétition trouvée.</p>
+        <Card className="py-20 text-center text-gray-500 border-dashed border-white/10">
+          <Globe className="w-10 h-10 mx-auto mb-3 opacity-20" />
+          <p className="text-[10px] font-black uppercase italic tracking-widest">Aucune compétition trouvée.</p>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {Object.entries(filteredContinents).map(([continent, countries]) => (
-            <div key={continent} className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-white/10" />
-                <h2 className="text-sm font-black italic uppercase tracking-widest text-orange-500/50">
+            <div key={continent} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-black italic uppercase tracking-[0.2em] text-orange-500 flex items-center gap-3 whitespace-nowrap">
                   {continent}
+                  <span className="h-px flex-1 bg-orange-500/20" />
                 </h2>
-                <div className="h-px flex-1 bg-white/10" />
               </div>
 
-              <div className="space-y-2">
+              <div className="grid gap-1.5">
                 {Object.entries(countries).map(([country, data]) => (
-                  <div key={country} className="space-y-1.5">
+                  <div key={country} className="space-y-1">
                     <button 
                       onClick={() => toggleCountry(country)}
-                      className="w-full flex items-center justify-between p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
+                      className="w-full flex items-center justify-between p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all group"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         {data.flag ? (
-                          <img src={data.flag} alt="" className="w-6 h-4 object-cover rounded-sm shadow-sm" />
+                          <img src={data.flag} alt="" className="w-5 h-3.5 object-cover rounded-xs shadow-sm border border-white/5" />
                         ) : (
-                          <Globe className="w-4 h-4 text-gray-500" />
+                          <Globe className="w-3.5 h-3.5 text-gray-500" />
                         )}
-                        <span className="font-black italic uppercase tracking-tighter text-sm">{country}</span>
+                        <span className="font-black italic uppercase tracking-tight text-xs group-hover:text-orange-500 transition-colors">{country}</span>
                       </div>
-                      <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${expandedCountries.has(country) ? 'rotate-180' : ''}`} />
+                      <div className="flex items-center gap-2">
+                        <span className="text-[8px] font-bold text-gray-600 bg-white/5 px-1.5 py-0.5 rounded-full">{data.leagues.length}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-300 ${expandedCountries.has(country) ? 'rotate-180 text-orange-500' : ''}`} />
+                      </div>
                     </button>
 
                     <AnimatePresence>
@@ -219,35 +221,33 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden pl-2 py-2"
+                          className="overflow-hidden"
                         >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                          <div className="grid grid-cols-1 gap-1 py-1 pl-2 border-l border-white/5 ml-4">
                             {data.leagues.map(l => {
                               const latestSeason = l.seasons?.sort((a: any, b: any) => b.year - a.year)[0]?.year || footballDataService.getCurrentSeasonYear();
                               return (
-                                <Card 
+                                <div 
                                   key={l.league.id} 
-                                  className="group cursor-pointer hover:border-orange-500/50 transition-all p-1.5"
+                                  className="flex items-center justify-between p-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-lg cursor-pointer group transition-all"
                                   onClick={() => onLeagueClick(l.league.id, latestSeason)}
                                 >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-8 h-8 bg-white/5 rounded-lg p-1 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
-                                        <img src={l.league.logo} alt="" className="w-full h-full object-contain" />
-                                      </div>
-                                      <div>
-                                        <h3 className="font-bold text-[10px] group-hover:text-orange-500 transition-colors leading-tight truncate max-w-[150px]">{l.league.name}</h3>
-                                        <div className="flex items-center gap-1 mt-0.5">
-                                          <p className="text-[7px] text-gray-500 uppercase font-bold">{l.league.type}</p>
-                                          <span className="text-[7px] bg-orange-500/20 text-orange-500 px-1 py-0.5 rounded font-black italic">
-                                            {latestSeason}
-                                          </span>
-                                        </div>
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-7 h-7 bg-white rounded-lg p-1 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                      <img src={l.league.logo} alt="" className="w-full h-full object-contain" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h3 className="font-bold text-[10px] text-white group-hover:text-orange-500 transition-colors truncate leading-tight">{l.league.name}</h3>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        <p className="text-[7px] text-gray-500 uppercase font-black tracking-widest">{l.league.type}</p>
+                                        <span className="text-[7px] bg-orange-500/10 text-orange-500 px-1 py-0.5 rounded font-black italic">
+                                          {latestSeason}
+                                        </span>
                                       </div>
                                     </div>
-                                    <ChevronRight className="w-3.5 h-3.5 text-gray-600 group-hover:text-orange-500 transition-colors" />
                                   </div>
-                                </Card>
+                                  <ChevronRight className="w-3 h-3 text-gray-700 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
+                                </div>
                               );
                             })}
                           </div>

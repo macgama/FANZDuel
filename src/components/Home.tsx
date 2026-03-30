@@ -26,7 +26,7 @@ import { Header } from './Header';
 
 interface HomeProps {
   profile: UserProfile;
-  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions') => void;
+  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
@@ -380,24 +380,6 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
           </div>
         </div>
       </div>
-
-      {/* FOOTER */}
-      <footer className="absolute bottom-0 left-0 right-0 h-16 bg-black/90 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-4 z-20">
-        <button onClick={() => onNavigate('matches')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-          <Activity className="w-6 h-6" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Live</span>
-        </button>
-        <button onClick={() => onNavigate('dashboard')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors relative -top-4">
-          <div className="w-12 h-12 bg-orange-600 rounded-full flex items-center justify-center border-4 border-black shadow-lg shadow-orange-600/20">
-            <Trophy className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">Duel</span>
-        </button>
-        <button onClick={() => onNavigate('fanz')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-          <Users className="w-6 h-6" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Fanz</span>
-        </button>
-      </footer>
 
       {showProfileModal && (
         <UserProfileModal 

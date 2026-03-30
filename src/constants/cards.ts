@@ -252,5 +252,41 @@ export const BASE_CARDS: Card[] = [
     effects: [{ type: 'push_rope', value: 25 }],
     imageUrl: 'https://picsum.photos/seed/legend/200/300',
     unlockRequirements: [{ type: 'rank', minLevel: 5 }]
+  },
+  {
+    id: 'mimic',
+    name: 'Imitation',
+    description: 'Copie le dernier malus joué par l\'adversaire.',
+    rarity: 'legendary',
+    type: 'neutral',
+    energyCost: 6,
+    fervorValue: 0,
+    effects: [{ type: 'mimic' }],
+    imageUrl: 'https://picsum.photos/seed/mimic/400/600',
+    fanzIds: []
+  },
+  {
+    id: 'lucky_draw',
+    name: 'Main de la Chance',
+    description: 'Remplace une carte de votre main par une carte aléatoire de rareté supérieure.',
+    rarity: 'epic',
+    type: 'bonus',
+    energyCost: 5,
+    fervorValue: 0,
+    effects: [{ type: 'lucky_draw' }],
+    imageUrl: 'https://picsum.photos/seed/luck/400/600',
+    fanzIds: []
+  },
+  {
+    id: 'swap_hands',
+    name: 'Échange Standard',
+    description: 'Échange votre main avec celle de l\'adversaire.',
+    rarity: 'legendary',
+    type: 'neutral',
+    energyCost: 7,
+    fervorValue: 0,
+    effects: [{ type: 'swap_hands' }],
+    imageUrl: 'https://picsum.photos/seed/swap/400/600',
+    fanzIds: []
   }
 ];

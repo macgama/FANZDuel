@@ -172,8 +172,8 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-orange-500" />
-            <h1 className="text-sm font-black italic uppercase tracking-tighter">Équipes</h1>
+            <Users className="w-5 h-5 text-orange-500" />
+            <h1 className="text-lg font-black italic uppercase tracking-tighter text-white">Équipes</h1>
           </div>
           
           <Button 
@@ -273,8 +273,9 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
             <div key={continent} className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-white/10" />
-                <h2 className="text-sm font-black italic uppercase tracking-widest text-orange-500/50">
+                <h2 className="text-xs font-black italic uppercase tracking-[0.2em] text-orange-500 flex items-center gap-3 whitespace-nowrap">
                   {continent}
+                  <span className="h-px flex-1 bg-orange-500/20" />
                 </h2>
                 <div className="h-px flex-1 bg-white/10" />
               </div>
@@ -292,7 +293,7 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
                         ) : (
                           <Globe className="w-4 h-4 text-gray-500" />
                         )}
-                        <span className="font-black italic uppercase tracking-tighter text-sm">{country}</span>
+                        <span className="font-black italic uppercase tracking-tight text-xs group-hover:text-orange-500 transition-colors">{country}</span>
                       </div>
                       <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${expandedCountries.has(country) ? 'rotate-180' : ''}`} />
                     </button>

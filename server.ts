@@ -75,7 +75,7 @@ async function startServer() {
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("join-duel", ({ duelId: clientDuelId, user, fanz, type, matchId }) => {
+    socket.on("join-duel", ({ duelId: clientDuelId, user, fanz, type, matchId, team: chosenTeam, isPrivate, inviteCode }) => {
       // Check for reconnection
       if (clientDuelId && duels[clientDuelId]) {
         const existingDuel = duels[clientDuelId];
@@ -88,7 +88,9 @@ async function startServer() {
             progress: existingDuel.progress, 
             status: existingDuel.status, 
             participants: existingDuel.participants,
-            scores: existingDuel.scores
+            scores: existingDuel.scores,
+            isPrivate: existingDuel.isPrivate,
+            inviteCode: existingDuel.inviteCode
           });
           return;
         }
@@ -97,18 +99,29 @@ async function startServer() {
       // Matchmaking logic
       let duelId = '';
       
-      if (type === 'training') {
+      if (inviteCode) {
+        // Find duel by invite code
+        const duelWithCode = Object.values(duels).find(d => d.inviteCode === inviteCode);
+        if (duelWithCode) {
+          duelId = duelWithCode.id;
+        } else {
+          socket.emit("duel-error", { message: "Code d'invitation invalide ou duel expiré." });
+          return;
+        }
+      } else if (type === 'training') {
         duelId = clientDuelId || `training_${socket.id}`;
       } else if (type === 'war_of_kops') {
-        duelId = `war_of_kops_${matchId || 'global'}`;
-      } else {
-        // Find a waiting duel of same type and match
+        duelId = clientDuelId || `war_of_kops_${matchId || 'global'}`;
+      } else if (!isPrivate) {
+        // Find a waiting public duel of same type and match
         const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10 }[type as '1v1' | '2v2' | '5v5'] || 2;
         const availableDuel = Object.values(duels).find(d => 
           d.type === type && 
           d.status === 'waiting' && 
+          !d.isPrivate &&
           d.participants.length < requiredPlayers &&
-          (!matchId || d.matchId === matchId)
+          (!matchId || d.matchId === matchId) &&
+          (!clientDuelId || d.id === clientDuelId)
         );
         
         if (availableDuel) {
@@ -116,6 +129,9 @@ async function startServer() {
         } else {
           duelId = clientDuelId || `duel_${Math.random().toString(36).substring(7)}`;
         }
+      } else {
+        // Create a new private duel
+        duelId = clientDuelId || `duel_${Math.random().toString(36).substring(7)}`;
       }
 
       if (!duels[duelId]) {
@@ -128,7 +144,9 @@ async function startServer() {
           matchId,
           scores: type === 'war_of_kops' ? { A: 0, B: 0 } : undefined,
           clickCounts: { A: 0, B: 0 },
-          cardCounts: { A: 0, B: 0 }
+          cardCounts: { A: 0, B: 0 },
+          isPrivate: isPrivate || false,
+          inviteCode: isPrivate ? Math.random().toString(36).substring(2, 8).toUpperCase() : undefined
         };
       }
 
@@ -138,13 +156,21 @@ async function startServer() {
       // Add participant if not already there
       if (!duel.participants.find(p => p.uid === user.uid)) {
         let team: 'A' | 'B' = 'A';
-        if (type === 'war_of_kops') {
-          const teamACount = duel.participants.filter(p => p.team === 'A').length;
-          const teamBCount = duel.participants.filter(p => p.team === 'B').length;
+        const maxPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[type as '1v1' | '2v2' | '5v5'] || 999;
+        const teamACount = duel.participants.filter(p => p.team === 'A').length;
+        const teamBCount = duel.participants.filter(p => p.team === 'B').length;
+
+        if (chosenTeam && (chosenTeam === 'A' || chosenTeam === 'B')) {
+          const chosenCount = chosenTeam === 'A' ? teamACount : teamBCount;
+          if (chosenCount < maxPerTeam) {
+            team = chosenTeam;
+          } else {
+            // Fallback to other team if chosen is full
+            team = chosenTeam === 'A' ? 'B' : 'A';
+          }
+        } else if (type === 'war_of_kops') {
           team = teamACount <= teamBCount ? 'A' : 'B';
         } else if (type !== 'training') {
-          const maxPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[type as '1v1' | '2v2' | '5v5'] || 1;
-          const teamACount = duel.participants.filter(p => p.team === 'A').length;
           if (teamACount < maxPerTeam) team = 'A';
           else team = 'B';
         }
@@ -294,6 +320,14 @@ async function startServer() {
       }
     });
 
+    socket.on("swap-hands-init", ({ duelId, team, hand }) => {
+      socket.to(duelId).emit("swap-hands-request", { fromTeam: team, opponentHand: hand });
+    });
+
+    socket.on("swap-hands-response", ({ duelId, team, hand }) => {
+      socket.to(duelId).emit("swap-hands-complete", { newHand: hand });
+    });
+
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
       // Clean up participants
@@ -314,14 +348,34 @@ async function startServer() {
 
   // API Routes
   app.get("/api/duels", (req, res) => {
-    const activeDuels = Object.values(duels).filter(d => d.status === 'waiting');
+    const activeDuels = Object.values(duels).filter(d => d.status === 'waiting' && !d.isPrivate);
     res.json(activeDuels);
   });
 
   app.get("/api/duels/:matchId", (req, res) => {
     const matchId = parseInt(req.params.matchId, 10);
-    const activeDuels = Object.values(duels).filter(d => d.matchId === matchId && d.status === 'waiting');
+    const activeDuels = Object.values(duels).filter(d => d.matchId === matchId && d.status === 'waiting' && !d.isPrivate);
     res.json(activeDuels);
+  });
+
+  app.get("/api/duels/code/:code", (req, res) => {
+    const code = req.params.code.toUpperCase();
+    const duel = Object.values(duels).find(d => d.inviteCode === code && d.status === 'waiting');
+    if (duel) {
+      res.json({
+        id: duel.id,
+        type: duel.type,
+        matchId: duel.matchId,
+        participants: duel.participants.map(p => ({
+          uid: p.uid,
+          pseudo: p.pseudo,
+          team: p.team,
+          photoURL: p.photoURL
+        }))
+      });
+    } else {
+      res.status(404).json({ error: 'Duel not found' });
+    }
   });
 
   app.get("/api/health", (req, res) => {

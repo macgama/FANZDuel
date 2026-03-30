@@ -75,20 +75,7 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white pb-20">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/10 px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={onBack}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-xl font-black uppercase italic tracking-wider">Historique</h1>
-        </div>
-      </div>
-
+    <div className="min-h-full bg-[#0a0a0a] text-white pb-20">
       <div className="p-4 max-w-3xl mx-auto">
         {/* Filters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">

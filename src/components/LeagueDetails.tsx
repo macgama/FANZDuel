@@ -149,25 +149,27 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
   if (!league) return null;
 
   return (
-    <div className="space-y-2 pb-20">
+    <div className="space-y-3 pb-20">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button 
               onClick={onBack}
-              className="p-1 hover:bg-white/10 rounded-lg transition-colors border border-white/10"
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors border border-white/10"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-1.5">
-              <img src={league.league.logo} alt="" className="w-8 h-8 object-contain" />
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-white rounded-lg p-1.5 flex items-center justify-center shadow-lg">
+                <img src={league.league.logo} alt="" className="w-full h-full object-contain" />
+              </div>
               <div>
-                <h2 className="text-sm font-black italic uppercase tracking-tighter leading-tight">
+                <h2 className="text-sm font-black italic uppercase tracking-tighter leading-tight text-white">
                   {league.league.name}
                 </h2>
                 <div className="flex items-center gap-1.5">
-                  <p className="text-[8px] text-gray-500 uppercase font-bold tracking-widest">
+                  <p className="text-[8px] text-gray-400 uppercase font-black tracking-widest">
                     {league.country.name}
                   </p>
                   {lastUpdated && (
@@ -186,19 +188,19 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
             size="sm" 
             onClick={handleRefresh}
             disabled={refreshing || loading}
-            className="flex items-center gap-1 text-[8px] font-black uppercase italic tracking-widest h-7 px-1.5"
+            className="flex items-center gap-1 text-[8px] font-black uppercase italic tracking-widest h-7 px-2"
           >
             <RefreshCw className={`w-2 h-2 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? '...' : 'Actualiser'}
           </Button>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-2 py-1 h-8">
-          <History className="w-3 h-3 text-gray-500" />
+        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 h-9">
+          <History className="w-3.5 h-3.5 text-gray-500" />
           <select 
             value={selectedSeason}
             onChange={(e) => setSelectedSeason(Number(e.target.value))}
-            className="bg-transparent text-[10px] font-bold focus:outline-none cursor-pointer flex-1"
+            className="bg-transparent text-[10px] font-black uppercase italic focus:outline-none cursor-pointer flex-1"
           >
             {availableSeasons.map((s) => (
               <option key={s.year} value={s.year} className="bg-gray-900">
@@ -207,7 +209,7 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
             ))}
           </select>
           {availableSeasons.find(s => s.year === selectedSeason)?.current && (
-            <span className="text-[7px] bg-green-500/20 text-green-500 px-1 py-0.5 rounded-full font-black uppercase tracking-widest">
+            <span className="text-[7px] bg-green-500/20 text-green-500 px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest">
               Actuelle
             </span>
           )}
@@ -309,18 +311,18 @@ function StandingsTab({ standings, onTeamClick, selectedSeason }: { standings: a
     <Card className="overflow-x-auto p-0">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-white/5 text-[9px] font-black uppercase tracking-widest text-gray-500">
-            <th className="px-2 py-2 w-8 text-center">#</th>
-            <th className="px-2 py-2">Équipe</th>
-            <th className="px-2 py-2 text-center">J</th>
-            <th className="px-2 py-2 text-center">G</th>
-            <th className="px-2 py-2 text-center">N</th>
-            <th className="px-2 py-2 text-center">P</th>
-            <th className="px-2 py-2 text-center">BP</th>
-            <th className="px-2 py-2 text-center">BC</th>
-            <th className="px-2 py-2 text-center">+/-</th>
-            <th className="px-2 py-2 text-center">Pts</th>
-            <th className="px-2 py-2 text-center">Forme</th>
+          <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <th className="px-3 py-3 w-8 text-center">#</th>
+            <th className="px-3 py-3">Équipe</th>
+            <th className="px-3 py-3 text-center">J</th>
+            <th className="px-3 py-3 text-center">G</th>
+            <th className="px-3 py-3 text-center">N</th>
+            <th className="px-3 py-3 text-center">P</th>
+            <th className="px-3 py-3 text-center">BP</th>
+            <th className="px-3 py-3 text-center">BC</th>
+            <th className="px-3 py-3 text-center">+/-</th>
+            <th className="px-3 py-3 text-center">Pts</th>
+            <th className="px-3 py-3 text-center">Forme</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">

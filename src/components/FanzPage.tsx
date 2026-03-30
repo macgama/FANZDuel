@@ -68,12 +68,9 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
     <div className="space-y-8 pb-20">
       {/* Header & Stats */}
       <div className="flex items-center justify-between gap-4">
-        <button 
-          onClick={() => setFilter('all')}
-          className="text-xl font-black italic uppercase tracking-tighter hover:text-orange-500 transition-colors"
-        >
+        <h1 className="text-xl font-black italic uppercase tracking-tighter">
           Collection FANZ
-        </button>
+        </h1>
 
         <div className="flex flex-col gap-1.5 min-w-[140px]">
           <div className="bg-white/5 border border-white/10 rounded-lg p-1.5 flex items-center justify-center gap-3">

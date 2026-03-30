@@ -114,6 +114,7 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
         matchId="global" 
         teamA="KOP A"
         teamB="KOP B"
+        initialDuelType={selectedDuelType}
         onExit={() => setSelectedDuelType(null)} 
       />
     );

@@ -357,14 +357,6 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-20">
       {/* Hero Section (4:3 Aspect Ratio) */}
       <div className="w-full aspect-[4/3] relative shrink-0 overflow-hidden group">
-        {/* Back Button */}
-        <button 
-          onClick={onBack}
-          className="absolute top-4 left-4 z-30 w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-
         {/* Rarity Badge */}
         <div className="absolute top-4 right-4 z-30 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
           <span className="text-[10px] font-black italic uppercase tracking-widest text-orange-500">
@@ -1017,7 +1009,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Équiper</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {allCards.map(card => {
+                    {allCards.filter(card => {
+                      const isAllowed = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.includes(fanz.templateId);
+                      const isBlocked = card.blockedFanzIds && card.blockedFanzIds.includes(fanz.templateId);
+                      return isAllowed && !isBlocked;
+                    }).map(card => {
                       const requirements = card.unlockRequirements || [];
                       const metRequirements = requirements.length > 0 && requirements.every(req => {
                         if (req.type === 'skill' && req.skillName) {
@@ -1348,11 +1344,30 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
               {rewardModal.step === 'initial' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {(rewardModal.rewardType === 'choice' || rewardModal.rewardType === 'card') && (
-                    allCards.filter(c => 
-                      (!c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(fanz.templateId)) &&
-                      !(userProfile.cards || []).includes(c.id) &&
-                      !userCards[c.id]
-                    ).length > 0 && (
+                    allCards.filter(c => {
+                      const isAllowed = !c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(fanz.templateId);
+                      const isBlocked = c.blockedFanzIds && c.blockedFanzIds.includes(fanz.templateId);
+                      
+                      const requirements = c.unlockRequirements || [];
+                      const metRequirements = requirements.length > 0 && requirements.every(req => {
+                        if (req.type === 'skill' && req.skillName) {
+                          const xp = fanz.stats[req.skillName] || 0;
+                          const level = Math.floor(xp / 100) + 1;
+                          return level >= req.minLevel;
+                        }
+                        if (req.type === 'ferveur') {
+                          return fanz.ferveurLevel >= req.minLevel;
+                        }
+                        if (req.type === 'rank') {
+                          return (fanz.rank ?? 0) >= req.minLevel;
+                        }
+                        return true;
+                      });
+                      
+                      const isAlreadyUnlocked = (userProfile.cards || []).includes(c.id) || c.id.startsWith('base_') || metRequirements || !!userCards[c.id];
+                      
+                      return isAllowed && !isBlocked && !isAlreadyUnlocked;
+                    }).length > 0 && (
                       <button
                         onClick={() => setRewardModal({ ...rewardModal, step: 'card-selection' })}
                         className="group p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center text-center gap-3 hover:border-orange-500 hover:bg-orange-500/5 transition-all"
@@ -1451,11 +1466,30 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
             {rewardModal.step === 'card-selection' && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-2">
                 {allCards
-                  .filter(c => 
-                    (!c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(fanz.templateId)) &&
-                    !(userProfile.cards || []).includes(c.id) &&
-                    !userCards[c.id]
-                  )
+                  .filter(c => {
+                    const isAllowed = !c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(fanz.templateId);
+                    const isBlocked = c.blockedFanzIds && c.blockedFanzIds.includes(fanz.templateId);
+                    
+                    const requirements = c.unlockRequirements || [];
+                    const metRequirements = requirements.length > 0 && requirements.every(req => {
+                      if (req.type === 'skill' && req.skillName) {
+                        const xp = fanz.stats[req.skillName] || 0;
+                        const level = Math.floor(xp / 100) + 1;
+                        return level >= req.minLevel;
+                      }
+                      if (req.type === 'ferveur') {
+                        return fanz.ferveurLevel >= req.minLevel;
+                      }
+                      if (req.type === 'rank') {
+                        return (fanz.rank ?? 0) >= req.minLevel;
+                      }
+                      return true;
+                    });
+                    
+                    const isAlreadyUnlocked = (userProfile.cards || []).includes(c.id) || c.id.startsWith('base_') || metRequirements || !!userCards[c.id];
+                    
+                    return isAllowed && !isBlocked && !isAlreadyUnlocked;
+                  })
                   .map(card => (
                     <button
                       key={card.id}

@@ -8,7 +8,9 @@ import {
   User as UserIcon,
   Clock,
   Menu,
-  X
+  X,
+  ArrowLeft,
+  Home as HomeIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfileModal } from './UserProfileModal';
@@ -20,10 +22,12 @@ interface HeaderProps {
   onHomeClick?: () => void;
   onMenuClick?: () => void;
   onTransactionsClick?: () => void;
+  onBackClick?: () => void;
   absolute?: boolean;
+  variant?: 'home' | 'subpage';
 }
 
-export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick, absolute = false }: HeaderProps) {
+export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick, onBackClick, absolute = false, variant = 'home' }: HeaderProps) {
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.photoURL || null);
@@ -112,22 +116,31 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
         "left-0 right-0 z-50 p-4 flex items-start justify-between",
         absolute ? "absolute top-0 bg-gradient-to-b from-black/80 to-transparent" : "sticky top-0 bg-gray-900/80 backdrop-blur-xl border-b border-white/10"
       )}>
-        {/* Left: Avatar & Level */}
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => onHomeClick ? onHomeClick() : setShowProfileModal(true)}>
-          <div className="relative">
-            <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 overflow-hidden">
-              {avatarUrl ? (
-                <img src={getImageUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <UserIcon className="w-6 h-6 text-white" />
-              )}
-            </div>
-            <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic flex items-center gap-1">
-              <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" />
-              {profile.level}
+        {/* Left: Avatar & Level OR Back Button */}
+        {variant === 'subpage' ? (
+          <button 
+            onClick={() => onBackClick?.()} 
+            className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => onHomeClick ? onHomeClick() : setShowProfileModal(true)}>
+            <div className="relative">
+              <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 overflow-hidden">
+                {avatarUrl ? (
+                  <img src={getImageUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <UserIcon className="w-6 h-6 text-white" />
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic flex items-center gap-1">
+                <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" />
+                {profile.level}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Center: Attributes & Ferveur Progress */}
         <div className="flex flex-col items-center">
@@ -179,13 +192,22 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
           </div>
         </div>
 
-        {/* Right: Menu Button */}
-        <button 
-          onClick={() => onMenuClick?.()} 
-          className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        {/* Right: Menu Button OR Home Button */}
+        {variant === 'subpage' ? (
+          <button 
+            onClick={() => onHomeClick?.()} 
+            className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
+          >
+            <HomeIcon className="w-5 h-5" />
+          </button>
+        ) : (
+          <button 
+            onClick={() => onMenuClick?.()} 
+            className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
       </header>
 
       {showProfileModal && (

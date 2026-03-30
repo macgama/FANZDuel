@@ -18,7 +18,9 @@ import { UserProfile } from './types';
 import { FanzPage } from './components/FanzPage';
 import { FanzDetails } from './components/FanzDetails';
 import { WeeklyStreakModal } from './components/WeeklyStreakModal';
-import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu } from 'lucide-react';
+import { WaitingRoom } from './components/WaitingRoom';
+import { SocialPage } from './components/SocialPage';
+import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
 
@@ -43,7 +45,16 @@ function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions'>('home');
+  const [view, _setView] = useState<'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social'>('home');
+  const viewHistory = React.useRef<typeof view[]>(['home']);
+
+  const setView = (newView: typeof view) => {
+    if (newView !== view) {
+      viewHistory.current.push(newView);
+      _setView(newView);
+    }
+  };
+
   const [selectedLeague, setSelectedLeague] = useState<{ id: number; season: number } | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<{ id: number; season: number } | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
@@ -52,6 +63,53 @@ function AppContent() {
   const [isDuelActive, setIsDuelActive] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [joiningDuel, setJoiningDuel] = useState<{ id: string; type: string; matchId: number } | null>(null);
+
+  const handleBack = () => {
+    if (selectedTeam) {
+      setSelectedTeam(null);
+    } else if (selectedLeague) {
+      setSelectedLeague(null);
+    } else if (selectedMatchId) {
+      setSelectedMatchId(null);
+      setSelectedMatchTab('summary');
+      setJoiningDuel(null);
+    } else if (selectedFanzId) {
+      setSelectedFanzId(null);
+    } else if (viewHistory.current.length > 1) {
+      viewHistory.current.pop();
+      const previousView = viewHistory.current[viewHistory.current.length - 1];
+      _setView(previousView);
+    } else if (view !== 'home') {
+      _setView('home');
+    }
+  };
+
+  const renderFooter = () => {
+    if (isDuelActive || view === 'admin' || view === 'waiting-room') return null;
+    return (
+      <footer className="absolute bottom-0 left-0 right-0 h-14 bg-black/90 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-4 z-50">
+        <button onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'matches' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+          <Activity className="w-5 h-5" />
+          <span className="text-[9px] font-black uppercase tracking-widest">Live</span>
+        </button>
+        <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors relative -top-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-black shadow-lg ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/40' : 'bg-orange-600 shadow-orange-600/20'}`}>
+            <Trophy className="w-5 h-5 text-white" />
+          </div>
+          <span className={`text-[9px] font-black uppercase tracking-widest ${view === 'waiting-room' ? 'text-orange-400' : 'text-orange-500'}`}>Duel</span>
+        </button>
+        <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'fanz' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+          <Star className="w-5 h-5" />
+          <span className="text-[9px] font-black uppercase tracking-widest">Fanz</span>
+        </button>
+        <button onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'social' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+          <Users className="w-5 h-5" />
+          <span className="text-[9px] font-black uppercase tracking-widest">Social</span>
+        </button>
+      </footer>
+    );
+  };
 
   useEffect(() => {
     let unsubscribeSnapshot: () => void;
@@ -210,16 +268,19 @@ function AppContent() {
             setView('matches');
           }}
         />
+        {renderFooter()}
       </Layout>
     );
   }
 
   return (
     <Layout isMobileOnly={view !== 'admin'}>
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col h-full">
         {profile && !isDuelActive && (
           <Header 
             profile={profile} 
+            variant="subpage"
+            onBackClick={handleBack}
             onHomeClick={() => {
               setView('home');
               setSelectedLeague(null);
@@ -232,7 +293,7 @@ function AppContent() {
           />
         )}
         
-        <div className={cn("flex-1", (!selectedFanzId && !selectedMatchId && view !== 'matches') && "py-6 px-[30px]", (selectedMatchId || view === 'matches') && "py-6 px-0")}>
+        <div className={cn("flex-1 overflow-y-auto pb-14", (!selectedFanzId && !selectedMatchId && view !== 'matches') && "pt-6 px-[30px]", (selectedMatchId || view === 'matches') && "pt-6 px-0")}>
           {showStreakModal && profile && (
             <WeeklyStreakModal 
               profile={profile} 
@@ -259,9 +320,13 @@ function AppContent() {
               fixtureId={selectedMatchId} 
               user={profile}
               initialTab={selectedMatchTab}
+              initialDuelId={joiningDuel?.id}
+              initialDuelType={joiningDuel?.type}
+              onDuelStatusChange={setIsDuelActive}
               onBack={() => {
                 setSelectedMatchId(null);
                 setSelectedMatchTab('summary');
+                setJoiningDuel(null);
               }}
               onTeamClick={(id, season) => setSelectedTeam({ id, season })}
               onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
@@ -271,6 +336,16 @@ function AppContent() {
               fanzId={selectedFanzId}
               userProfile={profile}
               onBack={() => setSelectedFanzId(null)}
+            />
+          ) : view === 'waiting-room' ? (
+            <WaitingRoom 
+              user={profile} 
+              onBack={() => setView('home')} 
+              onJoinDuel={(id, type, matchId) => {
+                setJoiningDuel({ id, type, matchId });
+                setSelectedMatchId(matchId);
+                setView('matches');
+              }}
             />
           ) : view === 'admin' ? (
             <AdminZone />
@@ -299,6 +374,8 @@ function AppContent() {
             <FanzPage userUid={user.uid} onFanzClick={(id) => setSelectedFanzId(id)} />
           ) : view === 'transactions' ? (
             <TransactionsPage profile={profile} onBack={() => setView('home')} />
+          ) : view === 'social' ? (
+            <SocialPage user={profile} onBack={() => setView('home')} />
           ) : (
             <Dashboard 
               onDuelStatusChange={setIsDuelActive}
@@ -346,6 +423,8 @@ function AppContent() {
               </div>
               
               <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
+                <MenuButton icon={<Swords />} label="Salle d'Attente" onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} />
+                <MenuButton icon={<Users />} label="Social" onClick={() => { setView('social'); setIsMenuOpen(false); }} />
                 <MenuButton icon={<Activity />} label="Matchs en direct" onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
                 <MenuButton icon={<Globe />} label="Compétitions" onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
                 <MenuButton icon={<Users />} label="Équipes" onClick={() => { setView('teams'); setIsMenuOpen(false); }} />
@@ -367,6 +446,7 @@ function AppContent() {
           )}
         </AnimatePresence>
       </div>
+      {renderFooter()}
     </Layout>
   );
 }

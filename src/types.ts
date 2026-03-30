@@ -45,6 +45,8 @@ export interface UserProfile {
   passPoints: number;
   isPassPremium: boolean;
   claimedPassRewards: string[]; // "level-X-free" or "level-X-premium"
+  friends?: string[];
+  friendRequests?: string[];
 }
 
 export interface FanzStats {
@@ -349,6 +351,8 @@ export interface Duel {
   startTime?: string;
   winner?: 'A' | 'B';
   createdAt: string;
+  isPrivate?: boolean;
+  inviteCode?: string;
 }
 
 export interface League {

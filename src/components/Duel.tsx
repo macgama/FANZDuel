@@ -4,7 +4,7 @@ import { io, Socket } from 'socket.io-client';
 import { Duel, UserProfile, Card as GameCard, CardEffect, UserCard, Fanz, FanzTemplate, DuelConfig, FanzStats } from '../types';
 import { Card, Button } from './Layout';
 import { motion, AnimatePresence } from 'motion/react';
-import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield, RefreshCw, Activity, Lock, Flame, Brain, Star, Users, Search, Trophy, Target, CreditCard, Layers } from 'lucide-react';
+import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield, RefreshCw, Activity, Lock, Flame, Brain, Star, Users, Search, Trophy, Target, CreditCard, Layers, Snowflake } from 'lucide-react';
 import { BASE_CARDS } from '../constants/cards';
 import { LOGOS } from '../constants';
 import { getImageUrl } from '../lib/utils';
@@ -12,7 +12,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 
-export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean }) {
+export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean }) {
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -21,6 +21,38 @@ export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo,
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [joiningDuelId, setJoiningDuelId] = useState<string | null>(initialDuelId || null);
+  const [joiningDuelData, setJoiningDuelData] = useState<any | null>(null);
+  const [inviteCode, setInviteCode] = useState('');
+
+  useEffect(() => {
+    if (joiningDuelId) {
+      const fetchDuelData = async () => {
+        try {
+          const res = await fetch(`/api/duels`);
+          if (res.ok) {
+            const allDuels = await res.json();
+            const duel = allDuels.find((d: any) => d.id === joiningDuelId);
+            if (duel) {
+              setJoiningDuelData(duel);
+              // Auto-select team if only one is available
+              const maxPlayersPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 999;
+              const countA = duel.participants.filter((p: any) => p.team === 'A').length;
+              const countB = duel.participants.filter((p: any) => p.team === 'B').length;
+              
+              if (countA >= maxPlayersPerTeam && countB < maxPlayersPerTeam) {
+                setSelectedTeam(teamB);
+              } else if (countB >= maxPlayersPerTeam && countA < maxPlayersPerTeam) {
+                setSelectedTeam(teamA);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching joining duel data", err);
+        }
+      };
+      fetchDuelData();
+    }
+  }, [joiningDuelId, teamA, teamB]);
 
   // Calculate Stat Bonuses for Impact Estimation
   const getStatEffectValue = (effectType: string, fanz: Fanz | null) => {
@@ -66,6 +98,12 @@ export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo,
       return;
     }
 
+    const selectedFanz = userFanzs.find(f => f.id === selectedFanzId);
+    if (!selectedFanz || !selectedFanz.equippedCards || selectedFanz.equippedCards.length < 8) {
+      alert("Votre Fanz doit avoir 8 cartes dans son deck pour lancer un duel !");
+      return;
+    }
+
     const cost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
     if (user.money < cost.money || user.energy < cost.energy) {
       alert("Fonds ou énergie insuffisants !");
@@ -84,6 +122,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo,
 
       const duelId = joiningDuelId || (type === 'training' ? `training_${user.uid}_${Date.now()}` : type === 'war_of_kops' ? `war_of_kops_${matchId}` : `duel_${Math.random().toString(36).substring(7)}`);
       
+      setJoiningDuelId(null);
       setActiveDuel({
         id: duelId,
         type,
@@ -93,7 +132,9 @@ export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo,
         teamB: selectedTeam === teamA ? teamB : teamA,
         progress: 50,
         participants: [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        isPrivate,
+        inviteCode: inviteCode || undefined
       });
     } catch (err) {
       console.error("Error starting duel", err);
@@ -101,7 +142,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo,
   };
 
   if (activeDuel) {
-    return <DuelScreen duel={activeDuel} user={user} fanzId={selectedFanzId!} teamA={teamA} teamB={teamB} onExit={() => setActiveDuel(null)} />;
+    return <DuelScreen duel={activeDuel} user={user} fanzId={selectedFanzId!} teamA={teamA} teamB={teamB} selectedTeam={selectedTeam!} onExit={() => setActiveDuel(null)} />;
   }
 
   return (
@@ -151,24 +192,41 @@ export function DuelManager({ user, matchId, teamA, teamB, teamALogo, teamBLogo,
             </div>
             <div className="flex gap-3">
               {[
-                { name: teamA, logo: teamALogo },
-                { name: teamB, logo: teamBLogo }
-              ].map(team => (
-                <button
-                  key={team.name}
-                  onClick={() => setSelectedTeam(team.name)}
-                  className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${
-                    selectedTeam === team.name ? 'border-[#f97316] bg-[#f97316]/10' : 'border-white/5 bg-[#1e1e1e]'
-                  }`}
-                >
-                  {team.logo ? (
-                    <img src={team.logo} alt={team.name} className="w-12 h-12 object-contain mb-2" />
-                  ) : (
-                    <Shield className="w-12 h-12 text-gray-600 mb-2" />
-                  )}
-                  <span className="text-[10px] font-black uppercase text-center text-white">{team.name}</span>
-                </button>
-              ))}
+                { name: teamA, id: 'A', logo: teamALogo },
+                { name: teamB, id: 'B', logo: teamBLogo }
+              ].map(team => {
+                const maxPlayersPerTeam = joiningDuelData ? ({ '1v1': 1, '2v2': 2, '5v5': 5 }[joiningDuelData.type as '1v1' | '2v2' | '5v5'] || 999) : 999;
+                const currentCount = joiningDuelData ? joiningDuelData.participants.filter((p: any) => p.team === team.id).length : 0;
+                const isFull = currentCount >= maxPlayersPerTeam;
+
+                return (
+                  <button
+                    key={team.name}
+                    onClick={() => !isFull && setSelectedTeam(team.name)}
+                    disabled={isFull}
+                    className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all relative ${
+                      selectedTeam === team.name ? 'border-[#f97316] bg-[#f97316]/10' : isFull ? 'border-white/5 bg-black/20 opacity-50' : 'border-white/5 bg-[#1e1e1e]'
+                    }`}
+                  >
+                    {isFull && (
+                      <div className="absolute top-2 right-2 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest text-white shadow-lg">
+                        Complet
+                      </div>
+                    )}
+                    {team.logo ? (
+                      <img src={team.logo} alt={team.name} className="w-12 h-12 object-contain mb-2" />
+                    ) : (
+                      <Shield className="w-12 h-12 text-gray-600 mb-2" />
+                    )}
+                    <span className="text-[10px] font-black uppercase text-center text-white">{team.name}</span>
+                    {joiningDuelData && (
+                      <div className="mt-2 text-[8px] font-bold text-gray-500 uppercase tracking-widest">
+                        {currentCount} / {maxPlayersPerTeam}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -287,7 +345,7 @@ interface FloatingEffect {
   color: string;
 }
 
-export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel: Duel; user: UserProfile; onExit: () => void, fanzId: string, teamA?: string, teamB?: string }) {
+export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, selectedTeam }: { duel: Duel; user: UserProfile; onExit: () => void, fanzId: string, teamA?: string, teamB?: string, selectedTeam: string }) {
   const [progress, setProgress] = useState(50);
   const [excitement, setExcitement] = useState(5);
   const maxExcitement = 10;
@@ -296,6 +354,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
   const [duelResult, setDuelResult] = useState<{ winner: string, ferveurGain: number, teamGain: number, scoreA?: number, scoreB?: number } | null>(null);
   const [status, setStatus] = useState<'waiting' | 'starting' | 'active' | 'finished'>(duel.status);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [inviteCode, setInviteCode] = useState(duel.inviteCode);
   const [participants, setParticipants] = useState<any[]>(duel.participants || []);
   const [currentDuelId, setCurrentDuelIdState] = useState<string>(duel.id);
   const currentDuelIdRef = useRef(duel.id);
@@ -348,6 +407,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
   // Visual Effects State
   const [isBlurred, setIsBlurred] = useState(false);
   const [isButtonHidden, setIsButtonHidden] = useState(false);
+  const [isButtonFrozen, setIsButtonFrozen] = useState(false);
   const [isButtonShrunk, setIsButtonShrunk] = useState(false);
   const [isButtonMoving, setIsButtonMoving] = useState(false);
   const [isScoreHidden, setIsScoreHidden] = useState(false);
@@ -359,12 +419,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
   const [buttonHiddenDuration, setButtonHiddenDuration] = useState(2000);
 
   // Calculate Stat Bonuses
-  const getStatEffectValue = (effectType: string) => {
-    if (!duelConfig || !fanz) return 0;
+  const getStatEffectValue = (effectType: string, isMultiplier = false) => {
+    if (!duelConfig || !fanz) return isMultiplier ? 1 : 0;
     const effect = duelConfig.statEffects.find(e => e.effectType === effectType);
-    if (!effect) return 0;
-    const statLevel = fanz.stats[effect.statName] || 1;
-    return effect.baseValue + (statLevel * effect.multiplierPerLevel);
+    if (!effect) return isMultiplier ? 1 : 0;
+    const statLevel = (fanz.stats as any)[effect.statName] || 1;
+    const val = effect.baseValue + (statLevel * effect.multiplierPerLevel);
+    return isMultiplier ? Math.max(0.1, val) : val;
   };
 
   const fanzRank = fanz?.rank ?? 0;
@@ -461,20 +522,44 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
   };
 
   useEffect(() => {
+    if (isButtonHidden) {
+      const timer = setTimeout(() => setIsButtonHidden(false), 8000); // Max 8s safety
+      return () => clearTimeout(timer);
+    }
+  }, [isButtonHidden]);
+
+  useEffect(() => {
+    if (isButtonFrozen) {
+      const timer = setTimeout(() => setIsButtonFrozen(false), 8000); // Max 8s safety
+      return () => clearTimeout(timer);
+    }
+  }, [isButtonFrozen]);
+
+  useEffect(() => {
     const newSocket = io();
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      newSocket.emit('join-duel', { duelId: currentDuelIdRef.current, user, fanz, type: duel.type });
+      newSocket.emit('join-duel', { 
+        duelId: currentDuelIdRef.current, 
+        user, 
+        fanz, 
+        type: duel.type,
+        matchId: duel.matchId,
+        team: selectedTeam === teamA ? 'A' : 'B',
+        isPrivate: duel.isPrivate,
+        inviteCode: duel.inviteCode
+      });
     });
 
-    newSocket.on('duel-joined', ({ team, duelId: serverDuelId, participants: serverParticipants }: { team: 'A' | 'B', duelId: string, participants: any[] }) => {
+    newSocket.on('duel-joined', ({ team, duelId: serverDuelId, participants: serverParticipants, inviteCode: serverInviteCode }: { team: 'A' | 'B', duelId: string, participants: any[], inviteCode?: string }) => {
       setMyTeam(team);
       setCurrentDuelId(serverDuelId);
       if (serverParticipants) setParticipants(serverParticipants);
+      if (serverInviteCode) setInviteCode(serverInviteCode);
     });
 
-    newSocket.on('duel-update', (state: { duelId?: string; progress: number; status: any; participants?: any[] }) => {
+    newSocket.on('duel-update', (state: { duelId?: string; progress: number; status: any; participants?: any[]; inviteCode?: string }) => {
       setProgress(state.progress);
       setStatus(state.status);
       if (state.duelId) {
@@ -482,6 +567,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
       }
       if (state.participants) {
         setParticipants(state.participants);
+      }
+      if (state.inviteCode) {
+        setInviteCode(state.inviteCode);
       }
     });
 
@@ -618,7 +706,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
 
     newSocket.on('enemy-card-played', ({ card }: { team: string, card: GameCard }) => {
       setLastEnemyCard(card);
-      addFloatingEffect(`Ennemi joue: ${card.name}`, window.innerWidth / 2, 100, 'text-red-400 font-bold');
+      addFloatingEffect(`⚠️ ${card.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
       const isMalus = card.effects.some(e => 
         ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock'].includes(e.type)
@@ -627,82 +715,111 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
       if (isMalus) {
         if (hasMirror) {
           setHasMirror(false);
-          addFloatingEffect('Miroir: Attaque renvoyée!', window.innerWidth / 2, 150, 'text-purple-400');
-          socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: 'A', card, reflected: true });
+          addFloatingEffect('✨ Miroir: Attaque renvoyée!', window.innerWidth / 2, 150, 'text-purple-400 font-black');
+          newSocket.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam || 'A', card, reflected: true });
           return;
         }
         if (hasShield) {
           setHasShield(false);
-          addFloatingEffect('Bouclier: Attaque bloquée!', window.innerWidth / 2, 150, 'text-blue-300');
+          addFloatingEffect('🛡️ Bouclier: Attaque bloquée!', window.innerWidth / 2, 150, 'text-blue-300 font-black');
           return;
         }
       }
 
       card.effects.forEach((effect: CardEffect) => {
-        const mentalBonus = getStatEffectValue('malus_duration');
-        const bluffBonus = getStatEffectValue('visual_malus_duration');
+        // Resistance stats: higher value means shorter duration
+        const mentalResistance = getStatEffectValue('malus_duration', true);
+        const bluffResistance = getStatEffectValue('visual_malus_duration', true);
         
+        // Duration reduction: duration / resistance (if resistance is > 1)
+        // Or duration * resistance (if resistance is < 1)
+        // Let's assume the stat returns a multiplier where 1.0 is neutral, > 1 is better resistance
+        const getEffectiveDuration = (base: number, res: number) => (base * 1000) / Math.max(0.1, res);
+
         switch (effect.type) {
           case 'blur_view':
             setIsBlurred(true);
-            setTimeout(() => setIsBlurred(false), (effect.duration || 5) * 1000 * bluffBonus);
-            addFloatingEffect('Vue Troublée!', window.innerWidth / 2, 200, 'text-red-400');
+            setTimeout(() => setIsBlurred(false), getEffectiveDuration(effect.duration || 5, bluffResistance));
+            addFloatingEffect('💨 Vue Troublée!', window.innerWidth / 2, 200, 'text-red-400 font-black');
             break;
           case 'hide_button':
             setIsButtonHidden(true);
-            setTimeout(() => setIsButtonHidden(false), (effect.duration || 4) * 1000 * mentalBonus);
-            addFloatingEffect('Bouton Caché!', window.innerWidth / 2, 200, 'text-red-400');
+            setTimeout(() => setIsButtonHidden(false), getEffectiveDuration(effect.duration || 4, mentalResistance));
+            addFloatingEffect('👻 Bouton Invisible!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'shrink_button':
             setIsButtonShrunk(true);
-            setTimeout(() => setIsButtonShrunk(false), (effect.duration || 6) * 1000 * bluffBonus);
-            addFloatingEffect('Bouton Rétréci!', window.innerWidth / 2, 200, 'text-red-400');
+            setTimeout(() => setIsButtonShrunk(false), getEffectiveDuration(effect.duration || 6, bluffResistance));
+            addFloatingEffect('🤏 Bouton Rétréci!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'move_button':
             setIsButtonMoving(true);
-            setTimeout(() => setIsButtonMoving(false), (effect.duration || 8) * 1000 * bluffBonus);
-            addFloatingEffect('Bouton Fou!', window.innerWidth / 2, 200, 'text-red-400');
+            setTimeout(() => setIsButtonMoving(false), getEffectiveDuration(effect.duration || 8, bluffResistance));
+            addFloatingEffect('🌪️ Bouton Fou!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'hide_score':
             setIsScoreHidden(true);
-            setTimeout(() => setIsScoreHidden(false), (effect.duration || 7) * 1000 * bluffBonus);
-            addFloatingEffect('Score Caché!', window.innerWidth / 2, 200, 'text-red-400');
+            setTimeout(() => setIsScoreHidden(false), getEffectiveDuration(effect.duration || 7, bluffResistance));
+            addFloatingEffect('🙈 Score Caché!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'drain_energy':
             setExcitement(prev => Math.max(0, prev - (effect.value || 0)));
-            addFloatingEffect(`-${effect.value} Énergie!`, window.innerWidth / 2, 200, 'text-red-400');
+            addFloatingEffect(`⚡ -${effect.value} Énergie!`, window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'discard_enemy_cards':
-            setHand(prev => prev.slice(1));
+            setHand(prev => {
+              if (prev.length === 0) return prev;
+              const newHand = [...prev];
+              newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+              return newHand;
+            });
             setTimeout(drawCard, 2000);
-            addFloatingEffect('Carte Défaussée!', window.innerWidth / 2, 200, 'text-red-400');
+            addFloatingEffect('🃏 Carte Défaussée!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'shuffle_deck':
             setHand(prev => [...prev].sort(() => Math.random() - 0.5));
-            addFloatingEffect('Main Mélangée!', window.innerWidth / 2, 200, 'text-red-400');
+            addFloatingEffect('🔀 Main Mélangée!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'freeze_button':
-            setIsButtonHidden(true);
-            setTimeout(() => setIsButtonHidden(false), (effect.duration || 3) * 1000 * mentalBonus);
-            addFloatingEffect('Bouton Gelé!', window.innerWidth / 2, 200, 'text-blue-400');
+            setIsButtonFrozen(true);
+            setTimeout(() => setIsButtonFrozen(false), getEffectiveDuration(effect.duration || 3, mentalResistance));
+            addFloatingEffect('❄️ Bouton Gelé!', window.innerWidth / 2, 200, 'text-blue-400');
             break;
           case 'earthquake':
             setIsEarthquake(true);
-            setTimeout(() => setIsEarthquake(false), (effect.duration || 3) * 1000 * bluffBonus);
-            addFloatingEffect('Tremblement de Terre!', window.innerWidth / 2, 200, 'text-red-400');
+            setTimeout(() => setIsEarthquake(false), getEffectiveDuration(effect.duration || 3, bluffResistance));
+            addFloatingEffect('🌋 Tremblement de Terre!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'fake_buttons':
             setIsFakeButtons(true);
-            setTimeout(() => setIsFakeButtons(false), (effect.duration || 5) * 1000 * bluffBonus);
-            addFloatingEffect('Faux Boutons!', window.innerWidth / 2, 200, 'text-red-400');
+            setTimeout(() => setIsFakeButtons(false), getEffectiveDuration(effect.duration || 5, bluffResistance));
+            addFloatingEffect('🎭 Faux Boutons!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'card_lock':
             setIsCardLocked(true);
-            setTimeout(() => setIsCardLocked(false), (effect.duration || 5) * 1000 * mentalBonus);
-            addFloatingEffect('Carte Bloquée!', window.innerWidth / 2, 200, 'text-red-400');
+            setTimeout(() => setIsCardLocked(false), getEffectiveDuration(effect.duration || 5, mentalResistance));
+            addFloatingEffect('🔒 Cartes Bloquées!', window.innerWidth / 2, 200, 'text-red-400');
             break;
         }
       });
+    });
+
+    newSocket.on('swap-hands-request', ({ fromTeam, opponentHand }: { fromTeam: string, opponentHand: GameCard[] }) => {
+      const myParticipant = participants.find(p => p.uid === user.uid);
+      const myTeam = myParticipant?.team || 'A';
+      
+      if (fromTeam !== myTeam) {
+        // We are the target, we receive the opponent's hand and send ours
+        const myCurrentHand = [...hand];
+        setHand(opponentHand);
+        newSocket.emit('swap-hands-response', { duelId: currentDuelIdRef.current, team: myTeam, hand: myCurrentHand });
+        addFloatingEffect('🔄 Mains Échangées!', window.innerWidth / 2, 250, 'text-blue-400 font-black');
+      }
+    });
+
+    newSocket.on('swap-hands-complete', ({ newHand }: { newHand: GameCard[] }) => {
+      setHand(newHand);
+      addFloatingEffect('🔄 Mains Échangées!', window.innerWidth / 2, 250, 'text-blue-400 font-black');
     });
 
     return () => {
@@ -710,17 +827,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
     };
   }, [duel.id]);
 
-  // Button visibility cycle (Mental stat)
-  useEffect(() => {
-    if (status !== 'active' || !!winner) return;
-
-    const toggle = () => {
-      setIsButtonHidden(prev => !prev);
-    };
-
-    const timeout = setTimeout(toggle, isButtonHidden ? buttonHiddenDuration : buttonVisibilityDuration);
-    return () => clearTimeout(timeout);
-  }, [status, isButtonHidden, buttonVisibilityDuration, buttonHiddenDuration, winner]);
+  // Button visibility cycle (Mental stat) - REMOVED automatic cycle as it was confusing
+  // Only cards should trigger invisible button now
 
   const handleAction = (e: React.MouseEvent) => {
     if (winner || isButtonHidden) return;
@@ -865,16 +973,17 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
           }
         }
         if (effect.type === 'mimic') {
-          if (lastEnemyCard) {
-            setHand(prev => [...prev, { ...lastEnemyCard, instanceId: Math.random().toString(36).substr(2, 9) }]);
-            addFloatingEffect('Carte Copiée!', x, y - 30, 'text-blue-400');
+          if (lastEnemyCard && lastEnemyCard.id !== 'mimic') {
+            addFloatingEffect(`🎭 Mimic: ${lastEnemyCard.name}`, x, y - 80, 'text-purple-400 font-bold');
+            // Play the mimicked card immediately for free (already paid mimic cost)
+            socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam, card: lastEnemyCard });
+          } else {
+            addFloatingEffect('❌ Rien à imiter', x, y - 80, 'text-gray-500');
           }
         }
         if (effect.type === 'swap_hands') {
-          // This would ideally be handled by the server to get the actual enemy hand
-          // For now, let's just shuffle our own hand as a placeholder or wait for server implementation
-          setHand(prev => [...prev].sort(() => Math.random() - 0.5));
-          addFloatingEffect('Mains Échangées!', x, y - 30, 'text-purple-400');
+          addFloatingEffect('🔄 Échange de Mains!', x, y - 80, 'text-blue-400 font-bold');
+          socket?.emit('swap-hands-init', { duelId: currentDuelIdRef.current, team: myTeam, hand });
         }
       });
 
@@ -923,16 +1032,34 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
     }
     const interval = setInterval(() => {
       setButtonPosition({
-        x: (Math.random() - 0.5) * 200,
-        y: (Math.random() - 0.5) * 200
+        x: (Math.random() - 0.5) * 240,
+        y: (Math.random() - 0.5) * 240
       });
-    }, 500);
+    }, 400);
     return () => clearInterval(interval);
   }, [isButtonMoving]);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-[#0a0a0a]">
-      <div className={`w-full h-full max-w-[450px] relative flex flex-col p-4 bg-black border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isBlurred ? 'blur-xl' : ''} ${isEarthquake ? 'animate-bounce' : ''}`}>
+      <div className={`w-full h-full max-w-[450px] relative flex flex-col p-4 bg-black border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isEarthquake ? 'animate-bounce' : ''}`}>
+        {/* Blur Overlay */}
+        <AnimatePresence>
+          {isBlurred && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[60] backdrop-blur-[40px] bg-black/60 pointer-events-none flex items-center justify-center border-4 border-red-500/20"
+            >
+              <div className="flex flex-col items-center gap-4">
+                <EyeOff className="w-16 h-16 text-red-500 animate-pulse" />
+                <div className="text-white font-black italic text-3xl uppercase tracking-tighter text-center">
+                  Vue Troublée !
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="flex justify-between items-center mb-2">
           <button onClick={onExit} className="p-2 hover:bg-white/10 rounded-full">
             <ChevronLeft />
@@ -971,7 +1098,38 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
           >
             <div className="w-20 h-20 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-6" />
             <h3 className="text-2xl font-black italic uppercase mb-2">En attente d'adversaires...</h3>
-            <p className="text-gray-400 text-sm">Le duel commencera dès que le salon sera complet.</p>
+            <p className="text-gray-400 text-sm mb-6">Le duel commencera dès que le salon sera complet.</p>
+            
+            {inviteCode && (
+              <div className="bg-white/10 p-4 rounded-xl border border-white/20 flex flex-col items-center">
+                <span className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-2">Code d'invitation</span>
+                <div className="text-3xl font-black text-orange-500 tracking-[0.2em]">{inviteCode}</div>
+                <div className="flex gap-2 mt-3">
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(inviteCode);
+                      alert('Code copié !');
+                    }}
+                    className="text-xs text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Copier le code
+                  </button>
+                  {navigator.share && (
+                    <button 
+                      onClick={() => {
+                        navigator.share({
+                          title: 'Rejoins mon duel The Best Fan !',
+                          text: `Rejoins mon duel avec le code: ${inviteCode}`,
+                        }).catch(console.error);
+                      }}
+                      className="text-xs text-white bg-orange-600 hover:bg-orange-500 px-3 py-1.5 rounded-lg transition-colors font-bold"
+                    >
+                      Partager
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
         {status === 'starting' && (
@@ -1049,17 +1207,27 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
         <div className="relative mt-2">
           <motion.button 
             onClick={handleAction}
-            disabled={!!winner}
+            disabled={!!winner || isButtonFrozen}
             animate={{ 
               x: buttonPosition.x, 
               y: buttonPosition.y,
               scale: isButtonShrunk ? 0.5 : isButtonHidden ? 0 : 1,
-              opacity: isButtonHidden ? 0 : 1
+              opacity: isButtonHidden ? 0 : 1,
+              filter: isButtonFrozen ? 'hue-rotate(180deg) brightness(1.2)' : 'none'
             }}
-            className="w-40 h-40 sm:w-48 sm:h-48 rounded-full bg-orange-600 hover:bg-orange-700 border-8 border-white/10 shadow-2xl flex flex-col items-center justify-center transition-transform active:scale-95 disabled:opacity-50 relative z-10"
+            className={`w-40 h-40 sm:w-48 sm:h-48 rounded-full border-8 border-white/10 shadow-2xl flex flex-col items-center justify-center transition-transform active:scale-95 disabled:opacity-50 relative z-10 ${isButtonFrozen ? 'bg-blue-400' : 'bg-orange-600 hover:bg-orange-700'}`}
           >
-            <span className="font-black italic text-2xl uppercase">Cliquer</span>
-            <span className="text-xs uppercase font-bold opacity-70">Ferveur +0.5%</span>
+            {isButtonFrozen ? (
+              <>
+                <Snowflake className="w-12 h-12 text-white animate-pulse" />
+                <span className="font-black italic text-xl uppercase mt-2">GELÉ !</span>
+              </>
+            ) : (
+              <>
+                <span className="font-black italic text-2xl uppercase">Cliquer</span>
+                <span className="text-xs uppercase font-bold opacity-70">Ferveur +0.5%</span>
+              </>
+            )}
           </motion.button>
 
           {isFakeButtons && (
@@ -1089,6 +1257,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
         <div className="flex flex-wrap justify-center gap-2">
           {isBlurred && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><EyeOff size={12} /> Vue Troublée</div>}
           {isButtonHidden && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><Ghost size={12} /> Bouton Invisible</div>}
+          {isButtonFrozen && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-400 uppercase"><Snowflake size={12} /> Bouton Gelé</div>}
           {isButtonShrunk && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><Minimize2 size={12} /> Bouton Réduit</div>}
           {isButtonMoving && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><Move size={12} /> Bouton Fou</div>}
           {isDoublePoints && <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase"><img src={LOGOS.energy} alt="Energy" className="w-3 h-3 object-contain" /> Double Ferveur</div>}
@@ -1225,12 +1394,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB }: { duel:
                 )}
               </div>
 
-              <Button 
-                onClick={onExit}
-                className="w-full py-4 text-lg"
-              >
-                Retour au match
-              </Button>
+              <div className="flex flex-col gap-3">
+                <Button 
+                  onClick={onExit}
+                  className="w-full py-4 text-lg"
+                >
+                  {duel.matchId === 'global' ? 'Quitter' : 'Retour au match'}
+                </Button>
+                {duel.type === 'training' && (
+                  <Button 
+                    onClick={() => window.location.reload()}
+                    variant="outline"
+                    className="w-full py-4 text-lg border-orange-500/50 text-orange-500"
+                  >
+                    Rejouer
+                  </Button>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}

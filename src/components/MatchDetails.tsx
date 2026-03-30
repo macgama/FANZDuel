@@ -13,6 +13,7 @@ import {
   CircleDot,
   Swords,
   Trophy,
+  Target,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,21 +31,41 @@ interface MatchDetailsProps {
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
   initialTab?: 'summary' | 'lineups' | 'stats' | 'duels';
+  initialDuelId?: string;
+  initialDuelType?: string;
+  onDuelStatusChange?: (isActive: boolean) => void;
 }
 
-export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick, initialTab = 'summary' }: MatchDetailsProps) {
+export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick, initialTab = 'summary', initialDuelId, initialDuelType, onDuelStatusChange }: MatchDetailsProps) {
   const [details, setDetails] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [lineups, setLineups] = useState<any[]>([]);
   const [stats, setStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'summary' | 'lineups' | 'stats' | 'duels'>(initialTab);
-  const [selectedDuelType, setSelectedDuelType] = useState<string | null>(null);
-  const [selectedDuelId, setSelectedDuelId] = useState<string | null>(null);
+  const [selectedDuelType, setSelectedDuelType] = useState<string | null>(initialDuelType || null);
+  const [selectedDuelId, setSelectedDuelId] = useState<string | null>(initialDuelId || null);
   const [matchScore, setMatchScore] = useState<{ scoreA: number, scoreB: number } | null>(null);
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
   const [showDuelsList, setShowDuelsList] = useState(false);
+  const [showCreateDuel, setShowCreateDuel] = useState(false);
+  const [newDuelType, setNewDuelType] = useState<'1v1' | '2v2' | '5v5'>('1v1');
+  const [isPrivateDuel, setIsPrivateDuel] = useState(false);
   const [duelHistory, setDuelHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (onDuelStatusChange) {
+      onDuelStatusChange(!!selectedDuelType);
+    }
+  }, [selectedDuelType, onDuelStatusChange]);
+
+  useEffect(() => {
+    return () => {
+      if (onDuelStatusChange) {
+        onDuelStatusChange(false);
+      }
+    };
+  }, [onDuelStatusChange]);
 
   useEffect(() => {
     const fetchActiveDuels = async () => {
@@ -150,6 +171,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         initialDuelId={selectedDuelId || undefined}
         initialDuelType={selectedDuelType || undefined}
         isLiveMatch={isLive}
+        isPrivate={isPrivateDuel}
       />
     );
   }
@@ -273,28 +295,110 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         </div>
 
         {/* Buttons */}
-        {!isFinished && (
-          <div className="flex gap-1.5 sm:gap-2 mt-2">
-            <button 
-              className={`py-2 sm:py-2.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white font-black text-[8px] sm:text-[10px] uppercase tracking-wider transition-colors ${activeDuels.length > 0 ? 'flex-1' : 'w-full'}`}
-              onClick={() => setSelectedDuelType(isLive ? 'war_of_kops' : 'training')}
-            >
-              Duel
-            </button>
-            {activeDuels.length > 0 && isLive && (
+        <div className="flex flex-col gap-2 mt-4">
+          {!isFinished ? (
+            <>
+              <div className="flex gap-2">
+                <button 
+                  className={`py-4 sm:py-5 rounded-xl border-2 border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20 text-white font-black text-xs sm:text-sm uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(249,115,22,0.2)] active:scale-95 ${activeDuels.length > 0 ? 'flex-1' : 'w-full'}`}
+                  onClick={() => setShowCreateDuel(true)}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Swords className="w-4 h-4 text-orange-500" />
+                    Créer un Duel
+                  </div>
+                </button>
+                {activeDuels.length > 0 && isLive && (
+                  <button 
+                    className="flex-1 py-4 sm:py-5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-widest transition-all shadow-lg shadow-orange-500/30 active:scale-95"
+                    onClick={() => setShowDuelsList(true)}
+                  >
+                    Rejoindre ({activeDuels.length})
+                  </button>
+                )}
+              </div>
               <button 
-                className="flex-1 py-2 sm:py-2.5 rounded-lg bg-[#ff6b00] hover:bg-[#ff8533] text-white font-black text-[8px] sm:text-[10px] uppercase tracking-wider transition-colors shadow-lg shadow-orange-500/20"
-                onClick={() => setShowDuelsList(true)}
+                className="w-full py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-widest transition-all"
+                onClick={() => {
+                  setIsPrivateDuel(false);
+                  setSelectedDuelType('war_of_kops');
+                }}
               >
-                Rejoindre ({activeDuels.length})
+                Rejoindre la Guerre des Kops
               </button>
-            )}
-          </div>
-        )}
+            </>
+          ) : (
+            <button 
+              className="w-full py-4 sm:py-5 rounded-xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-black text-xs sm:text-sm uppercase tracking-widest transition-all active:scale-95"
+              onClick={() => setSelectedDuelType('training')}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Target className="w-4 h-4 text-orange-500" />
+                Entraînement (Match Terminé)
+              </div>
+            </button>
+          )}
+        </div>
       </div>
 
+      {showCreateDuel && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 w-full max-w-md overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-black text-white uppercase italic">Créer un Duel</h3>
+              <button onClick={() => setShowCreateDuel(false)} className="text-gray-400 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Type de Duel</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['1v1', '2v2', '5v5'].map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setNewDuelType(type as any)}
+                      className={`py-3 rounded-xl font-black text-sm uppercase transition-all border ${
+                        newDuelType === type 
+                          ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-600/20' 
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                <div>
+                  <div className="font-bold text-white text-sm">Duel Privé</div>
+                  <div className="text-xs text-gray-500 mt-1">Uniquement sur invitation</div>
+                </div>
+                <button 
+                  onClick={() => setIsPrivateDuel(!isPrivateDuel)}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${isPrivateDuel ? 'bg-orange-500' : 'bg-gray-600'}`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${isPrivateDuel ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+
+              <button 
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black text-sm uppercase tracking-widest transition-all shadow-lg shadow-orange-500/30 active:scale-95"
+                onClick={() => {
+                  setShowCreateDuel(false);
+                  setSelectedDuelType(newDuelType);
+                }}
+              >
+                Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDuelsList && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <h3 className="text-lg font-black text-white uppercase italic">Duels en attente</h3>
