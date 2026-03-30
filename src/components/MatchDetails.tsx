@@ -182,16 +182,6 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
 
   return (
     <div className="space-y-2 pb-20">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-1">
-        <button 
-          onClick={onBack}
-          className="p-1 hover:bg-white/10 rounded-lg transition-colors border border-white/10"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-      </div>
-
       {/* Gaming Scoreboard */}
       <div className="bg-[#1e1e1e] rounded-[1rem] p-2 sm:p-4 shadow-2xl relative overflow-hidden border border-white/5">
         {/* Top row: Country & League */}
@@ -296,7 +286,19 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
 
         {/* Buttons */}
         <div className="flex flex-col gap-2 mt-4">
-          {!isFinished ? (
+          {isUpcoming && (
+            <button 
+              className="w-full py-3 rounded-xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-bold text-xs uppercase tracking-widest transition-all"
+              onClick={() => setSelectedDuelType('training')}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Target className="w-4 h-4 text-orange-500" />
+                Entraînement Solo
+              </div>
+            </button>
+          )}
+
+          {isLive && (
             <>
               <div className="flex gap-2">
                 <button 
@@ -308,7 +310,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                     Créer un Duel
                   </div>
                 </button>
-                {activeDuels.length > 0 && isLive && (
+                {activeDuels.length > 0 && (
                   <button 
                     className="flex-1 py-4 sm:py-5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-widest transition-all shadow-lg shadow-orange-500/30 active:scale-95"
                     onClick={() => setShowDuelsList(true)}
@@ -326,17 +328,16 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
               >
                 Rejoindre la Guerre des Kops
               </button>
+              <button 
+                className="w-full py-3 rounded-xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-bold text-xs uppercase tracking-widest transition-all"
+                onClick={() => setSelectedDuelType('training')}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Target className="w-4 h-4 text-orange-500" />
+                  Entraînement Solo
+                </div>
+              </button>
             </>
-          ) : (
-            <button 
-              className="w-full py-4 sm:py-5 rounded-xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-black text-xs sm:text-sm uppercase tracking-widest transition-all active:scale-95"
-              onClick={() => setSelectedDuelType('training')}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Target className="w-4 h-4 text-orange-500" />
-                Entraînement (Match Terminé)
-              </div>
-            </button>
           )}
         </div>
       </div>

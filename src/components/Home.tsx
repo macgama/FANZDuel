@@ -38,6 +38,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
+  const [activeDuels, setActiveDuels] = useState<any[]>([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -136,6 +137,14 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
 
     fetchMatches();
     fetchLifeActions();
+
+    const q = query(collection(db, 'duels'), where('status', 'in', ['waiting', 'starting', 'active']));
+    const unsubscribeDuels = onSnapshot(q, (snapshot) => {
+      const duelsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setActiveDuels(duelsData);
+    });
+
+    return () => unsubscribeDuels();
   }, []);
 
   const handleLogout = () => {
@@ -341,9 +350,16 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); console.log("REJOINDRE clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
-                        className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors"
+                        className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
                       >
-                        REJOINDRE
+                        {activeDuels.some(d => d.matchId === match.fixture.id) ? (
+                          <>
+                            <Activity className="w-4 h-4 animate-pulse" />
+                            REJOINDRE
+                          </>
+                        ) : (
+                          'CRÉER UN DUEL'
+                        )}
                       </button>
                     </div>
                   </div>

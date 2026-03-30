@@ -7,7 +7,7 @@ import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { MatchDetails } from './MatchDetails';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 
 export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -105,20 +105,12 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchActiveDuels = async () => {
-      try {
-        const res = await fetch('/api/duels');
-        if (res.ok) {
-          const data = await res.json();
-          setActiveDuels(data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch active duels', err);
-      }
-    };
-    fetchActiveDuels();
-    const interval = setInterval(fetchActiveDuels, 5000);
-    return () => clearInterval(interval);
+    const q = query(collection(db, 'duels'), where('status', 'in', ['waiting', 'starting', 'active']));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const duelsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setActiveDuels(duelsData);
+    });
+    return () => unsubscribe();
   }, []);
 
   const groupedByCountry = useMemo(() => {
@@ -510,8 +502,14 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
               onClick={(e) => { e.stopPropagation(); onJoinDuel(isLive); }}
               className="flex-1 py-2 rounded-xl bg-orange-500 text-white font-black text-[10px] uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
             >
-              {hasActiveDuel && <Activity className="w-3 h-3 animate-pulse" />}
-              REJOINDRE
+              {hasActiveDuel ? (
+                <>
+                  <Activity className="w-3 h-3 animate-pulse" />
+                  REJOINDRE
+                </>
+              ) : (
+                'CRÉER UN DUEL'
+              )}
             </button>
           </div>
         )}
