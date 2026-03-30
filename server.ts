@@ -34,6 +34,8 @@ async function startServer() {
     clickCounts: { A: number; B: number };
     cardCounts: { A: number; B: number };
     botInterval?: NodeJS.Timeout;
+    isPrivate?: boolean;
+    inviteCode?: string;
   }> = {};
 
   function finishDuel(duelId: string, winner: string) {

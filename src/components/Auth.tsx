@@ -26,7 +26,7 @@ const GoogleIcon = () => (
 
 export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   const { showAlert } = useAlert();
-  const [step, setStep] = useState<'initial' | 'login_password' | 'register'>('initial');
+  const [step, setStep] = useState<'initial' | 'login' | 'register'>('initial');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pseudo, setPseudo] = useState('');
@@ -42,6 +42,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
 
   useEffect(() => {
     if (auth.currentUser) {
+      // If we have a user but no profile, they need to complete registration
       setStep('register');
       if (auth.currentUser.email) {
         setEmail(auth.currentUser.email);
@@ -93,31 +94,6 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
     }
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setLoading(true);
-    setError('');
-    
-    try {
-      const methods = await fetchSignInMethodsForEmail(auth, email);
-      if (methods.length > 0) {
-        setStep('login_password');
-      } else {
-        setStep('register');
-      }
-    } catch (err: any) {
-      // Fallback if fetchSignInMethodsForEmail is restricted
-      if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation') {
-        setStep('register'); // Default to register, if they exist it will fail on create
-      } else {
-        setError(err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -126,7 +102,13 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
       await signInWithEmailAndPassword(auth, email, password);
       onAuthSuccess();
     } catch (err: any) {
-      setError('Mot de passe incorrect ou compte introuvable.');
+      if (err.code === 'auth/user-not-found') {
+        setError('Compte introuvable. Voulez-vous vous inscrire ?');
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Mot de passe incorrect.');
+      } else {
+        setError('Erreur de connexion. Veuillez réessayer.');
+      }
     } finally {
       setLoading(false);
     }
@@ -269,7 +251,11 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
       setIsRegistered(true);
       onAuthSuccess();
     } catch (err: any) {
-      setError(err.message);
+      if (err.code === 'auth/email-already-in-use') {
+        setError('Cet email est déjà utilisé. Veuillez vous connecter.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -277,9 +263,9 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
 
   return (
     <div className="flex items-center justify-center flex-1 p-4">
-      <Card className="w-full">
+      <Card className="w-full max-w-md">
         <h2 className="text-3xl font-black mb-6 text-center italic uppercase tracking-tighter">
-          {step === 'initial' ? 'Rejoindre le Kop' : step === 'login_password' ? 'Bon retour' : 'Finaliser l\'inscription'}
+          {step === 'initial' ? 'Rejoindre le Kop' : step === 'login' ? 'Bon retour' : 'Créer un compte'}
         </h2>
         
         {step === 'initial' && (
@@ -299,29 +285,25 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
               <div className="flex-grow border-t border-white/10"></div>
             </div>
 
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Email</label>
-                <input 
-                  type="email" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="votre@email.com"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none"
-                  required
-                />
-              </div>
-              
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Vérification...' : 'Se connecter'}
+            <div className="grid grid-cols-2 gap-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setStep('login')}
+                className="w-full"
+              >
+                Connexion
               </Button>
-            </form>
+              <Button 
+                onClick={() => setStep('register')}
+                className="w-full"
+              >
+                Inscription
+              </Button>
+            </div>
           </div>
         )}
 
-        {step === 'login_password' && (
+        {step === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <button 
@@ -331,7 +313,20 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <span className="text-sm font-bold text-gray-400">{email}</span>
+              <span className="text-sm font-bold text-gray-400">Connexion</span>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Email</label>
+              <input 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="votre@email.com"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none"
+                required
+                autoFocus
+              />
             </div>
 
             <div>
@@ -342,11 +337,23 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none"
                 required
-                autoFocus
               />
             </div>
 
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-red-500 text-sm">{error}</p>
+                {error.includes('s\'inscrire') && (
+                  <button 
+                    type="button"
+                    onClick={() => setStep('register')}
+                    className="text-xs text-orange-500 font-bold uppercase mt-2 hover:underline"
+                  >
+                    Aller à l'inscription
+                  </button>
+                )}
+              </div>
+            )}
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Connexion...' : 'Se connecter'}
@@ -366,7 +373,6 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
             </div>
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">
-            {!auth.currentUser && (
               <div className="flex items-center gap-2 mb-4">
                 <button 
                   type="button" 
@@ -375,95 +381,120 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <span className="text-sm font-bold text-gray-400">{email}</span>
+                <span className="text-sm font-bold text-gray-400">Inscription</span>
               </div>
-            )}
 
-            <div>
-              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Pseudo</label>
-              <input 
-                type="text" 
-                value={pseudo} 
-                onChange={(e) => setPseudo(e.target.value)}
-                placeholder="Votre nom de supporter"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none"
-                required
-              />
-            </div>
-            
-            {!auth.currentUser && (
+              {!auth.currentUser && (
+                <>
+                  <div>
+                    <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Email</label>
+                    <input 
+                      type="email" 
+                      value={email} 
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="votre@email.com"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Mot de passe</label>
+                    <input 
+                      type="password" 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
               <div>
-                <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Mot de passe</label>
+                <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Pseudo</label>
                 <input 
-                  type="password" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)}
+                  type="text" 
+                  value={pseudo} 
+                  onChange={(e) => setPseudo(e.target.value)}
+                  placeholder="Votre nom de supporter"
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none"
                   required
                 />
               </div>
-            )}
 
-            <div className="relative">
-              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Équipe Favorite</label>
-              {selectedTeam ? (
-                <div className="flex items-center justify-between bg-white/5 border border-orange-500 rounded-lg px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <img src={selectedTeam.team.logo} alt="" className="w-6 h-6 object-contain" />
-                    <span className="font-bold">{selectedTeam.team.name}</span>
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setSelectedTeam(null)}
-                    className="text-xs text-gray-400 hover:text-white font-bold uppercase"
-                  >
-                    Changer
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input 
-                      type="text" 
-                      value={teamSearch} 
-                      onChange={(e) => setTeamSearch(e.target.value)}
-                      placeholder="Rechercher une équipe..."
-                      className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-3 focus:border-orange-500 outline-none"
-                    />
-                  </div>
-                  {isSearchingTeam && <p className="text-xs text-gray-500 mt-2 font-bold animate-pulse">Recherche en cours...</p>}
-                  {teamResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-gray-900 border border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                      {teamResults.map((result: any) => (
-                        <div 
-                          key={result.team.id}
-                          onClick={() => {
-                            setSelectedTeam(result);
-                            setTeamSearch('');
-                            setTeamResults([]);
-                          }}
-                          className="flex items-center gap-3 p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0"
-                        >
-                          <img src={result.team.logo} alt="" className="w-8 h-8 object-contain" />
-                          <div className="flex flex-col">
-                            <span className="font-bold text-sm">{result.team.name}</span>
-                            <span className="text-[10px] text-gray-500 uppercase tracking-widest">{result.team.country}</span>
-                          </div>
-                        </div>
-                      ))}
+              <div className="relative">
+                <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Équipe Favorite</label>
+                {selectedTeam ? (
+                  <div className="flex items-center justify-between bg-white/5 border border-orange-500 rounded-lg px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <img src={selectedTeam.team.logo} alt="" className="w-6 h-6 object-contain" />
+                      <span className="font-bold">{selectedTeam.team.name}</span>
                     </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setSelectedTeam(null)}
+                      className="text-xs text-gray-400 hover:text-white font-bold uppercase"
+                    >
+                      Changer
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <input 
+                        type="text" 
+                        value={teamSearch} 
+                        onChange={(e) => setTeamSearch(e.target.value)}
+                        placeholder="Rechercher une équipe..."
+                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-3 focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                    {isSearchingTeam && <p className="text-xs text-gray-500 mt-2 font-bold animate-pulse">Recherche en cours...</p>}
+                    {teamResults.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-gray-900 border border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                        {teamResults.map((result: any) => (
+                          <div 
+                            key={result.team.id}
+                            onClick={() => {
+                              setSelectedTeam(result);
+                              setTeamSearch('');
+                              setTeamResults([]);
+                            }}
+                            className="flex items-center gap-3 p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0"
+                          >
+                            <img src={result.team.logo} alt="" className="w-8 h-8 object-contain" />
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm">{result.team.name}</span>
+                              <span className="text-[10px] text-gray-500 uppercase tracking-widest">{result.team.country}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <p className="text-red-500 text-sm">{error}</p>
+                  {error.includes('déjà utilisé') && (
+                    <button 
+                      type="button"
+                      onClick={() => setStep('login')}
+                      className="text-xs text-orange-500 font-bold uppercase mt-2 hover:underline"
+                    >
+                      Aller à la connexion
+                    </button>
                   )}
-                </>
+                </div>
               )}
-            </div>
 
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-
-            <Button type="submit" className="w-full" disabled={loading || (!selectedTeam && !auth.currentUser)}>
-              {loading ? 'Traitement...' : 'S\'inscrire'}
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" disabled={loading || (!selectedTeam && !auth.currentUser)}>
+                {loading ? 'Traitement...' : 'S\'inscrire'}
+              </Button>
+            </form>
           )
         )}
       </Card>

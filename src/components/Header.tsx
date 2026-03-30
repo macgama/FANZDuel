@@ -193,21 +193,24 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
         </div>
 
         {/* Right: Menu Button OR Home Button */}
-        {variant === 'subpage' ? (
-          <button 
-            onClick={() => onHomeClick?.()} 
-            className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
-          >
-            <HomeIcon className="w-5 h-5" />
-          </button>
-        ) : (
-          <button 
-            onClick={() => onMenuClick?.()} 
-            className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-        )}
+        <div className="shrink-0 ml-2">
+          {variant === 'subpage' ? (
+            <button 
+              onClick={() => onHomeClick?.()} 
+              className="w-11 h-11 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
+            >
+              <HomeIcon className="w-5 h-5" />
+            </button>
+          ) : (
+            <button 
+              onClick={() => onMenuClick?.()} 
+              className="flex flex-col items-center justify-center w-12 h-12 bg-black/50 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/10 transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+              <span className="text-[10px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500">Menu</span>
+            </button>
+          )}
+        </div>
       </header>
 
       {showProfileModal && (

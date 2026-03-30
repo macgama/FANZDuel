@@ -328,15 +328,6 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
               >
                 Rejoindre la Guerre des Kops
               </button>
-              <button 
-                className="w-full py-3 rounded-xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-bold text-xs uppercase tracking-widest transition-all"
-                onClick={() => setSelectedDuelType('training')}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <Target className="w-4 h-4 text-orange-500" />
-                  Entraînement Solo
-                </div>
-              </button>
             </>
           )}
         </div>

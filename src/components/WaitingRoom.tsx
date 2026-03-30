@@ -102,7 +102,7 @@ export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
             />
             {inviteCode && (
               <button 
-                onClick={() => onJoinDuel('private_duel', '1v1', inviteCode)}
+                onClick={handleJoinByCode}
                 className="absolute right-1 top-1 bottom-1 bg-orange-600 hover:bg-orange-500 text-white px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
               >
                 Go
