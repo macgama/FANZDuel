@@ -9,7 +9,7 @@ interface LayoutProps {
   isMobileOnly?: boolean;
 }
 
-export function Layout({ children, className, containerClassName, isMobileOnly = true }: LayoutProps) {
+export function Layout({ children, className, containerClassName, isMobileOnly = false }: LayoutProps) {
   return (
     <div 
       className={cn("h-[100dvh] text-white font-sans flex justify-center bg-[#0a0a0a]", className)}
@@ -17,7 +17,7 @@ export function Layout({ children, className, containerClassName, isMobileOnly =
     >
       <div className={cn(
         "w-full h-[100dvh] relative flex flex-col overflow-hidden",
-        isMobileOnly ? "max-w-[450px] shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#121212] border-x border-white/5" : "max-w-7xl",
+        isMobileOnly ? "max-w-[450px] shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#121212] border-x border-white/5" : "max-w-7xl mx-auto shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#121212] sm:border-x border-white/5",
         containerClassName
       )}>
         {children}

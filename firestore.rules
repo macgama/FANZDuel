@@ -118,7 +118,7 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards']) &&
+      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards', 'claimedFervorRewards', 'friends', 'friendRequests', 'xp', 'ferveur', 'lastActive']) &&
              (!('uid' in data) || data.uid is string) &&
              (!('pseudo' in data) || (data.pseudo is string && data.pseudo.size() > 0 && data.pseudo.size() < 50)) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
@@ -128,7 +128,8 @@ service cloud.firestore {
              (!('money' in data) || data.money is number) &&
              (!('gems' in data) || data.gems is number) &&
              (!('boostPoints' in data) || data.boostPoints is number) &&
-             (!('energy' in data) || (data.energy is number && data.energy >= 0 && data.energy <= 100)) &&
+             (!('energy' in data) || (data.energy is number && data.energy >= 0 && data.energy <= 1000)) &&
+             (!('maxEnergy' in data) || (data.maxEnergy is number && data.maxEnergy >= 0)) &&
              (!('lastEnergyRefill' in data) || isValidDateString(data.lastEnergyRefill)) &&
              (!('ferveurPoints' in data) || data.ferveurPoints is number) &&
              (!('level' in data) || data.level is number) &&
@@ -147,17 +148,35 @@ service cloud.firestore {
              (!('passPoints' in data) || data.passPoints is number) &&
              (!('isPassPremium' in data) || data.isPassPremium is bool) &&
              (!('claimedPassRewards' in data) || data.claimedPassRewards is list) &&
-             (!('role' in data) || data.role in ['admin', 'moderator', 'client']);
+             (!('claimedFervorRewards' in data) || data.claimedFervorRewards is list) &&
+             (!('role' in data) || data.role in ['admin', 'moderator', 'client']) &&
+             (!('friends' in data) || data.friends is list) &&
+             (!('friendRequests' in data) || data.friendRequests is list) &&
+             (!('xp' in data) || data.xp is number) &&
+             (!('ferveur' in data) || data.ferveur is number) &&
+             (!('lastActive' in data) || isValidDateString(data.lastActive));
     }
 
     function isValidFanz(data) {
-      return hasOnlyAllowedFields(['id', 'templateId', 'ownerUid', 'name', 'sport', 'imageUrl', 'videoUrl', 'stats', 'xp', 'level', 'rank', 'claimedRewards', 'claimedChoices', 'ferveurPoints', 'ferveurLevel', 'energy', 'equippedCards', 'unlockedSkins', 'equippedSkin', 'unlockedEmotes', 'unlockedActions', 'lifeActionProgress']) &&
-             (resource == null ? data.ownerUid == request.auth.uid : data.ownerUid == resource.data.ownerUid) &&
+      let ownerId = 'ownerUid' in data ? data.ownerUid : ('uid' in data ? data.uid : '');
+      let resOwnerId = resource == null ? '' : ('ownerUid' in resource.data ? resource.data.ownerUid : ('uid' in resource.data ? resource.data.uid : ''));
+      return hasOnlyAllowedFields(['id', 'templateId', 'ownerUid', 'uid', 'name', 'sport', 'imageUrl', 'videoUrl', 'image', 'video', 'description', 'rarity', 'baseStats', 'specialCards', 'skins', 'emotes', 'ferveurPath', 'rankRewards', 'stats', 'xp', 'level', 'rank', 'claimedRewards', 'claimedChoices', 'ferveurPoints', 'ferveurLevel', 'energy', 'equippedCards', 'unlockedSkins', 'equippedSkin', 'unlockedEmotes', 'unlockedActions', 'lifeActionProgress', 'baseExcitement', 'deck', 'createdAt', 'updatedAt']) &&
+             (resource == null ? ownerId == request.auth.uid : ownerId == resOwnerId) &&
              data.templateId is string && data.templateId.size() > 0 && data.templateId.size() < 50 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
              data.sport is string &&
              (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 2000)) &&
              (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() < 2000)) &&
+             (!('image' in data) || (data.image is string && data.image.size() < 2000)) &&
+             (!('video' in data) || (data.video is string && data.video.size() < 2000)) &&
+             (!('description' in data) || data.description is string) &&
+             (!('rarity' in data) || data.rarity is string) &&
+             (!('baseStats' in data) || data.baseStats is map) &&
+             (!('specialCards' in data) || data.specialCards is list) &&
+             (!('skins' in data) || data.skins is list) &&
+             (!('emotes' in data) || data.emotes is list) &&
+             (!('ferveurPath' in data) || data.ferveurPath is list) &&
+             (!('rankRewards' in data) || data.rankRewards is map || data.rankRewards is list) &&
              data.stats is map &&
              data.xp is number &&
              data.level is number &&
@@ -172,7 +191,11 @@ service cloud.firestore {
              (!('equippedSkin' in data) || data.equippedSkin == null || (data.equippedSkin is string && data.equippedSkin.size() < 100)) &&
              (!('unlockedEmotes' in data) || data.unlockedEmotes is list) &&
              (!('unlockedActions' in data) || data.unlockedActions is list) &&
-             (!('lifeActionProgress' in data) || data.lifeActionProgress is map);
+             (!('lifeActionProgress' in data) || data.lifeActionProgress is map) &&
+             (!('baseExcitement' in data) || data.baseExcitement is number) &&
+             (!('deck' in data) || data.deck is list) &&
+             (!('createdAt' in data) || data.createdAt is string) &&
+             (!('updatedAt' in data) || data.updatedAt is string);
     }
 
     function isValidTransaction(data) {
@@ -187,6 +210,37 @@ service cloud.firestore {
     // ===============================================================
     // Rules
     // ===============================================================
+
+    function isValidMessage(data) {
+      return hasOnlyAllowedFields(['id', 'senderId', 'receiverId', 'emoteId', 'timestamp', 'read']) &&
+             data.senderId == request.auth.uid &&
+             data.receiverId is string &&
+             data.emoteId is string &&
+             data.timestamp is string &&
+             (!('read' in data) || data.read is bool);
+    }
+
+    function isValidChat(data) {
+      return hasOnlyAllowedFields(['id', 'participants', 'lastMessage', 'lastMessageTime', 'unreadCount']) &&
+             data.participants is list &&
+             data.participants.size() == 2 &&
+             request.auth.uid in data.participants &&
+             (!('lastMessage' in data) || data.lastMessage is string) &&
+             (!('lastMessageTime' in data) || data.lastMessageTime is string) &&
+             (!('unreadCount' in data) || data.unreadCount is map);
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && isValidChat(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants && isValidChat(request.resource.data);
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants && isValidMessage(request.resource.data);
+        allow update: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      }
+    }
 
     match /users/{userId} {
       allow read: if isAuthenticated(); // Allow reading other users for duels/leaderboards
@@ -232,6 +286,28 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
       allow delete: if isAdmin();
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow update: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
+    }
+
+    match /emotes/{emoteId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /skins/{skinId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /match_scores/{scoreId} {

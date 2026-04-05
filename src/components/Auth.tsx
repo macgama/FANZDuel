@@ -41,13 +41,9 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
-    if (auth.currentUser) {
-      // If we have a user but no profile, they need to complete registration
-      setStep('register');
-      if (auth.currentUser.email) {
-        setEmail(auth.currentUser.email);
-      }
-    }
+    // Only auto-redirect to register if we are sure the user is authenticated 
+    // but has no profile (this is handled by App.tsx rendering this component)
+    // We don't want to force 'register' step if they just landed here.
   }, []);
 
   useEffect(() => {
@@ -166,7 +162,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           uid: user.uid,
           pseudo,
           email: user.email || email,
-          favoriteTeams: [teamName],
+          favoriteTeams: [teamId],
           ferveurPoints: ferveurBonus,
           cards: initialCards,
           lastEnergyRefill: new Date().toISOString(),

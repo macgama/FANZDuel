@@ -146,7 +146,22 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
     );
   }
 
-  if (!league) return null;
+  if (!league) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4 text-center px-4">
+        <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-2">
+          <Activity className="w-8 h-8 text-gray-500" />
+        </div>
+        <h3 className="text-xl font-black text-white uppercase italic">Données indisponibles</h3>
+        <p className="text-gray-400 text-sm max-w-xs">
+          Impossible de charger les détails de la compétition. La limite de requêtes a peut-être été atteinte.
+        </p>
+        <Button onClick={onBack} variant="outline" className="mt-4">
+          Retour
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3 pb-20">

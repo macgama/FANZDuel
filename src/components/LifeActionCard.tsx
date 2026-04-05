@@ -147,7 +147,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
 
       // Update User
       await updateDoc(userRef, {
-        energy: userProfile.energy + gainEnergy,
+        energy: Math.min(100, userProfile.energy + gainEnergy),
         money: userProfile.money + gainMoney,
         gems: (userProfile.gems || 0) + gainGems,
         boostPoints: (userProfile.boostPoints || 0) + gainBoost,
@@ -234,7 +234,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       // Update User (Gems + Rewards + clear active action)
       await updateDoc(userRef, {
         gems: userProfile.gems - 1 + gainGems,
-        energy: userProfile.energy + gainEnergy,
+        energy: Math.min(100, userProfile.energy + gainEnergy),
         money: userProfile.money + gainMoney,
         boostPoints: (userProfile.boostPoints || 0) + gainBoost,
         activeAction: deleteField()

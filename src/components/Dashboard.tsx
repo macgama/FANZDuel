@@ -18,9 +18,10 @@ interface DashboardProps {
   onLeagueClick: (leagueId: number, season: number) => void;
   onMatchClick: (matchId: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void;
   onFanzClick?: (fanzId: string) => void;
+  onDuelIntent?: (callback: () => void) => void;
 }
 
-export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMatchClick, onFanzClick }: DashboardProps) {
+export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMatchClick, onFanzClick, onDuelIntent }: DashboardProps) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [fanzList, setFanzList] = useState<Fanz[]>([]);
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
@@ -83,7 +84,11 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
   }, []);
 
   const handleStartDuel = (type: Duel['type']) => {
-    setSelectedDuelType(type);
+    if (onDuelIntent) {
+      onDuelIntent(() => setSelectedDuelType(type));
+    } else {
+      setSelectedDuelType(type);
+    }
   };
 
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
@@ -116,9 +121,13 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
         teamB="KOP B"
         initialDuelType={selectedDuelType}
         onExit={() => setSelectedDuelType(null)} 
+        onNavigateToFanz={onFanzClick}
       />
     );
   }
+
+  const activeFanzCount = fanzTemplates.filter(f => f.isActive !== false).length;
+  const maxFerveurPoints = activeFanzCount > 0 ? activeFanzCount * 1000 : 100000;
 
   return (
     <div className="space-y-8">
@@ -148,12 +157,12 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
             <h3 className="text-xl font-black italic uppercase tracking-tight">Level {user.level}</h3>
             <p className="text-xs text-gray-400 uppercase font-bold">Chemin de la Ferveur</p>
           </div>
-          <p className="text-sm font-mono">{user.ferveurPoints} / 100,000 XP</p>
+          <p className="text-sm font-mono">{user.ferveurPoints} / {maxFerveurPoints.toLocaleString()} XP</p>
         </div>
         <div className="h-3 bg-white/10 rounded-full overflow-hidden">
           <motion.div 
             initial={{ width: 0 }}
-            animate={{ width: `${(user.ferveurPoints / 100000) * 100}%` }}
+            animate={{ width: `${(user.ferveurPoints / maxFerveurPoints) * 100}%` }}
             className="h-full bg-orange-600"
           />
         </div>

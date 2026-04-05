@@ -18,7 +18,7 @@ export interface GameAlert {
   videoUrl?: string;
   imageUrl?: string;
   rewards?: Reward[];
-  type: 'success' | 'unlock' | 'level-up';
+  type: 'success' | 'unlock' | 'level-up' | 'error';
 }
 
 interface AlertContextType {
@@ -66,7 +66,7 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 overflow-hidden"
+      className="absolute inset-0 z-[9999] flex items-center justify-center bg-black/80 overflow-hidden"
     >
       {/* Background Video or Image */}
       <div className="absolute inset-0 z-0">
@@ -113,6 +113,8 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
                   <Trophy className="w-12 h-12 text-white" />
                 ) : alert.type === 'unlock' ? (
                   <Star className="w-12 h-12 text-white fill-current" />
+                ) : alert.type === 'error' ? (
+                  <X className="w-12 h-12 text-white" />
                 ) : (
                   <CheckCircle2 className="w-12 h-12 text-white" />
                 )}

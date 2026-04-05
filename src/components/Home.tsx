@@ -14,7 +14,11 @@ import {
   ArrowRight, 
   ChevronLeft, 
   ChevronRight,
-  Zap
+  Zap,
+  Calendar,
+  Store,
+  Target,
+  Ticket
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
@@ -26,13 +30,14 @@ import { Header } from './Header';
 
 interface HomeProps {
   profile: UserProfile;
-  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social') => void;
+  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
+  onOpenStreak: () => void;
 }
 
-export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDuel }: HomeProps) {
+export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDuel, onOpenStreak }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
@@ -160,6 +165,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
         onMenuClick={onMenuClick}
         onHomeClick={() => setShowProfileModal(true)}
         onTransactionsClick={() => onNavigate('transactions')}
+        onFervorClick={() => onNavigate('fervor-path')}
         absolute
       />
 
@@ -230,6 +236,45 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
           </div>
         </div>
 
+        {/* Quick Links */}
+        <div className="px-4 sm:px-8 py-6 grid grid-cols-5 gap-3 sm:gap-4">
+          <button 
+            onClick={onOpenStreak}
+            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
+            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Série</span>
+          </button>
+          <button 
+            onClick={() => onNavigate('fervor-path')}
+            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <Flame className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
+            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Ferveur</span>
+          </button>
+          <button 
+            onClick={() => onNavigate('shop')}
+            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <Store className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Shop</span>
+          </button>
+          <button 
+            onClick={() => onNavigate('missions')}
+            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <Target className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
+            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Missions</span>
+          </button>
+          <button 
+            onClick={() => onNavigate('pass')}
+            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <Ticket className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500" />
+            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Pass</span>
+          </button>
+        </div>
+
         {/* Content Below Video (Live Matches or Life Actions) */}
         <div className="flex-1 flex flex-col justify-center py-4">
           {liveMatches.length === 0 && activeFanz && fanzTemplate && (
@@ -276,64 +321,64 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                   return (
                   <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group">
                     {/* Header: Country & League */}
-                    <div className="flex justify-between items-center text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                    <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">
                       <div className="flex items-center gap-1.5">
-                        {match.league?.flag && <img src={match.league.flag} alt="" className="w-3 h-2 object-cover rounded-sm" />}
+                        {match.league?.flag && <img src={match.league.flag} alt="" className="w-4 h-3 object-cover rounded-sm" />}
                         <span>{match.league?.country}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {match.league?.logo && <img src={match.league.logo} alt="" className="w-3 h-3 object-contain" />}
+                        {match.league?.logo && <img src={match.league.logo} alt="" className="w-4 h-4 object-contain" />}
                         <span>{match.league?.name}</span>
                       </div>
                     </div>
 
                     {/* Teams & Score */}
-                    <div className="flex justify-between items-start mt-1">
+                    <div className="flex justify-between items-start mt-2">
                       {/* Home Team */}
-                      <div className="flex flex-col items-center gap-1.5 flex-1">
-                        <div className="w-10 h-10 bg-white rounded-full p-1 flex items-center justify-center">
-                          <img src={match.teams.home.logo} alt="" className="w-7 h-7 object-contain" />
+                      <div className="flex flex-col items-center gap-2 flex-1">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center">
+                          <img src={match.teams.home.logo} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
                         </div>
-                        <span className="font-black text-[10px] text-center uppercase leading-tight h-6 flex items-center">{match.teams.home.name}</span>
-                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
-                          <Flame className="w-2.5 h-2.5 text-orange-500" />
-                          <span className="text-[8px] font-black text-orange-500">{scoreA} PTS</span>
+                        <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight h-8 flex items-center">{match.teams.home.name}</span>
+                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
+                          <Flame className="w-3 h-3 text-orange-500" />
+                          <span className="text-[10px] sm:text-xs font-black text-orange-500">{scoreA} PTS</span>
                         </div>
                       </div>
 
                       {/* Score & Time */}
-                      <div className="flex flex-col items-center justify-center px-2">
-                        <div className="text-2xl font-black tracking-tighter flex items-center gap-0.5">
+                      <div className="flex flex-col items-center justify-center px-3 sm:px-4">
+                        <div className="text-3xl sm:text-4xl font-black tracking-tighter flex items-center gap-1">
                           <span>{match.goals.home ?? 0}</span>
                           <span className="text-orange-500">:</span>
                           <span>{match.goals.away ?? 0}</span>
                         </div>
-                        <div className="mt-1 bg-orange-500/20 border border-orange-500/30 rounded-full w-6 h-6 flex items-center justify-center">
-                          <span className="text-[8px] font-black text-orange-500">{match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'` : match.fixture.status.short}</span>
+                        <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center">
+                          <span className="text-[10px] sm:text-xs font-black text-orange-500">{match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'` : match.fixture.status.short}</span>
                         </div>
                       </div>
 
                       {/* Away Team */}
-                      <div className="flex flex-col items-center gap-1.5 flex-1">
-                        <div className="w-10 h-10 bg-transparent flex items-center justify-center">
-                          <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" />
+                      <div className="flex flex-col items-center gap-2 flex-1">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-transparent flex items-center justify-center">
+                          <img src={match.teams.away.logo} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
                         </div>
-                        <span className="font-black text-[10px] text-center uppercase leading-tight h-6 flex items-center">{match.teams.away.name}</span>
-                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
-                          <Flame className="w-2.5 h-2.5 text-blue-500" />
-                          <span className="text-[8px] font-black text-blue-500">{scoreB} PTS</span>
+                        <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight h-8 flex items-center">{match.teams.away.name}</span>
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
+                          <Flame className="w-3 h-3 text-blue-500" />
+                          <span className="text-[10px] sm:text-xs font-black text-blue-500">{scoreB} PTS</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Dominance Bar */}
-                    <div className="mt-2">
-                      <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    <div className="mt-4">
+                      <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                         <span className="text-orange-500">{dominanceA}%</span>
                         <span>DOMINANCE MONDIALE</span>
                         <span className="text-blue-500">{dominanceB}%</span>
                       </div>
-                      <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden flex relative">
+                      <div className="h-2 w-full bg-black/60 rounded-full overflow-hidden flex relative">
                         <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${dominanceA}%` }} />
                         <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${dominanceB}%` }} />
                         <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>

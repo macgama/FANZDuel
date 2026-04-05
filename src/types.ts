@@ -26,6 +26,7 @@ export interface UserProfile {
   gems: number;
   boostPoints: number;
   energy: number;
+  maxEnergy?: number;
   lastEnergyRefill: string;
   ferveurPoints: number;
   level: number;
@@ -42,9 +43,11 @@ export interface UserProfile {
   claimedStreakDays: number[]; // Days claimed in current week (1-7)
   missionsProgress?: Record<string, UserMissionProgress>;
   passId?: string;
+  purchasedPasses?: string[];
   passPoints: number;
   isPassPremium: boolean;
   claimedPassRewards: string[]; // "level-X-free" or "level-X-premium"
+  claimedFervorRewards?: string[];
   friends?: string[];
   friendRequests?: string[];
 }
@@ -116,26 +119,29 @@ export interface FanzEmote {
 export interface FerveurLevel {
   id?: string;
   level?: number;
+  displayLevel?: number;
   isIntermediate?: boolean;
   pointsRequired: number;
   reward?: {
-    type: 'money' | 'gems' | 'boost' | 'energy' | 'xp' | 'card' | 'skin' | 'emote' | 'action' | 'choice';
+    type: 'money' | 'gems' | 'boost' | 'energy' | 'xp' | 'card' | 'skin' | 'emote' | 'action' | 'choice' | 'team_slot' | 'fanz';
     amount?: number;
     cardId?: string;
     skinId?: string;
     emoteId?: string;
     actionId?: string;
+    fanzId?: string;
     statName?: keyof FanzStats;
   };
 }
 
 export interface RankReward {
   id: string; // rank-X-slot-Y
-  type: 'xp' | 'card' | 'choice' | 'skin' | 'emote';
+  type: 'xp' | 'card' | 'choice' | 'skin' | 'emote' | 'team_slot' | 'fanz';
   amount?: number;
   cardId?: string;
   skinId?: string;
   emoteId?: string;
+  fanzId?: string;
 }
 
 export interface FanzTemplate {
@@ -153,6 +159,7 @@ export interface FanzTemplate {
   emotes: FanzEmote[];
   ferveurPath?: FerveurLevel[];
   rankRewards?: Record<string, RankReward>;
+  isActive?: boolean;
 }
 
 export interface Fanz {
@@ -280,6 +287,8 @@ export interface Pass {
     gems?: number;
     boostPoints?: number;
   };
+  skinRewardId?: string;
+  skinReward?: FanzSkin;
 }
 
 export interface WeeklyStreakConfig {
@@ -294,9 +303,18 @@ export interface WeeklyStreakCycle {
   days: WeeklyStreakConfig[];
 }
 
+export interface FervorRangeConfig {
+  level: number;
+  min: number;
+  max: number;
+  step: number;
+  levelReward: NonNullable<FerveurLevel['reward']>;
+  intermediateReward: NonNullable<FerveurLevel['reward']>;
+}
+
 export interface GlobalFervorConfig {
   id: string; // 'default'
-  levels: FerveurLevel[];
+  ranges: FervorRangeConfig[];
 }
 
 export interface DuelStatEffect {

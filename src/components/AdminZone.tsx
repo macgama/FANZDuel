@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { footballApi } from '../services/footballApi';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where } from 'firebase/firestore';
+import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where, getDoc, updateDoc } from 'firebase/firestore';
 import { Card, Button } from './Layout';
-import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle, DuelConfig } from '../types';
+import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle, DuelConfig, FanzSkin, PassLevel } from '../types';
 import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { RewardSelector } from './RewardSelector';
@@ -119,6 +119,82 @@ export function AdminZone() {
     }
   };
 
+  const generateWCPass = async () => {
+    try {
+      setStatus({ type: 'info', message: 'Génération du Pass World Cup 2026...' });
+      
+      // 1. Fetch Fanz-1 (Bébé Fanzzy)
+      const fanzRef = doc(db, 'fanz_templates', 'fanz-1');
+      const fanzSnap = await getDoc(fanzRef);
+      
+      if (!fanzSnap.exists()) {
+        setStatus({ type: 'error', message: 'Le Fanz Bébé Fanzzy (fanz-1) n\'existe pas.' });
+        return;
+      }
+      
+      const fanzData = fanzSnap.data() as FanzTemplate;
+      const existingSkins = fanzData.skins || [];
+      
+      // 2. Create 48 skins
+      const newSkins: FanzSkin[] = [];
+      for (let i = 1; i <= 48; i++) {
+        const skinId = `skin-bebe-wc26-${i}`;
+        // Only add if it doesn't already exist
+        if (!existingSkins.find(s => s.id === skinId)) {
+          newSkins.push({
+            id: skinId,
+            fanzId: 'fanz-1',
+            name: `Skin WC26 - Équipe ${i}`,
+            imageUrl: `gs://thebestfanonlinegas.firebasestorage.app/public/fanz/wc26/equipe${i}.png`,
+            price: {} // Exclusive to pass
+          });
+        }
+      }
+      
+      if (newSkins.length > 0) {
+        await updateDoc(fanzRef, {
+          skins: [...existingSkins, ...newSkins]
+        });
+      }
+      
+      // 3. Create the Pass
+      const passId = `pass-wc26-${Date.now()}`;
+      const levels: PassLevel[] = [];
+      
+      for (let i = 1; i <= 48; i++) {
+        levels.push({
+          level: i,
+          pointsRequired: i * 100, // 100 points per level
+          freeReward: { type: 'money', amount: 50 * i },
+          premiumReward: { type: 'skin', skinId: `skin-bebe-wc26-${i}` }
+        });
+      }
+      
+      const newPass: Pass = {
+        id: passId,
+        name: 'Skin Bébé Fanzzy World Cup 2026',
+        description: 'Gagnez les 48 skins des équipes qualifiées pour la Coupe du Monde 2026 !',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days
+        priceGems: 0,
+        premiumPrice: {
+          money: 10000,
+          gems: 500
+        },
+        levels: levels,
+        isActive: true
+      };
+      
+      await setDoc(doc(db, 'passes', passId), newPass);
+      
+      setStatus({ type: 'success', message: 'Pass World Cup 2026 généré avec succès !' });
+      fetchPasses();
+    } catch (err) {
+      console.error("Error generating WC pass", err);
+      handleFirestoreError(err, OperationType.WRITE, 'passes/wc26');
+    }
+  };
+
   const fetchUserFervorConfig = async () => {
     try {
       const docSnap = await getDocs(collection(db, 'global_configs'));
@@ -129,11 +205,23 @@ export function AdminZone() {
         // Initialize if missing
         const defaultConfig: GlobalFervorConfig = {
           id: 'user_fervor',
-          levels: Array.from({ length: 15 }).map((_, i) => ({
-            level: i + 1,
-            pointsRequired: (i + 1) * 6666, // roughly 100k at level 15
-            reward: { type: 'money', amount: 1000 }
-          }))
+          ranges: [
+            { level: 1, min: 0, max: 499, step: 10, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 2, min: 500, max: 1549, step: 15, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 3, min: 1550, max: 5099, step: 50, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 4, min: 5100, max: 10099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 5, min: 10100, max: 15099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 6, min: 15100, max: 20099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 7, min: 20100, max: 25099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 8, min: 25100, max: 30199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 9, min: 30200, max: 40199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 10, min: 40200, max: 50199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 11, min: 50200, max: 60199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 12, min: 60200, max: 70199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 13, min: 70200, max: 80199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 14, min: 80200, max: 90199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+            { level: 15, min: 90200, max: 99999, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          ]
         };
         setUserFervorConfig(defaultConfig);
       }
@@ -577,13 +665,20 @@ export function AdminZone() {
       const batch = writeBatch(db);
       let count = 0;
 
-      const defaultPath: FerveurLevel[] = [
-        { level: 1, pointsRequired: 249, reward: { type: 'money' as const, amount: 100 } },
-        { level: 2, pointsRequired: 499, reward: { type: 'money' as const, amount: 100 } },
-        { level: 3, pointsRequired: 749, reward: { type: 'money' as const, amount: 100 } },
-        { level: 4, pointsRequired: 999, reward: { type: 'money' as const, amount: 100 } },
-        { level: 5, pointsRequired: 1000, reward: { type: 'money' as const, amount: 100 } }
-      ];
+      const defaultPath: FerveurLevel[] = [];
+      for (let pts = 25; pts <= 1000; pts += 25) {
+        if (pts === 250) {
+          defaultPath.push({ level: 2, pointsRequired: 250, reward: { type: 'money' as const, amount: 100 } });
+        } else if (pts === 500) {
+          defaultPath.push({ level: 3, pointsRequired: 500, reward: { type: 'money' as const, amount: 100 } });
+        } else if (pts === 750) {
+          defaultPath.push({ level: 4, pointsRequired: 750, reward: { type: 'money' as const, amount: 100 } });
+        } else if (pts === 1000) {
+          defaultPath.push({ level: 5, pointsRequired: 1000, reward: { type: 'money' as const, amount: 100 } });
+        } else {
+          defaultPath.push({ isIntermediate: true, pointsRequired: pts, reward: { type: 'money' as const, amount: 25 } });
+        }
+      }
 
       for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
@@ -607,6 +702,22 @@ export function AdminZone() {
 
   const handleCreateNewFanz = () => {
     const newId = `fanz-${Date.now()}`;
+    
+    const defaultPath: FerveurLevel[] = [];
+    for (let pts = 25; pts <= 1000; pts += 25) {
+      if (pts === 250) {
+        defaultPath.push({ level: 2, pointsRequired: 250, reward: { type: 'money' as const, amount: 100 } });
+      } else if (pts === 500) {
+        defaultPath.push({ level: 3, pointsRequired: 500, reward: { type: 'money' as const, amount: 100 } });
+      } else if (pts === 750) {
+        defaultPath.push({ level: 4, pointsRequired: 750, reward: { type: 'money' as const, amount: 100 } });
+      } else if (pts === 1000) {
+        defaultPath.push({ level: 5, pointsRequired: 1000, reward: { type: 'money' as const, amount: 100 } });
+      } else {
+        defaultPath.push({ isIntermediate: true, pointsRequired: pts, reward: { type: 'money' as const, amount: 25 } });
+      }
+    }
+
     setEditingFanz({
       id: newId,
       name: 'Nouveau FANZ',
@@ -622,13 +733,7 @@ export function AdminZone() {
       specialCards: [],
       skins: [],
       emotes: [],
-      ferveurPath: [
-        { level: 1, pointsRequired: 249, reward: { type: 'money', amount: 100 } },
-        { level: 2, pointsRequired: 499, reward: { type: 'money', amount: 100 } },
-        { level: 3, pointsRequired: 749, reward: { type: 'money', amount: 100 } },
-        { level: 4, pointsRequired: 999, reward: { type: 'money', amount: 100 } },
-        { level: 5, pointsRequired: 1000, reward: { type: 'money', amount: 100 } }
-      ],
+      ferveurPath: defaultPath,
       rankRewards: {}
     });
   };
@@ -1098,80 +1203,46 @@ export function AdminZone() {
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold">Chemin de Ferveur Global</h3>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => {
-                    const newLevels: FerveurLevel[] = [...userFervorConfig.levels, {
-                      id: `inter-${Date.now()}`,
-                      isIntermediate: true,
-                      pointsRequired: 0,
-                      reward: { type: 'money', amount: 100 }
-                    } as FerveurLevel].sort((a, b) => a.pointsRequired - b.pointsRequired);
-                    setUserFervorConfig({ ...userFervorConfig, levels: newLevels });
-                  }}>
-                    <Plus className="w-4 h-4 mr-2" /> Ajouter Gain Intermédiaire
-                  </Button>
-                  <Button variant="outline" onClick={() => {
-                    const currentLevels = userFervorConfig.levels.filter(l => !l.isIntermediate);
-                    const nextLevel = currentLevels.length + 1;
-                    const newLevels: FerveurLevel[] = [...userFervorConfig.levels, {
-                      level: nextLevel,
-                      pointsRequired: nextLevel * 100,
-                      reward: { type: 'money', amount: 100 }
-                    } as FerveurLevel].sort((a, b) => a.pointsRequired - b.pointsRequired);
-                    setUserFervorConfig({ ...userFervorConfig, levels: newLevels });
-                  }}>
-                    <Plus className="w-4 h-4 mr-2" /> Ajouter Niveau
-                  </Button>
                   <Button onClick={handleSaveUserFervorConfig} disabled={loading}>
                     <Save className="w-4 h-4 mr-2" /> Sauvegarder
                   </Button>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {userFervorConfig.levels.map((lvl, idx) => (
-                  <div key={lvl.id || idx} className={`p-4 rounded-xl border space-y-3 ${lvl.isIntermediate ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-900/50 border-blue-900/50'}`}>
+                {userFervorConfig.ranges?.map((range, idx) => (
+                  <div key={idx} className="p-4 rounded-xl border bg-gray-900/50 border-blue-900/50 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className={`font-black ${lvl.isIntermediate ? 'text-gray-400' : 'text-blue-400'}`}>
-                        {lvl.isIntermediate ? 'GAIN INTERMÉDIAIRE' : `NIVEAU ${lvl.level}`}
+                      <span className="font-black text-blue-400">
+                        NIVEAU {range.level}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-gray-500">Points:</span>
-                        <input
-                          type="number"
-                          value={lvl.pointsRequired}
-                          onChange={e => {
-                            const newLevels = [...userFervorConfig.levels];
-                            newLevels[idx] = { ...lvl, pointsRequired: Number(e.target.value) };
-                            newLevels.sort((a, b) => a.pointsRequired - b.pointsRequired);
-                            setUserFervorConfig({ ...userFervorConfig, levels: newLevels });
-                          }}
-                          className="w-24 p-1 bg-gray-800 rounded border border-gray-700 text-xs font-mono text-white"
-                        />
-                        <button
-                          onClick={() => {
-                            let newLevels = userFervorConfig.levels.filter((_, i) => i !== idx);
-                            let currentLevel = 1;
-                            newLevels = newLevels.map(l => {
-                              if (!l.isIntermediate) {
-                                return { ...l, level: currentLevel++ };
-                              }
-                              return l;
-                            });
-                            setUserFervorConfig({ ...userFervorConfig, levels: newLevels });
-                          }}
-                          className="p-1 text-red-400 hover:bg-red-400/10 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <span className="text-xs font-bold text-gray-500">De {range.min} à {range.max} (pas de {range.step})</span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-gray-500">Récompense</label>
+                    
+                    <div className="space-y-2 mt-4">
+                      <label className="text-[10px] font-bold uppercase text-gray-500">Récompense de Niveau</label>
                       <RewardSelector
-                        reward={lvl.reward}
-                        onChange={reward => {
-                          const newLevels = [...userFervorConfig.levels];
-                          newLevels[idx] = { ...lvl, reward };
-                          setUserFervorConfig({ ...userFervorConfig, levels: newLevels });
+                        reward={range.levelReward}
+                        onChange={(reward: any) => {
+                          const newRanges = [...userFervorConfig.ranges];
+                          newRanges[idx] = { ...range, levelReward: reward };
+                          setUserFervorConfig({ ...userFervorConfig, ranges: newRanges });
+                        }}
+                        fanzTemplates={fanzTemplates}
+                        lifeActions={lifeActions}
+                        duelCards={duelCards}
+                      />
+                    </div>
+
+                    <div className="space-y-2 mt-4 pt-4 border-t border-gray-800">
+                      <label className="text-[10px] font-bold uppercase text-gray-500">Gain Intermédiaire</label>
+                      <RewardSelector
+                        reward={range.intermediateReward}
+                        onChange={(reward: any) => {
+                          const newRanges = [...userFervorConfig.ranges];
+                          newRanges[idx] = { ...range, intermediateReward: reward };
+                          setUserFervorConfig({ ...userFervorConfig, ranges: newRanges });
                         }}
                         fanzTemplates={fanzTemplates}
                         lifeActions={lifeActions}
@@ -1418,30 +1489,35 @@ export function AdminZone() {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold">Système de Passes (Saisonniers)</h3>
-                <Button onClick={() => setEditingPass({
-                  id: `pass-${Date.now()}`,
-                  name: 'Nouveau Pass',
-                  description: 'Description...',
-                  priceGems: 500,
-                  startDate: new Date().toISOString(),
-                  endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                  premiumPrice: { gems: 500 },
-                  levels: Array.from({ length: 5 }, (_, i) => ({
-                    level: i + 1,
-                    pointsRequired: (i + 1) * 100,
-                    freeReward: { type: 'money', amount: 50 },
-                    premiumReward: { type: 'gems', amount: 20 }
-                  })),
-                  isActive: true
-                })}>
-                  <Plus className="w-4 h-4 mr-2" /> Nouveau Pass
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={generateWCPass} variant="outline" className="border-blue-500 text-blue-500">
+                    <Star className="w-4 h-4 mr-2" /> Générer Pass WC 2026
+                  </Button>
+                  <Button onClick={() => setEditingPass({
+                    id: `pass-${Date.now()}`,
+                    name: 'Nouveau Pass',
+                    description: 'Description...',
+                    priceGems: 500,
+                    startDate: new Date().toISOString(),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                    premiumPrice: { gems: 500 },
+                    levels: Array.from({ length: 5 }, (_, i) => ({
+                      level: i + 1,
+                      pointsRequired: (i + 1) * 100,
+                      freeReward: { type: 'money', amount: 50 },
+                      premiumReward: { type: 'gems', amount: 20 }
+                    })),
+                    isActive: true
+                  })}>
+                    <Plus className="w-4 h-4 mr-2" /> Nouveau Pass
+                  </Button>
+                </div>
               </div>
 
               {editingPass && (
                 <Card className="p-6">
                   <form onSubmit={handleSavePass} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-300">Nom du Pass</label>
                         <input
@@ -1453,13 +1529,28 @@ export function AdminZone() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Prix (Gemmes)</label>
+                        <label className="text-sm font-medium text-gray-300">Prix Premium (Argent)</label>
                         <input
                           type="number"
-                          value={editingPass.priceGems}
-                          onChange={e => setEditingPass({...editingPass, priceGems: Number(e.target.value)})}
+                          value={editingPass.premiumPrice?.money || 0}
+                          onChange={e => setEditingPass({
+                            ...editingPass, 
+                            premiumPrice: { ...editingPass.premiumPrice, money: Number(e.target.value) }
+                          })}
                           className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Prix Premium (Gemmes)</label>
+                        <input
+                          type="number"
+                          value={editingPass.premiumPrice?.gems || 0}
+                          onChange={e => setEditingPass({
+                            ...editingPass, 
+                            priceGems: Number(e.target.value),
+                            premiumPrice: { ...editingPass.premiumPrice, gems: Number(e.target.value) }
+                          })}
+                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -1555,7 +1646,11 @@ export function AdminZone() {
                     </div>
                     <div className="flex justify-between items-center text-xs mt-4">
                       <span className="text-gray-400">{pass.levels.length} Niveaux</span>
-                      <span className="font-bold text-purple-400">{pass.priceGems} Gemmes</span>
+                      <span className="font-bold text-purple-400">
+                        {pass.premiumPrice?.money ? `${pass.premiumPrice.money} 💰 ` : ''}
+                        {pass.premiumPrice?.gems ? `${pass.premiumPrice.gems} 💎` : ''}
+                        {!pass.premiumPrice?.money && !pass.premiumPrice?.gems && `${pass.priceGems} 💎`}
+                      </span>
                     </div>
                   </Card>
                 ))}
@@ -2185,6 +2280,20 @@ export function AdminZone() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      const newId = `card-${Date.now()}`;
+                      setEditingCard({
+                        ...editingCard,
+                        id: newId,
+                        name: `${editingCard.name} (Copie)`
+                      });
+                    }}
+                  >
+                    Dupliquer
+                  </Button>
                   <Button type="button" variant="outline" onClick={() => setEditingCard(null)}>Annuler</Button>
                   <Button type="submit" disabled={loading} className="flex items-center gap-2">
                     <Save className="w-4 h-4" /> Sauvegarder
@@ -2418,6 +2527,20 @@ export function AdminZone() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      const newId = `action-${Date.now()}`;
+                      setEditingAction({
+                        ...editingAction,
+                        id: newId,
+                        name: `${editingAction.name} (Copie)`
+                      });
+                    }}
+                  >
+                    Dupliquer
+                  </Button>
                   <Button type="button" variant="outline" onClick={() => setEditingAction(null)}>Annuler</Button>
                   <Button type="submit" disabled={loading} className="flex items-center gap-2">
                     <Save className="w-4 h-4" /> Sauvegarder
@@ -2570,6 +2693,18 @@ export function AdminZone() {
                       max="10"
                       required
                     />
+                  </div>
+                  <div className="flex items-center gap-2 mt-4">
+                    <input
+                      type="checkbox"
+                      id="fanz-active"
+                      checked={editingFanz.isActive ?? true}
+                      onChange={e => setEditingFanz({...editingFanz, isActive: e.target.checked})}
+                      className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500"
+                    />
+                    <label htmlFor="fanz-active" className="text-sm font-medium text-gray-700">
+                      FANZ Actif (disponible pour les joueurs)
+                    </label>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">URL Image</label>
@@ -2746,19 +2881,32 @@ export function AdminZone() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(editingFanz.skins || []).map((skin, sIdx) => (
                       <div key={sIdx} className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-200 relative">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm" 
-                          className="absolute top-2 right-2 text-red-500"
-                          onClick={() => {
-                            const newSkins = editingFanz.skins.filter((_, i) => i !== sIdx);
-                            setEditingFanz({...editingFanz, skins: newSkins});
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              const newSkins = [...editingFanz.skins, { ...skin, id: `skin-${Date.now()}`, name: `${skin.name} (Copie)` }];
+                              setEditingFanz({...editingFanz, skins: newSkins});
+                            }}
+                          >
+                            Dupliquer
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-red-500"
+                            onClick={() => {
+                              const newSkins = editingFanz.skins.filter((_, i) => i !== sIdx);
+                              setEditingFanz({...editingFanz, skins: newSkins});
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-6">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-gray-400">Nom</label>
                             <input
@@ -2887,19 +3035,32 @@ export function AdminZone() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(editingFanz.emotes || []).map((emote, eIdx) => (
                       <div key={eIdx} className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-200 relative">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm" 
-                          className="absolute top-2 right-2 text-red-500"
-                          onClick={() => {
-                            const newEmotes = editingFanz.emotes.filter((_, i) => i !== eIdx);
-                            setEditingFanz({...editingFanz, emotes: newEmotes});
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              const newEmotes = [...editingFanz.emotes, { ...emote, id: `emote-${Date.now()}`, name: `${emote.name} (Copie)` }];
+                              setEditingFanz({...editingFanz, emotes: newEmotes});
+                            }}
+                          >
+                            Dupliquer
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-red-500"
+                            onClick={() => {
+                              const newEmotes = editingFanz.emotes.filter((_, i) => i !== eIdx);
+                              setEditingFanz({...editingFanz, emotes: newEmotes});
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-6">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-gray-400">Nom</label>
                             <input
@@ -3054,7 +3215,25 @@ export function AdminZone() {
                               <option value="xp">XP Spécifique</option>
                               <option value="skin">Skin Spécifique</option>
                               <option value="emote">Emote Spécifique</option>
+                              <option value="team_slot">Emplacement Équipe</option>
+                              <option value="fanz">FANZ</option>
                             </select>
+                            {reward.type === 'fanz' && (
+                              <select
+                                value={reward.fanzId || ''}
+                                onChange={e => {
+                                  const newRewards = { ...(editingFanz.rankRewards || {}) };
+                                  newRewards[slotId] = { ...reward, fanzId: e.target.value };
+                                  setEditingFanz({...editingFanz, rankRewards: newRewards});
+                                }}
+                                className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              >
+                                <option value="">Sélectionner un FANZ...</option>
+                                {fanzTemplates.map(f => (
+                                  <option key={f.id} value={f.id}>{f.name}</option>
+                                ))}
+                              </select>
+                            )}
                             {reward.type === 'card' && (
                               <select
                                 value={reward.cardId || ''}
@@ -3126,6 +3305,20 @@ export function AdminZone() {
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      const newId = `fanz-${Date.now()}`;
+                      setEditingFanz({
+                        ...editingFanz,
+                        id: newId,
+                        name: `${editingFanz.name} (Copie)`
+                      });
+                    }}
+                  >
+                    Dupliquer
+                  </Button>
                   <Button type="button" variant="outline" onClick={() => setEditingFanz(null)}>Annuler</Button>
                   <Button type="submit" disabled={loading} className="flex items-center gap-2">
                     <Save className="w-4 h-4" /> Sauvegarder
@@ -3139,7 +3332,7 @@ export function AdminZone() {
             {fanzTemplates.map((template) => (
               <Card 
                 key={template.id} 
-                className="p-4 hover:border-blue-500 transition-colors cursor-pointer group" 
+                className={`p-4 hover:border-blue-500 transition-colors cursor-pointer group ${template.isActive === false ? 'opacity-50' : ''}`} 
                 onClick={() => {
                   const defaultPath: FerveurLevel[] = [
                     { level: 1, pointsRequired: 249, reward: { type: 'money' as const, amount: 100 } },
@@ -3171,6 +3364,11 @@ export function AdminZone() {
                   }`}>
                     {template.rarity}
                   </div>
+                  {template.isActive === false && (
+                    <div className="absolute top-2 right-2 text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500 text-white">
+                      Inactif
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-between items-start">
                   <div>

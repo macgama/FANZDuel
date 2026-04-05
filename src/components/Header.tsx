@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile, Fanz, FanzTemplate } from '../types';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDoc, doc, getDocs } from 'firebase/firestore';
 import { 
   LogOut, 
   User as UserIcon,
@@ -22,15 +22,35 @@ interface HeaderProps {
   onHomeClick?: () => void;
   onMenuClick?: () => void;
   onTransactionsClick?: () => void;
+  onFervorClick?: () => void;
   onBackClick?: () => void;
   absolute?: boolean;
   variant?: 'home' | 'subpage';
 }
 
-export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick, onBackClick, absolute = false, variant = 'home' }: HeaderProps) {
+export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick, onFervorClick, onBackClick, absolute = false, variant = 'home' }: HeaderProps) {
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.photoURL || null);
+  const [maxFerveur, setMaxFerveur] = useState(100000);
+
+  useEffect(() => {
+    const fetchMaxFerveur = async () => {
+      try {
+        const fanzSnapshot = await getDocs(collection(db, 'fanz_templates'));
+        const activeCount = fanzSnapshot.docs.filter(doc => {
+          const data = doc.data();
+          return data.isActive !== false;
+        }).length;
+        if (activeCount > 0) {
+          setMaxFerveur(activeCount * 1000);
+        }
+      } catch (err) {
+        console.error("Error fetching fanz templates for max ferveur", err);
+      }
+    };
+    fetchMaxFerveur();
+  }, []);
 
   useEffect(() => {
     if (!profile.uid) return;
@@ -97,18 +117,7 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
   }, [profile.lastEnergyRefill, profile.energy]);
 
   const currentFerveur = profile.ferveurPoints || 0;
-  let nextLevelPoints = FERVEUR_LEVELS[0];
-  let currentLevelPoints = 0;
-  
-  for (let i = 0; i < FERVEUR_LEVELS.length; i++) {
-    if (currentFerveur < FERVEUR_LEVELS[i]) {
-      nextLevelPoints = FERVEUR_LEVELS[i];
-      currentLevelPoints = FERVEUR_LEVELS[i - 1] || 0;
-      break;
-    }
-  }
-  
-  const ferveurProgressPercent = Math.min(100, Math.max(0, ((currentFerveur - currentLevelPoints) / (nextLevelPoints - currentLevelPoints)) * 100));
+  const ferveurProgressPercent = Math.min(100, Math.max(0, (currentFerveur / maxFerveur) * 100));
 
   return (
     <>
@@ -145,30 +154,30 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
         {/* Center: Attributes & Ferveur Progress */}
         <div className="flex flex-col items-center">
           <div 
-            className="flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 relative z-10 cursor-pointer hover:bg-white/10 transition-colors"
+            className="flex items-center gap-2 sm:gap-3 bg-black/50 backdrop-blur-md rounded-full px-3 sm:px-4 py-1.5 sm:py-2 border border-white/10 relative z-10 cursor-pointer hover:bg-white/10 transition-colors"
             onClick={() => onTransactionsClick && onTransactionsClick()}
           >
-            <div className="flex items-center gap-1">
-              <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 object-contain" />
-              <span className="text-[10px] font-bold">{profile.money}</span>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+              <span className="text-[10px] sm:text-xs font-bold">{profile.money}</span>
             </div>
-            <div className="w-px h-3 bg-white/20" />
-            <div className="flex items-center gap-1">
-              <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 object-contain" />
-              <span className="text-[10px] font-bold">{profile.gems}</span>
+            <div className="w-px h-3 sm:h-4 bg-white/20" />
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+              <span className="text-[10px] sm:text-xs font-bold">{profile.gems}</span>
             </div>
-            <div className="w-px h-3 bg-white/20" />
-            <div className="flex items-center gap-1">
-              <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 object-contain" />
-              <span className="text-[10px] font-bold">{profile.boostPoints}</span>
+            <div className="w-px h-3 sm:h-4 bg-white/20" />
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+              <span className="text-[10px] sm:text-xs font-bold">{profile.boostPoints}</span>
             </div>
-            <div className="w-px h-3 bg-white/20" />
-            <div className="flex items-center gap-1 group relative">
-              <img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 object-contain" />
-              <span className="text-[10px] font-bold">{profile.energy}</span>
+            <div className="w-px h-3 sm:h-4 bg-white/20" />
+            <div className="flex items-center gap-1 sm:gap-1.5 group relative">
+              <img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+              <span className="text-[10px] sm:text-xs font-bold">{profile.energy}</span>
               {timeUntilRefill && (
-                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 text-[8px] font-mono text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded-full border border-orange-500/30">
-                  <Clock className="w-2 h-2" />
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 text-[8px] sm:text-[10px] font-mono text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded-full border border-orange-500/30">
+                  <Clock className="w-2 h-2 sm:w-3 sm:h-3" />
                   {timeUntilRefill}
                 </div>
               )}
@@ -177,16 +186,16 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
           
           {/* Ferveur Progress Bar */}
           <div 
-            className="mt-1 w-32 h-4 bg-black/60 rounded-full border border-white/10 overflow-hidden relative cursor-pointer hover:border-white/30 transition-colors"
-            onClick={() => onTransactionsClick && onTransactionsClick()}
+            className="mt-1 sm:mt-2 w-32 sm:w-40 h-4 sm:h-5 bg-black/60 rounded-full border border-white/10 overflow-hidden relative cursor-pointer hover:border-white/30 transition-colors"
+            onClick={() => onFervorClick && onFervorClick()}
           >
             <div 
               className="absolute top-0 left-0 h-full bg-orange-500 transition-all duration-500"
               style={{ width: `${ferveurProgressPercent}%` }}
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-[8px] font-black text-white uppercase tracking-tighter">
-                {currentFerveur} / {nextLevelPoints}
+              <span className="text-[8px] sm:text-[10px] font-black text-white uppercase tracking-tighter">
+                {currentFerveur} / {maxFerveur}
               </span>
             </div>
           </div>
@@ -203,11 +212,14 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
             </button>
           ) : (
             <button 
-              onClick={() => onMenuClick?.()} 
-              className="flex flex-col items-center justify-center w-12 h-12 bg-black/50 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/10 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMenuClick?.();
+              }} 
+              className="flex flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg"
             >
-              <Menu className="w-6 h-6" />
-              <span className="text-[10px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500">Menu</span>
+              <Menu className="w-6 h-6 text-white" />
+              <span className="text-[9px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500 leading-none">Menu</span>
             </button>
           )}
         </div>

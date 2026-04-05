@@ -143,9 +143,8 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   return (
     <div className="space-y-6 pb-20">
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-4">
           <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
-            <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
             Matchs du jour
           </h1>
 
@@ -169,7 +168,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar px-4">
             <FilterButton 
               active={statusFilter === 'all'} 
               onClick={() => setStatusFilter('all')}
@@ -193,8 +192,8 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
             />
           </div>
 
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <div className="relative flex-1 px-4">
+            <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input 
               type="text"
               placeholder="Rechercher une équipe ou une compétition..."
@@ -383,14 +382,14 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
               onTeamClick(match.teams.home.id, match.league.season);
             }}
           >
-            <div className="w-10 h-10 bg-white rounded-full p-1 flex items-center justify-center">
-              <img src={match.teams.home.logo} alt="" className="w-7 h-7 object-contain" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center">
+              <img src={match.teams.home.logo} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
             </div>
-            <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight w-full">{match.teams.home.name}</span>
+            <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight w-full">{match.teams.home.name}</span>
             {(isLive || isFinished) && (
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
-                <Flame className="w-2.5 h-2.5 text-orange-500" />
-                <span className="text-[8px] font-black text-orange-500">{scoreA} PTS</span>
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
+                <Flame className="w-3 h-3 text-orange-500" />
+                <span className="text-[10px] sm:text-xs font-black text-orange-500">{scoreA} PTS</span>
               </div>
             )}
           </div>
@@ -402,29 +401,29 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
           >
             {isFinished || isLive ? (
               <div className="flex items-center gap-2">
-                <span className={`text-2xl font-black ${isLive ? 'text-orange-500' : ''}`}>
+                <span className={`text-3xl sm:text-4xl font-black ${isLive ? 'text-orange-500' : ''}`}>
                   {match.goals.home ?? 0}
                 </span>
-                <span className="text-orange-500 font-black">:</span>
-                <span className={`text-2xl font-black ${isLive ? 'text-orange-500' : ''}`}>
+                <span className="text-orange-500 font-black text-2xl">:</span>
+                <span className={`text-3xl sm:text-4xl font-black ${isLive ? 'text-orange-500' : ''}`}>
                   {match.goals.away ?? 0}
                 </span>
               </div>
             ) : (
-              <div className="text-[10px] font-bold text-white/80 bg-white/5 px-2 py-1 rounded border border-white/10">
+              <div className="text-xs sm:text-sm font-bold text-white/80 bg-white/5 px-3 py-1.5 rounded border border-white/10">
                 {format(new Date(match.fixture.date), 'HH:mm')}
               </div>
             )}
             
-            <div className="mt-1">
+            <div className="mt-2">
               {isLive ? (
-                <div className="bg-orange-500/20 border border-orange-500/30 rounded-full px-2 py-0.5 flex items-center justify-center">
-                  <span className="text-[10px] font-black text-orange-500 animate-pulse uppercase">
+                <div className="bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center">
+                  <span className="text-[10px] sm:text-xs font-black text-orange-500 animate-pulse uppercase">
                     {match.fixture.status.elapsed}{match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'
                   </span>
                 </div>
               ) : (
-                <span className="text-[10px] font-bold text-gray-500 uppercase">
+                <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase">
                   {match.fixture.status.short}
                 </span>
               )}
@@ -439,14 +438,14 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
               onTeamClick(match.teams.away.id, match.league.season);
             }}
           >
-            <div className="w-10 h-10 bg-transparent flex items-center justify-center">
-              <img src={match.teams.away.logo} alt="" className="w-8 h-8 object-contain" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-transparent flex items-center justify-center">
+              <img src={match.teams.away.logo} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
             </div>
-            <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight w-full">{match.teams.away.name}</span>
+            <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight w-full">{match.teams.away.name}</span>
             {(isLive || isFinished) && (
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5 flex items-center gap-1 mt-0.5">
-                <Flame className="w-2.5 h-2.5 text-blue-500" />
-                <span className="text-[8px] font-black text-blue-500">{scoreB} PTS</span>
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
+                <Flame className="w-3 h-3 text-blue-500" />
+                <span className="text-[10px] sm:text-xs font-black text-blue-500">{scoreB} PTS</span>
               </div>
             )}
           </div>
@@ -454,13 +453,13 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
 
         {/* Dominance Bar (Live or Finished) */}
         {(isLive || isFinished) && (
-          <div className="mt-1">
-            <div className="flex justify-between items-center text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+          <div className="mt-2">
+            <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
               <span className="text-orange-500">{dominanceA}%</span>
               <span>DOMINANCE MONDIALE</span>
               <span className="text-blue-500">{dominanceB}%</span>
             </div>
-            <div className="h-1 w-full bg-black/60 rounded-full overflow-hidden flex relative">
+            <div className="h-1.5 sm:h-2 w-full bg-black/60 rounded-full overflow-hidden flex relative">
               <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${dominanceA}%` }} />
               <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${dominanceB}%` }} />
               <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
@@ -473,7 +472,7 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
           <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-3">
             <div className="space-y-1">
               {scorers.filter((e: any) => e.team.id === match.teams.home.id).map((e: any, i: number) => (
-                <div key={i} className="flex items-center justify-end gap-1.5 text-[9px] text-gray-400 font-bold">
+                <div key={i} className="flex items-center justify-end gap-1.5 text-[9px] sm:text-[10px] text-gray-400 font-bold">
                   <span>{e.player.name}</span>
                   <span className="text-orange-500">{e.time.elapsed}{e.time.extra ? `+${e.time.extra}` : ''}'</span>
                 </div>
@@ -481,7 +480,7 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
             </div>
             <div className="space-y-1">
               {scorers.filter((e: any) => e.team.id === match.teams.away.id).map((e: any, i: number) => (
-                <div key={i} className="flex items-center gap-1.5 text-[9px] text-gray-400 font-bold">
+                <div key={i} className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-gray-400 font-bold">
                   <span className="text-orange-500">{e.time.elapsed}{e.time.extra ? `+${e.time.extra}` : ''}'</span>
                   <span>{e.player.name}</span>
                 </div>
@@ -491,20 +490,20 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
         )}
         
         {isLive && (
-          <div className="mt-1 flex gap-2">
+          <div className="mt-2 flex gap-2 sm:gap-3">
             <button 
               onClick={(e) => { e.stopPropagation(); onClick(); }}
-              className="flex-1 py-2 rounded-xl border border-white/20 bg-white/5 text-white font-black text-[10px] uppercase tracking-wider hover:bg-white/10 transition-colors"
+              className="flex-1 py-2 sm:py-2.5 rounded-xl border border-white/20 bg-white/5 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider hover:bg-white/10 transition-colors"
             >
               MATCH
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); onJoinDuel(isLive); }}
-              className="flex-1 py-2 rounded-xl bg-orange-500 text-white font-black text-[10px] uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+              className="flex-1 py-2 sm:py-2.5 rounded-xl bg-orange-500 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
             >
               {hasActiveDuel ? (
                 <>
-                  <Activity className="w-3 h-3 animate-pulse" />
+                  <Activity className="w-3 h-3 sm:w-4 sm:h-4 animate-pulse" />
                   REJOINDRE
                 </>
               ) : (
@@ -515,10 +514,10 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
         )}
 
         {isFinished && (
-          <div className="mt-1 flex gap-2">
+          <div className="mt-2 flex gap-2 sm:gap-3">
             <button 
               onClick={(e) => { e.stopPropagation(); onClick('duels'); }}
-              className="flex-1 py-2 rounded-xl bg-white/10 text-white font-black text-[10px] uppercase tracking-wider hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+              className="flex-1 py-2 sm:py-2.5 rounded-xl bg-white/10 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
             >
               RÉSUMÉ
             </button>

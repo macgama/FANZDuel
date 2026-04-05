@@ -34,9 +34,11 @@ export const RewardSelector: React.FC<RewardSelectorProps & { theme?: 'dark' | '
           <option value="emote">Emote</option>
           <option value="card">Carte Duel</option>
           <option value="action">Action LIFE</option>
+          <option value="team_slot">Emplacement Équipe</option>
+          <option value="fanz">FANZ</option>
         </select>
         
-        {['money', 'gems', 'boost', 'energy', 'xp'].includes(reward?.type || 'money') && (
+        {['money', 'gems', 'boost', 'energy', 'xp', 'team_slot'].includes(reward?.type || 'money') && (
           <input
             type="number"
             value={reward?.amount || 0}
@@ -46,6 +48,19 @@ export const RewardSelector: React.FC<RewardSelectorProps & { theme?: 'dark' | '
           />
         )}
       </div>
+
+      {reward?.type === 'fanz' && (
+        <select
+          value={reward.fanzId || ''}
+          onChange={e => onChange({ ...reward, fanzId: e.target.value })}
+          className={`w-full ${inputClass}`}
+        >
+          <option value="">Sélectionner un FANZ...</option>
+          {fanzTemplates.map(f => (
+            <option key={f.id} value={f.id}>{f.name}</option>
+          ))}
+        </select>
+      )}
 
       {reward?.type === 'skin' && (
         <select

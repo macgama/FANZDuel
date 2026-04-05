@@ -29,7 +29,8 @@
         "passId": { "type": "string" },
         "passPoints": { "type": "number", "default": 0 },
         "isPassPremium": { "type": "boolean", "default": false },
-        "claimedPassRewards": { "type": "array", "items": { "type": "string" } }
+        "claimedPassRewards": { "type": "array", "items": { "type": "string" } },
+        "claimedFervorRewards": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["uid", "pseudo", "email", "money", "gems", "boostPoints", "energy", "ferveurPoints", "level", "role"]
     },
@@ -306,6 +307,32 @@
         "scoreB": { "type": "number" },
         "timestamp": { "type": "string", "format": "date-time" }
       }
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A chat conversation between two users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageTime": { "type": "string", "format": "date-time" },
+        "unreadCount": { "type": "object" }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message containing an emote.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "emoteId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["senderId", "receiverId", "emoteId", "timestamp"]
     }
   },
   "firestore": {
@@ -326,6 +353,8 @@
     "/passes/{passId}": { "schema": "Pass", "description": "Seasonal passes" },
     "/global_configs/user_fervor": { "schema": "GlobalFervorConfig", "description": "Global user fervor path" },
     "/weekly_streak_config/{day}": { "schema": "WeeklyStreakConfig", "description": "Weekly streak rewards" },
-    "/match_scores/{duelId}": { "schema": "MatchScore", "description": "Scores for individual duels linked to a match" }
+    "/match_scores/{duelId}": { "schema": "MatchScore", "description": "Scores for individual duels linked to a match" },
+    "/chats/{chatId}": { "schema": "Chat", "description": "Chat conversations" },
+    "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages in a chat" }
   }
 }

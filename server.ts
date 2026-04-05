@@ -201,7 +201,7 @@ async function startServer() {
       if (duel.status === 'waiting' && duel.participants.length >= requiredPlayers) {
         duel.status = 'starting';
         const startTime = Date.now() + 5000;
-        io.to(duelId).emit("duel-starting", { startTime });
+        io.to(duelId).emit("duel-starting", { startTime, duelId, duel });
         
         duel.timer = setTimeout(() => {
           duel.status = 'active';
@@ -330,6 +330,10 @@ async function startServer() {
       socket.to(duelId).emit("swap-hands-complete", { newHand: hand });
     });
 
+    socket.on("send-emote", ({ duelId, team, emoteId, senderId }) => {
+      socket.to(duelId).emit("receive-emote", { team, emoteId, senderId });
+    });
+
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
       // Clean up participants
@@ -398,7 +402,7 @@ async function startServer() {
 
   // Football API Proxy with Caching
   const footballCache: Record<string, { data: any; timestamp: number }> = {};
-  const CACHE_TTL = 60 * 1000; // 1 minute cache
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
   app.get("/api/football/*", async (req, res) => {
     const endpoint = req.params[0].replace(/^\//, "");
@@ -439,14 +443,14 @@ async function startServer() {
 
       // Handle API-Sports specific errors that return 200 OK
       if (response.data && response.data.errors && Object.keys(response.data.errors).length > 0) {
-        console.warn(`[Football Proxy] API returned errors:`, response.data.errors);
-        // If it's a rate limit error, don't cache it
-        if (response.data.errors.rateLimit) {
-          return res.status(429).json({ 
-            error: "Rate limit exceeded", 
-            details: response.data.errors 
-          });
+        console.warn(`[Football Proxy] API returned errors:`, JSON.stringify(response.data.errors));
+        
+        if (cached) {
+          console.log(`[Football Proxy] API error, serving stale cache for: ${cacheKey}`);
+          return res.json(cached.data);
         }
+        // Return empty response to prevent app crash for ANY error
+        return res.json({ get: endpoint, parameters: queryParams, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] });
       }
 
       console.log(`[Football Proxy] Success: ${url} - Status: ${response.status}`);
@@ -466,6 +470,14 @@ async function startServer() {
         message: error.message,
         data: errorData
       });
+      
+      if (status === 429 || status === 403) {
+        if (cached) {
+          console.log(`[Football Proxy] Rate limit hit (${status}), serving stale cache for: ${cacheKey}`);
+          return res.json(cached.data);
+        }
+        return res.json({ get: endpoint, parameters: queryParams, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] });
+      }
       
       res.status(status).json({ 
         error: "Failed to fetch from football API",

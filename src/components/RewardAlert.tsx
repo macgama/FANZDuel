@@ -29,7 +29,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 overflow-hidden"
+        className="absolute inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 overflow-hidden"
       >
         {/* Background Particles/Glow */}
         <div className="absolute inset-0 pointer-events-none">

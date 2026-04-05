@@ -25,11 +25,16 @@ export const INITIAL_USER_DATA = {
   gems: 5,
   boostPoints: 50,
   energy: 100,
+  maxEnergy: 100,
   ferveurPoints: 0,
   level: 1,
   teamSlots: 2,
   cards: [],
   language: 'fr',
+  passPoints: 0,
+  isPassPremium: false,
+  purchasedPasses: [],
+  claimedPassRewards: [],
 };
 
 export const STAT_NAMES = [

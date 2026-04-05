@@ -39,7 +39,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     title: string;
     rankNum?: number;
     slotId: string;
-    rewardType: 'choice' | 'card' | 'xp' | 'skin' | 'emote' | 'action';
+    rewardType: 'choice' | 'card' | 'xp' | 'skin' | 'emote' | 'action' | 'fanz' | 'team_slot';
     amount?: number;
     cardId?: string;
     skinId?: string;
@@ -667,6 +667,25 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                           if (step.reward?.type === 'money') userUpdates.money = (userProfile.money || 0) + (step.reward.amount || 0);
                                           if (step.reward?.type === 'gems') userUpdates.gems = (userProfile.gems || 0) + (step.reward.amount || 0);
                                           if (step.reward?.type === 'boost') userUpdates.boostPoints = (userProfile.boostPoints || 0) + (step.reward.amount || 0);
+                                          if (step.reward?.type === 'team_slot') userUpdates.teamSlots = (userProfile.teamSlots || 2) + 1;
+                                          
+                                          if (step.reward?.type === 'fanz' && step.reward.fanzId) {
+                                            const newFanzRef = doc(db, 'fanz', `${userProfile.uid}_${step.reward.fanzId}`);
+                                            const newFanzDoc = await getDoc(newFanzRef);
+                                            if (!newFanzDoc.exists()) {
+                                              await setDoc(newFanzRef, {
+                                                id: `${userProfile.uid}_${step.reward.fanzId}`,
+                                                templateId: step.reward.fanzId,
+                                                ownerUid: userProfile.uid,
+                                                level: 1,
+                                                xp: 0,
+                                                ferveurPoints: 0,
+                                                ferveurLevel: 1,
+                                                stats: { force: 10, endurance: 10, mental: 10, bluff: 10, creativity: 10, social: 10, intelligence: 10, charisma: 10 }
+                                              });
+                                            }
+                                          }
+                                          
                                           if (step.reward?.type === 'xp' && step.reward.statName) {
                                             const newStats = { ...fanz.stats };
                                             newStats[step.reward.statName] = (newStats[step.reward.statName] || 0) + (step.reward.amount || 0);
@@ -1296,7 +1315,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
       {/* Alert Modal */}
       {alertModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -1320,7 +1339,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
       {/* Reward Modal */}
       {rewardModal && rewardModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <motion.div 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
