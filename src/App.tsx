@@ -173,7 +173,7 @@ function AppContent() {
             }
 
             // Check for admin role
-            if (currentUser.email === 'gael.manigley@gmail.com' && data.role !== 'admin') {
+            if (currentUser.email === 'gael.manigley@gmail.com' && currentUser.emailVerified && data.role !== 'admin') {
               updatedData.role = 'admin';
               needsUpdate = true;
             }

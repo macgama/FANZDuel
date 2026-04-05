@@ -44,6 +44,10 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
     // Only auto-redirect to register if we are sure the user is authenticated 
     // but has no profile (this is handled by App.tsx rendering this component)
     // We don't want to force 'register' step if they just landed here.
+    if (auth.currentUser) {
+      setStep('register');
+      if (auth.currentUser.email) setEmail(auth.currentUser.email);
+    }
   }, []);
 
   useEffect(() => {
@@ -100,8 +104,10 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
     } catch (err: any) {
       if (err.code === 'auth/user-not-found') {
         setError('Compte introuvable. Voulez-vous vous inscrire ?');
-      } else if (err.code === 'auth/wrong-password') {
-        setError('Mot de passe incorrect.');
+      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Email ou mot de passe incorrect.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('La connexion par email n\'est pas activée. Veuillez contacter l\'administrateur.');
       } else {
         setError('Erreur de connexion. Veuillez réessayer.');
       }
@@ -166,7 +172,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           ferveurPoints: ferveurBonus,
           cards: initialCards,
           lastEnergyRefill: new Date().toISOString(),
-          role: (user.email || email) === 'gael.manigley@gmail.com' ? 'admin' : 'client',
+          role: ((user.email || email) === 'gael.manigley@gmail.com' && user.emailVerified) ? 'admin' : 'client',
         });
 
         await logTransaction(user.uid, 'money', INITIAL_USER_DATA.money, 'Cadeau de Bienvenue');
@@ -249,6 +255,8 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
     } catch (err: any) {
       if (err.code === 'auth/email-already-in-use') {
         setError('Cet email est déjà utilisé. Veuillez vous connecter.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('L\'inscription par email n\'est pas activée dans Firebase.');
       } else {
         setError(err.message);
       }

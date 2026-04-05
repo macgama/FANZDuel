@@ -118,7 +118,7 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards', 'claimedFervorRewards', 'friends', 'friendRequests', 'xp', 'ferveur', 'lastActive']) &&
+      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards', 'claimedFervorRewards', 'friends', 'friendRequests', 'xp', 'ferveur', 'lastActive', 'purchasedPasses']) &&
              (!('uid' in data) || data.uid is string) &&
              (!('pseudo' in data) || (data.pseudo is string && data.pseudo.size() > 0 && data.pseudo.size() < 50)) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
@@ -145,6 +145,7 @@ service cloud.firestore {
              (!('claimedStreakDays' in data) || data.claimedStreakDays is list) &&
              (!('missionsProgress' in data) || data.missionsProgress is map) &&
              (!('passId' in data) || data.passId is string) &&
+             (!('purchasedPasses' in data) || data.purchasedPasses is list) &&
              (!('passPoints' in data) || data.passPoints is number) &&
              (!('isPassPremium' in data) || data.isPassPremium is bool) &&
              (!('claimedPassRewards' in data) || data.claimedPassRewards is list) &&
