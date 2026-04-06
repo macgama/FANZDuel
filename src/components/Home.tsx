@@ -18,7 +18,8 @@ import {
   Calendar,
   Store,
   Target,
-  Ticket
+  Ticket,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
@@ -30,7 +31,7 @@ import { Header } from './Header';
 
 interface HomeProps {
   profile: UserProfile;
-  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass') => void;
+  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
@@ -237,7 +238,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
         </div>
 
         {/* Quick Links */}
-        <div className="px-4 sm:px-8 py-6 grid grid-cols-5 gap-3 sm:gap-4">
+        <div className="px-4 sm:px-8 py-6 grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
           <button 
             onClick={onOpenStreak}
             className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
@@ -251,6 +252,13 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
           >
             <Flame className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
             <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Ferveur</span>
+          </button>
+          <button 
+            onClick={() => onNavigate('favorite-teams')}
+            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+          >
+            <Star className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Équipes</span>
           </button>
           <button 
             onClick={() => onNavigate('shop')}

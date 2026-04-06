@@ -83,11 +83,28 @@ export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
       const teamDoc = await getDoc(teamRef);
       
       if (!teamDoc.exists()) {
+        // Fetch leagues for this team
+        let leagueIds: number[] = [];
+        try {
+          const leaguesData = await footballApi.getLeaguesByTeam(Number(teamId));
+          leagueIds = leaguesData.map((l: any) => l.league.id);
+        } catch (e) {
+          console.error("Failed to fetch leagues for team", e);
+        }
+
         await setDoc(teamRef, {
           name: team.team.name,
           logo: team.team.logo,
           userCount: 1,
-          averageFerveur: 10
+          averageFerveur: 10,
+          ferveurEarned: 0,
+          totalScoreGiven: 0,
+          matchesPlayed: 0,
+          leagueIds: leagueIds
+        });
+      } else {
+        await updateDoc(teamRef, {
+          userCount: increment(1)
         });
       }
 
@@ -154,7 +171,7 @@ export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
               <div key={idx} className="bg-black/40 border border-white/10 rounded-xl p-3 flex items-center gap-3">
                 <div className="w-12 h-12 shrink-0 bg-white/5 rounded-lg border border-white/10 flex items-center justify-center p-2">
                   {team.logo ? (
-                    <img src={team.logo} alt={team.name} className="w-full h-full object-contain" />
+                    <img src={team.logo} alt={team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                   ) : (
                     <Shield className="w-6 h-6 text-gray-500" />
                   )}
@@ -220,7 +237,7 @@ export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 shrink-0 bg-white/5 rounded-lg p-1.5 flex items-center justify-center">
-                      <img src={result.team.logo} alt={result.team.name} className="w-full h-full object-contain" />
+                      <img src={result.team.logo} alt={result.team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                     </div>
                     <div className="min-w-0">
                       <h4 className="font-bold text-white text-sm truncate">{result.team.name}</h4>

@@ -23,6 +23,7 @@ import { WaitingRoom } from './components/WaitingRoom';
 import { SocialPage } from './components/SocialPage';
 import { FervorPathPage } from './components/FervorPathPage';
 import { FavoriteTeamsPage } from './components/FavoriteTeamsPage';
+import { LeaderboardPage } from './components/LeaderboardPage';
 import { PassPage } from './components/PassPage';
 import { MissionsPage } from './components/MissionsPage';
 import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket } from 'lucide-react';
@@ -42,7 +43,7 @@ export default function App() {
   return <AppContent />;
 }
 
-type ViewType = 'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams';
+type ViewType = 'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -123,14 +124,18 @@ function AppContent() {
   const renderFooter = () => {
     if (isDuelActive || view === 'admin') return null;
     return (
-      <footer className="absolute bottom-0 left-0 right-0 h-16 sm:h-20 bg-black/90 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-4 sm:px-8 z-50">
+      <footer className="absolute bottom-0 left-0 right-0 h-16 sm:h-20 bg-black/90 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-2 sm:px-8 z-50">
         <button onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'matches' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
           <Activity className="w-6 h-6 sm:w-7 sm:h-7" />
           <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Live</span>
         </button>
+        <button onClick={() => { setView('leaderboard'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'leaderboard' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+          <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
+          <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Classement</span>
+        </button>
         <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors relative -top-4 sm:-top-6">
           <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-black shadow-lg ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/40' : 'bg-orange-600 shadow-orange-600/20'}`}>
-            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            <Swords className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
           <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest ${view === 'waiting-room' ? 'text-orange-400' : 'text-orange-500'}`}>Duel</span>
         </button>
@@ -431,6 +436,8 @@ function AppContent() {
                 <FervorPathPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'favorite-teams' ? (
                 <FavoriteTeamsPage profile={profile} />
+              ) : view === 'leaderboard' ? (
+                <LeaderboardPage />
               ) : view === 'shop' ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center h-full">
                   <Store className="w-16 h-16 mb-4 text-yellow-500 opacity-50" />
@@ -506,6 +513,7 @@ function AppContent() {
             <MenuButton icon={<Swords />} label="Salle d'Attente" onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Users />} label="Social" onClick={() => { setView('social'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Star />} label="Équipes Favorites" onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
+            <MenuButton icon={<Trophy />} label="Classements" onClick={() => { setView('leaderboard'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Activity />} label="Matchs en direct" onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Globe />} label="Compétitions" onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Users />} label="Équipes" onClick={() => { setView('teams'); setIsMenuOpen(false); }} />

@@ -769,21 +769,63 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setFanz(prev => prev ? { ...prev, ferveurPoints: newFanzPoints, ferveurLevel: newFanzLevel } : null);
             
             // Update User General
-            if (ferveurGainGeneral > 0) {
+            const myScore = myTeam === 'A' ? scoreA : scoreB;
+            if (ferveurGainGeneral > 0 || myScore > 0) {
               let newUserPoints = (userData.ferveurPoints || 0) + ferveurGainGeneral;
               const updates: any = {
-                ferveurPoints: newUserPoints
+                ferveurPoints: newUserPoints,
+                totalScoreGiven: increment(myScore),
+                matchesParticipated: increment(1)
               };
-              if (userData.purchasedPasses && userData.purchasedPasses.length > 0) {
+              if (userData.purchasedPasses && userData.purchasedPasses.length > 0 && ferveurGainGeneral > 0) {
                 updates.passPoints = increment(ferveurGainGeneral);
               }
               await updateDoc(userRef, updates);
-              await logTransaction(
-                user.uid,
-                'ferveur_general',
-                ferveurGainGeneral,
-                'Victoire en duel'
-              );
+              if (ferveurGainGeneral > 0) {
+                await logTransaction(
+                  user.uid,
+                  'ferveur_general',
+                  ferveurGainGeneral,
+                  'Victoire en duel'
+                );
+              }
+            }
+
+            // Update Team Stats
+            const myTeamId = myTeam === 'A' ? teamAId || teamA : teamBId || teamB;
+            if (myTeamId) {
+              const teamRef = doc(db, 'teams', myTeamId);
+              const teamDoc = await getDoc(teamRef);
+              if (teamDoc.exists()) {
+                await updateDoc(teamRef, {
+                  ferveurEarned: increment(ferveurGainGeneral),
+                  totalScoreGiven: increment(myScore),
+                  matchesPlayed: increment(1)
+                });
+              } else {
+                // Fetch leagues for this team
+                let leagueIds: number[] = [];
+                if (!isNaN(Number(myTeamId))) {
+                  try {
+                    const { footballApi } = await import('../services/footballApi');
+                    const leaguesData = await footballApi.getLeaguesByTeam(Number(myTeamId));
+                    leagueIds = leaguesData.map((l: any) => l.league.id);
+                  } catch (e) {
+                    console.error("Failed to fetch leagues for team", e);
+                  }
+                }
+
+                await setDoc(teamRef, {
+                  name: myTeam === 'A' ? teamA : teamB,
+                  logo: myTeam === 'A' ? teamALogo : teamBLogo,
+                  userCount: 0,
+                  averageFerveur: 0,
+                  ferveurEarned: ferveurGainGeneral,
+                  totalScoreGiven: myScore,
+                  matchesPlayed: 1,
+                  leagueIds: leagueIds
+                });
+              }
             }
             
             ferveurGain = ferveurGainFanz;
