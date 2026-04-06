@@ -34,7 +34,31 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
 
         const configDoc = await getDoc(doc(db, 'global_configs', 'user_fervor'));
         if (configDoc.exists()) {
-          setGlobalConfig(configDoc.data() as GlobalFervorConfig);
+          const data = configDoc.data() as GlobalFervorConfig;
+          if (!data.ranges || data.ranges.length === 0) {
+            setGlobalConfig({
+              id: 'user_fervor',
+              ranges: [
+                { level: 1, min: 0, max: 499, step: 10, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 2, min: 500, max: 1549, step: 15, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 3, min: 1550, max: 5099, step: 50, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 4, min: 5100, max: 10099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 5, min: 10100, max: 15099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 6, min: 15100, max: 20099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 7, min: 20100, max: 25099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 8, min: 25100, max: 30199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 9, min: 30200, max: 40199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 10, min: 40200, max: 50199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 11, min: 50200, max: 60199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 12, min: 60200, max: 70199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 13, min: 70200, max: 80199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 14, min: 80200, max: 90199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 15, min: 90200, max: 99999, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+              ]
+            });
+          } else {
+            setGlobalConfig(data);
+          }
         }
       } catch (err) {
         console.error("Error fetching fervor config", err);

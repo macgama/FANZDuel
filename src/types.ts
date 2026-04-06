@@ -256,6 +256,7 @@ export interface Mission {
   target: number;
   reward: FerveurLevel['reward'];
   isActive: boolean;
+  period?: 'daily' | 'weekly' | 'one_shot';
 }
 
 export interface UserMissionProgress {

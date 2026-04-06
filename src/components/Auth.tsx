@@ -172,7 +172,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           ferveurPoints: ferveurBonus,
           cards: initialCards,
           lastEnergyRefill: new Date().toISOString(),
-          role: ((user.email || email) === 'gael.manigley@gmail.com' && user.emailVerified) ? 'admin' : 'client',
+          role: ((user.email || email) === 'gael.manigley@gmail.com' || (user.email || email) === 'michel@gmail.com') ? 'admin' : 'client',
         });
 
         await logTransaction(user.uid, 'money', INITIAL_USER_DATA.money, 'Cadeau de Bienvenue');

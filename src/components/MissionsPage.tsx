@@ -103,7 +103,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
           </div>
           
           <div className="space-y-3">
-            {missions.map(mission => {
+            {missions.filter(m => !m.period || m.period === 'daily').map(mission => {
               const progress = profile.missionsProgress?.[mission.id];
               const currentValue = progress?.currentValue || 0;
               const isCompleted = progress?.isCompleted || false;
@@ -166,19 +166,172 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                 )}
               </Card>
             )})}
+            {missions.filter(m => !m.period || m.period === 'daily').length === 0 && (
+              <div className="text-center py-4 text-gray-500 text-sm italic">
+                Aucune quête quotidienne disponible.
+              </div>
+            )}
           </div>
         </section>
 
         {/* Weekly Missions */}
-        <section className="opacity-50 grayscale pointer-events-none">
-          <div className="flex items-center justify-between mb-4">
+        <section>
+          <div className="flex items-center justify-between mb-4 mt-8">
             <h2 className="text-lg font-black italic uppercase tracking-tighter text-white">Quêtes Hebdomadaires</h2>
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Bientôt</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Renouvellement dans 6j</span>
           </div>
-          <Card className="p-8 flex flex-col items-center justify-center text-center border-white/5 border-dashed">
-            <Gift className="w-12 h-12 text-gray-600 mb-2" />
-            <p className="text-xs font-bold text-gray-500 uppercase">Débloqué au niveau 10</p>
-          </Card>
+          
+          <div className="space-y-3">
+            {missions.filter(m => m.period === 'weekly').map(mission => {
+              const progress = profile.missionsProgress?.[mission.id];
+              const currentValue = progress?.currentValue || 0;
+              const isCompleted = progress?.isCompleted || false;
+              const isClaimed = progress?.isClaimed || false;
+
+              return (
+              <Card key={mission.id} className={`p-4 border ${isCompleted ? 'border-green-500/30 bg-green-500/5' : 'border-white/5'}`}>
+                <div className="flex items-center gap-4">
+                  <div className="shrink-0">
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-8 h-8 text-green-500" />
+                    ) : (
+                      <Circle className="w-8 h-8 text-gray-600" />
+                    )}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h3 className={`text-sm font-black uppercase tracking-tight mb-1 ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+                      {mission.title}
+                    </h3>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-black rounded-full overflow-hidden border border-white/10">
+                        <div 
+                          className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
+                          style={{ width: `${Math.min(100, (currentValue / mission.target) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-400">
+                        {Math.min(currentValue, mission.target)}/{mission.target}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex flex-col items-center justify-center bg-black/40 px-3 py-2 rounded-xl border border-white/5">
+                    {mission.reward?.type === 'money' && <span className="text-green-500 font-black text-sm">$</span>}
+                    {mission.reward?.type === 'gems' && <span className="text-blue-500 font-black text-sm">💎</span>}
+                    {mission.reward?.type === 'boost' && <span className="text-purple-500 font-black text-sm">⚡</span>}
+                    {mission.reward?.type === 'energy' && <span className="text-yellow-500 font-black text-sm">⚡</span>}
+                    {mission.reward?.type === 'team_slot' && <span className="text-orange-500 font-black text-sm">🛡️</span>}
+                    {mission.reward?.type === 'fanz' && <span className="text-pink-500 font-black text-sm">👤</span>}
+                    <span className="text-[10px] font-bold text-white mt-1">
+                      {mission.reward?.type === 'team_slot' || mission.reward?.type === 'fanz' ? '+1' : `+${mission.reward?.amount || 0}`}
+                    </span>
+                  </div>
+                </div>
+
+                {isCompleted && !isClaimed && (
+                  <Button 
+                    className="w-full mt-3 bg-green-500 hover:bg-green-600 text-black font-black uppercase text-xs h-8"
+                    onClick={() => handleClaimReward(mission)}
+                  >
+                    Récupérer
+                  </Button>
+                )}
+                {isClaimed && (
+                  <div className="w-full mt-3 py-1.5 bg-green-500/10 text-green-500 text-center font-black uppercase text-xs rounded-lg border border-green-500/20">
+                    Récupéré
+                  </div>
+                )}
+              </Card>
+              );
+            })}
+            {missions.filter(m => m.period === 'weekly').length === 0 && (
+              <div className="text-center py-4 text-gray-500 text-sm italic">
+                Aucune quête hebdomadaire disponible.
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* One Shot Missions */}
+        <section>
+          <div className="flex items-center justify-between mb-4 mt-8">
+            <h2 className="text-lg font-black italic uppercase tracking-tighter text-white">Quêtes Uniques</h2>
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Une seule fois</span>
+          </div>
+          
+          <div className="space-y-3">
+            {missions.filter(m => m.period === 'one_shot').map(mission => {
+              const progress = profile.missionsProgress?.[mission.id];
+              const currentValue = progress?.currentValue || 0;
+              const isCompleted = progress?.isCompleted || false;
+              const isClaimed = progress?.isClaimed || false;
+
+              return (
+              <Card key={mission.id} className={`p-4 border ${isCompleted ? 'border-green-500/30 bg-green-500/5' : 'border-white/5'}`}>
+                <div className="flex items-center gap-4">
+                  <div className="shrink-0">
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-8 h-8 text-green-500" />
+                    ) : (
+                      <Circle className="w-8 h-8 text-gray-600" />
+                    )}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h3 className={`text-sm font-black uppercase tracking-tight mb-1 ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+                      {mission.title}
+                    </h3>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-black rounded-full overflow-hidden border border-white/10">
+                        <div 
+                          className={`h-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
+                          style={{ width: `${Math.min(100, (currentValue / mission.target) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-400">
+                        {Math.min(currentValue, mission.target)}/{mission.target}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex flex-col items-center justify-center bg-black/40 px-3 py-2 rounded-xl border border-white/5">
+                    {mission.reward?.type === 'money' && <span className="text-green-500 font-black text-sm">$</span>}
+                    {mission.reward?.type === 'gems' && <span className="text-blue-500 font-black text-sm">💎</span>}
+                    {mission.reward?.type === 'boost' && <span className="text-purple-500 font-black text-sm">⚡</span>}
+                    {mission.reward?.type === 'energy' && <span className="text-yellow-500 font-black text-sm">⚡</span>}
+                    {mission.reward?.type === 'team_slot' && <span className="text-orange-500 font-black text-sm">🛡️</span>}
+                    {mission.reward?.type === 'fanz' && <span className="text-pink-500 font-black text-sm">👤</span>}
+                    <span className="text-[10px] font-bold text-white mt-1">
+                      {mission.reward?.type === 'team_slot' || mission.reward?.type === 'fanz' ? '+1' : `+${mission.reward?.amount || 0}`}
+                    </span>
+                  </div>
+                </div>
+
+                {isCompleted && !isClaimed && (
+                  <Button 
+                    className="w-full mt-3 bg-green-500 hover:bg-green-600 text-black font-black uppercase text-xs h-8"
+                    onClick={() => handleClaimReward(mission)}
+                  >
+                    Récupérer
+                  </Button>
+                )}
+                {isClaimed && (
+                  <div className="w-full mt-3 py-1.5 bg-green-500/10 text-green-500 text-center font-black uppercase text-xs rounded-lg border border-green-500/20">
+                    Récupéré
+                  </div>
+                )}
+              </Card>
+              );
+            })}
+            {missions.filter(m => m.period === 'one_shot').length === 0 && (
+              <div className="text-center py-4 text-gray-500 text-sm italic">
+                Aucune quête unique disponible.
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </div>

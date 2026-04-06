@@ -199,30 +199,37 @@ export function AdminZone() {
     try {
       const docSnap = await getDocs(collection(db, 'global_configs'));
       const fervorDoc = docSnap.docs.find(d => d.id === 'user_fervor');
+      
+      const defaultConfig: GlobalFervorConfig = {
+        id: 'user_fervor',
+        ranges: [
+          { level: 1, min: 0, max: 499, step: 10, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 2, min: 500, max: 1549, step: 15, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 3, min: 1550, max: 5099, step: 50, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 4, min: 5100, max: 10099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 5, min: 10100, max: 15099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 6, min: 15100, max: 20099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 7, min: 20100, max: 25099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 8, min: 25100, max: 30199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 9, min: 30200, max: 40199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 10, min: 40200, max: 50199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 11, min: 50200, max: 60199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 12, min: 60200, max: 70199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 13, min: 70200, max: 80199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 14, min: 80200, max: 90199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 15, min: 90200, max: 99999, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+        ]
+      };
+
       if (fervorDoc) {
-        setUserFervorConfig({ id: fervorDoc.id, ...fervorDoc.data() } as GlobalFervorConfig);
+        const data = fervorDoc.data();
+        if (!data.ranges || data.ranges.length === 0) {
+          setUserFervorConfig({ id: fervorDoc.id, ranges: defaultConfig.ranges, ...data } as GlobalFervorConfig);
+        } else {
+          setUserFervorConfig({ id: fervorDoc.id, ...data } as GlobalFervorConfig);
+        }
       } else {
         // Initialize if missing
-        const defaultConfig: GlobalFervorConfig = {
-          id: 'user_fervor',
-          ranges: [
-            { level: 1, min: 0, max: 499, step: 10, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 2, min: 500, max: 1549, step: 15, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 3, min: 1550, max: 5099, step: 50, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 4, min: 5100, max: 10099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 5, min: 10100, max: 15099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 6, min: 15100, max: 20099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 7, min: 20100, max: 25099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 8, min: 25100, max: 30199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 9, min: 30200, max: 40199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 10, min: 40200, max: 50199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 11, min: 50200, max: 60199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 12, min: 60200, max: 70199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 13, min: 70200, max: 80199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 14, min: 80200, max: 90199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-            { level: 15, min: 90200, max: 99999, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          ]
-        };
         setUserFervorConfig(defaultConfig);
       }
     } catch (err) {
@@ -625,14 +632,16 @@ export function AdminZone() {
     setLoading(true);
     try {
       const fanzRef = doc(db, 'fanz_templates', editingFanz.id);
-      await setDoc(fanzRef, editingFanz);
+      // Remove undefined values which Firestore rejects
+      const sanitizedFanz = JSON.parse(JSON.stringify(editingFanz));
+      await setDoc(fanzRef, sanitizedFanz);
       setStatus({ type: 'success', message: 'FANZ sauvegardé avec succès !' });
       fetchFanzTemplates();
       setEditingFanz(null);
     } catch (err) {
       console.error("Error saving fanz template", err);
       handleFirestoreError(err, OperationType.WRITE, `fanz_templates/${editingFanz.id}`);
-      setStatus({ type: 'error', message: 'Erreur lors de la sauvegarde.' });
+      setStatus({ type: 'error', message: `Erreur: ${err instanceof Error ? err.message : String(err)}` });
     } finally {
       setLoading(false);
     }
@@ -780,7 +789,8 @@ export function AdminZone() {
     setLoading(true);
     try {
       const cardRef = doc(db, 'cards', editingCard.id);
-      await setDoc(cardRef, editingCard);
+      const sanitizedCard = JSON.parse(JSON.stringify(editingCard));
+      await setDoc(cardRef, sanitizedCard);
       setStatus({ type: 'success', message: 'Carte sauvegardée avec succès !' });
       fetchDuelCards();
       setEditingCard(null);
@@ -850,7 +860,8 @@ export function AdminZone() {
     setLoading(true);
     try {
       const actionRef = doc(db, 'life_actions', editingAction.id);
-      await setDoc(actionRef, editingAction);
+      const sanitizedAction = JSON.parse(JSON.stringify(editingAction));
+      await setDoc(actionRef, sanitizedAction);
       setStatus({ type: 'success', message: 'Action sauvegardée avec succès !' });
       fetchLifeActions();
       setEditingAction(null);
@@ -1403,7 +1414,8 @@ export function AdminZone() {
                   type: 'duel_count',
                   target: 1,
                   reward: { type: 'money', amount: 100 },
-                  isActive: true
+                  isActive: true,
+                  period: 'daily'
                 })}>
                   <Plus className="w-4 h-4 mr-2" /> Nouvelle Mission
                 </Button>
@@ -1434,6 +1446,18 @@ export function AdminZone() {
                           <option value="win_count">Nombre de Victoires</option>
                           <option value="fanz_duel">Duel avec chaque FANZ</option>
                           <option value="life_action">Actions LIFE réalisées</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Périodicité</label>
+                        <select
+                          value={editingMission.period || 'daily'}
+                          onChange={e => setEditingMission({...editingMission, period: e.target.value as any})}
+                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="daily">Quotidienne</option>
+                          <option value="weekly">Hebdomadaire</option>
+                          <option value="one_shot">Unique (One Shot)</option>
                         </select>
                       </div>
                       <div className="space-y-2">
@@ -1470,9 +1494,14 @@ export function AdminZone() {
                   <Card key={mission.id} className="p-4 hover:border-blue-500 cursor-pointer bg-gray-900/40" onClick={() => setEditingMission(mission)}>
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-bold text-white">{mission.title}</h4>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${mission.isActive ? 'bg-green-900/30 text-green-400 border border-green-900' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
-                        {mission.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${mission.isActive ? 'bg-green-900/30 text-green-400 border border-green-900' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                          {mission.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-900">
+                          {mission.period === 'weekly' ? 'Hebdo' : mission.period === 'one_shot' ? 'Unique' : 'Quotidienne'}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-xs text-gray-400 mb-3">{mission.description}</p>
                     <div className="flex justify-between items-center text-xs">
@@ -2748,6 +2777,12 @@ export function AdminZone() {
                   </div>
                 </div>
 
+                <div className="flex justify-end mt-4">
+                  <Button type="submit" disabled={loading} className="flex items-center gap-2">
+                    <Save className="w-4 h-4" /> Sauvegarder
+                  </Button>
+                </div>
+
                 <div className="space-y-4">
                   <h4 className="font-bold flex items-center gap-2">
                     <Activity className="w-5 h-5 text-orange-500" /> Statistiques de Base
@@ -2772,6 +2807,12 @@ export function AdminZone() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button type="submit" disabled={loading} className="flex items-center gap-2">
+                    <Save className="w-4 h-4" /> Sauvegarder
+                  </Button>
                 </div>
 
                 <div className="space-y-4">
@@ -2864,6 +2905,12 @@ export function AdminZone() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button type="submit" disabled={loading} className="flex items-center gap-2">
+                    <Save className="w-4 h-4" /> Sauvegarder
+                  </Button>
                 </div>
 
                 <div className="space-y-4">
@@ -3018,6 +3065,12 @@ export function AdminZone() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button type="submit" disabled={loading} className="flex items-center gap-2">
+                    <Save className="w-4 h-4" /> Sauvegarder
+                  </Button>
                 </div>
 
                 <div className="space-y-4">
@@ -3181,6 +3234,12 @@ export function AdminZone() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button type="submit" disabled={loading} className="flex items-center gap-2">
+                    <Save className="w-4 h-4" /> Sauvegarder
+                  </Button>
                 </div>
 
                 <div className="space-y-4">
