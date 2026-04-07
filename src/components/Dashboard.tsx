@@ -105,9 +105,9 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
     fetchLive();
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center h-screen">Chargement...</div>;
-  if (error) return <div className="flex items-center justify-center h-screen text-red-500">{error}</div>;
-  if (!user) return <div className="flex items-center justify-center h-screen">Profil introuvable.</div>;
+  if (loading) return <div className="flex items-center justify-center h-full">Chargement...</div>;
+  if (error) return <div className="flex items-center justify-center h-full text-red-500">{error}</div>;
+  if (!user) return <div className="flex items-center justify-center h-full">Profil introuvable.</div>;
 
   const activeFanz = user?.activeAction ? fanzList.find(f => f.id === user.activeAction?.fanzId) : null;
   const activeActionDetails = lifeActions.find(a => a.id === user?.activeAction?.actionId);

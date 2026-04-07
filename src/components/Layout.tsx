@@ -12,11 +12,11 @@ interface LayoutProps {
 export function Layout({ children, className, containerClassName, isMobileOnly = false }: LayoutProps) {
   return (
     <div 
-      className={cn("h-[100dvh] text-white font-sans flex justify-center bg-[#0a0a0a]", className)}
+      className={cn("fixed inset-0 text-white font-sans flex justify-center bg-[#0a0a0a]", className)}
       style={{ backgroundColor: COLORS.bg }}
     >
       <div className={cn(
-        "w-full h-[100dvh] relative flex flex-col overflow-hidden",
+        "w-full h-full relative flex flex-col overflow-hidden bg-grid-pattern",
         isMobileOnly ? "max-w-[450px] shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#121212] border-x border-white/5" : "max-w-7xl mx-auto shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#121212] sm:border-x border-white/5",
         containerClassName
       )}>

@@ -3,6 +3,7 @@ import { Card, Button } from './Layout';
 import { Swords, Users, Trophy, Clock, ChevronRight, Search, Filter, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Duel, UserProfile } from '../types';
+import { useAlert } from '../context/AlertContext';
 
 interface WaitingRoomProps {
   user: UserProfile;
@@ -11,6 +12,7 @@ interface WaitingRoomProps {
 }
 
 export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
+  const { showAlert } = useAlert();
   const [duels, setDuels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,14 +28,14 @@ export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
         if (duel && duel.matchId) {
           onJoinDuel(duel.id, duel.type, duel.matchId);
         } else {
-          alert('Duel introuvable ou expiré.');
+          showAlert({ type: 'error', title: 'Duel introuvable ou expiré.' });
         }
       } else {
-        alert('Code invalide.');
+        showAlert({ type: 'error', title: 'Code invalide.' });
       }
     } catch (err) {
       console.error(err);
-      alert('Erreur lors de la recherche du duel.');
+      showAlert({ type: 'error', title: 'Erreur lors de la recherche du duel.' });
     }
   };
 

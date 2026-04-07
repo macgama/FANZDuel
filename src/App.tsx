@@ -124,28 +124,28 @@ function AppContent() {
   const renderFooter = () => {
     if (isDuelActive || view === 'admin') return null;
     return (
-      <footer className="absolute bottom-0 left-0 right-0 h-16 sm:h-20 bg-black/90 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-2 sm:px-8 z-50">
-        <button onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'matches' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+      <footer className="shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <button onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'matches' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Activity className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Live</span>
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Live</span>
         </button>
-        <button onClick={() => { setView('leaderboard'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'leaderboard' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+        <button onClick={() => { setView('leaderboard'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'leaderboard' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Classement</span>
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
         </button>
-        <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors relative -top-4 sm:-top-6">
-          <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-black shadow-lg ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/40' : 'bg-orange-600 shadow-orange-600/20'}`}>
-            <Swords className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+        <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-5 sm:-top-7 group">
+          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#121212] shadow-xl transition-all duration-300 ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'}`}>
+            <Swords className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
           </div>
-          <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest ${view === 'waiting-room' ? 'text-orange-400' : 'text-orange-500'}`}>Duel</span>
+          <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest mt-1 ${view === 'waiting-room' ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : 'text-orange-600'}`}>Duel</span>
         </button>
-        <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'fanz' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+        <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'fanz' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Star className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Fanz</span>
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Fanz</span>
         </button>
-        <button onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-colors ${view === 'social' ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+        <button onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'social' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Users className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Social</span>
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Social</span>
         </button>
       </footer>
     );
@@ -294,7 +294,7 @@ function AppContent() {
         setCurrentDuel(duelData);
         setView('duel');
       }} />
-      <div className="flex flex-col h-full">
+      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
         {view === 'home' ? (
           <Home 
             profile={profile} 
@@ -346,7 +346,7 @@ function AppContent() {
               />
             )}
             
-            <div className={cn("flex-1 overflow-y-auto pb-14", (!selectedFanzId && !selectedMatchId && view !== 'matches') && "pt-6 px-[30px]", (selectedMatchId || view === 'matches') && "pt-6 px-0")}>
+            <div className={cn("flex-1 overflow-y-auto pb-6", (!selectedFanzId && !selectedMatchId && view !== 'matches') && "pt-6 px-[30px]", (selectedMatchId || view === 'matches') && "pt-6 px-0")}>
               {selectedTeam ? (
                 <TeamDetails 
                   teamId={selectedTeam.id} 

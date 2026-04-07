@@ -96,7 +96,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       (userProfile.gems || 0) < costGems ||
       (userProfile.boostPoints || 0) < costBoost
     ) {
-      alert("Ressources insuffisantes !");
+      showAlert({ type: 'error', title: 'Ressources insuffisantes !' });
       return;
     }
 
@@ -224,7 +224,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
   const handleAccelerate = async () => {
     if (!isThisActionActive) return;
     if (userProfile.gems < 1) {
-      alert("Pas assez de gemmes !");
+      showAlert({ type: 'error', title: 'Pas assez de gemmes !' });
       return;
     }
     try {

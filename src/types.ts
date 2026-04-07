@@ -29,6 +29,8 @@ export interface UserProfile {
   maxEnergy?: number;
   lastEnergyRefill: string;
   ferveurPoints: number;
+  matchesParticipated?: number;
+  totalScoreGiven?: number;
   level: number;
   teamSlots: number;
   cards: string[];

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { db } from '../firebase';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 import { Search, Plus, Shield } from 'lucide-react';
 import { footballApi } from '../services/footballApi';
 import { Button, Card } from './Layout';
@@ -29,8 +29,60 @@ export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
           profile.favoriteTeams.map(async (teamIdOrName) => {
             const teamDoc = await getDoc(doc(db, 'teams', teamIdOrName));
             if (teamDoc.exists()) {
-              return { id: teamDoc.id, ...teamDoc.data() };
+              const data = teamDoc.data();
+              if (!data.logo) {
+                // Try to find logo via API if missing
+                try {
+                  const results = await footballApi.searchTeams(data.name || teamIdOrName);
+                  if (results && results.length > 0) {
+                    const newLogo = results[0].team.logo;
+                    // Update the database so we don't have to fetch it again
+                    await updateDoc(doc(db, 'teams', teamIdOrName), { logo: newLogo });
+                    return { id: teamDoc.id, ...data, logo: newLogo };
+                  }
+                } catch (e) {
+                  console.error("Failed to fetch logo fallback", e);
+                }
+              }
+              return { id: teamDoc.id, ...data };
             }
+            
+            // If team not in DB, try to fetch from API
+            try {
+              const results = await footballApi.searchTeams(teamIdOrName);
+              if (results && results.length > 0) {
+                const teamData = results[0].team;
+                const newTeamId = teamData.id.toString();
+                
+                // If the old ID was a name (not a number), we should migrate it
+                if (isNaN(Number(teamIdOrName))) {
+                  // Replace the old name with the new ID in the user's favoriteTeams
+                  const updatedFavoriteTeams = profile.favoriteTeams.map(t => t === teamIdOrName ? newTeamId : t);
+                  await updateDoc(doc(db, 'users', profile.uid), { favoriteTeams: updatedFavoriteTeams });
+                  
+                  // Make sure the team exists in the teams collection
+                  const newTeamRef = doc(db, 'teams', newTeamId);
+                  const newTeamDoc = await getDoc(newTeamRef);
+                  if (!newTeamDoc.exists()) {
+                    await setDoc(newTeamRef, {
+                      name: teamData.name,
+                      logo: teamData.logo,
+                      userCount: 1,
+                      averageFerveur: 10,
+                      ferveurEarned: 0,
+                      totalScoreGiven: 0,
+                      matchesPlayed: 0,
+                      leagueIds: []
+                    });
+                  }
+                }
+                
+                return { id: newTeamId, name: teamData.name, logo: teamData.logo };
+              }
+            } catch (e) {
+              console.error("Failed to fetch team fallback", e);
+            }
+
             return { id: teamIdOrName, name: teamIdOrName, logo: '' };
           })
         );

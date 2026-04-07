@@ -47,6 +47,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -64,7 +65,18 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
     const q = query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (!snapshot.empty) {
-        const fanzDoc = snapshot.docs.find(d => d.id === profile.activeAction?.fanzId) || snapshot.docs[0];
+        const sortedDocs = [...snapshot.docs].sort((a, b) => {
+          const dataA = a.data() as Fanz;
+          const dataB = b.data() as Fanz;
+          // Prefer Fanz with equipped skin
+          if (dataA.equippedSkin && !dataB.equippedSkin) return -1;
+          if (!dataA.equippedSkin && dataB.equippedSkin) return 1;
+          // Then by level, xp, id
+          if ((dataB.level || 0) !== (dataA.level || 0)) return (dataB.level || 0) - (dataA.level || 0);
+          if ((dataB.xp || 0) !== (dataA.xp || 0)) return (dataB.xp || 0) - (dataA.xp || 0);
+          return a.id.localeCompare(b.id);
+        });
+        const fanzDoc = sortedDocs.find(d => d.id === profile.activeAction?.fanzId) || sortedDocs[0];
         const fanzData = fanzDoc.data() as Fanz;
         setActiveFanz(fanzData);
 
@@ -80,7 +92,25 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
               // Use active action video if available
               const activeAction = lifeActions.find(a => a.id === profile.activeAction?.actionId && profile.activeAction?.fanzId === fanzData.id);
               
-              setVideoUrl(activeAction?.videoUrl || equippedSkinData?.videoUrl || fanzData.videoUrl || templateData.video || null);
+              let currentImageUrl = templateData.image;
+              let currentVideoUrl = templateData.video;
+
+              if (fanzData.imageUrl) currentImageUrl = fanzData.imageUrl;
+              if (fanzData.videoUrl) currentVideoUrl = fanzData.videoUrl;
+
+              if (equippedSkinData) {
+                currentImageUrl = equippedSkinData.imageUrl || currentImageUrl;
+                currentVideoUrl = equippedSkinData.videoUrl || currentVideoUrl;
+              }
+
+              if (activeAction) {
+                currentImageUrl = activeAction.image || currentImageUrl;
+                currentVideoUrl = activeAction.videoUrl || currentVideoUrl;
+              }
+
+              const finalVideoUrl = getImageUrl(currentVideoUrl);
+              setVideoUrl(finalVideoUrl ? currentVideoUrl : null);
+              setImageUrl(currentImageUrl || null);
             }
           } catch (error) {
             console.error("Error fetching template", error);
@@ -158,7 +188,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   };
 
   return (
-    <div className="h-[100dvh] w-full bg-[#121212] relative overflow-hidden flex flex-col font-sans text-white">
+    <div className="h-full w-full bg-transparent relative overflow-hidden flex flex-col font-sans text-white">
       
       {/* HEADER */}
       <Header 
@@ -171,7 +201,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
       />
 
       {/* BODY: Video Background (4:3) and Content Below */}
-      <div className="flex-1 flex flex-col relative overflow-y-auto pb-16 no-scrollbar">
+      <div className="flex-1 flex flex-col relative overflow-y-auto pb-6 no-scrollbar">
         {/* Video Section (4:3 Aspect Ratio) */}
         <div className="w-full aspect-[4/3] relative shrink-0">
           {videoUrl ? (
@@ -182,6 +212,12 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
               muted 
               loop 
               playsInline
+            />
+          ) : imageUrl ? (
+            <img 
+              src={getImageUrl(imageUrl)} 
+              alt={activeFanz?.name || 'Mon FANZ'}
+              className="w-full h-full object-cover"
             />
           ) : (
             <div className="w-full h-full bg-gray-900 flex items-center justify-center">

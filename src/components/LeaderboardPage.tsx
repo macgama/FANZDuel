@@ -106,7 +106,7 @@ export function LeaderboardPage() {
       try {
         const currentYear = new Date().getFullYear();
         const data = await footballDataService.getTeams(selectedLeagueId, currentYear);
-        const teamIds = new Set(data.map((t: any) => t.team.id));
+        const teamIds = new Set<number>(data.map((t: any) => t.team.id));
         setLeagueTeams(teamIds);
       } catch (error) {
         console.error("Error fetching league teams:", error);

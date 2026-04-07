@@ -216,8 +216,22 @@ function FanzCard({ template, fanz, isOwned, onClick, onUnlock }: { template: Fa
   const [isHovered, setIsHovered] = useState(false);
 
   const equippedSkinData = template.skins?.find(s => s.id === fanz?.equippedSkin);
-  const currentImageUrl = equippedSkinData?.imageUrl || fanz?.imageUrl || template.image;
-  const currentVideoUrl = equippedSkinData?.videoUrl || fanz?.videoUrl || template.video;
+  
+  let currentImageUrl = template.image;
+  let currentVideoUrl = template.video;
+
+  if (fanz?.imageUrl) currentImageUrl = fanz.imageUrl;
+  if (fanz?.videoUrl) currentVideoUrl = fanz.videoUrl;
+
+  if (equippedSkinData) {
+    currentImageUrl = equippedSkinData.imageUrl || currentImageUrl;
+    currentVideoUrl = equippedSkinData.videoUrl || null;
+  }
+
+  const finalVideoUrl = getImageUrl(currentVideoUrl);
+  if (!finalVideoUrl) {
+    currentVideoUrl = null;
+  }
 
   return (
     <motion.div

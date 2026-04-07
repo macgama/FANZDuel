@@ -58,7 +58,18 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
     const q = query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (!snapshot.empty) {
-        const activeFanzDoc = snapshot.docs.find(d => d.id === profile.activeAction?.fanzId) || snapshot.docs[0];
+        const sortedDocs = [...snapshot.docs].sort((a, b) => {
+          const dataA = a.data() as Fanz;
+          const dataB = b.data() as Fanz;
+          // Prefer Fanz with equipped skin
+          if (dataA.equippedSkin && !dataB.equippedSkin) return -1;
+          if (!dataA.equippedSkin && dataB.equippedSkin) return 1;
+          // Then by level, xp, id
+          if ((dataB.level || 0) !== (dataA.level || 0)) return (dataB.level || 0) - (dataA.level || 0);
+          if ((dataB.xp || 0) !== (dataA.xp || 0)) return (dataB.xp || 0) - (dataA.xp || 0);
+          return a.id.localeCompare(b.id);
+        });
+        const activeFanzDoc = sortedDocs.find(d => d.id === profile.activeAction?.fanzId) || sortedDocs[0];
         const fanzData = activeFanzDoc.data() as Fanz;
         
         let imageUrl = fanzData.imageUrl;
@@ -69,14 +80,21 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
             if (templateDoc.exists()) {
               const templateData = templateDoc.data() as FanzTemplate;
               const equippedSkinData = templateData.skins?.find(s => s.id === fanzData.equippedSkin);
-              imageUrl = equippedSkinData?.imageUrl || fanzData.imageUrl || templateData.image;
+              
+              let currentImageUrl = templateData.image;
+              if (fanzData.imageUrl) currentImageUrl = fanzData.imageUrl;
+              if (equippedSkinData) {
+                currentImageUrl = equippedSkinData.imageUrl || currentImageUrl;
+              }
+              imageUrl = currentImageUrl;
             }
           } catch (error) {
             console.error("Error fetching template for avatar", error);
           }
         }
         
-        setAvatarUrl(profile.photoURL || imageUrl || null);
+        const finalImageUrl = getImageUrl(imageUrl);
+        setAvatarUrl(finalImageUrl ? imageUrl : (profile.photoURL || null));
       } else {
         setAvatarUrl(profile.photoURL || null);
       }

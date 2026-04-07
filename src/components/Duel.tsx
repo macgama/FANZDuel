@@ -13,8 +13,10 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { ErrorBoundary } from './ErrorBoundary';
+import { useAlert } from '../context/AlertContext';
 
 export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void }) {
+  const { showAlert } = useAlert();
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -97,7 +99,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
 
   const handleStartDuel = async (type: Duel['type']) => {
     if (!selectedFanzId || !duelConfig || !selectedTeam) {
-      alert("Veuillez sélectionner un Fanz et une équipe !");
+      showAlert({ type: 'error', title: 'Veuillez sélectionner un Fanz et une équipe !' });
       return;
     }
 
@@ -109,7 +111,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
 
     const cost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
     if (user.money < cost.money || user.energy < cost.energy) {
-      alert("Fonds ou énergie insuffisants !");
+      showAlert({ type: 'error', title: 'Fonds ou énergie insuffisants !' });
       return;
     }
 
@@ -147,7 +149,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
   if (activeDuel) {
     return (
       <ErrorBoundary onReset={() => setActiveDuel(null)}>
-        <DuelScreen duel={activeDuel} user={user} fanzId={selectedFanzId!} teamA={teamA} teamB={teamB} teamAId={teamAId} teamBId={teamBId} selectedTeam={selectedTeam!} onExit={() => setActiveDuel(null)} />
+        <DuelScreen duel={activeDuel} user={user} fanzId={selectedFanzId!} teamA={teamA} teamB={teamB} teamAId={teamAId} teamBId={teamBId} teamALogo={teamALogo} teamBLogo={teamBLogo} selectedTeam={selectedTeam!} onExit={() => setActiveDuel(null)} />
       </ErrorBoundary>
     );
   }
@@ -403,7 +405,7 @@ interface FloatingEffect {
   color: string;
 }
 
-export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, selectedTeam }: { duel: Duel; user: UserProfile; onExit: () => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, selectedTeam: string }) {
+export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, selectedTeam }: { duel: Duel; user: UserProfile; onExit: () => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, teamALogo?: string, teamBLogo?: string, selectedTeam: string }) {
   const [progress, setProgress] = useState(50);
   const [excitement, setExcitement] = useState(5);
   const maxExcitement = 10;
@@ -1330,7 +1332,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(inviteCode);
-                      alert('Code copié !');
+                      showAlert({ type: 'success', title: 'Code copié !' });
                     }}
                     className="text-xs text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
                   >

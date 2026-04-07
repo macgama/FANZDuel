@@ -350,8 +350,27 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   const activeAction = lifeActions.find(a => a.id === activeActionId);
 
   const equippedSkinData = template?.skins?.find(s => s.id === fanz?.equippedSkin);
-  const currentImageUrl = activeAction?.image || equippedSkinData?.imageUrl || fanz?.imageUrl || template?.image;
-  const currentVideoUrl = activeAction?.videoUrl || equippedSkinData?.videoUrl || fanz?.videoUrl || template?.video;
+  
+  let currentImageUrl = template?.image;
+  let currentVideoUrl = template?.video;
+
+  if (fanz?.imageUrl) currentImageUrl = fanz.imageUrl;
+  if (fanz?.videoUrl) currentVideoUrl = fanz.videoUrl;
+
+  if (equippedSkinData) {
+    currentImageUrl = equippedSkinData.imageUrl || currentImageUrl;
+    currentVideoUrl = equippedSkinData.videoUrl || null; // Don't fallback to template video if skin has no video
+  }
+
+  if (activeAction) {
+    currentImageUrl = activeAction.image || currentImageUrl;
+    currentVideoUrl = activeAction.videoUrl || null; // Don't fallback to skin video if action has no video
+  }
+
+  const finalVideoUrl = getImageUrl(currentVideoUrl);
+  if (!finalVideoUrl) {
+    currentVideoUrl = null;
+  }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-20">
