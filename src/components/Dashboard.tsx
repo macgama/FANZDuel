@@ -217,9 +217,14 @@ export function Dashboard({ onDuelStatusChange, onTeamClick, onLeagueClick, onMa
       <div className="grid md:grid-cols-2 gap-8">
         {/* FANZ List */}
         <section className="space-y-4">
-          <h2 className="text-2xl font-black italic uppercase flex items-center gap-2">
-            <UserIcon /> Mes FANZ ({fanzList.length})
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black italic uppercase flex items-center gap-2">
+              <UserIcon /> Mes FANZ
+            </h2>
+            <div className="text-sm font-bold text-gray-400 bg-gray-800/50 px-3 py-1 rounded-full border border-gray-700">
+              <span className="text-orange-500">{fanzList.length}</span> / {activeFanzCount}
+            </div>
+          </div>
           <div className="space-y-4">
             {fanzList.map(fanz => {
               const template = fanzTemplates.find(t => t.id === fanz.templateId);

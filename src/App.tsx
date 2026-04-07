@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, query, collection, where } from 'firebase/firestore';
 import { Layout, Card } from './components/Layout';
 import { cn } from './lib/utils';
 import { Auth } from './components/Auth';
@@ -69,6 +69,7 @@ function AppContent() {
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [joiningDuel, setJoiningDuel] = useState<{ id: string; type: string; matchId: number } | null>(null);
+  const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
 
   const [showActiveActionModal, setShowActiveActionModal] = useState(false);
   const [activeActionDetails, setActiveActionDetails] = useState<any>(null);
@@ -79,6 +80,17 @@ function AppContent() {
       setShowActiveActionModal(false);
     }
   }, [profile?.activeAction, showActiveActionModal]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'duels'), where('status', '==', 'waiting'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      // Filter out duels where the current user is already the creator
+      const waitingCount = snapshot.docs.filter(doc => doc.data().creatorId !== user.uid).length;
+      setWaitingDuelsCount(waitingCount);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   const handleDuelIntent = async (callback: () => void) => {
     if (profile?.activeAction) {
@@ -134,8 +146,13 @@ function AppContent() {
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
         </button>
         <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-5 sm:-top-7 group">
-          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#121212] shadow-xl transition-all duration-300 ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'}`}>
+          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#121212] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'}`}>
             <Swords className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+            {waitingDuelsCount > 0 && (
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#121212] flex items-center justify-center text-[10px] font-black text-white shadow-lg animate-pulse">
+                {waitingDuelsCount}
+              </div>
+            )}
           </div>
           <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest mt-1 ${view === 'waiting-room' ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : 'text-orange-600'}`}>Duel</span>
         </button>
@@ -510,7 +527,20 @@ function AppContent() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-3 sm:space-y-4">
-            <MenuButton icon={<Swords />} label="Salle d'Attente" onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} />
+            <MenuButton 
+              icon={
+                <div className="relative">
+                  <Swords />
+                  {waitingDuelsCount > 0 && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-[#121212] flex items-center justify-center text-[8px] font-black text-white">
+                      {waitingDuelsCount}
+                    </div>
+                  )}
+                </div>
+              } 
+              label="Salle d'Attente" 
+              onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} 
+            />
             <MenuButton icon={<Users />} label="Social" onClick={() => { setView('social'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Star />} label="Équipes Favorites" onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Trophy />} label="Classements" onClick={() => { setView('leaderboard'); setIsMenuOpen(false); }} />

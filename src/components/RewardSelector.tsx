@@ -7,9 +7,12 @@ interface RewardSelectorProps {
   fanzTemplates: FanzTemplate[];
   lifeActions: LifeAction[];
   duelCards: DuelCard[];
+  theme?: 'dark' | 'light';
+  isFanzContext?: boolean;
+  currentFanzId?: string;
 }
 
-export const RewardSelector: React.FC<RewardSelectorProps & { theme?: 'dark' | 'light' }> = ({ reward, onChange, fanzTemplates, lifeActions, duelCards, theme = 'dark' }) => {
+export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange, fanzTemplates, lifeActions, duelCards, theme = 'dark', isFanzContext, currentFanzId }) => {
   const allSkins = fanzTemplates.flatMap(t => t.skins.map(s => ({ ...s, templateName: t.name })));
   const allEmotes = fanzTemplates.flatMap(t => t.emotes.map(e => ({ ...e, templateName: t.name })));
 
@@ -17,12 +20,25 @@ export const RewardSelector: React.FC<RewardSelectorProps & { theme?: 'dark' | '
     ? "p-1 bg-gray-800 rounded border border-gray-700 text-xs text-white"
     : "p-2 bg-white rounded border border-gray-200 text-sm text-gray-900";
 
+  const availableCards = isFanzContext && currentFanzId
+    ? duelCards.filter(c => {
+        const isAllowed = !c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(currentFanzId);
+        const isBlocked = c.blockedFanzIds && c.blockedFanzIds.includes(currentFanzId);
+        return isAllowed && !isBlocked;
+      })
+    : duelCards;
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
         <select
           value={reward?.type || 'money'}
-          onChange={e => onChange({ ...reward, type: e.target.value as any })}
+          onChange={e => {
+            const type = e.target.value as any;
+            const newReward = { ...reward, type };
+            if (type === 'team_slot') newReward.amount = 1;
+            onChange(newReward);
+          }}
           className={`flex-1 ${inputClass}`}
         >
           <option value="money">Argent ($)</option>
@@ -33,8 +49,8 @@ export const RewardSelector: React.FC<RewardSelectorProps & { theme?: 'dark' | '
           <option value="skin">Skin</option>
           <option value="emote">Emote</option>
           <option value="card">Carte Duel</option>
-          <option value="action">Action LIFE</option>
-          <option value="team_slot">Emplacement Équipe</option>
+          {!isFanzContext && <option value="action">Action LIFE</option>}
+          <option value="team_slot">1 slot supplémentaire pour équipe</option>
           <option value="fanz">FANZ</option>
         </select>
         
@@ -45,9 +61,28 @@ export const RewardSelector: React.FC<RewardSelectorProps & { theme?: 'dark' | '
             onChange={e => onChange({ ...reward, amount: Number(e.target.value) })}
             className={`w-20 font-mono ${inputClass}`}
             placeholder="Montant"
+            disabled={reward?.type === 'team_slot'}
           />
         )}
       </div>
+
+      {reward?.type === 'xp' && (
+        <select
+          value={reward.statName || ''}
+          onChange={e => onChange({ ...reward, statName: e.target.value as any })}
+          className={`w-full ${inputClass}`}
+        >
+          <option value="">Sélectionner une compétence...</option>
+          <option value="force">Force</option>
+          <option value="endurance">Endurance</option>
+          <option value="mental">Mental</option>
+          <option value="bluff">Bluff</option>
+          <option value="creativity">Créativité</option>
+          <option value="social">Social</option>
+          <option value="intelligence">Intelligence</option>
+          <option value="charisma">Charisme</option>
+        </select>
+      )}
 
       {reward?.type === 'fanz' && (
         <select
@@ -95,13 +130,13 @@ export const RewardSelector: React.FC<RewardSelectorProps & { theme?: 'dark' | '
           className={`w-full ${inputClass}`}
         >
           <option value="">Sélectionner une carte...</option>
-          {duelCards.map(c => (
+          {availableCards.map(c => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
       )}
 
-      {reward?.type === 'action' && (
+      {reward?.type === 'action' && !isFanzContext && (
         <select
           value={reward.actionId || ''}
           onChange={e => onChange({ ...reward, actionId: e.target.value })}

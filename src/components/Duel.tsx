@@ -38,6 +38,26 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
             const allDuels = await res.json();
             const duel = allDuels.find((d: any) => d.id === joiningDuelId);
             if (duel) {
+              // Check if user is already a participant
+              const existingParticipant = duel.participants.find((p: any) => p.uid === user.uid);
+              if (existingParticipant) {
+                // User is already in this duel, jump straight to it
+                setActiveDuel({
+                  id: duel.id,
+                  type: duel.type,
+                  status: duel.status,
+                  matchId: duel.matchId,
+                  teamA: teamA,
+                  teamB: teamB,
+                  progress: duel.progress,
+                  participants: duel.participants,
+                  createdAt: duel.createdAt,
+                  isPrivate: duel.isPrivate,
+                  inviteCode: duel.inviteCode
+                });
+                return;
+              }
+
               setJoiningDuelData(duel);
               // Auto-select team if only one is available
               const maxPlayersPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 999;
@@ -57,7 +77,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
       };
       fetchDuelData();
     }
-  }, [joiningDuelId, teamA, teamB]);
+  }, [joiningDuelId, teamA, teamB, user.uid]);
 
   // Calculate Stat Bonuses for Impact Estimation
   const getStatEffectValue = (effectType: string, fanz: Fanz | null) => {
@@ -149,7 +169,21 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
   if (activeDuel) {
     return (
       <ErrorBoundary onReset={() => setActiveDuel(null)}>
-        <DuelScreen duel={activeDuel} user={user} fanzId={selectedFanzId!} teamA={teamA} teamB={teamB} teamAId={teamAId} teamBId={teamBId} teamALogo={teamALogo} teamBLogo={teamBLogo} selectedTeam={selectedTeam!} onExit={() => setActiveDuel(null)} />
+        <DuelScreen 
+          duel={activeDuel} 
+          user={user} 
+          fanzId={selectedFanzId!} 
+          teamA={teamA} 
+          teamB={teamB} 
+          teamAId={teamAId} 
+          teamBId={teamBId} 
+          teamALogo={teamALogo} 
+          teamBLogo={teamBLogo} 
+          selectedTeam={selectedTeam!} 
+          onExit={(status) => {
+            onExit(); // Always exit completely back to MatchDetails
+          }} 
+        />
       </ErrorBoundary>
     );
   }
@@ -405,7 +439,7 @@ interface FloatingEffect {
   color: string;
 }
 
-export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, selectedTeam }: { duel: Duel; user: UserProfile; onExit: () => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, teamALogo?: string, teamBLogo?: string, selectedTeam: string }) {
+export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, selectedTeam }: { duel: Duel; user: UserProfile; onExit: (status?: string) => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, teamALogo?: string, teamBLogo?: string, selectedTeam: string }) {
   const [progress, setProgress] = useState(50);
   const [excitement, setExcitement] = useState(5);
   const maxExcitement = 10;
@@ -1224,7 +1258,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           )}
         </AnimatePresence>
         <div className="flex justify-between items-center mb-2 relative z-50">
-          <button onClick={onExit} className="p-2 hover:bg-white/10 rounded-full">
+          <button onClick={() => {
+            if (status === 'waiting') {
+              socket?.emit('leave-duel', { duelId: currentDuelIdRef.current, userId: user.uid });
+            }
+            onExit(status);
+          }} className="p-2 hover:bg-white/10 rounded-full">
             <ChevronLeft />
           </button>
           <div className="text-[10px] text-yellow-500 font-black uppercase tracking-widest">
@@ -1318,42 +1357,133 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/80 z-40 flex flex-col items-center justify-center text-center p-6"
+            className="absolute inset-0 bg-[#0a0a0a] z-[60] flex flex-col overflow-hidden"
           >
-            <div className="w-20 h-20 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-6" />
-            <h3 className="text-2xl font-black italic uppercase mb-2">En attente d'adversaires...</h3>
-            <p className="text-gray-400 text-sm mb-6">Le duel commencera dès que le salon sera complet.</p>
-            
-            {inviteCode && (
-              <div className="bg-white/10 p-4 rounded-xl border border-white/20 flex flex-col items-center">
-                <span className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-2">Code d'invitation</span>
-                <div className="text-3xl font-black text-orange-500 tracking-[0.2em]">{inviteCode}</div>
-                <div className="flex gap-2 mt-3">
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(inviteCode);
-                      showAlert({ type: 'success', title: 'Code copié !' });
-                    }}
-                    className="text-xs text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    Copier le code
-                  </button>
-                  {navigator.share && (
-                    <button 
-                      onClick={() => {
-                        navigator.share({
-                          title: 'Rejoins mon duel The Best Fan !',
-                          text: `Rejoins mon duel avec le code: ${inviteCode}`,
-                        }).catch(console.error);
-                      }}
-                      className="text-xs text-white bg-orange-600 hover:bg-orange-500 px-3 py-1.5 rounded-lg transition-colors font-bold"
-                    >
-                      Partager
-                    </button>
-                  )}
+            {/* Back Button */}
+            <button 
+              onClick={() => {
+                socket?.emit('leave-duel', { duelId: currentDuelIdRef.current, userId: user.uid });
+                onExit(status);
+              }} 
+              className="absolute left-4 top-8 z-50 p-3 bg-black/50 hover:bg-white/10 rounded-full text-white backdrop-blur-md"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            {/* VS Background Split */}
+            <div className="absolute inset-0 flex flex-col">
+              <div className="flex-1 bg-gradient-to-br from-blue-900/40 to-blue-900/10 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
+              </div>
+              <div className="flex-1 bg-gradient-to-tl from-red-900/40 to-red-900/10 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
+              </div>
+            </div>
+
+            {/* VS Badge */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="w-24 h-24 bg-black rounded-full border-4 border-orange-500 flex items-center justify-center shadow-[0_0_30px_rgba(249,115,22,0.5)]">
+                <span className="text-4xl font-black italic text-orange-500">VS</span>
+              </div>
+            </div>
+
+            {/* Teams Container */}
+            <div className="absolute inset-0 flex flex-col z-10">
+              {/* Team A (Top) */}
+              <div className="flex-1 flex flex-col items-center justify-center p-4">
+                <div className="flex flex-wrap justify-center gap-4 w-full max-w-lg">
+                  {Array.from({ length: { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1 }).map((_, i) => {
+                    const p = participants.filter(p => p.team === 'A')[i];
+                    return (
+                      <div key={`A-${i}`} className="w-28 h-36 bg-black/60 border-2 border-blue-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
+                        {p ? (
+                          <>
+                            <img src={getImageUrl(p.fanzImage) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                            <div className="relative z-10 flex flex-col items-center">
+                              <img src={getImageUrl(p.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-12 h-12 rounded-full border-2 border-blue-400 mb-2" />
+                              <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
+                              <span className="text-[9px] text-blue-300 font-bold uppercase mt-1">{p.fanzName}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center opacity-50">
+                            <div className="w-8 h-8 border-2 border-blue-500/50 border-t-blue-400 rounded-full animate-spin mb-2" />
+                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest text-center">En attente</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            )}
+
+              {/* Team B (Bottom) */}
+              <div className="flex-1 flex flex-col items-center justify-center p-4">
+                <div className="flex flex-wrap justify-center gap-4 w-full max-w-lg">
+                  {Array.from({ length: { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1 }).map((_, i) => {
+                    const p = participants.filter(p => p.team === 'B')[i];
+                    return (
+                      <div key={`B-${i}`} className="w-28 h-36 bg-black/60 border-2 border-red-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
+                        {p ? (
+                          <>
+                            <img src={getImageUrl(p.fanzImage) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                            <div className="relative z-10 flex flex-col items-center">
+                              <img src={getImageUrl(p.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-12 h-12 rounded-full border-2 border-red-400 mb-2" />
+                              <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
+                              <span className="text-[9px] text-red-300 font-bold uppercase mt-1">{p.fanzName}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center opacity-50">
+                            <div className="w-8 h-8 border-2 border-red-500/50 border-t-red-400 rounded-full animate-spin mb-2" />
+                            <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest text-center">En attente</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Info & Invite */}
+            <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center z-20 px-4">
+              <div className="text-center mb-4">
+                <h3 className="text-xl font-black italic uppercase text-white drop-shadow-md">En attente d'adversaires...</h3>
+                <p className="text-gray-300 text-xs font-bold uppercase tracking-widest">Le duel commencera dès que le salon sera complet.</p>
+              </div>
+              
+              {inviteCode && (
+                <div className="bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/10 flex flex-col items-center w-full max-w-xs">
+                  <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Code d'invitation</span>
+                  <div className="text-2xl font-black text-orange-500 tracking-[0.2em] mb-2">{inviteCode}</div>
+                  <div className="flex gap-2 w-full">
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(inviteCode);
+                        showAlert({ type: 'success', title: 'Code copié !' });
+                      }}
+                      className="flex-1 text-[10px] text-white bg-white/10 hover:bg-white/20 py-2 rounded-lg transition-colors font-bold uppercase"
+                    >
+                      Copier
+                    </button>
+                    {navigator.share && (
+                      <button 
+                        onClick={() => {
+                          navigator.share({
+                            title: 'Rejoins mon duel The Best Fan !',
+                            text: `Rejoins mon duel avec le code: ${inviteCode}`,
+                          }).catch(console.error);
+                        }}
+                        className="flex-1 text-[10px] text-white bg-orange-600 hover:bg-orange-500 py-2 rounded-lg transition-colors font-bold uppercase"
+                      >
+                        Partager
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
         {status === 'starting' && (
@@ -1620,7 +1750,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
               <div className="flex flex-col gap-3">
                 <Button 
-                  onClick={onExit}
+                  onClick={() => onExit(status)}
                   className="w-full py-4 text-lg"
                 >
                   {duel.matchId === 'global' ? 'Quitter' : 'Retour au match'}

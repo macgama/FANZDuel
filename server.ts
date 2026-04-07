@@ -250,6 +250,23 @@ async function startServer() {
       }
     });
 
+    socket.on("leave-duel", ({ duelId, userId }) => {
+      const duel = duels[duelId];
+      if (duel && duel.status === 'waiting') {
+        duel.participants = duel.participants.filter(p => p.uid !== userId);
+        socket.leave(duelId);
+        io.to(duelId).emit("duel-update", { 
+          duelId: duel.id, 
+          progress: duel.progress, 
+          status: duel.status, 
+          participants: duel.participants 
+        });
+        
+        // If no participants left, we could optionally delete the duel, but the user requested "Le DUEL est toujours inscrit"
+        // So we just leave it empty.
+      }
+    });
+
     socket.on("click-ferveur", ({ duelId, team, multiplier }) => {
       const duel = duels[duelId];
       if (duel && duel.status === 'active') {

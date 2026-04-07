@@ -58,8 +58,13 @@ export function AdminZone() {
       fetchDuelCards();
     } else if (activeTab === 'fanz') {
       fetchFanzTemplates();
+      if (duelCards.length === 0) fetchDuelCards();
+      if (lifeActions.length === 0) fetchLifeActions();
     } else if (activeTab === 'users') {
       fetchUserData();
+      if (fanzTemplates.length === 0) fetchFanzTemplates();
+      if (duelCards.length === 0) fetchDuelCards();
+      if (lifeActions.length === 0) fetchLifeActions();
     } else if (activeTab === 'duelConfig') {
       fetchDuelConfig();
     }
@@ -1519,9 +1524,6 @@ export function AdminZone() {
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold">Système de Passes (Saisonniers)</h3>
                 <div className="flex gap-2">
-                  <Button onClick={generateWCPass} variant="outline" className="border-blue-500 text-blue-500">
-                    <Star className="w-4 h-4 mr-2" /> Générer Pass WC 2026
-                  </Button>
                   <Button onClick={() => setEditingPass({
                     id: `pass-${Date.now()}`,
                     name: 'Nouveau Pass',
@@ -1963,33 +1965,6 @@ export function AdminZone() {
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Gestion des Cartes DUEL</h2>
             <div className="flex gap-3">
-              <Button onClick={async () => {
-                setLoading(true);
-                setStatus({ type: 'info', message: 'Mise à jour des coûts...' });
-                try {
-                  const cardsSnap = await getDocs(collection(db, 'cards'));
-                  const batch = writeBatch(db);
-                  cardsSnap.docs.forEach(doc => {
-                    const data = doc.data();
-                    if (data.energyCost > 10) {
-                      batch.update(doc.ref, { energyCost: Math.max(1, Math.round(data.energyCost / 10)) });
-                    }
-                  });
-                  await batch.commit();
-                  setStatus({ type: 'success', message: 'Coûts d\'excitation divisés par 10 !' });
-                  fetchDuelCards();
-                } catch (err) {
-                  console.error(err);
-                  setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
-                } finally {
-                  setLoading(false);
-                }
-              }} variant="outline" className="flex items-center gap-2">
-                <RefreshCw className="w-5 h-5" /> Diviser Coûts par 10
-              </Button>
-              <Button onClick={handleSyncBaseCards} variant="outline" className="flex items-center gap-2">
-                <RefreshCw className="w-5 h-5" /> Synchroniser Base
-              </Button>
               <Button onClick={handleCreateNewCard} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
                 <Plus className="w-5 h-5" /> Nouvelle Carte
               </Button>
@@ -2633,15 +2608,6 @@ export function AdminZone() {
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Gestion des FANZ</h2>
             <div className="flex gap-3">
-              <Button onClick={handleFixFerveurPaths} variant="outline" className="flex items-center gap-2">
-                <RefreshCw className="w-5 h-5" /> Réparer Ferveur
-              </Button>
-              <Button onClick={handleFixAllUrls} variant="outline" className="flex items-center gap-2">
-        <RefreshCw className="w-5 h-5" /> Réparer URLs
-      </Button>
-      <Button onClick={handleSyncBaseFanz} variant="outline" className="flex items-center gap-2">
-                <RefreshCw className="w-5 h-5" /> Synchroniser Base
-              </Button>
               <Button onClick={handleCreateNewFanz} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
                 <Plus className="w-5 h-5" /> Nouveau FANZ
               </Button>
@@ -2886,6 +2852,8 @@ export function AdminZone() {
                             lifeActions={lifeActions}
                             duelCards={duelCards}
                             theme="light"
+                            isFanzContext={true}
+                            currentFanzId={editingFanz.id}
                           />
                         </div>
                         <Button type="button" variant="outline" size="sm" className="text-red-500" onClick={() => {
@@ -3260,102 +3228,20 @@ export function AdminZone() {
                           </div>
                           <div className="space-y-2">
                             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Récompense unique</div>
-                            <select
-                              value={reward.type}
-                              onChange={e => {
+                            <RewardSelector
+                              reward={reward as any}
+                              onChange={newReward => {
                                 const newRewards = { ...(editingFanz.rankRewards || {}) };
-                                newRewards[slotId] = { ...reward, type: e.target.value as any };
+                                newRewards[slotId] = newReward as any;
                                 setEditingFanz({...editingFanz, rankRewards: newRewards});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs font-bold"
-                            >
-                              <option value="choice">Choix (Carte/XP/Skin/Emote)</option>
-                              <option value="card">Carte Spécifique</option>
-                              <option value="xp">XP Spécifique</option>
-                              <option value="skin">Skin Spécifique</option>
-                              <option value="emote">Emote Spécifique</option>
-                              <option value="team_slot">Emplacement Équipe</option>
-                              <option value="fanz">FANZ</option>
-                            </select>
-                            {reward.type === 'fanz' && (
-                              <select
-                                value={reward.fanzId || ''}
-                                onChange={e => {
-                                  const newRewards = { ...(editingFanz.rankRewards || {}) };
-                                  newRewards[slotId] = { ...reward, fanzId: e.target.value };
-                                  setEditingFanz({...editingFanz, rankRewards: newRewards});
-                                }}
-                                className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
-                              >
-                                <option value="">Sélectionner un FANZ...</option>
-                                {fanzTemplates.map(f => (
-                                  <option key={f.id} value={f.id}>{f.name}</option>
-                                ))}
-                              </select>
-                            )}
-                            {reward.type === 'card' && (
-                              <select
-                                value={reward.cardId || ''}
-                                onChange={e => {
-                                  const newRewards = { ...(editingFanz.rankRewards || {}) };
-                                  newRewards[slotId] = { ...reward, cardId: e.target.value };
-                                  setEditingFanz({...editingFanz, rankRewards: newRewards});
-                                }}
-                                className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
-                              >
-                                <option value="">Sélectionner une carte...</option>
-                                {duelCards.map(card => (
-                                  <option key={card.id} value={card.id}>{card.name}</option>
-                                ))}
-                              </select>
-                            )}
-                            {reward.type === 'skin' && (
-                              <select
-                                value={reward.skinId || ''}
-                                onChange={e => {
-                                  const newRewards = { ...(editingFanz.rankRewards || {}) };
-                                  newRewards[slotId] = { ...reward, skinId: e.target.value };
-                                  setEditingFanz({...editingFanz, rankRewards: newRewards});
-                                }}
-                                className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
-                              >
-                                <option value="">Sélectionner un skin...</option>
-                                {editingFanz.skins.map(skin => (
-                                  <option key={skin.id} value={skin.id}>{skin.name}</option>
-                                ))}
-                              </select>
-                            )}
-                            {reward.type === 'emote' && (
-                              <select
-                                value={reward.emoteId || ''}
-                                onChange={e => {
-                                  const newRewards = { ...(editingFanz.rankRewards || {}) };
-                                  newRewards[slotId] = { ...reward, emoteId: e.target.value };
-                                  setEditingFanz({...editingFanz, rankRewards: newRewards});
-                                }}
-                                className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
-                              >
-                                <option value="">Sélectionner une emote...</option>
-                                {editingFanz.emotes.map(emote => (
-                                  <option key={emote.id} value={emote.id}>{emote.name}</option>
-                                ))}
-                              </select>
-                            )}
-                            {reward.type === 'xp' && (
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  value={reward.amount || 100}
-                                  onChange={e => {
-                                    const newRewards = { ...(editingFanz.rankRewards || {}) };
-                                    newRewards[slotId] = { ...reward, amount: Number(e.target.value) };
-                                    setEditingFanz({...editingFanz, rankRewards: newRewards});
-                                  }}
-                                  className="flex-1 p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
-                                />
-                                <span className="text-[10px] font-bold text-gray-500">XP</span>
-                              </div>
-                            )}
+                              fanzTemplates={fanzTemplates}
+                              lifeActions={lifeActions}
+                              duelCards={duelCards}
+                              theme="light"
+                              isFanzContext={true}
+                              currentFanzId={editingFanz.id}
+                            />
                           </div>
                         </div>
                       );

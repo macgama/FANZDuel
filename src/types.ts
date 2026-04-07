@@ -138,12 +138,14 @@ export interface FerveurLevel {
 
 export interface RankReward {
   id: string; // rank-X-slot-Y
-  type: 'xp' | 'card' | 'choice' | 'skin' | 'emote' | 'team_slot' | 'fanz';
+  type: 'money' | 'gems' | 'boost' | 'energy' | 'xp' | 'skin' | 'emote' | 'card' | 'action' | 'team_slot' | 'fanz' | 'choice';
   amount?: number;
   cardId?: string;
   skinId?: string;
   emoteId?: string;
+  actionId?: string;
   fanzId?: string;
+  statName?: keyof FanzStats;
 }
 
 export interface FanzTemplate {

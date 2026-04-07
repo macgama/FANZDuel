@@ -6,7 +6,6 @@ import { Card, Button } from './Layout';
 import { FanzTemplate, Fanz } from '../types';
 import { Trophy, Lock, Star, Info, Medal, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FanzRanking } from './FanzRanking';
 
 interface FanzPageProps {
   userUid: string;
@@ -18,7 +17,6 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all');
-  const [activeTab, setActiveTab] = useState<'collection' | 'ranking'>('collection');
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -74,34 +72,7 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
           <h1 className="text-xl font-black italic uppercase tracking-tighter">
             FANZ
           </h1>
-
-          <div className="flex bg-white/5 border border-white/10 rounded-xl p-1">
-            <button
-              onClick={() => setActiveTab('collection')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase italic transition-all",
-                activeTab === 'collection' ? "bg-orange-500 text-white shadow-lg" : "text-gray-500 hover:text-white"
-              )}
-            >
-              <Users className="w-4 h-4" />
-              Collection
-            </button>
-            <button
-              onClick={() => setActiveTab('ranking')}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase italic transition-all",
-                activeTab === 'ranking' ? "bg-orange-500 text-white shadow-lg" : "text-gray-500 hover:text-white"
-              )}
-            >
-              <Medal className="w-4 h-4" />
-              Classement
-            </button>
-          </div>
-        </div>
-
-        {activeTab === 'collection' && (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-col gap-1.5 min-w-[140px]">
+          <div className="flex flex-col gap-1.5 min-w-[140px]">
               <div className="bg-white/5 border border-white/10 rounded-lg p-1.5 flex items-center justify-center gap-3">
                 <button 
                   onClick={() => setFilter(filter === 'owned' ? 'all' : 'owned')}
@@ -139,19 +110,17 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
 
       {/* Content */}
       <AnimatePresence mode="wait">
-        {activeTab === 'collection' ? (
-          <motion.div
-            key="collection"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-12"
-          >
+        <motion.div
+          key="collection"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="space-y-12"
+        >
             {/* Owned Section */}
             {(filter === 'all' || filter === 'owned') && ownedCount > 0 && (
               <div className="space-y-6">
@@ -197,16 +166,6 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
               </div>
             )}
           </motion.div>
-        ) : (
-          <motion.div
-            key="ranking"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <FanzRanking />
-          </motion.div>
-        )}
       </AnimatePresence>
     </div>
   );
