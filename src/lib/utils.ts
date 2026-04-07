@@ -8,5 +8,14 @@ export function cn(...inputs: ClassValue[]) {
 export function getImageUrl(path: string | null) {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `https://firebasestorage.googleapis.com/v0/b/ais-dev-642kxhb462wkkmvimy57lm.appspot.com/o/${encodeURIComponent(path)}?alt=media`;
+  
+  // Handle gs:// URLs
+  if (path.startsWith('gs://')) {
+    const bucket = 'thebestfanonlinegas.firebasestorage.app';
+    const filePath = path.replace(`gs://${bucket}/`, '');
+    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+  }
+
+  // Fallback for relative paths
+  return `https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/${encodeURIComponent(path)}?alt=media`;
 }
