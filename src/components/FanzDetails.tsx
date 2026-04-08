@@ -1026,7 +1026,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                 autoPlay muted loop playsInline
                               />
                             ) : (
-                              <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" />
+                              <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                             )}
                           </div>
                         </motion.div>
@@ -1125,7 +1125,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                 autoPlay muted loop playsInline
                               />
                             ) : (
-                              <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" />
+                              <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                             )}
                           </div>
                           <div className="p-2 flex-1 flex flex-col gap-1.5">

@@ -4,6 +4,8 @@ import { Swords, Users, Trophy, Clock, ChevronRight, Search, Filter, X } from 'l
 import { motion, AnimatePresence } from 'motion/react';
 import { Duel, UserProfile } from '../types';
 import { useAlert } from '../context/AlertContext';
+import { footballApi } from '../services/footballApi';
+import { getImageUrl } from '../lib/utils';
 
 interface WaitingRoomProps {
   user: UserProfile;
@@ -18,6 +20,7 @@ export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState('');
+  const [matchDetailsCache, setMatchDetailsCache] = useState<Record<number, any>>({});
 
   const handleJoinByCode = async () => {
     if (!inviteCode) return;
@@ -46,6 +49,22 @@ export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
         if (response.ok) {
           const data = await response.json();
           setDuels(data);
+          
+          // Fetch match details for new matches
+          const matchIds = [...new Set(data.filter((d: any) => d.matchId && d.matchId !== 'global').map((d: any) => d.matchId))] as number[];
+          
+          matchIds.forEach(async (matchId) => {
+            if (!matchDetailsCache[matchId]) {
+              try {
+                const details = await footballApi.getFixtureDetails(matchId);
+                if (details) {
+                  setMatchDetailsCache(prev => ({ ...prev, [matchId]: details }));
+                }
+              } catch (e) {
+                console.error(`Error fetching match details for ${matchId}`, e);
+              }
+            }
+          });
         }
       } catch (err) {
         console.error("Error fetching duels:", err);
@@ -155,8 +174,23 @@ export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
                   key={duel.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-[#1a1a1a] border border-white/5 rounded-2xl overflow-hidden hover:border-orange-500/30 transition-all group"
+                  className="bg-[#1a1a1a] border border-white/5 rounded-2xl overflow-hidden hover:border-orange-500/30 transition-all group flex flex-col"
                 >
+                  {/* Match Details Header (if available) */}
+                  {duel.matchId && duel.matchId !== 'global' && matchDetailsCache[duel.matchId] && (
+                    <div className="bg-white/5 px-4 py-2 flex items-center justify-between border-b border-white/5">
+                      <div className="flex items-center gap-2">
+                        <img src={matchDetailsCache[duel.matchId].teams.home.logo} alt="Home" className="w-5 h-5 object-contain" />
+                        <span className="text-[10px] font-bold text-white uppercase truncate max-w-[80px]">{matchDetailsCache[duel.matchId].teams.home.name}</span>
+                      </div>
+                      <span className="text-[10px] font-black text-gray-500 italic px-2">VS</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-white uppercase truncate max-w-[80px] text-right">{matchDetailsCache[duel.matchId].teams.away.name}</span>
+                        <img src={matchDetailsCache[duel.matchId].teams.away.logo} alt="Away" className="w-5 h-5 object-contain" />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:bg-orange-500/10 transition-colors">
@@ -174,7 +208,7 @@ export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
                             <Users className="w-3 h-3" />
                             <span>{duel.participants.length} / {maxPlayers}</span>
                           </div>
-                          {duel.matchId && (
+                          {duel.matchId && (!matchDetailsCache[duel.matchId] || duel.matchId === 'global') && (
                             <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500/60 uppercase">
                               <Clock className="w-3 h-3" />
                               <span>Match #{duel.matchId}</span>
@@ -197,20 +231,22 @@ export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
                     {duel.participants.map((p: any, i: number) => (
                       <div 
                         key={i} 
-                        className={`w-6 h-6 rounded-full border-2 border-[#1a1a1a] overflow-hidden bg-white/10 flex items-center justify-center ${
-                          p.team === 'A' ? 'ring-1 ring-orange-500/50' : 'ring-1 ring-blue-500/50'
+                        className={`w-8 h-8 rounded-full border-2 border-[#1a1a1a] overflow-hidden bg-gray-800 flex items-center justify-center ${
+                          p.team === 'A' ? 'ring-2 ring-orange-500' : 'ring-2 ring-blue-500'
                         }`}
                         title={`${p.pseudo} (${p.team})`}
                       >
-                        {p.photoURL ? (
+                        {p.fanz?.imageUrl ? (
+                          <img src={getImageUrl(p.fanz.imageUrl)} alt="FANZ" className="w-full h-full object-cover" />
+                        ) : p.photoURL ? (
                           <img src={p.photoURL} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-[8px] font-black">{p.pseudo?.[0]}</span>
+                          <span className="text-[10px] font-black text-white">{p.pseudo?.[0]}</span>
                         )}
                       </div>
                     ))}
                     {Array.from({ length: Math.max(0, (typeof maxPlayers === 'number' ? maxPlayers : 0) - duel.participants.length) }).slice(0, 5).map((_, i) => (
-                      <div key={`empty-${i}`} className="w-6 h-6 rounded-full border border-dashed border-white/10 bg-transparent flex items-center justify-center">
+                      <div key={`empty-${i}`} className="w-8 h-8 rounded-full border border-dashed border-white/10 bg-transparent flex items-center justify-center">
                         <span className="text-[10px] text-white/5">+</span>
                       </div>
                     ))}

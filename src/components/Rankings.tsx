@@ -18,12 +18,14 @@ interface RankingEntry {
 
 export function Rankings() {
   const [activeTab, setActiveTab] = useState<'teams' | 'users'>('teams');
-  const [season, setSeason] = useState<string>(new Date().getFullYear().toString());
+  const currentYearStr = new Date().getFullYear().toString();
+  const prevYearStr = (new Date().getFullYear() - 1).toString();
+  const [season, setSeason] = useState<string>(currentYearStr);
   const [leagueId, setLeagueId] = useState<string>('global');
   const [rankings, setRankings] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableLeagues, setAvailableLeagues] = useState<{id: string, name: string}[]>([{ id: 'global', name: 'Global (Toutes compétitions)' }]);
-  const [availableSeasons, setAvailableSeasons] = useState<string[]>([new Date().getFullYear().toString()]);
+  const [availableSeasons, setAvailableSeasons] = useState<string[]>([currentYearStr, prevYearStr]);
 
   useEffect(() => {
     // Fetch active seasons and leagues from database
@@ -32,25 +34,26 @@ export function Rankings() {
         const teamsSnap = await getDocs(collection(db, 'ranking_teams'));
         const usersSnap = await getDocs(collection(db, 'ranking_users'));
 
-        const seasonsSet = new Set<string>();
+        const currentYear = new Date().getFullYear();
+        const seasonsSet = new Set<string>([currentYear.toString(), (currentYear - 1).toString()]);
         const leagueIdsSet = new Set<string>();
 
         teamsSnap.forEach(doc => {
           const data = doc.data();
-          if (data.season) seasonsSet.add(data.season);
-          if (data.leagueId) leagueIdsSet.add(data.leagueId);
+          if (data.season) seasonsSet.add(data.season.toString());
+          if (data.leagueId) leagueIdsSet.add(data.leagueId.toString());
         });
 
         usersSnap.forEach(doc => {
           const data = doc.data();
-          if (data.season) seasonsSet.add(data.season);
-          if (data.leagueId) leagueIdsSet.add(data.leagueId);
+          if (data.season) seasonsSet.add(data.season.toString());
+          if (data.leagueId) leagueIdsSet.add(data.leagueId.toString());
         });
 
         const uniqueSeasons = Array.from(seasonsSet).sort((a, b) => b.localeCompare(a));
         if (uniqueSeasons.length > 0) {
           setAvailableSeasons(uniqueSeasons);
-          if (!uniqueSeasons.includes(season)) {
+          if (!uniqueSeasons.includes(season.toString())) {
             setSeason(uniqueSeasons[0]);
           }
         }
@@ -79,7 +82,7 @@ export function Rankings() {
         }
 
         setAvailableLeagues(leaguesList);
-        if (!leaguesList.find(l => l.id === leagueId) && leaguesList.length > 0) {
+        if (!leaguesList.find(l => l.id === leagueId.toString()) && leaguesList.length > 0) {
           setLeagueId(leaguesList[0].id);
         }
 
@@ -95,20 +98,23 @@ export function Rankings() {
       setLoading(true);
       try {
         const collectionName = activeTab === 'teams' ? 'ranking_teams' : 'ranking_users';
-        const q = query(
-          collection(db, collectionName),
-          where('season', '==', season),
-          where('leagueId', '==', leagueId),
-          orderBy('averageScore', 'desc'),
-          limit(50)
-        );
+        // Fetch all documents and filter client-side to avoid any index or type mismatch issues
+        const q = query(collection(db, collectionName));
 
         const snapshot = await getDocs(q);
-        const entries: RankingEntry[] = [];
+        let entries: RankingEntry[] = [];
 
-        let currentRank = 1;
         for (const docSnap of snapshot.docs) {
           const data = docSnap.data();
+          
+          // Client-side filtering
+          const docSeason = data.season?.toString();
+          const docLeagueId = data.leagueId?.toString();
+          
+          if (docSeason !== season.toString() || docLeagueId !== leagueId.toString()) {
+            continue;
+          }
+
           let name = 'Inconnu';
           let imageUrl = '';
 
@@ -141,7 +147,7 @@ export function Rankings() {
 
           entries.push({
             id: docSnap.id,
-            rank: currentRank++,
+            rank: 0, // Will be set after sorting
             name,
             imageUrl,
             averageScore: data.averageScore,
@@ -149,6 +155,15 @@ export function Rankings() {
             totalScore: data.totalScore
           });
         }
+
+        // Sort client-side
+        entries.sort((a, b) => b.averageScore - a.averageScore);
+        
+        // Assign ranks and limit to 50
+        entries = entries.slice(0, 50).map((entry, index) => ({
+          ...entry,
+          rank: index + 1
+        }));
 
         setRankings(entries);
       } catch (error) {

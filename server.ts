@@ -74,7 +74,16 @@ async function startServer() {
       }
     }
 
-    io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB });
+    const details = {
+      teamAActions,
+      teamBActions,
+      totalActions,
+      baseWinnerPoints: 10,
+      proportionalPointsA: scoreA - (winner === 'A' ? 10 : 0),
+      proportionalPointsB: scoreB - (winner === 'B' ? 10 : 0)
+    };
+
+    io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB, details });
   }
 
   io.on("connection", (socket) => {

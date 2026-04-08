@@ -446,7 +446,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const maxExcitement = 10;
   const { socket } = useSocket();
   const [winner, setWinner] = useState<string | null>(null);
-  const [duelResult, setDuelResult] = useState<{ winner: string, ferveurGain: number, teamGain: number, scoreA?: number, scoreB?: number } | null>(null);
+  const [duelResult, setDuelResult] = useState<{ winner: string, ferveurGain: number, teamGain: number, scoreA?: number, scoreB?: number, details?: any } | null>(null);
   const [status, setStatus] = useState<'waiting' | 'starting' | 'active' | 'finished'>(duel.status);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [inviteCode, setInviteCode] = useState(duel.inviteCode);
@@ -457,6 +457,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [matchDetails, setMatchDetails] = useState<any>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [playedCardAnim, setPlayedCardAnim] = useState<{ card: GameCard, id: string } | null>(null);
+  const [enemyPlayedCardAnim, setEnemyPlayedCardAnim] = useState<{ card: GameCard, id: string } | null>(null);
 
   const handleExitRequest = () => {
     if (status === 'finished') {
@@ -634,6 +635,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             emotes.push(...template.emotes);
           }
         });
+        
+        try {
+          const emotesSnap = await getDocs(collection(db, 'emotes'));
+          emotesSnap.forEach(doc => {
+            emotes.push({ id: doc.id, ...doc.data() } as FanzEmote);
+          });
+        } catch (e) {
+          console.warn("Could not fetch from emotes collection", e);
+        }
+        
         setAllEmotes(emotes);
 
         const shuffled = [...cardsToUse].sort(() => Math.random() - 0.5);
@@ -738,7 +749,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     };
     socket.on('duel-started', handleDuelStarted);
 
-    const handleDuelFinished = async ({ winner, scoreA, scoreB }: { winner: string, scoreA: number, scoreB: number }) => {
+    const handleDuelFinished = async ({ winner, scoreA, scoreB, details }: { winner: string, scoreA: number, scoreB: number, details?: any }) => {
       setWinner(winner);
       let ferveurGain = 0;
       let teamGain = 0;
@@ -895,8 +906,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             // Update Rankings (Season & League)
             try {
               const { runTransaction } = await import('firebase/firestore');
-              const season = matchDetails?.league?.season?.toString() || new Date().getFullYear().toString();
-              const leagueId = matchDetails?.league?.id?.toString() || 'global';
+              
+              // Fetch match details here if not available in state to ensure we have league info
+              let currentMatchDetails = matchDetails;
+              if (!currentMatchDetails && duel.matchId && duel.matchId !== 'global') {
+                try {
+                  const { footballApi } = await import('../services/footballApi');
+                  currentMatchDetails = await footballApi.getFixtureDetails(parseInt(duel.matchId));
+                } catch (e) {
+                  console.error("Failed to fetch match details for ranking", e);
+                }
+              }
+
+              const season = currentMatchDetails?.league?.season?.toString() || new Date().getFullYear().toString();
+              const leagueId = currentMatchDetails?.league?.id?.toString() || 'global';
 
               const updateRanking = async (collectionName: string, entityIdField: string, entityId: string, seasonStr: string, leagueIdStr: string, scoreToAdd: number) => {
                 const docId = `${entityId}_${seasonStr}_${leagueIdStr}`;
@@ -940,6 +963,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   await updateRanking('ranking_teams', 'teamId', myTeamId, season, leagueId, myScore);
                 }
               }
+
+              // Record opponent team score if it's a bot (to ensure all teams get ranked)
+              const opponentTeam = myTeam === 'A' ? 'B' : 'A';
+              const isOpponentBot = !duel.participants?.some(p => p.team === opponentTeam);
+              if (isOpponentBot) {
+                const opponentTeamId = opponentTeam === 'A' ? (teamAId || teamA) : (teamBId || teamB);
+                const opponentScore = opponentTeam === 'A' ? scoreA : scoreB;
+                if (opponentTeamId) {
+                  await updateRanking('ranking_teams', 'teamId', opponentTeamId, season, 'global', opponentScore);
+                  if (leagueId !== 'global') {
+                    await updateRanking('ranking_teams', 'teamId', opponentTeamId, season, leagueId, opponentScore);
+                  }
+                }
+              }
             } catch (rankingError) {
               console.error("Error updating rankings", rankingError);
             }
@@ -952,12 +989,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         }
       }
       
-      setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB });
+      setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB, details });
     };
     socket.on('duel-finished', handleDuelFinished);
 
     const handleEnemyCardPlayed = ({ card }: { team: string, card: GameCard }) => {
       setLastEnemyCard(card);
+      setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
+      setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
       addFloatingEffect(`⚠️ ${card.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
       const isMalus = card.effects.some(e => 
@@ -1411,6 +1450,35 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           </AnimatePresence>
         </div>
 
+      {/* Enemy Played Card Animation */}
+      <AnimatePresence>
+        {enemyPlayedCardAnim && (
+          <motion.div
+            key={`enemy-${enemyPlayedCardAnim.id}`}
+            initial={{ opacity: 0, scale: 0.5, y: -100 }}
+            animate={{ opacity: 1, scale: 0.8, y: 0 }}
+            exit={{ opacity: 0, scale: 1.2, y: 100 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="absolute top-20 left-1/2 -translate-x-1/2 z-[90] pointer-events-none"
+          >
+            <div className="relative w-32 h-48 rounded-xl overflow-hidden border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)] bg-[#1a1a1a]">
+              {enemyPlayedCardAnim.card.imageUrl && (
+                <img 
+                  src={getImageUrl(enemyPlayedCardAnim.card.imageUrl)} 
+                  alt={enemyPlayedCardAnim.card.name} 
+                  className="absolute inset-0 w-full h-full object-cover opacity-80"
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-2">
+                <div className="text-[10px] font-black text-white text-center uppercase leading-tight drop-shadow-md">
+                  {enemyPlayedCardAnim.card.name}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Effects */}
       <AnimatePresence>
         {floatingEffects.map(effect => (
@@ -1473,11 +1541,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       <div key={`A-${i}`} className="w-28 h-36 bg-black/60 border-2 border-blue-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
                         {p ? (
                           <>
-                            <img src={getImageUrl(p.fanzImage) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                            <img src={getImageUrl(p.fanz?.imageUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
                             <div className="relative z-10 flex flex-col items-center">
                               <img src={getImageUrl(p.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-12 h-12 rounded-full border-2 border-blue-400 mb-2" />
                               <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
-                              <span className="text-[9px] text-blue-300 font-bold uppercase mt-1">{p.fanzName}</span>
+                              <span className="text-[9px] text-blue-300 font-bold uppercase mt-1">{p.fanz?.name}</span>
                             </div>
                           </>
                         ) : (
@@ -1501,11 +1569,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       <div key={`B-${i}`} className="w-28 h-36 bg-black/60 border-2 border-red-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
                         {p ? (
                           <>
-                            <img src={getImageUrl(p.fanzImage) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                            <img src={getImageUrl(p.fanz?.imageUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
                             <div className="relative z-10 flex flex-col items-center">
                               <img src={getImageUrl(p.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-12 h-12 rounded-full border-2 border-red-400 mb-2" />
                               <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
-                              <span className="text-[9px] text-red-300 font-bold uppercase mt-1">{p.fanzName}</span>
+                              <span className="text-[9px] text-red-300 font-bold uppercase mt-1">{p.fanz?.name}</span>
                             </div>
                           </>
                         ) : (
@@ -1823,7 +1891,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 {duelResult.scoreA !== undefined && duelResult.scoreB !== undefined && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 col-span-2">
                     <p className="text-sm text-gray-400 font-bold uppercase mb-2 text-center">Score du Duel</p>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4">
                       <div className="text-center">
                         <p className="text-sm text-gray-400">{teamA || 'Équipe A'}</p>
                         <p className={`text-2xl font-black ${duelResult.scoreA > duelResult.scoreB ? 'text-green-400' : 'text-white'}`}>{duelResult.scoreA}</p>
@@ -1834,6 +1902,31 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                         <p className={`text-2xl font-black ${duelResult.scoreB > duelResult.scoreA ? 'text-green-400' : 'text-white'}`}>{duelResult.scoreB}</p>
                       </div>
                     </div>
+                    
+                    {/* Detailed Calculation */}
+                    {duelResult.details && (
+                      <div className="text-left border-t border-gray-700 pt-3 mt-3">
+                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-2 text-center">Détail du calcul</p>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Bonus Victoire (10 pts)</span>
+                            <span className="font-bold text-white">
+                              {duelResult.winner === 'A' ? teamA || 'Équipe A' : teamB || 'Équipe B'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Actions (Clics + Cartes)</span>
+                            <span className="font-bold text-white">{duelResult.details.totalActions}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Points proportionnels (90 pts)</span>
+                            <span className="font-bold text-white">
+                              {duelResult.details.proportionalPointsA} - {duelResult.details.proportionalPointsB}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
