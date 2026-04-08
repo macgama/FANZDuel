@@ -440,6 +440,7 @@ interface FloatingEffect {
 }
 
 export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, selectedTeam }: { duel: Duel; user: UserProfile; onExit: (status?: string) => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, teamALogo?: string, teamBLogo?: string, selectedTeam: string }) {
+  const { showAlert } = useAlert();
   const [progress, setProgress] = useState(50);
   const [excitement, setExcitement] = useState(5);
   const maxExcitement = 10;
@@ -454,6 +455,21 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const currentDuelIdRef = useRef(duel.id);
   const [floatingEffects, setFloatingEffects] = useState<FloatingEffect[]>([]);
   const [matchDetails, setMatchDetails] = useState<any>(null);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [playedCardAnim, setPlayedCardAnim] = useState<{ card: GameCard, id: string } | null>(null);
+
+  const handleExitRequest = () => {
+    if (status === 'finished') {
+      onExit(status);
+    } else {
+      setShowExitConfirm(true);
+    }
+  };
+
+  const confirmExit = () => {
+    socket?.emit('leave-duel', { duelId: currentDuelIdRef.current, userId: user.uid });
+    onExit(status);
+  };
 
   useEffect(() => {
     if (duel.matchId && duel.matchId !== 'global') {
@@ -538,6 +554,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [allEmotes, setAllEmotes] = useState<FanzEmote[]>([]);
   const [showEmotes, setShowEmotes] = useState(false);
   const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, team: string, x: number, y: number}[]>([]);
+
+  // Preload card images
+  useEffect(() => {
+    if (allCards.length > 0) {
+      allCards.forEach(card => {
+        if (card.imageUrl) {
+          const img = new Image();
+          img.src = getImageUrl(card.imageUrl);
+        }
+      });
+    }
+  }, [allCards]);
 
   // Initialize hand and fetch fanz/user cards
   useEffect(() => {
@@ -863,6 +891,58 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 });
               }
             }
+
+            // Update Rankings (Season & League)
+            try {
+              const { runTransaction } = await import('firebase/firestore');
+              const season = matchDetails?.league?.season?.toString() || new Date().getFullYear().toString();
+              const leagueId = matchDetails?.league?.id?.toString() || 'global';
+
+              const updateRanking = async (collectionName: string, entityIdField: string, entityId: string, seasonStr: string, leagueIdStr: string, scoreToAdd: number) => {
+                const docId = `${entityId}_${seasonStr}_${leagueIdStr}`;
+                const docRef = doc(db, collectionName, docId);
+
+                await runTransaction(db, async (transaction) => {
+                  const docSnap = await transaction.get(docRef);
+                  let totalScore = scoreToAdd;
+                  let matches = 1;
+
+                  if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    totalScore = (data.totalScore || 0) + scoreToAdd;
+                    matches = (data.matches || 0) + 1;
+                  }
+
+                  const averageScore = totalScore / matches;
+
+                  transaction.set(docRef, {
+                    [entityIdField]: entityId,
+                    season: seasonStr,
+                    leagueId: leagueIdStr,
+                    totalScore,
+                    matches,
+                    averageScore,
+                    updatedAt: new Date().toISOString()
+                  }, { merge: true });
+                });
+              };
+
+              // User Rankings
+              await updateRanking('ranking_users', 'userId', user.uid, season, 'global', myScore);
+              if (leagueId !== 'global') {
+                await updateRanking('ranking_users', 'userId', user.uid, season, leagueId, myScore);
+              }
+
+              // Team Rankings
+              if (myTeamId) {
+                await updateRanking('ranking_teams', 'teamId', myTeamId, season, 'global', myScore);
+                if (leagueId !== 'global') {
+                  await updateRanking('ranking_teams', 'teamId', myTeamId, season, leagueId, myScore);
+                }
+              }
+            } catch (rankingError) {
+              console.error("Error updating rankings", rankingError);
+            }
             
             ferveurGain = ferveurGainFanz;
             teamGain = ferveurGainGeneral;
@@ -1056,6 +1136,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
     setExcitement(prev => prev - actualCost);
     
+    setPlayedCardAnim({ card, id: Math.random().toString() });
+    setTimeout(() => setPlayedCardAnim(null), 1500);
+
     const x = e ? e.clientX : window.innerWidth / 2;
     const y = e ? e.clientY - 50 : window.innerHeight / 2;
     addFloatingEffect(`Carte jouée: ${card.name}`, x, y, 'text-blue-400 font-bold');
@@ -1258,12 +1341,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           )}
         </AnimatePresence>
         <div className="flex justify-between items-center mb-2 relative z-50">
-          <button onClick={() => {
-            if (status === 'waiting') {
-              socket?.emit('leave-duel', { duelId: currentDuelIdRef.current, userId: user.uid });
-            }
-            onExit(status);
-          }} className="p-2 hover:bg-white/10 rounded-full">
+          <button onClick={handleExitRequest} className="p-2 hover:bg-white/10 rounded-full">
             <ChevronLeft />
           </button>
           <div className="text-[10px] text-yellow-500 font-black uppercase tracking-widest">
@@ -1361,10 +1439,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           >
             {/* Back Button */}
             <button 
-              onClick={() => {
-                socket?.emit('leave-duel', { duelId: currentDuelIdRef.current, userId: user.uid });
-                onExit(status);
-              }} 
+              onClick={handleExitRequest} 
               className="absolute left-4 top-8 z-50 p-3 bg-black/50 hover:bg-white/10 rounded-full text-white backdrop-blur-md"
             >
               <ChevronLeft className="w-6 h-6" />
@@ -1640,37 +1715,52 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   exit={{ y: -50, opacity: 0 }}
                   whileHover={{ y: -5 }}
                   onClick={(e) => playCard(card, e)}
-                  className={`min-w-[85px] w-[85px] h-[135px] snap-center shrink-0 rounded-lg border-2 p-2 flex flex-col cursor-pointer transition-colors relative ${
+                  className={`min-w-[85px] w-[85px] h-[135px] snap-center shrink-0 rounded-lg border-2 flex flex-col cursor-pointer transition-colors relative overflow-hidden ${
                     excitement >= actualCost ? 'border-yellow-500 bg-yellow-600/10' : 'border-white/10 bg-white/5 opacity-50'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-[8px] uppercase font-bold text-yellow-500 truncate pr-1">{card.rarity.substring(0, 3)}</span>
-                    <div className="flex items-center gap-0.5 text-[10px] font-black text-yellow-500">
-                      ⚡{actualCost}
-                    </div>
-                  </div>
-                  <h5 className="font-black italic uppercase text-[10px] leading-tight mb-1 line-clamp-2">{card.name}</h5>
-                  <p className="text-[8px] text-gray-400 flex-1 line-clamp-3 leading-tight">{card.description}</p>
-                  
-                  <div className="mt-1 flex justify-between items-center">
-                    <div className="flex items-center gap-0.5 text-[8px] font-black text-yellow-500 uppercase">
-                      Niv.{userCard.level}
-                    </div>
-                  </div>
-                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-1">
-                    <div 
-                      className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(xpProgress, 100)}%` }}
+                  {/* Background Image */}
+                  {card.imageUrl && (
+                    <img 
+                      src={getImageUrl(card.imageUrl)} 
+                      alt={card.name} 
+                      className="absolute inset-0 w-full h-full object-cover z-0 opacity-50"
+                      referrerPolicy="no-referrer"
                     />
-                  </div>
+                  )}
+                  {/* Gradient Overlay for readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/30 z-0" />
 
-                  <div className="mt-1 pt-1 border-t border-white/10 text-center font-black text-orange-500">
-                    {card.effects.map(e => (
-                      <div key={e.type} className="text-[8px] uppercase truncate">
-                        {e.type === 'push_rope' ? `+${Math.round(e.value * (1 + (userCard.level - 1) * 0.2))}%` : e.type.replace('_', ' ')}
+                  {/* Card Content */}
+                  <div className="relative z-10 flex flex-col h-full p-2">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-[8px] uppercase font-bold text-yellow-500 truncate pr-1 drop-shadow-md">{card.rarity.substring(0, 3)}</span>
+                      <div className="flex items-center gap-0.5 text-[10px] font-black text-yellow-500 drop-shadow-md">
+                        ⚡{actualCost}
                       </div>
-                    ))}
+                    </div>
+                    <h5 className="font-black italic uppercase text-[10px] leading-tight mb-1 line-clamp-2 drop-shadow-md">{card.name}</h5>
+                    <p className="text-[8px] text-gray-300 flex-1 line-clamp-3 leading-tight drop-shadow-md">{card.description}</p>
+                    
+                    <div className="mt-1 flex justify-between items-center">
+                      <div className="flex items-center gap-0.5 text-[8px] font-black text-yellow-500 uppercase drop-shadow-md">
+                        Niv.{userCard.level}
+                      </div>
+                    </div>
+                    <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+                      <div 
+                        className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(xpProgress, 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-1 pt-1 border-t border-white/20 text-center font-black text-orange-400 drop-shadow-md">
+                      {card.effects.map(e => (
+                        <div key={e.type} className="text-[8px] uppercase truncate">
+                          {e.type === 'push_rope' ? `+${Math.round(e.value * (1 + (userCard.level - 1) * 0.2))}%` : e.type.replace('_', ' ')}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
               );
@@ -1764,6 +1854,84 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     Rejouer
                   </Button>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Played Card Animation */}
+      <AnimatePresence>
+        {playedCardAnim && (
+          <motion.div
+            key={playedCardAnim.id}
+            initial={{ scale: 0.5, y: 100, opacity: 0, rotate: -10 }}
+            animate={{ scale: 1.5, y: 0, opacity: 1, rotate: 0 }}
+            exit={{ scale: 2, opacity: 0, filter: 'blur(10px)' }}
+            transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+            className="absolute inset-0 z-[90] flex items-center justify-center pointer-events-none"
+          >
+            <div className="relative w-[120px] h-[180px] rounded-xl border-4 border-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.8)] overflow-hidden bg-black">
+              {playedCardAnim.card.imageUrl && (
+                <img 
+                  src={getImageUrl(playedCardAnim.card.imageUrl)} 
+                  alt={playedCardAnim.card.name} 
+                  className="absolute inset-0 w-full h-full object-cover z-0"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-0" />
+              <div className="relative z-10 flex flex-col justify-end h-full p-3 text-center">
+                <h3 className="text-white font-black italic uppercase text-sm leading-tight drop-shadow-lg">
+                  {playedCardAnim.card.name}
+                </h3>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Exit Confirmation Modal */}
+      <AnimatePresence>
+        {showExitConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+            >
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-white mb-4 text-center">
+                Êtes-vous sûr de vouloir quitter ?
+              </h3>
+              
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+                <p className="text-sm text-red-400 text-center font-medium">
+                  {duel.type === 'training' 
+                    ? "Vous perdrez l'énergie et l'argent dépensé pour cet entraînement."
+                    : "Vous perdrez l'énergie, l'argent et perdrez le match par forfait. Le résultat n'est pas pris en compte."}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowExitConfirm(false)}
+                  className="flex-1"
+                >
+                  Annuler
+                </Button>
+                <Button 
+                  onClick={confirmExit}
+                  className="flex-1 bg-red-600 hover:bg-red-500 text-white"
+                >
+                  Quitter
+                </Button>
               </div>
             </motion.div>
           </motion.div>

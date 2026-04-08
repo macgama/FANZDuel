@@ -873,7 +873,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       title: `Rang ${rankNum}`,
                                       rankNum,
                                       slotId,
-                                      rewardType: customReward?.type || 'choice',
+                                      rewardType: (customReward?.type || 'choice') as any,
                                       amount: customReward?.amount || 100,
                                       cardId: customReward?.cardId,
                                       step: 'initial'

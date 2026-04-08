@@ -382,6 +382,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /ranking_users/{rankingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /ranking_teams/{rankingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
     // Default deny
     match /{path=**} {
       allow read, write: if false;

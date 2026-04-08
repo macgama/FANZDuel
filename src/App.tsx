@@ -24,9 +24,10 @@ import { SocialPage } from './components/SocialPage';
 import { FervorPathPage } from './components/FervorPathPage';
 import { FavoriteTeamsPage } from './components/FavoriteTeamsPage';
 import { LeaderboardPage } from './components/LeaderboardPage';
+import { Rankings } from './components/Rankings';
 import { PassPage } from './components/PassPage';
 import { MissionsPage } from './components/MissionsPage';
-import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket } from 'lucide-react';
+import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
 
@@ -43,7 +44,7 @@ export default function App() {
   return <AppContent />;
 }
 
-type ViewType = 'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard';
+type ViewType = 'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -141,7 +142,7 @@ function AppContent() {
           <Activity className="w-6 h-6 sm:w-7 sm:h-7" />
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Live</span>
         </button>
-        <button onClick={() => { setView('leaderboard'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'leaderboard' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+        <button onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'rankings' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
         </button>
@@ -455,6 +456,8 @@ function AppContent() {
                 <FavoriteTeamsPage profile={profile} />
               ) : view === 'leaderboard' ? (
                 <LeaderboardPage />
+              ) : view === 'rankings' ? (
+                <Rankings />
               ) : view === 'shop' ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center h-full">
                   <Store className="w-16 h-16 mb-4 text-yellow-500 opacity-50" />
@@ -543,7 +546,7 @@ function AppContent() {
             />
             <MenuButton icon={<Users />} label="Social" onClick={() => { setView('social'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Star />} label="Équipes Favorites" onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
-            <MenuButton icon={<Trophy />} label="Classements" onClick={() => { setView('leaderboard'); setIsMenuOpen(false); }} />
+            <MenuButton icon={<Trophy />} label="Classements" onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Activity />} label="Matchs en direct" onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Globe />} label="Compétitions" onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
             <MenuButton icon={<Users />} label="Équipes" onClick={() => { setView('teams'); setIsMenuOpen(false); }} />

@@ -51,24 +51,27 @@ async function startServer() {
     let scoreB = 0;
     
     if (totalActions > 0) {
-      // Winner gets 60 base, the rest is proportional
+      // Winner gets 10 base, the rest (90) is proportional to actions
       if (winner === 'A') {
-        scoreA = Math.round(60 + (40 * teamAActions / totalActions));
-        scoreB = Math.round(40 * teamBActions / totalActions);
+        scoreA = Math.round(10 + (90 * teamAActions / totalActions));
+        scoreB = Math.round(90 * teamBActions / totalActions);
       } else {
-        scoreB = Math.round(60 + (40 * teamBActions / totalActions));
-        scoreA = Math.round(40 * teamAActions / totalActions);
+        scoreB = Math.round(10 + (90 * teamBActions / totalActions));
+        scoreA = Math.round(90 * teamAActions / totalActions);
       }
     } else {
-      scoreA = winner === 'A' ? 100 : 0;
-      scoreB = winner === 'B' ? 100 : 0;
+      scoreA = winner === 'A' ? 55 : 45;
+      scoreB = winner === 'B' ? 55 : 45;
     }
     
     // Ensure total is exactly 100
     const sum = scoreA + scoreB;
     if (sum !== 100 && sum > 0) {
-      scoreA = Math.round((scoreA / sum) * 100);
-      scoreB = 100 - scoreA;
+      if (winner === 'A') {
+        scoreA += (100 - sum);
+      } else {
+        scoreB += (100 - sum);
+      }
     }
 
     io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB });

@@ -333,6 +333,36 @@
         "read": { "type": "boolean" }
       },
       "required": ["senderId", "receiverId", "emoteId", "timestamp"]
+    },
+    "RankingUser": {
+      "title": "RankingUser",
+      "description": "User ranking data per season and league.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "season": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "totalScore": { "type": "number" },
+        "matches": { "type": "number" },
+        "averageScore": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "season", "leagueId", "totalScore", "matches", "averageScore"]
+    },
+    "RankingTeam": {
+      "title": "RankingTeam",
+      "description": "Team ranking data per season and league.",
+      "type": "object",
+      "properties": {
+        "teamId": { "type": "string" },
+        "season": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "totalScore": { "type": "number" },
+        "matches": { "type": "number" },
+        "averageScore": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teamId", "season", "leagueId", "totalScore", "matches", "averageScore"]
     }
   },
   "firestore": {
@@ -355,6 +385,8 @@
     "/weekly_streak_config/{day}": { "schema": "WeeklyStreakConfig", "description": "Weekly streak rewards" },
     "/match_scores/{duelId}": { "schema": "MatchScore", "description": "Scores for individual duels linked to a match" },
     "/chats/{chatId}": { "schema": "Chat", "description": "Chat conversations" },
-    "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages in a chat" }
+    "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages in a chat" },
+    "/ranking_users/{rankingId}": { "schema": "RankingUser", "description": "User rankings per season and league" },
+    "/ranking_teams/{rankingId}": { "schema": "RankingTeam", "description": "Team rankings per season and league" }
   }
 }
