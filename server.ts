@@ -382,6 +382,11 @@ async function startServer() {
   });
 
   // API Routes
+  app.get("/api/duels/all", (req, res) => {
+    const allActiveDuels = Object.values(duels).filter(d => d.status !== 'finished' && !d.isPrivate);
+    res.json(allActiveDuels);
+  });
+
   app.get("/api/duels", (req, res) => {
     const activeDuels = Object.values(duels).filter(d => d.status === 'waiting' && !d.isPrivate);
     res.json(activeDuels);

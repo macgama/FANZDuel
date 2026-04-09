@@ -84,13 +84,24 @@ function AppContent() {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'duels'), where('status', '==', 'waiting'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      // Filter out duels where the current user is already the creator
-      const waitingCount = snapshot.docs.filter(doc => doc.data().creatorId !== user.uid).length;
-      setWaitingDuelsCount(waitingCount);
-    });
-    return () => unsubscribe();
+    
+    const fetchWaitingDuels = async () => {
+      try {
+        const res = await fetch('/api/duels');
+        if (res.ok) {
+          const duels = await res.json();
+          // Filter out duels where the current user is already a participant
+          const waitingCount = duels.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)).length;
+          setWaitingDuelsCount(waitingCount);
+        }
+      } catch (err) {
+        console.error("Failed to fetch waiting duels", err);
+      }
+    };
+
+    fetchWaitingDuels();
+    const interval = setInterval(fetchWaitingDuels, 5000);
+    return () => clearInterval(interval);
   }, [user]);
 
   const handleDuelIntent = async (callback: () => void) => {

@@ -176,13 +176,22 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
     fetchMatches();
     fetchLifeActions();
 
-    const q = query(collection(db, 'duels'), where('status', 'in', ['waiting', 'starting', 'active']));
-    const unsubscribeDuels = onSnapshot(q, (snapshot) => {
-      const duelsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setActiveDuels(duelsData);
-    });
+    const fetchActiveDuels = async () => {
+      try {
+        const res = await fetch('/api/duels/all');
+        if (res.ok) {
+          const duelsData = await res.json();
+          setActiveDuels(duelsData);
+        }
+      } catch (err) {
+        console.error("Failed to fetch active duels", err);
+      }
+    };
 
-    return () => unsubscribeDuels();
+    fetchActiveDuels();
+    const interval = setInterval(fetchActiveDuels, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
