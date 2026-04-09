@@ -65,6 +65,12 @@ export const footballApi = {
     return data.response;
   },
 
+  async getTeamInfo(teamId: number) {
+    if (!teamId) throw new Error('Invalid teamId');
+    const data = await fetchApi(`${BASE_URL}teams?id=${teamId}`);
+    return data.response[0];
+  },
+
   async searchTeams(search: string) {
     const data = await fetchApi(`${BASE_URL}teams?search=${search}`);
     return data.response;

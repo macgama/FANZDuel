@@ -34,8 +34,7 @@ export function Rankings() {
         const teamsSnap = await getDocs(collection(db, 'ranking_teams'));
         const usersSnap = await getDocs(collection(db, 'ranking_users'));
 
-        const currentYear = new Date().getFullYear();
-        const seasonsSet = new Set<string>([currentYear.toString(), (currentYear - 1).toString()]);
+        const seasonsSet = new Set<string>();
         const leagueIdsSet = new Set<string>();
 
         teamsSnap.forEach(doc => {
@@ -49,6 +48,11 @@ export function Rankings() {
           if (data.season) seasonsSet.add(data.season.toString());
           if (data.leagueId) leagueIdsSet.add(data.leagueId.toString());
         });
+
+        if (seasonsSet.size === 0) {
+          const currentYear = new Date().getFullYear();
+          seasonsSet.add(currentYear.toString());
+        }
 
         const uniqueSeasons = Array.from(seasonsSet).sort((a, b) => b.localeCompare(a));
         if (uniqueSeasons.length > 0) {
@@ -102,16 +106,19 @@ export function Rankings() {
         const q = query(collection(db, collectionName));
 
         const snapshot = await getDocs(q);
+        console.log(`Fetched ${snapshot.size} documents from ${collectionName}`);
         let entries: RankingEntry[] = [];
 
         for (const docSnap of snapshot.docs) {
           const data = docSnap.data();
+          console.log(`Doc ${docSnap.id}:`, data);
           
           // Client-side filtering
           const docSeason = data.season?.toString();
           const docLeagueId = data.leagueId?.toString();
           
           if (docSeason !== season.toString() || docLeagueId !== leagueId.toString()) {
+            console.log(`Filtered out ${docSnap.id} because season ${docSeason} !== ${season} or leagueId ${docLeagueId} !== ${leagueId}`);
             continue;
           }
 
@@ -120,7 +127,12 @@ export function Rankings() {
 
           if (activeTab === 'teams') {
             // Fetch team details
-            const teamId = data.teamId;
+            const teamId = data.teamId?.toString();
+            if (!teamId) {
+              console.log(`Filtered out ${docSnap.id} because teamId is undefined`);
+              continue;
+            }
+            
             const teamDoc = await getDoc(doc(db, 'teams', teamId));
             if (teamDoc.exists()) {
               name = teamDoc.data().name;
@@ -128,16 +140,23 @@ export function Rankings() {
             } else if (!isNaN(Number(teamId))) {
                try {
                  const { footballApi } = await import('../services/footballApi');
-                 const teamData = await footballApi.getTeam(Number(teamId));
+                 const teamData = await footballApi.getTeamInfo(Number(teamId));
                  if (teamData) {
                    name = teamData.team.name;
                    imageUrl = teamData.team.logo;
                  }
-               } catch (e) {}
+               } catch (e) {
+                 console.error(`Failed to fetch team info for ${teamId}`, e);
+               }
             }
           } else {
             // Fetch user details
-            const userId = data.userId;
+            const userId = data.userId?.toString();
+            if (!userId) {
+              console.log(`Filtered out ${docSnap.id} because userId is undefined`);
+              continue;
+            }
+            
             const userDoc = await getDoc(doc(db, 'users', userId));
             if (userDoc.exists()) {
               name = userDoc.data().pseudo || 'Supporter';
@@ -176,6 +195,103 @@ export function Rankings() {
     fetchRankings();
   }, [activeTab, season, leagueId]);
 
+  const seedRankings = async () => {
+    try {
+      setLoading(true);
+      const { doc, setDoc } = await import('firebase/firestore');
+      
+      const teams = [
+        { id: '85', name: 'PSG', logo: 'https://media.api-sports.io/football/teams/85.png' },
+        { id: '81', name: 'Marseille', logo: 'https://media.api-sports.io/football/teams/81.png' },
+        { id: '80', name: 'Lyon', logo: 'https://media.api-sports.io/football/teams/80.png' },
+      ];
+
+      for (const team of teams) {
+        await setDoc(doc(db, 'teams', team.id), {
+          name: team.name,
+          logo: team.logo,
+          ferveurEarned: Math.floor(Math.random() * 1000),
+          totalScoreGiven: Math.floor(Math.random() * 5000),
+          matchesPlayed: Math.floor(Math.random() * 50) + 10,
+        });
+
+        const score = Math.floor(Math.random() * 5000) + 1000;
+        const matches = Math.floor(Math.random() * 50) + 10;
+        await setDoc(doc(db, 'ranking_teams', `${team.id}_2026_global`), {
+          teamId: team.id,
+          season: '2026',
+          leagueId: 'global',
+          totalScore: score,
+          matches: matches,
+          averageScore: score / matches,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      const { auth } = await import('../firebase');
+      const currentUser = auth.currentUser;
+
+      const users = [
+        { id: currentUser?.uid || 'user1', name: currentUser?.displayName || 'Gael', score: 4500 },
+        { id: 'user2', name: 'Alex', score: 3200 },
+        { id: 'user3', name: 'Sam', score: 5100 },
+      ];
+
+      for (const u of users) {
+        const matches = Math.floor(Math.random() * 50) + 10;
+        await setDoc(doc(db, 'ranking_users', `${u.id}_2026_global`), {
+          userId: u.id,
+          season: '2026',
+          leagueId: 'global',
+          totalScore: u.score,
+          matches: matches,
+          averageScore: u.score / matches,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      alert('Classements générés avec succès !');
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+      alert('Erreur lors de la génération des classements');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearFakeData = async () => {
+    try {
+      setLoading(true);
+      const { doc, deleteDoc, getDocs, collection } = await import('firebase/firestore');
+      
+      const fakeTeamIds = ['85', '81', '80'];
+      const fakeUserIds = ['user1', 'user2', 'user3'];
+
+      const teamsSnap = await getDocs(collection(db, 'ranking_teams'));
+      for (const d of teamsSnap.docs) {
+        if (fakeTeamIds.includes(d.data().teamId)) {
+          await deleteDoc(doc(db, 'ranking_teams', d.id));
+        }
+      }
+
+      const usersSnap = await getDocs(collection(db, 'ranking_users'));
+      for (const d of usersSnap.docs) {
+        if (fakeUserIds.includes(d.data().userId) || d.data().totalScore === 4500 || d.data().totalScore === 3200 || d.data().totalScore === 5100) {
+          await deleteDoc(doc(db, 'ranking_users', d.id));
+        }
+      }
+      
+      alert('Données de test supprimées !');
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+      alert('Erreur lors de la suppression');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 pb-24">
       <div className="flex items-center gap-3 mb-6">
@@ -185,6 +301,20 @@ export function Rankings() {
         <div>
           <h1 className="text-2xl font-black italic uppercase tracking-tighter text-white">Classements</h1>
           <p className="text-sm text-gray-400 font-medium">Les meilleurs sur le terrain</p>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <button 
+            onClick={seedRankings}
+            className="px-3 py-1 bg-orange-500/20 text-orange-500 rounded-lg hover:bg-orange-500/30 transition-colors text-xs font-bold"
+          >
+            + Test Data
+          </button>
+          <button 
+            onClick={clearFakeData}
+            className="px-3 py-1 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors text-xs font-bold"
+          >
+            - Clear Test
+          </button>
         </div>
       </div>
 
@@ -253,6 +383,20 @@ export function Rankings() {
           <div className="text-center py-12 bg-[#1a1a1a] rounded-2xl border border-white/5">
             <Trophy className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400 font-medium">Aucun classement disponible pour ces critères.</p>
+            <div className="flex gap-2 justify-center mt-4">
+              <button 
+                onClick={seedRankings}
+                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                Générer des données de test
+              </button>
+              <button 
+                onClick={clearFakeData}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Supprimer les données de test
+              </button>
+            </div>
           </div>
         ) : (
           <AnimatePresence>

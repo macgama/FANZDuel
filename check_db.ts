@@ -7,16 +7,14 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 async function check() {
-  const templates = await getDocs(collection(db, 'fanz_templates'));
-  templates.forEach(doc => {
-    console.log('Template:', doc.id, doc.data().name);
-    console.log('Skins:', JSON.stringify(doc.data().skins, null, 2));
-  });
+  const teamsSnap = await getDocs(collection(db, 'ranking_teams'));
+  console.log('ranking_teams count:', teamsSnap.size);
+  teamsSnap.forEach(doc => console.log(doc.id, doc.data()));
+
+  const usersSnap = await getDocs(collection(db, 'ranking_users'));
+  console.log('ranking_users count:', usersSnap.size);
+  usersSnap.forEach(doc => console.log(doc.id, doc.data()));
   
-  const actions = await getDocs(collection(db, 'life_actions'));
-  actions.forEach(doc => {
-    console.log('Action:', doc.id, doc.data().name, doc.data().videoUrl);
-  });
   process.exit(0);
 }
 check();

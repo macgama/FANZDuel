@@ -42,7 +42,6 @@ interface HomeProps {
 export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDuel, onOpenStreak }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [allFanz, setAllFanz] = useState<Fanz[]>([]);
-  const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
@@ -154,7 +153,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
     };
 
     updateActiveFanz();
-  }, [allFanz, selectedFanzId, profile.activeAction?.fanzId, profile.activeAction?.actionId, lifeActions]);
+  }, [allFanz, profile.activeFanzId, profile.activeAction?.fanzId, profile.activeAction?.actionId, lifeActions]);
 
   useEffect(() => {
     // Fetch some live matches
@@ -338,34 +337,6 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
             )}
           </div>
         </div>
-
-        {/* FANZ Selector */}
-        {allFanz.length > 1 && (
-          <div className="px-4 sm:px-8 pt-4">
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x">
-              {allFanz.map(fanz => (
-                <button
-                  key={fanz.id}
-                  onClick={() => setSelectedFanzId(fanz.id)}
-                  className={`flex-none w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all snap-start relative ${
-                    (selectedFanzId === fanz.id || (!selectedFanzId && activeFanz?.id === fanz.id))
-                      ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]' 
-                      : 'border-white/10 opacity-50 hover:opacity-100'
-                  }`}
-                >
-                  <img 
-                    src={getImageUrl(fanz.imageUrl || '')} 
-                    alt={fanz.name} 
-                    className="w-full h-full object-cover"
-                  />
-                  {fanz.id === profile.activeAction?.fanzId && (
-                    <div className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Quick Links */}
         <div className="px-4 sm:px-8 py-6 grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">

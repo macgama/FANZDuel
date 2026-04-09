@@ -521,6 +521,37 @@ async function startServer() {
     }
   });
 
+  app.get('/api/debug/rankings', async (req, res) => {
+    try {
+      const admin = await import('firebase-admin');
+      const { getFirestore } = await import('firebase-admin/firestore');
+      
+      const fs = await import('fs');
+      const path = await import('path');
+      const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+      if (!admin.apps.length) {
+        admin.initializeApp({
+          projectId: config.projectId,
+        });
+      }
+      
+      const db = getFirestore(config.firestoreDatabaseId || '(default)');
+      const teamsSnap = await db.collection('ranking_teams').get();
+      const usersSnap = await db.collection('ranking_users').get();
+      
+      res.json({
+        teamsCount: teamsSnap.size,
+        teams: teamsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        usersCount: usersSnap.size,
+        users: usersSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
