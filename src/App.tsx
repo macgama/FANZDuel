@@ -147,10 +147,10 @@ function AppContent() {
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
         </button>
         <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-5 sm:-top-7 group">
-          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#121212] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'}`}>
+          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#121212] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'} ${waitingDuelsCount > 0 && view !== 'waiting-room' ? 'animate-[pulse_2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(249,115,22,0.6)]' : ''}`}>
             <Swords className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
             {waitingDuelsCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#121212] flex items-center justify-center text-[10px] font-black text-white shadow-lg animate-pulse">
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#121212] flex items-center justify-center text-[10px] font-black text-white shadow-lg">
                 {waitingDuelsCount}
               </div>
             )}

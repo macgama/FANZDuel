@@ -19,7 +19,8 @@ import {
   Store,
   Target,
   Ticket,
-  Star
+  Star,
+  Swords
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
@@ -31,7 +32,7 @@ import { Header } from './Header';
 
 interface HomeProps {
   profile: UserProfile;
-  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams') => void;
+  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams' | 'waiting-room') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
@@ -58,6 +59,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   };
 
   const currentActiveAction = lifeActions.find(a => a.id === profile.activeAction?.actionId && profile.activeAction?.fanzId === activeFanz?.id);
+  const waitingDuelsCount = activeDuels.filter(d => d.status === 'waiting' && d.creatorId !== profile.uid).length;
 
   useEffect(() => {
     if (!profile.uid) return;
@@ -199,6 +201,29 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
         onFervorClick={() => onNavigate('fervor-path')}
         absolute
       />
+
+      {/* Waiting Duels Alert */}
+      {waitingDuelsCount > 0 && (
+        <div className="absolute top-20 left-4 right-4 z-50">
+          <button 
+            onClick={() => onNavigate('waiting-room')}
+            className="w-full bg-orange-500/90 backdrop-blur-md border border-orange-400 rounded-xl p-3 flex items-center justify-between shadow-lg shadow-orange-500/20 animate-[pulse_2s_ease-in-out_infinite]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <Swords className="w-4 h-4 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-black uppercase tracking-wider text-white">
+                  {waitingDuelsCount} {waitingDuelsCount > 1 ? 'Duels en attente' : 'Duel en attente'}
+                </div>
+                <div className="text-[10px] font-bold text-orange-100">Rejoignez un duel maintenant !</div>
+              </div>
+            </div>
+            <ArrowRight className="w-5 h-5 text-white" />
+          </button>
+        </div>
+      )}
 
       {/* BODY: Video Background (4:3) and Content Below */}
       <div className="flex-1 flex flex-col relative overflow-y-auto pb-6 no-scrollbar">
@@ -430,26 +455,65 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                     </div>
 
                     {/* Buttons */}
-                    <div className="flex gap-3 mt-4">
+                    <div className="flex gap-3 mt-4 relative">
                       <button 
                         onClick={(e) => { e.stopPropagation(); console.log("MATCH clicked", match.fixture.id); onMatchClick(match.fixture.id); }}
                         className="flex-1 py-3 rounded-xl border border-white/20 bg-white/5 text-white font-black text-xs uppercase tracking-wider hover:bg-white/10 transition-colors"
                       >
                         MATCH
                       </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); console.log("REJOINDRE clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
-                        className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
-                      >
-                        {activeDuels.some(d => d.matchId === match.fixture.id) ? (
-                          <>
-                            <Activity className="w-4 h-4 animate-pulse" />
-                            REJOINDRE
-                          </>
-                        ) : (
-                          'CRÉER UN DUEL'
-                        )}
-                      </button>
+                      
+                      {(() => {
+                        const waitingDuel = activeDuels.find(d => d.matchId == match.fixture.id && d.status === 'waiting' && d.creatorId !== profile.uid);
+                        const myWaitingDuel = activeDuels.find(d => d.matchId == match.fixture.id && d.status === 'waiting' && d.creatorId === profile.uid);
+                        const activeDuel = activeDuels.find(d => d.matchId == match.fixture.id && (d.status === 'active' || d.status === 'starting'));
+
+                        if (waitingDuel) {
+                          return (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); console.log("REJOINDRE clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
+                              className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 relative overflow-hidden"
+                            >
+                              <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                              <Swords className="w-4 h-4 relative z-10" />
+                              <span className="relative z-10">REJOINDRE UN DUEL</span>
+                            </button>
+                          );
+                        }
+                        
+                        if (myWaitingDuel) {
+                          return (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); console.log("EN ATTENTE clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
+                              className="flex-1 py-3 rounded-xl border border-orange-500/50 bg-orange-500/10 text-orange-500 font-black text-xs uppercase tracking-wider hover:bg-orange-500/20 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                              EN ATTENTE...
+                            </button>
+                          );
+                        }
+
+                        if (activeDuel) {
+                          return (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); console.log("CRÉER clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
+                              className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Activity className="w-4 h-4 text-white/70" />
+                              CRÉER UN DUEL
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); console.log("CRÉER clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
+                            className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+                          >
+                            CRÉER UN DUEL
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 )})

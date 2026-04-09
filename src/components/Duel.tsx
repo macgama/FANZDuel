@@ -659,6 +659,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   }, [fanzId, user.uid]);
 
   const [myTeam, setMyTeam] = useState<'A' | 'B' | null>(null);
+  const myTeamRef = useRef<'A' | 'B' | null>(null);
+  const participantsRef = useRef<any[]>(duel.participants || []);
+  const fanzRef = useRef<Fanz | null>(null);
+  const duelConfigRef = useRef<DuelConfig | null>(null);
+
+  // Update refs when state changes
+  useEffect(() => { myTeamRef.current = myTeam; }, [myTeam]);
+  useEffect(() => { participantsRef.current = participants; }, [participants]);
+  useEffect(() => { fanzRef.current = fanz; }, [fanz]);
+  useEffect(() => { duelConfigRef.current = duelConfig; }, [duelConfig]);
 
   const drawCard = () => {
     setHand(prev => {
@@ -787,9 +797,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
             const template = tplSnap.exists() ? tplSnap.data() as FanzTemplate : null;
             
-            const myParticipant = duel.participants?.find(p => p.uid === user.uid);
-            const myTeam = myParticipant?.team || 'A';
-            const isWin = winner === myTeam;
+            const currentParticipants = participantsRef.current;
+            const myParticipant = currentParticipants.find(p => p.uid === user.uid);
+            const currentMyTeam = myTeamRef.current || myParticipant?.team || 'A';
+            const isWin = winner === currentMyTeam;
             const duelType = duel.type as keyof NonNullable<DuelConfig['rewards']>;
             
             // Get base rewards from config or use defaults
@@ -801,7 +812,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             
             if (isWin) {
               const rankBonus = 1 + (fanzData.rank ?? 0) * 0.02;
-              const socialBonus = getStatEffectValue('ferveur_bonus');
+              
+              // Calculate socialBonus using configData and fanzData directly instead of getStatEffectValue
+              let socialBonus = 0;
+              if (configData && fanzData) {
+                const effect = configData.statEffects.find(e => e.effectType === 'ferveur_bonus');
+                if (effect) {
+                  const statLevel = (fanzData.stats as any)[effect.statName] || 1;
+                  socialBonus = effect.baseValue + (statLevel * effect.multiplierPerLevel);
+                }
+              }
               
               // Favorite team bonus
               const isFavoriteTeam = (selectedTeam === teamA && userData.favoriteTeams?.includes(teamAId || teamA)) || 
@@ -844,7 +864,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setFanz(prev => prev ? { ...prev, ferveurPoints: newFanzPoints, ferveurLevel: newFanzLevel } : null);
             
             // Update User General
-            const myScore = myTeam === 'A' ? scoreA : scoreB;
+            const myScore = currentMyTeam === 'A' ? scoreA : scoreB;
             if (ferveurGainGeneral > 0 || myScore > 0) {
               let newUserPoints = (userData.ferveurPoints || 0) + ferveurGainGeneral;
               const updates: any = {
@@ -867,7 +887,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             }
 
             // Update Team Stats
-            const myTeamId = myTeam === 'A' ? teamAId || teamA : teamBId || teamB;
+            const myTeamId = currentMyTeam === 'A' ? teamAId || teamA : teamBId || teamB;
             if (myTeamId) {
               const teamRef = doc(db, 'teams', myTeamId);
               const teamDoc = await getDoc(teamRef);
@@ -891,8 +911,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 }
 
                 await setDoc(teamRef, {
-                  name: myTeam === 'A' ? teamA : teamB,
-                  logo: myTeam === 'A' ? teamALogo : teamBLogo,
+                  name: currentMyTeam === 'A' ? teamA : teamB,
+                  logo: currentMyTeam === 'A' ? teamALogo : teamBLogo,
                   userCount: 0,
                   averageFerveur: 0,
                   ferveurEarned: ferveurGainGeneral,
@@ -965,8 +985,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               }
 
               // Record opponent team score if it's a bot (to ensure all teams get ranked)
-              const opponentTeam = myTeam === 'A' ? 'B' : 'A';
-              const isOpponentBot = !duel.participants?.some(p => p.team === opponentTeam);
+              const opponentTeam = currentMyTeam === 'A' ? 'B' : 'A';
+              const isOpponentBot = !currentParticipants.some(p => p.team === opponentTeam);
               if (isOpponentBot) {
                 const opponentTeamId = opponentTeam === 'A' ? (teamAId || teamA) : (teamBId || teamB);
                 const opponentScore = opponentTeam === 'A' ? scoreA : scoreB;
@@ -1538,14 +1558,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   {Array.from({ length: { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1 }).map((_, i) => {
                     const p = participants.filter(p => p.team === 'A')[i];
                     return (
-                      <div key={`A-${i}`} className="w-28 h-36 bg-black/60 border-2 border-blue-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
+                      <div key={`A-${i}`} className="w-28 h-40 bg-black/60 border-2 border-blue-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
                         {p ? (
                           <>
-                            <img src={getImageUrl(p.fanz?.imageUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
-                            <div className="relative z-10 flex flex-col items-center">
-                              <img src={getImageUrl(p.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-12 h-12 rounded-full border-2 border-blue-400 mb-2" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-0" />
+                            <div className="relative z-10 flex flex-col items-center w-full p-2">
+                              <img src={getImageUrl(p.fanz?.imageUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-16 h-16 object-contain mb-1 drop-shadow-lg" />
                               <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
-                              <span className="text-[9px] text-blue-300 font-bold uppercase mt-1">{p.fanz?.name}</span>
+                              <span className="text-[9px] text-blue-300 font-bold uppercase mb-1">{p.fanz?.name}</span>
+                              <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded-full border border-white/10 w-full justify-center">
+                                {teamALogo && <img src={teamALogo} className="w-3 h-3 object-contain" />}
+                                <span className="text-[8px] font-bold text-white truncate">{teamA}</span>
+                              </div>
                             </div>
                           </>
                         ) : (
@@ -1566,14 +1590,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   {Array.from({ length: { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1 }).map((_, i) => {
                     const p = participants.filter(p => p.team === 'B')[i];
                     return (
-                      <div key={`B-${i}`} className="w-28 h-36 bg-black/60 border-2 border-red-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
+                      <div key={`B-${i}`} className="w-28 h-40 bg-black/60 border-2 border-red-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
                         {p ? (
                           <>
-                            <img src={getImageUrl(p.fanz?.imageUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="absolute inset-0 w-full h-full object-cover opacity-50" />
-                            <div className="relative z-10 flex flex-col items-center">
-                              <img src={getImageUrl(p.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-12 h-12 rounded-full border-2 border-red-400 mb-2" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-0" />
+                            <div className="relative z-10 flex flex-col items-center w-full p-2">
+                              <img src={getImageUrl(p.fanz?.imageUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-16 h-16 object-contain mb-1 drop-shadow-lg" />
                               <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
-                              <span className="text-[9px] text-red-300 font-bold uppercase mt-1">{p.fanz?.name}</span>
+                              <span className="text-[9px] text-red-300 font-bold uppercase mb-1">{p.fanz?.name}</span>
+                              <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded-full border border-white/10 w-full justify-center">
+                                {teamBLogo && <img src={teamBLogo} className="w-3 h-3 object-contain" />}
+                                <span className="text-[8px] font-bold text-white truncate">{teamB}</span>
+                              </div>
                             </div>
                           </>
                         ) : (
