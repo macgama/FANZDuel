@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { getImageUrl, cn } from '../lib/utils';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { Card, Button } from './Layout';
-import { FanzTemplate, Fanz } from '../types';
-import { Trophy, Lock, Star, Info, Medal, Users } from 'lucide-react';
+import { FanzTemplate, Fanz, UserProfile } from '../types';
+import { Trophy, Lock, Star, Info, Medal, Users, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface FanzPageProps {
-  userUid: string;
+  userProfile: UserProfile;
   onFanzClick?: (fanzId: string) => void;
 }
 
-export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
+export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
   const [ownedFanz, setOwnedFanz] = useState<Map<string, Fanz>>(new Map()); // templateId -> Fanz object
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,7 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
     };
     fetchTemplates();
 
-    const q = query(collection(db, 'fanz'), where('ownerUid', '==', userUid));
+    const q = query(collection(db, 'fanz'), where('ownerUid', '==', userProfile.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fanzMap = new Map<string, Fanz>();
       snapshot.forEach((doc) => {
@@ -44,7 +44,7 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
     });
 
     return () => unsubscribe();
-  }, [userUid]);
+  }, [userProfile.uid]);
 
   const filteredFanz = fanzTemplates.filter((f) => {
     if (filter === 'owned') return ownedFanz.has(f.id);
@@ -137,6 +137,7 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
                       template={template} 
                       fanz={ownedFanz.get(template.id)}
                       isOwned={true} 
+                      isActive={userProfile.activeFanzId === ownedFanz.get(template.id)?.id}
                       onClick={() => onFanzClick && onFanzClick(ownedFanz.get(template.id)!.id)}
                     />
                   ))}
@@ -171,7 +172,7 @@ export function FanzPage({ userUid, onFanzClick }: FanzPageProps) {
   );
 }
 
-function FanzCard({ template, fanz, isOwned, onClick, onUnlock }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; onClick?: () => void; onUnlock?: () => void }) {
+function FanzCard({ template, fanz, isOwned, isActive, onClick, onUnlock }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; isActive?: boolean; onClick?: () => void; onUnlock?: () => void }) {
   const [isHovered, setIsHovered] = useState(false);
 
   const equippedSkinData = template.skins?.find(s => s.id === fanz?.equippedSkin);
@@ -242,6 +243,14 @@ function FanzCard({ template, fanz, isOwned, onClick, onUnlock }: { template: Fa
           {isOwned && fanz && (
             <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-orange-600 text-white text-[7px] sm:text-[9px] font-black uppercase z-10 shadow-lg">
               Rang {fanz.rank}
+            </div>
+          )}
+
+          {/* Active Badge */}
+          {isActive && (
+            <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-green-500 text-white text-[7px] sm:text-[9px] font-black uppercase z-10 shadow-lg flex items-center gap-1">
+              <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3" />
+              Actif
             </div>
           )}
 

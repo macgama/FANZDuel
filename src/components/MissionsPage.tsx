@@ -56,16 +56,33 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
         const fanzRef = doc(db, 'fanz', `${profile.uid}_${mission.reward.fanzId}`);
         const fanzDoc = await getDoc(fanzRef);
         if (!fanzDoc.exists()) {
-          await setDoc(fanzRef, {
-            id: `${profile.uid}_${mission.reward.fanzId}`,
-            templateId: mission.reward.fanzId,
-            ownerUid: profile.uid,
-            level: 1,
-            xp: 0,
-            ferveurPoints: 0,
-            ferveurLevel: 1,
-            stats: { force: 10, endurance: 10, mental: 10, bluff: 10, creativity: 10, social: 10, intelligence: 10, charisma: 10 }
-          });
+          const templateDoc = await getDoc(doc(db, 'fanz_templates', mission.reward.fanzId));
+          if (templateDoc.exists()) {
+            const templateData = templateDoc.data();
+            await setDoc(fanzRef, {
+              id: `${profile.uid}_${mission.reward.fanzId}`,
+              templateId: mission.reward.fanzId,
+              ownerUid: profile.uid,
+              name: templateData.name || 'Unknown Fanz',
+              sport: templateData.sport || 'Football',
+              imageUrl: templateData.image || null,
+              videoUrl: templateData.video || null,
+              baseExcitement: templateData.baseExcitement || 5,
+              level: 1,
+              xp: 0,
+              rank: 1,
+              ferveurPoints: 0,
+              ferveurLevel: 1,
+              energy: 100,
+              equippedCards: [],
+              deck: [],
+              unlockedSkins: [],
+              unlockedEmotes: [],
+              stats: templateData.baseStats || { force: 10, endurance: 10, mental: 10, bluff: 10, creativity: 10, social: 10, intelligence: 10, charisma: 10 },
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          }
         }
       }
 

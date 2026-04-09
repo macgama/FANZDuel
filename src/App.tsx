@@ -456,7 +456,7 @@ function AppContent() {
                   onTeamClick={(id, season) => setSelectedTeam({ id, season })}
                 />
               ) : view === 'fanz' ? (
-                <FanzPage userUid={user.uid} onFanzClick={(id) => setSelectedFanzId(id)} />
+                <FanzPage userProfile={profile} onFanzClick={(id) => setSelectedFanzId(id)} />
               ) : view === 'transactions' ? (
                 <TransactionsPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'social' ? (

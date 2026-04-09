@@ -41,6 +41,8 @@ interface HomeProps {
 
 export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDuel, onOpenStreak }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
+  const [allFanz, setAllFanz] = useState<Fanz[]>([]);
+  const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
@@ -67,62 +69,92 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
     const q = query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (!snapshot.empty) {
+        const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
+        const templatesMap = new Map(templatesSnap.docs.map(d => [d.id, d.data()]));
+
         const sortedDocs = [...snapshot.docs].sort((a, b) => {
           const dataA = a.data() as Fanz;
           const dataB = b.data() as Fanz;
-          // Prefer Fanz with equipped skin
           if (dataA.equippedSkin && !dataB.equippedSkin) return -1;
           if (!dataA.equippedSkin && dataB.equippedSkin) return 1;
-          // Then by level, xp, id
           if ((dataB.level || 0) !== (dataA.level || 0)) return (dataB.level || 0) - (dataA.level || 0);
           if ((dataB.xp || 0) !== (dataA.xp || 0)) return (dataB.xp || 0) - (dataA.xp || 0);
           return a.id.localeCompare(b.id);
         });
-        const fanzDoc = sortedDocs.find(d => d.id === profile.activeAction?.fanzId) || sortedDocs[0];
-        const fanzData = fanzDoc.data() as Fanz;
-        setActiveFanz(fanzData);
-
-        if (fanzData.templateId) {
-          try {
-            const templateDoc = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
-            if (templateDoc.exists()) {
-              const templateData = templateDoc.data() as FanzTemplate;
-              setFanzTemplate(templateData);
-              
-              const equippedSkinData = templateData.skins?.find(s => s.id === fanzData.equippedSkin);
-              
-              // Use active action video if available
-              const activeAction = lifeActions.find(a => a.id === profile.activeAction?.actionId && profile.activeAction?.fanzId === fanzData.id);
-              
-              let currentImageUrl = templateData.image;
-              let currentVideoUrl = templateData.video;
-
-              if (fanzData.imageUrl) currentImageUrl = fanzData.imageUrl;
-              if (fanzData.videoUrl) currentVideoUrl = fanzData.videoUrl;
-
-              if (equippedSkinData) {
-                currentImageUrl = equippedSkinData.imageUrl || currentImageUrl;
-                currentVideoUrl = equippedSkinData.videoUrl || currentVideoUrl;
-              }
-
-              if (activeAction) {
-                currentImageUrl = activeAction.image || currentImageUrl;
-                currentVideoUrl = activeAction.videoUrl || currentVideoUrl;
-              }
-
-              const finalVideoUrl = getImageUrl(currentVideoUrl);
-              setVideoUrl(finalVideoUrl ? currentVideoUrl : null);
-              setImageUrl(currentImageUrl || null);
-            }
-          } catch (error) {
-            console.error("Error fetching template", error);
-          }
-        }
+        
+        setAllFanz(sortedDocs.map(d => {
+          const data = d.data() as Fanz;
+          const template = templatesMap.get(data.templateId) as any;
+          return {
+            ...data,
+            id: d.id,
+            name: data.name || template?.name || 'Unknown Fanz',
+            imageUrl: data.imageUrl || template?.image || null,
+          };
+        }));
+      } else {
+        setAllFanz([]);
       }
     });
 
     return () => unsubscribe();
-  }, [profile.uid, profile.activeAction?.fanzId, lifeActions]);
+  }, [profile.uid]);
+
+  useEffect(() => {
+    const updateActiveFanz = async () => {
+      if (allFanz.length > 0) {
+        const fanzData = profile.activeFanzId 
+          ? allFanz.find(f => f.id === profile.activeFanzId) 
+          : (allFanz.find(f => f.id === profile.activeAction?.fanzId) || allFanz[0]);
+
+        if (fanzData) {
+          setActiveFanz(fanzData);
+
+          if (fanzData.templateId) {
+            try {
+              const templateDoc = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
+              if (templateDoc.exists()) {
+                const templateData = templateDoc.data() as FanzTemplate;
+                setFanzTemplate(templateData);
+                
+                const equippedSkinData = templateData.skins?.find(s => s.id === fanzData.equippedSkin);
+                const activeAction = lifeActions.find(a => a.id === profile.activeAction?.actionId && profile.activeAction?.fanzId === fanzData.id);
+                
+                let currentImageUrl = templateData.image;
+                let currentVideoUrl = templateData.video;
+
+                if (fanzData.imageUrl) currentImageUrl = fanzData.imageUrl;
+                if (fanzData.videoUrl) currentVideoUrl = fanzData.videoUrl;
+
+                if (equippedSkinData) {
+                  currentImageUrl = equippedSkinData.imageUrl || currentImageUrl;
+                  currentVideoUrl = equippedSkinData.videoUrl || currentVideoUrl;
+                }
+
+                if (activeAction) {
+                  currentImageUrl = activeAction.image || currentImageUrl;
+                  currentVideoUrl = activeAction.videoUrl || currentVideoUrl;
+                }
+
+                const finalVideoUrl = getImageUrl(currentVideoUrl);
+                setVideoUrl(finalVideoUrl ? currentVideoUrl : null);
+                setImageUrl(currentImageUrl || null);
+              }
+            } catch (error) {
+              console.error("Error fetching template", error);
+            }
+          }
+        }
+      } else {
+        setActiveFanz(null);
+        setFanzTemplate(null);
+        setVideoUrl(null);
+        setImageUrl(null);
+      }
+    };
+
+    updateActiveFanz();
+  }, [allFanz, selectedFanzId, profile.activeAction?.fanzId, profile.activeAction?.actionId, lifeActions]);
 
   useEffect(() => {
     // Fetch some live matches
@@ -306,6 +338,34 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
             )}
           </div>
         </div>
+
+        {/* FANZ Selector */}
+        {allFanz.length > 1 && (
+          <div className="px-4 sm:px-8 pt-4">
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x">
+              {allFanz.map(fanz => (
+                <button
+                  key={fanz.id}
+                  onClick={() => setSelectedFanzId(fanz.id)}
+                  className={`flex-none w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all snap-start relative ${
+                    (selectedFanzId === fanz.id || (!selectedFanzId && activeFanz?.id === fanz.id))
+                      ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]' 
+                      : 'border-white/10 opacity-50 hover:opacity-100'
+                  }`}
+                >
+                  <img 
+                    src={getImageUrl(fanz.imageUrl || '')} 
+                    alt={fanz.name} 
+                    className="w-full h-full object-cover"
+                  />
+                  {fanz.id === profile.activeAction?.fanzId && (
+                    <div className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quick Links */}
         <div className="px-4 sm:px-8 py-6 grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">

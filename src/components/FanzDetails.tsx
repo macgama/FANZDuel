@@ -372,15 +372,54 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     currentVideoUrl = null;
   }
 
+  const handleSetActiveFanz = async () => {
+    if (!userProfile || !fanz) return;
+    try {
+      await updateDoc(doc(db, 'users', userProfile.uid), {
+        activeFanzId: fanz.id
+      });
+      setAlertModal({
+        title: 'FANZ Actif',
+        message: 'Ce FANZ est maintenant votre FANZ actif !',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error("Error setting active FANZ:", error);
+      setAlertModal({
+        title: 'Erreur',
+        message: 'Impossible de définir ce FANZ comme actif.',
+        type: 'error'
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-20">
       {/* Hero Section (4:3 Aspect Ratio) */}
       <div className="w-full aspect-[4/3] relative shrink-0 overflow-hidden group">
         {/* Rarity Badge */}
-        <div className="absolute top-4 right-4 z-30 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
-          <span className="text-[10px] font-black italic uppercase tracking-widest text-orange-500">
-            {template.rarity}
-          </span>
+        <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2">
+          <div className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
+            <span className="text-[10px] font-black italic uppercase tracking-widest text-orange-500">
+              {template.rarity}
+            </span>
+          </div>
+          {userProfile.activeFanzId !== fanz.id ? (
+            <button
+              onClick={handleSetActiveFanz}
+              className="px-3 py-1 bg-orange-500/20 hover:bg-orange-500/40 backdrop-blur-md rounded-full border border-orange-500/50 transition-colors"
+            >
+              <span className="text-[10px] font-black italic uppercase tracking-widest text-orange-500">
+                Définir Actif
+              </span>
+            </button>
+          ) : (
+            <div className="px-3 py-1 bg-green-500/20 backdrop-blur-md rounded-full border border-green-500/50">
+              <span className="text-[10px] font-black italic uppercase tracking-widest text-green-500">
+                FANZ Actif
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/40 to-transparent z-10 pointer-events-none"></div>
@@ -692,16 +731,33 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                             const newFanzRef = doc(db, 'fanz', `${userProfile.uid}_${step.reward.fanzId}`);
                                             const newFanzDoc = await getDoc(newFanzRef);
                                             if (!newFanzDoc.exists()) {
-                                              await setDoc(newFanzRef, {
-                                                id: `${userProfile.uid}_${step.reward.fanzId}`,
-                                                templateId: step.reward.fanzId,
-                                                ownerUid: userProfile.uid,
-                                                level: 1,
-                                                xp: 0,
-                                                ferveurPoints: 0,
-                                                ferveurLevel: 1,
-                                                stats: { force: 10, endurance: 10, mental: 10, bluff: 10, creativity: 10, social: 10, intelligence: 10, charisma: 10 }
-                                              });
+                                              const templateDoc = await getDoc(doc(db, 'fanz_templates', step.reward.fanzId));
+                                              if (templateDoc.exists()) {
+                                                const templateData = templateDoc.data();
+                                                await setDoc(newFanzRef, {
+                                                  id: `${userProfile.uid}_${step.reward.fanzId}`,
+                                                  templateId: step.reward.fanzId,
+                                                  ownerUid: userProfile.uid,
+                                                  name: templateData.name || 'Unknown Fanz',
+                                                  sport: templateData.sport || 'Football',
+                                                  imageUrl: templateData.image || null,
+                                                  videoUrl: templateData.video || null,
+                                                  baseExcitement: templateData.baseExcitement || 5,
+                                                  level: 1,
+                                                  xp: 0,
+                                                  rank: 1,
+                                                  ferveurPoints: 0,
+                                                  ferveurLevel: 1,
+                                                  energy: 100,
+                                                  equippedCards: [],
+                                                  deck: [],
+                                                  unlockedSkins: [],
+                                                  unlockedEmotes: [],
+                                                  stats: templateData.baseStats || { force: 10, endurance: 10, mental: 10, bluff: 10, creativity: 10, social: 10, intelligence: 10, charisma: 10 },
+                                                  createdAt: new Date().toISOString(),
+                                                  updatedAt: new Date().toISOString()
+                                                });
+                                              }
                                             }
                                           }
                                           

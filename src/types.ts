@@ -52,6 +52,7 @@ export interface UserProfile {
   claimedFervorRewards?: string[];
   friends?: string[];
   friendRequests?: string[];
+  activeFanzId?: string;
 }
 
 export interface FanzStats {

@@ -107,7 +107,20 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
         if (configSnap.exists()) setDuelConfig(configSnap.data() as DuelConfig);
 
         const fanzSnap = await getDocs(query(collection(db, 'fanz'), where('ownerUid', '==', user.uid)));
-        setUserFanzs(fanzSnap.docs.map(d => ({ ...d.data(), id: d.id } as Fanz)));
+        const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
+        const templatesMap = new Map(templatesSnap.docs.map(d => [d.id, d.data()]));
+
+        const fanzList = fanzSnap.docs.map(d => {
+          const data = d.data() as Fanz;
+          const template = templatesMap.get(data.templateId) as any;
+          return {
+            ...data,
+            id: d.id,
+            name: data.name || template?.name || 'Unknown Fanz',
+            imageUrl: data.imageUrl || template?.image || null,
+          };
+        });
+        setUserFanzs(fanzList);
       } catch (err) {
         console.error("Error fetching duel data", err);
       } finally {
