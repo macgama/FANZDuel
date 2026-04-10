@@ -119,7 +119,7 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards', 'claimedFervorRewards', 'friends', 'friendRequests', 'xp', 'ferveur', 'lastActive', 'purchasedPasses', 'activeFanzId', 'matchesPlayed', 'matchesWon', 'totalScore']) &&
+      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards', 'claimedFervorRewards', 'friends', 'friendRequests', 'xp', 'ferveur', 'lastActive', 'purchasedPasses', 'activeFanzId', 'matchesPlayed', 'matchesWon', 'totalScore', 'totalScoreGiven', 'matchesParticipated']) &&
              (!('uid' in data) || data.uid is string) &&
              (!('pseudo' in data) || (data.pseudo is string && data.pseudo.size() > 0 && data.pseudo.size() < 50)) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
@@ -136,6 +136,8 @@ service cloud.firestore {
              (!('matchesPlayed' in data) || data.matchesPlayed is number) &&
              (!('matchesWon' in data) || data.matchesWon is number) &&
              (!('totalScore' in data) || data.totalScore is number) &&
+             (!('totalScoreGiven' in data) || data.totalScoreGiven is number) &&
+             (!('matchesParticipated' in data) || data.matchesParticipated is number) &&
              (!('level' in data) || data.level is number) &&
              (!('teamSlots' in data) || data.teamSlots is number) &&
              (!('cards' in data) || data.cards is list) &&

@@ -10,7 +10,7 @@ import { BASE_CARDS } from '../constants/cards';
 import { LOGOS } from '../constants';
 import { getImageUrl } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where, runTransaction } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useAlert } from '../context/AlertContext';
@@ -791,235 +791,249 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         }
       }
 
-      if (fanzId) {
-        try {
-          const fanzRef = doc(db, 'fanz', fanzId);
-          const userRef = doc(db, 'users', user.uid);
-          
-          const [fanzSnap, userSnap, configSnap] = await Promise.all([
-            getDoc(fanzRef),
-            getDoc(userRef),
-            getDoc(doc(db, 'global_configs', 'duel_config'))
-          ]);
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const configRef = doc(db, 'global_configs', 'duel_config');
+        
+        const [userSnap, configSnap] = await Promise.all([
+          getDoc(userRef),
+          getDoc(configRef)
+        ]);
 
-          if (fanzSnap.exists() && userSnap.exists()) {
-            const fanzData = fanzSnap.data() as Fanz;
-            const userData = userSnap.data() as UserProfile;
-            const configData = configSnap.exists() ? configSnap.data() as DuelConfig : null;
+        if (userSnap.exists()) {
+          const userData = userSnap.data() as UserProfile;
+          const configData = configSnap.exists() ? configSnap.data() as DuelConfig : null;
+          
+          const currentParticipants = participantsRef.current;
+          const myParticipant = currentParticipants.find(p => p.uid === user.uid);
+          const currentMyTeam = myTeamRef.current || myParticipant?.team || 'A';
+          const isWin = winner === currentMyTeam;
+          const duelType = duel.type as keyof NonNullable<DuelConfig['rewards']>;
+          
+          // Get base rewards from config or use defaults
+          const baseWinXp = configData?.rewards?.[duelType]?.winXp ?? (duelType === 'training' ? 5 : duelType === '1v1' ? 10 : duelType === '2v2' ? 20 : duelType === '5v5' ? 300 : 10);
+          const baseLoseXp = configData?.rewards?.[duelType]?.loseXp ?? (duelType === 'training' ? 5 : duelType === '1v1' ? 10 : duelType === '2v2' ? 20 : duelType === '5v5' ? 30 : 10);
+          
+          let ferveurGainFanz = 0;
+          let ferveurGainGeneral = 0;
+          
+          if (isWin) {
+            let rankBonus = 1;
+            let socialBonus = 0;
             
-            const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
-            const template = tplSnap.exists() ? tplSnap.data() as FanzTemplate : null;
+            if (fanzId) {
+              const fanzRef = doc(db, 'fanz', fanzId);
+              const fanzSnap = await getDoc(fanzRef);
+              if (fanzSnap.exists()) {
+                const fanzData = fanzSnap.data() as Fanz;
+                rankBonus = 1 + (fanzData.rank ?? 0) * 0.02;
+                
+                if (configData) {
+                  const effect = configData.statEffects.find(e => e.effectType === 'ferveur_bonus');
+                  if (effect) {
+                    const statLevel = (fanzData.stats as any)[effect.statName] || 1;
+                    socialBonus = effect.baseValue + (statLevel * effect.multiplierPerLevel);
+                  }
+                }
+              }
+            }
             
-            const currentParticipants = participantsRef.current;
-            const myParticipant = currentParticipants.find(p => p.uid === user.uid);
-            const currentMyTeam = myTeamRef.current || myParticipant?.team || 'A';
-            const isWin = winner === currentMyTeam;
-            const duelType = duel.type as keyof NonNullable<DuelConfig['rewards']>;
-            
-            // Get base rewards from config or use defaults
-            const baseWinXp = configData?.rewards?.[duelType]?.winXp ?? (duelType === 'training' ? 5 : duelType === '1v1' ? 10 : duelType === '2v2' ? 20 : duelType === '5v5' ? 300 : 10);
-            const baseLoseXp = configData?.rewards?.[duelType]?.loseXp ?? (duelType === 'training' ? 5 : duelType === '1v1' ? 10 : duelType === '2v2' ? 20 : duelType === '5v5' ? 30 : 10);
-            
-            let ferveurGainFanz = 0;
-            let ferveurGainGeneral = 0;
-            
-            if (isWin) {
-              const rankBonus = 1 + (fanzData.rank ?? 0) * 0.02;
+            // Favorite team bonus
+            const isFavoriteTeam = (selectedTeam === teamA && userData.favoriteTeams?.includes(teamAId || teamA)) || 
+                                   (selectedTeam === teamB && userData.favoriteTeams?.includes(teamBId || teamB));
+            const favoriteBonus = isFavoriteTeam ? 1.2 : 1.0; // +20% bonus
+
+            ferveurGainFanz = Math.round(baseWinXp * (rankBonus + socialBonus) * favoriteBonus);
+            ferveurGainGeneral = ferveurGainFanz;
+          } else {
+            ferveurGainFanz = -baseLoseXp;
+            ferveurGainGeneral = 0;
+          }
+          
+          // Update FANZ
+          if (fanzId) {
+            const fanzRef = doc(db, 'fanz', fanzId);
+            const fanzSnap = await getDoc(fanzRef);
+            if (fanzSnap.exists()) {
+              const fanzData = fanzSnap.data() as Fanz;
+              const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
+              const template = tplSnap.exists() ? tplSnap.data() as FanzTemplate : null;
               
-              // Calculate socialBonus using configData and fanzData directly instead of getStatEffectValue
-              let socialBonus = 0;
-              if (configData && fanzData) {
-                const effect = configData.statEffects.find(e => e.effectType === 'ferveur_bonus');
-                if (effect) {
-                  const statLevel = (fanzData.stats as any)[effect.statName] || 1;
-                  socialBonus = effect.baseValue + (statLevel * effect.multiplierPerLevel);
+              let newFanzPoints = Math.max(0, (fanzData.ferveurPoints || 0) + ferveurGainFanz);
+              let newFanzLevel = fanzData.ferveurLevel || 1;
+              
+              if (template?.ferveurPath) {
+                const nextLevel = template.ferveurPath.find(p => p.level === newFanzLevel + 1);
+                if (nextLevel && newFanzPoints >= nextLevel.pointsRequired) {
+                  newFanzLevel += 1;
                 }
               }
               
-              // Favorite team bonus
-              const isFavoriteTeam = (selectedTeam === teamA && userData.favoriteTeams?.includes(teamAId || teamA)) || 
-                                     (selectedTeam === teamB && userData.favoriteTeams?.includes(teamBId || teamB));
-              const favoriteBonus = isFavoriteTeam ? 1.2 : 1.0; // +20% bonus
-
-              ferveurGainFanz = Math.round(baseWinXp * (rankBonus + socialBonus) * favoriteBonus);
-              ferveurGainGeneral = ferveurGainFanz;
-            } else {
-              ferveurGainFanz = -baseLoseXp;
-              ferveurGainGeneral = 0;
-            }
-            
-            // Update FANZ
-            let newFanzPoints = Math.max(0, (fanzData.ferveurPoints || 0) + ferveurGainFanz);
-            let newFanzLevel = fanzData.ferveurLevel || 1;
-            
-            if (template?.ferveurPath) {
-              const nextLevel = template.ferveurPath.find(p => p.level === newFanzLevel + 1);
-              if (nextLevel && newFanzPoints >= nextLevel.pointsRequired) {
-                newFanzLevel += 1;
-              }
-            }
-            
-            await updateDoc(fanzRef, {
-              ferveurPoints: newFanzPoints,
-              ferveurLevel: newFanzLevel
-            });
-            
-            if (ferveurGainFanz !== 0) {
-              await logTransaction(
-                user.uid,
-                'ferveur_fanz',
-                ferveurGainFanz,
-                isWin ? 'Victoire en duel' : 'Défaite en duel',
-                fanzId
-              );
-            }
-            
-            setFanz(prev => prev ? { ...prev, ferveurPoints: newFanzPoints, ferveurLevel: newFanzLevel } : null);
-            
-            // Update User General
-            const myScore = currentMyTeam === 'A' ? scoreA : scoreB;
-            if (ferveurGainGeneral > 0 || myScore > 0) {
-              let newUserPoints = (userData.ferveurPoints || 0) + ferveurGainGeneral;
-              const updates: any = {
-                ferveurPoints: newUserPoints,
-                totalScoreGiven: increment(myScore),
-                matchesParticipated: increment(1)
-              };
-              if (userData.purchasedPasses && userData.purchasedPasses.length > 0 && ferveurGainGeneral > 0) {
-                updates.passPoints = increment(ferveurGainGeneral);
-              }
-              await updateDoc(userRef, updates);
-              if (ferveurGainGeneral > 0) {
+              await updateDoc(fanzRef, {
+                ferveurPoints: newFanzPoints,
+                ferveurLevel: newFanzLevel
+              });
+              
+              if (ferveurGainFanz !== 0) {
                 await logTransaction(
                   user.uid,
-                  'ferveur_general',
-                  ferveurGainGeneral,
-                  'Victoire en duel'
+                  'ferveur_fanz',
+                  ferveurGainFanz,
+                  isWin ? 'Victoire en duel' : 'Défaite en duel',
+                  fanzId
                 );
               }
-            }
-
-            // Update Team Stats
-            const myTeamId = currentMyTeam === 'A' ? teamAId || teamA : teamBId || teamB;
-            if (myTeamId) {
-              const teamRef = doc(db, 'teams', myTeamId);
-              const teamDoc = await getDoc(teamRef);
-              if (teamDoc.exists()) {
-                await updateDoc(teamRef, {
-                  ferveurEarned: increment(ferveurGainGeneral),
-                  totalScoreGiven: increment(myScore),
-                  matchesPlayed: increment(1)
-                });
-              } else {
-                // Fetch leagues for this team
-                let leagueIds: number[] = [];
-                if (!isNaN(Number(myTeamId))) {
-                  try {
-                    const { footballApi } = await import('../services/footballApi');
-                    const leaguesData = await footballApi.getLeaguesByTeam(Number(myTeamId));
-                    leagueIds = leaguesData.map((l: any) => l.league.id);
-                  } catch (e) {
-                    console.error("Failed to fetch leagues for team", e);
-                  }
-                }
-
-                await setDoc(teamRef, {
-                  name: currentMyTeam === 'A' ? teamA : teamB,
-                  logo: currentMyTeam === 'A' ? teamALogo : teamBLogo,
-                  userCount: 0,
-                  averageFerveur: 0,
-                  ferveurEarned: ferveurGainGeneral,
-                  totalScoreGiven: myScore,
-                  matchesPlayed: 1,
-                  leagueIds: leagueIds
-                });
-              }
-            }
-
-            // Update Rankings (Season & League)
-            try {
-              const { runTransaction } = await import('firebase/firestore');
               
-              // Fetch match details here if not available in state to ensure we have league info
-              let currentMatchDetails = matchDetails;
-              if (!currentMatchDetails && duel.matchId && duel.matchId !== 'global') {
+              setFanz(prev => prev ? { ...prev, ferveurPoints: newFanzPoints, ferveurLevel: newFanzLevel } : null);
+            }
+          }
+          
+          // Update User General
+          const myScore = currentMyTeam === 'A' ? scoreA : scoreB;
+          if (ferveurGainGeneral > 0 || myScore > 0) {
+            let newUserPoints = (userData.ferveurPoints || 0) + ferveurGainGeneral;
+            const updates: any = {
+              ferveurPoints: newUserPoints,
+              totalScore: increment(myScore),
+              matchesPlayed: increment(1)
+            };
+            if (isWin) {
+              updates.matchesWon = increment(1);
+            }
+            if (userData.purchasedPasses && userData.purchasedPasses.length > 0 && ferveurGainGeneral > 0) {
+              updates.passPoints = increment(ferveurGainGeneral);
+            }
+            await updateDoc(userRef, updates);
+            if (ferveurGainGeneral > 0) {
+              await logTransaction(
+                user.uid,
+                'ferveur_general',
+                ferveurGainGeneral,
+                'Victoire en duel'
+              );
+            }
+          }
+
+          // Update Team Stats
+          const myTeamId = currentMyTeam === 'A' ? teamAId || teamA : teamBId || teamB;
+          if (myTeamId) {
+            const teamRef = doc(db, 'teams', myTeamId);
+            const teamDoc = await getDoc(teamRef);
+            if (teamDoc.exists()) {
+              await updateDoc(teamRef, {
+                ferveurEarned: increment(ferveurGainGeneral),
+                totalScoreGiven: increment(myScore),
+                matchesPlayed: increment(1)
+              });
+            } else {
+              // Fetch leagues for this team
+              let leagueIds: number[] = [];
+              if (!isNaN(Number(myTeamId))) {
                 try {
                   const { footballApi } = await import('../services/footballApi');
-                  currentMatchDetails = await footballApi.getFixtureDetails(parseInt(duel.matchId));
+                  const leaguesData = await footballApi.getLeaguesByTeam(Number(myTeamId));
+                  leagueIds = leaguesData.map((l: any) => l.league.id);
                 } catch (e) {
-                  console.error("Failed to fetch match details for ranking", e);
+                  console.error("Failed to fetch leagues for team", e);
                 }
               }
 
-              const season = currentMatchDetails?.league?.season?.toString() || new Date().getFullYear().toString();
-              const leagueId = currentMatchDetails?.league?.id?.toString() || 'global';
-
-              const updateRanking = async (collectionName: string, entityIdField: string, entityId: string, seasonStr: string, leagueIdStr: string, scoreToAdd: number) => {
-                const docId = `${entityId}_${seasonStr}_${leagueIdStr}`;
-                const docRef = doc(db, collectionName, docId);
-
-                await runTransaction(db, async (transaction) => {
-                  const docSnap = await transaction.get(docRef);
-                  let totalScore = scoreToAdd;
-                  let matches = 1;
-
-                  if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    totalScore = (data.totalScore || 0) + scoreToAdd;
-                    matches = (data.matches || 0) + 1;
-                  }
-
-                  const averageScore = totalScore / matches;
-
-                  transaction.set(docRef, {
-                    [entityIdField]: entityId,
-                    season: seasonStr,
-                    leagueId: leagueIdStr,
-                    totalScore,
-                    matches,
-                    averageScore,
-                    updatedAt: new Date().toISOString()
-                  }, { merge: true });
-                });
-              };
-
-              // User Rankings
-              await updateRanking('ranking_users', 'userId', user.uid, season, 'global', myScore);
-              if (leagueId !== 'global') {
-                await updateRanking('ranking_users', 'userId', user.uid, season, leagueId, myScore);
-              }
-
-              // Team Rankings
-              if (myTeamId) {
-                await updateRanking('ranking_teams', 'teamId', myTeamId, season, 'global', myScore);
-                if (leagueId !== 'global') {
-                  await updateRanking('ranking_teams', 'teamId', myTeamId, season, leagueId, myScore);
-                }
-              }
-
-              // Record opponent team score if it's a bot (to ensure all teams get ranked)
-              const opponentTeam = currentMyTeam === 'A' ? 'B' : 'A';
-              const isOpponentBot = !currentParticipants.some(p => p.team === opponentTeam);
-              if (isOpponentBot) {
-                const opponentTeamId = opponentTeam === 'A' ? (teamAId || teamA) : (teamBId || teamB);
-                const opponentScore = opponentTeam === 'A' ? scoreA : scoreB;
-                if (opponentTeamId) {
-                  await updateRanking('ranking_teams', 'teamId', opponentTeamId, season, 'global', opponentScore);
-                  if (leagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', opponentTeamId, season, leagueId, opponentScore);
-                  }
-                }
-              }
-            } catch (rankingError) {
-              console.error("Error updating rankings", rankingError);
+              await setDoc(teamRef, {
+                name: currentMyTeam === 'A' ? teamA : teamB,
+                logo: currentMyTeam === 'A' ? teamALogo : teamBLogo,
+                userCount: 0,
+                averageFerveur: 0,
+                ferveurEarned: ferveurGainGeneral,
+                totalScoreGiven: myScore,
+                matchesPlayed: 1,
+                leagueIds: leagueIds
+              });
             }
-            
-            ferveurGain = ferveurGainFanz;
-            teamGain = ferveurGainGeneral;
           }
-        } catch (e) {
-          console.error("Error updating ferveur", e);
+
+          // Update Rankings (Season & League)
+          try {
+            const { runTransaction } = await import('firebase/firestore');
+            
+            // Fetch match details here if not available in state to ensure we have league info
+            let currentMatchDetails = matchDetails;
+            if (!currentMatchDetails && duel.matchId && duel.matchId !== 'global') {
+              try {
+                const { footballApi } = await import('../services/footballApi');
+                currentMatchDetails = await footballApi.getFixtureDetails(parseInt(duel.matchId));
+              } catch (e) {
+                console.error("Failed to fetch match details for ranking", e);
+              }
+            }
+
+            const season = currentMatchDetails?.league?.season?.toString() || new Date().getFullYear().toString();
+            const leagueId = currentMatchDetails?.league?.id?.toString() || 'global';
+
+            const updateRanking = async (collectionName: string, entityIdField: string, entityId: string, seasonStr: string, leagueIdStr: string, scoreToAdd: number) => {
+              const docId = `${entityId}_${seasonStr}_${leagueIdStr}`;
+              const docRef = doc(db, collectionName, docId);
+
+              await runTransaction(db, async (transaction) => {
+                const docSnap = await transaction.get(docRef);
+                let totalScore = scoreToAdd;
+                let matches = 1;
+
+                if (docSnap.exists()) {
+                  const data = docSnap.data();
+                  totalScore = (data.totalScore || 0) + scoreToAdd;
+                  matches = (data.matches || 0) + 1;
+                }
+
+                const averageScore = totalScore / matches;
+
+                transaction.set(docRef, {
+                  [entityIdField]: entityId,
+                  season: seasonStr,
+                  leagueId: leagueIdStr,
+                  totalScore,
+                  matches,
+                  averageScore,
+                  updatedAt: new Date().toISOString()
+                }, { merge: true });
+              });
+            };
+
+            // User Rankings
+            await updateRanking('ranking_users', 'userId', user.uid, season, 'global', myScore);
+            if (leagueId !== 'global') {
+              await updateRanking('ranking_users', 'userId', user.uid, season, leagueId, myScore);
+            }
+
+            // Team Rankings
+            if (myTeamId) {
+              await updateRanking('ranking_teams', 'teamId', myTeamId, season, 'global', myScore);
+              if (leagueId !== 'global') {
+                await updateRanking('ranking_teams', 'teamId', myTeamId, season, leagueId, myScore);
+              }
+            }
+
+            // Record opponent team score if it's a bot (to ensure all teams get ranked)
+            const opponentTeam = currentMyTeam === 'A' ? 'B' : 'A';
+            const isOpponentBot = !currentParticipants.some(p => p.team === opponentTeam);
+            if (isOpponentBot) {
+              const opponentTeamId = opponentTeam === 'A' ? (teamAId || teamA) : (teamBId || teamB);
+              const opponentScore = opponentTeam === 'A' ? scoreA : scoreB;
+              if (opponentTeamId) {
+                await updateRanking('ranking_teams', 'teamId', opponentTeamId, season, 'global', opponentScore);
+                if (leagueId !== 'global') {
+                  await updateRanking('ranking_teams', 'teamId', opponentTeamId, season, leagueId, opponentScore);
+                }
+              }
+            }
+          } catch (rankingError) {
+            console.error("Error updating rankings", rankingError);
+          }
+          
+          ferveurGain = ferveurGainFanz;
+          teamGain = ferveurGainGeneral;
         }
+      } catch (e) {
+        console.error("Error updating ferveur", e);
       }
       
       setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB, details });
