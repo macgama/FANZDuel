@@ -5,7 +5,6 @@ import { doc, getDoc, setDoc, onSnapshot, query, collection, where } from 'fireb
 import { Layout, Card } from './components/Layout';
 import { cn } from './lib/utils';
 import { Auth } from './components/Auth';
-import { Dashboard } from './components/Dashboard';
 import { AdminZone } from './components/AdminZone';
 import { MatchesPage } from './components/MatchesPage';
 import { CompetitionsPage } from './components/CompetitionsPage';
@@ -27,7 +26,7 @@ import { LeaderboardPage } from './components/LeaderboardPage';
 import { Rankings } from './components/Rankings';
 import { PassPage } from './components/PassPage';
 import { MissionsPage } from './components/MissionsPage';
-import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal } from 'lucide-react';
+import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
 
@@ -44,7 +43,7 @@ export default function App() {
   return <AppContent />;
 }
 
-type ViewType = 'home' | 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings';
+type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -357,9 +356,9 @@ function AppContent() {
             {profile && !isDuelActive && (
               <Header 
                 profile={profile} 
-                variant="subpage"
-                onBackClick={handleBack}
-                onHomeClick={() => {
+                variant={(view as string) === 'home' ? 'home' : 'subpage'}
+                onBackClick={(view as string) === 'home' ? undefined : handleBack}
+                onHomeClick={(view as string) === 'home' ? undefined : () => {
                   setView('home');
                   setSelectedLeague(null);
                   setSelectedTeam(null);
@@ -479,22 +478,7 @@ function AppContent() {
                 <MissionsPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'pass' ? (
                 <PassPage profile={profile} onBack={() => setView('home')} />
-              ) : (
-                <Dashboard 
-                  onDuelStatusChange={setIsDuelActive}
-                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
-                  onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
-                  onFanzClick={(id) => {
-                    setSelectedFanzId(id);
-                    setView('fanz');
-                  }}
-                  onMatchClick={(id, tab = 'summary') => {
-                    setSelectedMatchId(id);
-                    setSelectedMatchTab(tab);
-                  }}
-                  onDuelIntent={handleDuelIntent}
-                />
-              )}
+              ) : null}
             </div>
           </>
         )}
@@ -541,6 +525,7 @@ function AppContent() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-3 sm:space-y-4">
+            <MenuButton icon={<HomeIcon />} label="Accueil" onClick={() => { setView('home'); setIsMenuOpen(false); }} />
             <MenuButton 
               icon={
                 <div className="relative">

@@ -15,6 +15,7 @@ interface UserProfileModalProps {
 export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   const [pseudo, setPseudo] = useState(profile.pseudo);
   const [language, setLanguage] = useState(profile.language || 'fr');
+  const [dataSaver, setDataSaver] = useState(profile.dataSaver || false);
   const [photoURL, setPhotoURL] = useState(profile.photoURL || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -83,7 +84,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
     try {
       const docRef = doc(db, 'users', profile.uid);
-      await setDoc(docRef, { pseudo, language, photoURL }, { merge: true });
+      await setDoc(docRef, { pseudo, language, photoURL, dataSaver }, { merge: true });
       onClose();
     } catch (err: any) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${profile.uid}`);
@@ -229,6 +230,19 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-4 py-3">
+              <div>
+                <label className="block text-sm font-bold text-white mb-0.5">Mode Économie</label>
+                <p className="text-xs text-gray-400">Désactive les vidéos pour économiser les données et la batterie.</p>
+              </div>
+              <button
+                onClick={() => setDataSaver(!dataSaver)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${dataSaver ? 'bg-orange-500' : 'bg-gray-600'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${dataSaver ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
             </div>
 
             {error && <p className="text-red-500 text-sm font-bold">{error}</p>}

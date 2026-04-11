@@ -22,6 +22,7 @@ import {
   Star,
   Swords
 } from 'lucide-react';
+import { OptimizedMedia } from './OptimizedMedia';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -32,7 +33,7 @@ import { Header } from './Header';
 
 interface HomeProps {
   profile: UserProfile;
-  onNavigate: (view: 'dashboard' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams' | 'waiting-room') => void;
+  onNavigate: (view: 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams' | 'waiting-room') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
@@ -270,17 +271,17 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
         {/* Video Section (4:3 Aspect Ratio) */}
         <div className="w-full aspect-[4/3] relative shrink-0">
           {videoUrl ? (
-            <video 
-              src={getImageUrl(videoUrl)} 
+            <OptimizedMedia
+              type="video"
+              src={videoUrl}
+              poster={imageUrl || ''}
+              dataSaver={profile.dataSaver}
               className="w-full h-full object-cover"
-              autoPlay 
-              muted 
-              loop 
-              playsInline
             />
           ) : imageUrl ? (
-            <img 
-              src={getImageUrl(imageUrl)} 
+            <OptimizedMedia
+              type="image"
+              src={imageUrl}
               alt={activeFanz?.name || 'Mon FANZ'}
               className="w-full h-full object-cover"
             />

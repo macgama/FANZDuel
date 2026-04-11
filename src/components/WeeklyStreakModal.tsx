@@ -161,13 +161,6 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
         }
       }
       
-      if (cardToCreate) {
-        const { setDoc } = await import('firebase/firestore');
-        const userCardRef = doc(db, 'users', userId, 'user_cards', cardToCreate);
-        await setDoc(userCardRef, { id: cardToCreate, ownerUid: userId, level: 1, xp: 0 });
-      }
-
-      // Show fullscreen reward alert
       if (config.reward) {
         const reward = config.reward;
         let rewardData: any = {

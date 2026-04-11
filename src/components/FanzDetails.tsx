@@ -13,6 +13,7 @@ import { LifeActionCard } from './LifeActionCard';
 import { FANZ_FERVEUR_LEVELS } from '../constants';
 
 import { BASE_CARDS } from '../constants/cards';
+import { OptimizedMedia } from './OptimizedMedia';
 
 import { useReward } from '../context/RewardContext';
 
@@ -26,7 +27,6 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   const [fanz, setFanz] = useState<Fanz | null>(null);
   const [template, setTemplate] = useState<FanzTemplate | null>(null);
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
-  const [userCards, setUserCards] = useState<Record<string, UserCard>>({});
   const [allCards, setAllCards] = useState<DuelCard[]>([]);
   const [allSkins, setAllSkins] = useState<FanzSkin[]>([]);
   const [allEmotes, setAllEmotes] = useState<FanzEmote[]>([]);
@@ -126,13 +126,6 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         const actionsSnapshot = await getDocs(collection(db, 'life_actions'));
         const actionsData = actionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction));
         setLifeActions(actionsData);
-
-        const userCardsSnapshot = await getDocs(collection(db, 'users', userProfile.uid, 'user_cards'));
-        const userCardsData: Record<string, UserCard> = {};
-        userCardsSnapshot.docs.forEach(doc => {
-          userCardsData[doc.id] = doc.data() as UserCard;
-        });
-        setUserCards(userCardsData);
       } catch (error) {
         console.error("Error fetching Fanz details or actions:", error);
         handleFirestoreError(error, OperationType.GET, `fanz/${fanzId}`);
@@ -425,20 +418,17 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/40 to-transparent z-10 pointer-events-none"></div>
         
         {currentVideoUrl ? (
-          <video 
-            key={getImageUrl(currentVideoUrl)}
-            src={getImageUrl(currentVideoUrl)}
-            poster={getImageUrl(currentImageUrl || '')}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
+          <OptimizedMedia
+            type="video"
+            src={currentVideoUrl}
+            poster={currentImageUrl || ''}
+            dataSaver={userProfile.dataSaver}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <img 
-            src={getImageUrl(currentImageUrl || '')} 
+          <OptimizedMedia
+            type="image"
+            src={currentImageUrl || ''}
             alt={equippedSkinData?.name || fanz.name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
@@ -770,10 +760,6 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                             const card = allCards.find(c => c.id === step.reward!.cardId);
                                             if (card && !(userProfile.cards || []).includes(card.id)) {
                                               userUpdates.cards = [...(userProfile.cards || []), card.id];
-                                              const userCardRef = doc(db, 'users', userProfile.uid, 'user_cards', card.id);
-                                              const newUserCard = { id: card.id, ownerUid: userProfile.uid, level: 1, xp: 0 };
-                                              await setDoc(userCardRef, newUserCard);
-                                              setUserCards({ ...userCards, [card.id]: newUserCard });
                                             }
                                           }
                                           if (step.reward?.type === 'skin' && step.reward.skinId) {
@@ -1069,20 +1055,29 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           onClick={() => toggleCard(card.id)}
                           className={`bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border} rounded-lg cursor-pointer relative group flex flex-col overflow-hidden`}
                         >
+                          <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-sm text-yellow-500 text-[6px] font-black px-1 py-0.5 rounded-full z-10 flex items-center gap-0.5">
+                            <img src={LOGOS.level} alt="Level" className="w-2 h-2 object-contain" />
+                            Niv.{fanz.cardProgress?.[card.id]?.level || 1}
+                          </div>
                           <div className={`absolute top-1 right-1 ${typeStyle.text === 'text-green-500' ? 'bg-green-500' : typeStyle.text === 'text-red-500' ? 'bg-red-500' : 'bg-blue-500'} text-white text-[6px] font-black uppercase px-1 py-0.5 rounded-full z-10`}>
                             {typeStyle.label}
                           </div>
                           <div className="w-full aspect-[4/3] overflow-hidden bg-gray-900 shrink-0">
                             {card.videoUrl ? (
-                              <video 
-                                key={getImageUrl(card.videoUrl)}
-                                src={getImageUrl(card.videoUrl)}
-                                poster={getImageUrl(card.imageUrl || '')}
+                              <OptimizedMedia
+                                type="video"
+                                src={card.videoUrl}
+                                poster={card.imageUrl || ''}
+                                dataSaver={userProfile.dataSaver}
                                 className="w-full h-full object-cover"
-                                autoPlay muted loop playsInline
                               />
                             ) : (
-                              <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                              <OptimizedMedia
+                                type="image"
+                                src={card.imageUrl || ''}
+                                alt={card.name}
+                                className="w-full h-full object-cover"
+                              />
                             )}
                           </div>
                         </motion.div>
@@ -1149,7 +1144,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                               </div>
                               <div className="bg-black/60 backdrop-blur-sm text-yellow-500 text-[8px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1">
                                 <img src={LOGOS.level} alt="Level" className="w-2.5 h-2.5 object-contain" />
-                                Niv.{userCards[card.id]?.level || 1}
+                                Niv.{fanz.cardProgress?.[card.id]?.level || 1}
                               </div>
                             </div>
                           )}
@@ -1173,15 +1168,20 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           )}
                           <div className="w-full aspect-[3/4] overflow-hidden bg-gray-900 shrink-0">
                             {card.videoUrl ? (
-                              <video 
-                                key={getImageUrl(card.videoUrl)}
-                                src={getImageUrl(card.videoUrl)}
-                                poster={getImageUrl(card.imageUrl || '')}
+                              <OptimizedMedia
+                                type="video"
+                                src={card.videoUrl}
+                                poster={card.imageUrl || ''}
+                                dataSaver={userProfile.dataSaver}
                                 className="w-full h-full object-cover"
-                                autoPlay muted loop playsInline
                               />
                             ) : (
-                              <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                              <OptimizedMedia
+                                type="image"
+                                src={card.imageUrl || ''}
+                                alt={card.name}
+                                className="w-full h-full object-cover"
+                              />
                             )}
                           </div>
                           <div className="p-2 flex-1 flex flex-col gap-1.5">
@@ -1224,15 +1224,20 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                 >
                   <div className="w-full aspect-square overflow-hidden bg-gray-900">
                     {template.video ? (
-                      <video 
-                        key={getImageUrl(template.video)}
-                        src={getImageUrl(template.video)}
-                        poster={getImageUrl(template.image)}
+                      <OptimizedMedia
+                        type="video"
+                        src={template.video}
+                        poster={template.image}
+                        dataSaver={userProfile.dataSaver}
                         className="w-full h-full object-cover"
-                        autoPlay muted loop playsInline
                       />
                     ) : (
-                      <img src={getImageUrl(template.image)} alt="Original" className="w-full h-full object-cover" />
+                      <OptimizedMedia
+                        type="image"
+                        src={template.image}
+                        alt="Original"
+                        className="w-full h-full object-cover"
+                      />
                     )}
                   </div>
                   {!fanz.equippedSkin && (
@@ -1293,15 +1298,20 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       )}
                       <div className={`w-full aspect-square overflow-hidden bg-gray-900 ${!isUnlocked && !canAfford ? 'grayscale opacity-60' : !isUnlocked && canAfford ? 'opacity-90' : ''}`}>
                         {skin.videoUrl ? (
-                          <video 
-                            key={getImageUrl(skin.videoUrl)}
-                            src={getImageUrl(skin.videoUrl)}
-                            poster={getImageUrl(skin.imageUrl)}
+                          <OptimizedMedia
+                            type="video"
+                            src={skin.videoUrl}
+                            poster={skin.imageUrl}
+                            dataSaver={userProfile.dataSaver}
                             className="w-full h-full object-cover"
-                            autoPlay muted loop playsInline
                           />
                         ) : (
-                          <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className="w-full h-full object-cover" />
+                          <OptimizedMedia
+                            type="image"
+                            src={skin.imageUrl}
+                            alt={skin.name}
+                            className="w-full h-full object-cover"
+                          />
                         )}
                       </div>
                       {isEquipped && (
@@ -1369,15 +1379,20 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       )}
                       <div className={`w-full aspect-square overflow-hidden bg-gray-900 ${!isUnlocked && !canAfford ? 'grayscale opacity-60' : !isUnlocked && canAfford ? 'opacity-90' : ''}`}>
                         {emote.videoUrl ? (
-                          <video 
-                            key={getImageUrl(emote.videoUrl)}
-                            src={getImageUrl(emote.videoUrl)}
-                            poster={getImageUrl(emote.imageUrl)}
+                          <OptimizedMedia
+                            type="video"
+                            src={emote.videoUrl}
+                            poster={emote.imageUrl}
+                            dataSaver={userProfile.dataSaver}
                             className="w-full h-full object-cover"
-                            autoPlay muted loop playsInline
                           />
                         ) : (
-                          <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-full h-full object-cover" />
+                          <OptimizedMedia
+                            type="image"
+                            src={emote.imageUrl}
+                            alt={emote.name}
+                            className="w-full h-full object-cover"
+                          />
                         )}
                       </div>
                     </Card>
@@ -1458,7 +1473,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         return true;
                       });
                       
-                      const isAlreadyUnlocked = (userProfile.cards || []).includes(c.id) || c.id.startsWith('base_') || metRequirements || !!userCards[c.id];
+                      const isAlreadyUnlocked = (userProfile.cards || []).includes(c.id) || c.id.startsWith('base_') || metRequirements;
                       
                       return isAllowed && !isBlocked && !isAlreadyUnlocked;
                     }).length > 0 && (
@@ -1580,7 +1595,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       return true;
                     });
                     
-                    const isAlreadyUnlocked = (userProfile.cards || []).includes(c.id) || c.id.startsWith('base_') || metRequirements || !!userCards[c.id];
+                    const isAlreadyUnlocked = (userProfile.cards || []).includes(c.id) || c.id.startsWith('base_') || metRequirements;
                     
                     return isAllowed && !isBlocked && !isAlreadyUnlocked;
                   })
@@ -1592,7 +1607,6 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         try {
                           const fanzRef = doc(db, 'fanz', fanz.id);
                           const userRef = doc(db, 'users', userProfile.uid);
-                          const userCardRef = doc(db, 'users', userProfile.uid, 'user_cards', card.id);
                           
                           const newClaimed = [...(fanz.claimedRewards || []), rewardModal.slotId];
                           const newCards = [...(userProfile.cards || []), card.id];
@@ -1604,17 +1618,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           });
                           await updateDoc(userRef, { cards: newCards });
                           
-                          // Also add to user_cards subcollection
-                          const newUserCard = {
-                            id: card.id,
-                            ownerUid: userProfile.uid,
-                            level: 1,
-                            xp: 0
-                          };
-                          await setDoc(userCardRef, newUserCard);
-                          
                           setFanz({ ...fanz, claimedRewards: newClaimed, claimedChoices: newChoices });
-                          setUserCards({ ...userCards, [card.id]: newUserCard });
                           
                           showReward({
                             type: 'card',

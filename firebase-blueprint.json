@@ -30,7 +30,8 @@
         "passPoints": { "type": "number", "default": 0 },
         "isPassPremium": { "type": "boolean", "default": false },
         "claimedPassRewards": { "type": "array", "items": { "type": "string" } },
-        "claimedFervorRewards": { "type": "array", "items": { "type": "string" } }
+        "claimedFervorRewards": { "type": "array", "items": { "type": "string" } },
+        "dataSaver": { "type": "boolean", "default": false }
       },
       "required": ["uid", "pseudo", "email", "money", "gems", "boostPoints", "energy", "ferveurPoints", "level", "role"]
     },
@@ -68,6 +69,7 @@
         "unlockedSkins": { "type": "array", "items": { "type": "string" } },
         "equippedSkin": { "type": "string" },
         "unlockedEmotes": { "type": "array", "items": { "type": "string" } },
+        "cardProgress": { "type": "object", "description": "Per-Fanz card levels and XP" },
         "rank": { "type": "number", "description": "1 to 10, paid with Money/Boosts" },
         "claimedRewards": { "type": "array", "items": { "type": "string" } }
       }
@@ -238,18 +240,6 @@
       },
       "required": ["id", "name", "type", "rarity", "energyCost"]
     },
-    "UserCard": {
-      "title": "UserCard",
-      "description": "A user's instance of a card with level and XP.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "description": "The card template ID" },
-        "ownerUid": { "type": "string" },
-        "level": { "type": "number", "minimum": 1, "maximum": 5 },
-        "xp": { "type": "number" }
-      },
-      "required": ["id", "ownerUid", "level", "xp"]
-    },
     "Mission": {
       "title": "Mission",
       "description": "A mission for users to complete.",
@@ -378,7 +368,6 @@
     "/leagues/{leagueId}/seasons/{season}/fixtures/{fixtureId}": { "schema": "Fixture", "description": "Fixtures for a specific league and season" },
     "/leagues/{leagueId}/seasons/{season}/teams/{teamId}": { "schema": "Team", "description": "Teams for a specific league and season" },
     "/cards/{cardId}": { "schema": "Card", "description": "Card templates" },
-    "/users/{uid}/user_cards/{cardId}": { "schema": "UserCard", "description": "User's card instances with level/XP" },
     "/missions/{missionId}": { "schema": "Mission", "description": "Global missions" },
     "/passes/{passId}": { "schema": "Pass", "description": "Seasonal passes" },
     "/global_configs/user_fervor": { "schema": "GlobalFervorConfig", "description": "Global user fervor path" },

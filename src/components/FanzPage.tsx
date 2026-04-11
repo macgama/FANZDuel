@@ -6,6 +6,7 @@ import { Card, Button } from './Layout';
 import { FanzTemplate, Fanz, UserProfile } from '../types';
 import { Trophy, Lock, Star, Info, Medal, Users, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { OptimizedMedia } from './OptimizedMedia';
 
 interface FanzPageProps {
   userProfile: UserProfile;
@@ -139,6 +140,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                       isOwned={true} 
                       isActive={userProfile.activeFanzId === ownedFanz.get(template.id)?.id}
                       onClick={() => onFanzClick && onFanzClick(ownedFanz.get(template.id)!.id)}
+                      userProfile={userProfile}
                       onSetActive={async (e) => {
                         e.stopPropagation();
                         try {
@@ -171,6 +173,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                       key={template.id} 
                       template={template} 
                       isOwned={false} 
+                      userProfile={userProfile}
                     />
                   ))}
                 </div>
@@ -182,7 +185,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
   );
 }
 
-function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onUnlock }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; isActive?: boolean; onClick?: () => void; onSetActive?: (e: React.MouseEvent) => void; onUnlock?: () => void }) {
+function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onUnlock, userProfile }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; isActive?: boolean; onClick?: () => void; onSetActive?: (e: React.MouseEvent) => void; onUnlock?: () => void; userProfile?: UserProfile }) {
   const [isHovered, setIsHovered] = useState(false);
 
   const equippedSkinData = template.skins?.find(s => s.id === fanz?.equippedSkin);
@@ -220,18 +223,17 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
       }`}>
         <div className="aspect-[3/4] relative">
           {currentVideoUrl && isHovered ? (
-            <video
-              src={getImageUrl(currentVideoUrl)}
+            <OptimizedMedia
+              type="video"
+              src={currentVideoUrl}
+              dataSaver={userProfile.dataSaver}
               className="absolute inset-0 w-full h-full object-cover"
-              autoPlay
-              muted
-              loop
-              playsInline
             />
           ) : (
-            <img 
-              src={getImageUrl(currentImageUrl || '')} 
-              alt={equippedSkinData?.name || template.name} 
+            <OptimizedMedia
+              type="image"
+              src={currentImageUrl || ''}
+              alt={equippedSkinData?.name || template.name}
               className="w-full h-full object-cover"
             />
           )}

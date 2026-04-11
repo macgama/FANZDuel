@@ -7,6 +7,7 @@ import { Card, Button } from './Layout';
 import { motion, AnimatePresence } from 'motion/react';
 import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield, RefreshCw, Activity, Lock, Flame, Brain, Star, Users, Search, Trophy, Target, CreditCard, Layers, Snowflake, MessageCircle, AlertCircle } from 'lucide-react';
 import { BASE_CARDS } from '../constants/cards';
+import { OptimizedMedia } from './OptimizedMedia';
 import { LOGOS } from '../constants';
 import { getImageUrl } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../firebase';
@@ -523,7 +524,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   
   const [hand, setHand] = useState<GameCard[]>([]);
   const [deck, setDeck] = useState<GameCard[]>([]);
-  const [userCards, setUserCards] = useState<Record<string, UserCard>>({});
   const [allCards, setAllCards] = useState<GameCard[]>([]);
   const [fanz, setFanz] = useState<Fanz | null>(null);
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
@@ -633,11 +633,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setButtonHiddenDuration(hidD);
           }
         }
-
-        const userCardsSnap = await getDocs(collection(db, 'users', user.uid, 'user_cards'));
-        const ucData: Record<string, UserCard> = {};
-        userCardsSnap.docs.forEach(d => ucData[d.id] = d.data() as UserCard);
-        setUserCards(ucData);
 
         // Fetch Emotes
         const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
@@ -814,40 +809,24 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           const baseWinXp = configData?.rewards?.[duelType]?.winXp ?? (duelType === 'training' ? 5 : duelType === '1v1' ? 10 : duelType === '2v2' ? 20 : duelType === '5v5' ? 300 : 10);
           const baseLoseXp = configData?.rewards?.[duelType]?.loseXp ?? (duelType === 'training' ? 5 : duelType === '1v1' ? 10 : duelType === '2v2' ? 20 : duelType === '5v5' ? 30 : 10);
           
+          const myScore = currentMyTeam === 'A' ? scoreA : scoreB;
+          
+          let duelMultiplier = 1;
+          if (duel.type === '2v2') duelMultiplier = 2;
+          else if (duel.type === '5v5') duelMultiplier = 5;
+          else if (duel.type === 'war_of_kops') duelMultiplier = 10;
+          
           let ferveurGainFanz = 0;
           let ferveurGainGeneral = 0;
           
           if (isWin) {
-            let rankBonus = 1;
-            let socialBonus = 0;
-            
-            if (fanzId) {
-              const fanzRef = doc(db, 'fanz', fanzId);
-              const fanzSnap = await getDoc(fanzRef);
-              if (fanzSnap.exists()) {
-                const fanzData = fanzSnap.data() as Fanz;
-                rankBonus = 1 + (fanzData.rank ?? 0) * 0.02;
-                
-                if (configData) {
-                  const effect = configData.statEffects.find(e => e.effectType === 'ferveur_bonus');
-                  if (effect) {
-                    const statLevel = (fanzData.stats as any)[effect.statName] || 1;
-                    socialBonus = effect.baseValue + (statLevel * effect.multiplierPerLevel);
-                  }
-                }
-              }
-            }
-            
-            // Favorite team bonus
-            const isFavoriteTeam = (selectedTeam === teamA && userData.favoriteTeams?.includes(teamAId || teamA)) || 
-                                   (selectedTeam === teamB && userData.favoriteTeams?.includes(teamBId || teamB));
-            const favoriteBonus = isFavoriteTeam ? 1.2 : 1.0; // +20% bonus
-
-            ferveurGainFanz = Math.round(baseWinXp * (rankBonus + socialBonus) * favoriteBonus);
-            ferveurGainGeneral = ferveurGainFanz;
+            // L'XP gagnée est basée sur le score multiplié par le type de duel
+            ferveurGainFanz = myScore * duelMultiplier;
+            ferveurGainGeneral = myScore * duelMultiplier;
           } else {
-            ferveurGainFanz = -baseLoseXp;
-            ferveurGainGeneral = 0;
+            // En cas de défaite, on gagne la moitié
+            ferveurGainFanz = Math.round((myScore / 2) * duelMultiplier);
+            ferveurGainGeneral = Math.round((myScore / 2) * duelMultiplier);
           }
           
           // Update FANZ
@@ -889,7 +868,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           }
           
           // Update User General
-          const myScore = currentMyTeam === 'A' ? scoreA : scoreB;
           if (ferveurGainGeneral > 0 || myScore > 0) {
             let newUserPoints = (userData.ferveurPoints || 0) + ferveurGainGeneral;
             const updates: any = {
@@ -1231,49 +1209,41 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     
     // XP Gain and Leveling
     try {
-      const cardRef = doc(db, 'users', user.uid, 'user_cards', card.id);
-      const cardSnap = await getDoc(cardRef);
-      let currentLevel = 1;
-      let currentXp = 0;
-      
-      const socialBonus = getStatEffectValue('xp_gain');
-      const xpGain = Math.round(1 * (1 + socialBonus));
+      if (fanz) {
+        const fanzRef = doc(db, 'fanz', fanzId);
+        let currentLevel = 1;
+        let currentXp = 0;
+        
+        const socialBonus = getStatEffectValue('xp_gain');
+        const xpGain = Math.round(1 * (1 + socialBonus));
 
-      if (cardSnap.exists()) {
-        const data = cardSnap.data() as UserCard;
-        currentLevel = data.level;
-        currentXp = data.xp + xpGain;
+        const currentProgress = fanz.cardProgress?.[card.id] || { level: 1, xp: 0 };
+        currentLevel = currentProgress.level;
+        currentXp = currentProgress.xp + xpGain;
         const xpForNextLevel = currentLevel * 10;
 
-        if (currentXp >= xpForNextLevel && currentLevel < 5) {
-          await updateDoc(cardRef, {
-            xp: 0,
-            level: increment(1)
-          });
-          currentLevel += 1;
-          currentXp = 0;
-          // Update local state
-          setUserCards(prev => ({ ...prev, [card.id]: { ...data, level: currentLevel, xp: 0 } }));
-        } else {
-          await updateDoc(cardRef, {
-            xp: increment(xpGain)
-          });
-          // Update local state
-          setUserCards(prev => ({ ...prev, [card.id]: { ...data, xp: currentXp } }));
-        }
-      } else {
-        const newCardData = {
-          id: card.id,
-          ownerUid: user.uid,
-          level: 1,
-          xp: xpGain
-        };
-        await setDoc(cardRef, newCardData);
-        setUserCards(prev => ({ ...prev, [card.id]: newCardData }));
-      }
+        let newLevel = currentLevel;
+        let newXp = currentXp;
 
-      // Apply level bonus to effects
-      const levelBonus = 1 + (currentLevel - 1) * 0.2; // 20% per level
+        if (currentXp >= xpForNextLevel && currentLevel < 5) {
+          newLevel += 1;
+          newXp = 0;
+        }
+
+        const updatedProgress = {
+          ...fanz.cardProgress,
+          [card.id]: { level: newLevel, xp: newXp }
+        };
+
+        await updateDoc(fanzRef, {
+          cardProgress: updatedProgress
+        });
+
+        setFanz(prev => prev ? { ...prev, cardProgress: updatedProgress } : null);
+        currentLevel = newLevel;
+
+        // Apply level bonus to effects
+        const levelBonus = 1 + (currentLevel - 1) * 0.05; // 5% per level
       const rawCharismaBonus = getStatEffectValue('card_power'); // Base is 1
       const charismaBonus = 1 + (rawCharismaBonus - 1) * 0.2; // Scale down to 20% effectiveness
       const creativityBonus = getStatEffectValue('card_cost_reduction'); // Base is 0
@@ -1361,6 +1331,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       }
 
       socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam, card: boostedCard });
+      }
     } catch (err) {
       console.error("Error playing card and updating XP", err);
     }
@@ -1824,7 +1795,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x justify-center">
           <AnimatePresence>
             {hand.map(card => {
-              const userCard = userCards[card.id] || { level: 1, xp: 0 };
+              const userCard = fanz?.cardProgress?.[card.id] || { level: 1, xp: 0 };
               const xpForNextLevel = userCard.level * 10;
               const xpProgress = (userCard.xp / xpForNextLevel) * 100;
               const actualCost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;

@@ -4,6 +4,7 @@ import { Card } from './Layout';
 import { Clock, Trash2, FastForward, Activity, Star, Flame, Shield, Brain, Eye, Users, Info } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { LOGOS } from '../constants';
+import { OptimizedMedia } from './OptimizedMedia';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteField } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
@@ -403,18 +404,20 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       {/* Background Video/Image */}
       <div className="absolute inset-0 z-0">
         {action.videoUrl ? (
-          <video 
-            key={getImageUrl(action.videoUrl)}
-            src={getImageUrl(action.videoUrl)}
-            poster={getImageUrl(action.image)}
-            autoPlay 
-            loop 
-            muted 
-            playsInline 
-            className="w-full h-full object-cover" 
+          <OptimizedMedia
+            type="video"
+            src={action.videoUrl}
+            poster={action.image}
+            dataSaver={userProfile.dataSaver}
+            className="w-full h-full object-cover"
           />
         ) : action.image ? (
-          <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+          <OptimizedMedia
+            type="image"
+            src={action.image}
+            alt={action.name}
+            className="w-full h-full object-cover"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
             <Activity className="w-12 h-12 text-gray-700" />

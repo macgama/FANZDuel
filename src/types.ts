@@ -53,6 +53,7 @@ export interface UserProfile {
   friends?: string[];
   friendRequests?: string[];
   activeFanzId?: string;
+  dataSaver?: boolean;
 }
 
 export interface FanzStats {
@@ -190,6 +191,7 @@ export interface Fanz {
   unlockedEmotes: string[];
   unlockedActions?: string[];
   lifeActionProgress?: Record<string, { level: number; xp: number }>;
+  cardProgress?: Record<string, { level: number; xp: number }>;
   claimedChoices?: Record<string, any>;
   claimedRewards?: string[]; // Array of slot IDs like "rank-1-slot-1"
 }

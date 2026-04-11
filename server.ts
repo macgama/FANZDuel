@@ -152,7 +152,7 @@ async function startServer() {
         duels[duelId] = {
           id: duelId,
           type: type || '1v1',
-          status: type === 'training' || type === 'war_of_kops' ? 'active' : 'waiting',
+          status: type === 'training' ? 'active' : 'waiting',
           progress: 50,
           participants: [],
           matchId,
@@ -208,9 +208,17 @@ async function startServer() {
       });
 
       // Check if duel should start
-      const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10, 'training': 1, 'war_of_kops': 1 }[duel.type as keyof typeof requiredPlayers] || 2;
+      let shouldStart = false;
+      if (duel.type === 'war_of_kops') {
+        const hasTeamA = duel.participants.some(p => p.team === 'A');
+        const hasTeamB = duel.participants.some(p => p.team === 'B');
+        shouldStart = hasTeamA && hasTeamB;
+      } else {
+        const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10, 'training': 1 }[duel.type as string] || 2;
+        shouldStart = duel.participants.length >= requiredPlayers;
+      }
       
-      if (duel.status === 'waiting' && duel.participants.length >= requiredPlayers) {
+      if (duel.status === 'waiting' && shouldStart) {
         duel.status = 'starting';
         const startTime = Date.now() + 5000;
         io.to(duelId).emit("duel-starting", { startTime, duelId, duel });
@@ -283,19 +291,12 @@ async function startServer() {
       const duel = duels[duelId];
       if (duel && duel.status === 'active') {
         duel.clickCounts[team]++;
+        const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
         const baseDelta = 0.5;
-        const delta = (team === "A" ? baseDelta : -baseDelta) * (multiplier || 1);
+        const delta = ((team === "A" ? baseDelta : -baseDelta) * (multiplier || 1)) / resistance;
         duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
         
-        if (duel.type === 'war_of_kops') {
-          if (duel.progress >= 100 || duel.progress <= 0) {
-            if (duel.scores) {
-              if (duel.progress >= 100) duel.scores.A++;
-              else duel.scores.B++;
-            }
-            duel.progress = 50; // Reset for continuous battle
-          }
-        } else if (duel.progress >= 100 || duel.progress <= 0) {
+        if (duel.progress >= 100 || duel.progress <= 0) {
           const winner = duel.progress >= 100 ? "A" : "B";
           finishDuel(duelId, winner);
         }
@@ -314,28 +315,21 @@ async function startServer() {
       const duel = duels[duelId];
       if (duel && duel.status === 'active') {
         duel.cardCounts[team]++;
+        const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
         
         if (card.fervorValue) {
-          const delta = team === "A" ? card.fervorValue : -card.fervorValue;
+          const delta = (team === "A" ? card.fervorValue : -card.fervorValue) / resistance;
           duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
         }
 
         card.effects.forEach((effect: any) => {
           if (effect.type === 'push_rope' && effect.value && !card.fervorValue) {
-            const delta = team === "A" ? effect.value : -effect.value;
+            const delta = (team === "A" ? effect.value : -effect.value) / resistance;
             duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
           }
         });
         
-        if (duel.type === 'war_of_kops') {
-          if (duel.progress >= 100 || duel.progress <= 0) {
-            if (duel.scores) {
-              if (duel.progress >= 100) duel.scores.A++;
-              else duel.scores.B++;
-            }
-            duel.progress = 50;
-          }
-        } else if (duel.progress >= 100 || duel.progress <= 0) {
+        if (duel.progress >= 100 || duel.progress <= 0) {
           const winner = duel.progress >= 100 ? "A" : "B";
           finishDuel(duelId, winner);
         }

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Star, Sparkles, X, Activity, MessageCircle } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { LOGOS } from '../constants';
+import { OptimizedMedia } from './OptimizedMedia';
 
 export interface RewardData {
   type: 'money' | 'gems' | 'boost' | 'energy' | 'xp' | 'card' | 'skin' | 'emote' | 'action' | 'choice';
@@ -91,13 +92,19 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             {reward.type === 'skin' && reward.skin && (
               <div className="w-72 aspect-[3/4] rounded-3xl border-4 border-blue-500 overflow-hidden shadow-2xl shadow-blue-500/40 bg-gray-900">
                 {reward.skin.videoUrl ? (
-                  <video 
-                    src={getImageUrl(reward.skin.videoUrl)} 
-                    autoPlay muted loop playsInline 
-                    className="w-full h-full object-cover" 
+                  <OptimizedMedia
+                    type="video"
+                    src={reward.skin.videoUrl}
+                    poster={reward.skin.imageUrl}
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <img src={getImageUrl(reward.skin.imageUrl)} className="w-full h-full object-cover" alt={reward.skin.name} />
+                  <OptimizedMedia
+                    type="image"
+                    src={reward.skin.imageUrl}
+                    alt={reward.skin.name}
+                    className="w-full h-full object-cover"
+                  />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
                 <div className="absolute bottom-0 inset-x-0 p-6 text-left">
@@ -110,9 +117,19 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             {reward.type === 'emote' && reward.emote && (
               <div className="w-72 aspect-square rounded-3xl border-4 border-purple-500 overflow-hidden shadow-2xl shadow-purple-500/40 bg-gray-900 flex items-center justify-center p-8">
                 {reward.emote.videoUrl ? (
-                  <video src={getImageUrl(reward.emote.videoUrl)} autoPlay muted loop playsInline className="w-full h-full object-contain" />
+                  <OptimizedMedia
+                    type="video"
+                    src={reward.emote.videoUrl}
+                    poster={reward.emote.imageUrl}
+                    className="w-full h-full object-contain"
+                  />
                 ) : (
-                  <img src={getImageUrl(reward.emote.imageUrl)} className="w-full h-full object-contain" alt={reward.emote.name} />
+                  <OptimizedMedia
+                    type="image"
+                    src={reward.emote.imageUrl}
+                    alt={reward.emote.name}
+                    className="w-full h-full object-contain"
+                  />
                 )}
                 <div className="absolute bottom-0 inset-x-0 p-6 text-center">
                   <p className="text-purple-400 text-[10px] font-black uppercase tracking-widest mb-1">Nouvel Emote</p>
@@ -124,9 +141,19 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             {reward.type === 'action' && reward.action && (
               <div className="w-72 aspect-square rounded-3xl border-4 border-green-500 overflow-hidden shadow-2xl shadow-green-500/40 bg-gray-900 flex items-center justify-center p-8">
                 {reward.action.videoUrl ? (
-                  <video src={getImageUrl(reward.action.videoUrl)} autoPlay muted loop playsInline className="w-full h-full object-contain" />
+                  <OptimizedMedia
+                    type="video"
+                    src={reward.action.videoUrl}
+                    poster={reward.action.image}
+                    className="w-full h-full object-contain"
+                  />
                 ) : (
-                  <img src={getImageUrl(reward.action.image)} className="w-full h-full object-contain" alt={reward.action.name} />
+                  <OptimizedMedia
+                    type="image"
+                    src={reward.action.image}
+                    alt={reward.action.name}
+                    className="w-full h-full object-contain"
+                  />
                 )}
                 <div className="absolute bottom-0 inset-x-0 p-6 text-center">
                   <p className="text-green-400 text-[10px] font-black uppercase tracking-widest mb-1">Nouvelle Action</p>

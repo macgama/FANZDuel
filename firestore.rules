@@ -42,6 +42,7 @@
 //   - unlockedSkins: list (optional, strings)
 //   - equippedSkin: string (optional)
 //   - unlockedEmotes: list (optional, strings)
+//   - cardProgress: map (optional, {cardId: {level, xp}})
 //   - unlockedActions: list (optional, strings)
 //   - claimedRewards: list (optional, strings)
 //   - createdAt: string (required, immutable, ISO 8601)
@@ -119,7 +120,7 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards', 'claimedFervorRewards', 'friends', 'friendRequests', 'xp', 'ferveur', 'lastActive', 'purchasedPasses', 'activeFanzId', 'matchesPlayed', 'matchesWon', 'totalScore', 'totalScoreGiven', 'matchesParticipated']) &&
+      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards', 'claimedFervorRewards', 'friends', 'friendRequests', 'xp', 'ferveur', 'lastActive', 'purchasedPasses', 'activeFanzId', 'matchesPlayed', 'matchesWon', 'totalScore', 'totalScoreGiven', 'matchesParticipated', 'dataSaver']) &&
              (!('uid' in data) || data.uid is string) &&
              (!('pseudo' in data) || (data.pseudo is string && data.pseudo.size() > 0 && data.pseudo.size() < 50)) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
@@ -162,13 +163,14 @@ service cloud.firestore {
              (!('xp' in data) || data.xp is number) &&
              (!('ferveur' in data) || data.ferveur is number) &&
              (!('lastActive' in data) || isValidDateString(data.lastActive)) &&
-             (!('activeFanzId' in data) || data.activeFanzId is string);
+             (!('activeFanzId' in data) || data.activeFanzId is string) &&
+             (!('dataSaver' in data) || data.dataSaver is bool);
     }
 
     function isValidFanz(data) {
       let ownerId = 'ownerUid' in data ? data.ownerUid : ('uid' in data ? data.uid : '');
       let resOwnerId = resource == null ? '' : ('ownerUid' in resource.data ? resource.data.ownerUid : ('uid' in resource.data ? resource.data.uid : ''));
-      return hasOnlyAllowedFields(['id', 'templateId', 'ownerUid', 'uid', 'name', 'sport', 'imageUrl', 'videoUrl', 'image', 'video', 'description', 'rarity', 'baseStats', 'specialCards', 'skins', 'emotes', 'ferveurPath', 'rankRewards', 'stats', 'xp', 'level', 'rank', 'claimedRewards', 'claimedChoices', 'ferveurPoints', 'ferveurLevel', 'energy', 'equippedCards', 'unlockedSkins', 'equippedSkin', 'unlockedEmotes', 'unlockedActions', 'lifeActionProgress', 'baseExcitement', 'deck', 'createdAt', 'updatedAt', 'ferveur', 'matchesPlayed', 'matchesWon']) &&
+      return hasOnlyAllowedFields(['id', 'templateId', 'ownerUid', 'uid', 'name', 'sport', 'imageUrl', 'videoUrl', 'image', 'video', 'description', 'rarity', 'baseStats', 'specialCards', 'skins', 'emotes', 'ferveurPath', 'rankRewards', 'stats', 'xp', 'level', 'rank', 'claimedRewards', 'claimedChoices', 'ferveurPoints', 'ferveurLevel', 'energy', 'equippedCards', 'unlockedSkins', 'equippedSkin', 'unlockedEmotes', 'unlockedActions', 'lifeActionProgress', 'cardProgress', 'baseExcitement', 'deck', 'createdAt', 'updatedAt', 'ferveur', 'matchesPlayed', 'matchesWon']) &&
              (resource == null ? ownerId == request.auth.uid : ownerId == resOwnerId) &&
              data.templateId is string && data.templateId.size() > 0 && data.templateId.size() < 50 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
@@ -200,6 +202,7 @@ service cloud.firestore {
              (!('unlockedEmotes' in data) || data.unlockedEmotes is list) &&
              (!('unlockedActions' in data) || data.unlockedActions is list) &&
              (!('lifeActionProgress' in data) || data.lifeActionProgress is map) &&
+             (!('cardProgress' in data) || data.cardProgress is map) &&
              (!('baseExcitement' in data) || data.baseExcitement is number) &&
              (!('deck' in data) || data.deck is list) &&
              (!('ferveur' in data) || data.ferveur is number) &&
@@ -257,11 +260,6 @@ service cloud.firestore {
       allow read: if isAuthenticated(); // Allow reading other users for duels/leaderboards
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'client' || isAdmin());
       allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
-      
-      match /user_cards/{cardId} {
-        allow read: if isAuthenticated();
-        allow write: if isOwner(userId) || isAdmin();
-      }
     }
 
     match /fanz/{fanzId} {
