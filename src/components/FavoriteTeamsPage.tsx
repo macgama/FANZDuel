@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
-import { Search, Plus, Shield } from 'lucide-react';
+import { Search, Plus, Shield, ChevronLeft } from 'lucide-react';
 import { footballApi } from '../services/footballApi';
 import { Button, Card } from './Layout';
 import { useAlert } from '../context/AlertContext';
@@ -11,9 +11,10 @@ import { logTransaction } from '../services/transactionService';
 
 interface FavoriteTeamsPageProps {
   profile: UserProfile;
+  onBack: () => void;
 }
 
-export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
+export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -195,24 +196,37 @@ export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
   const emptySlots = Math.max(0, profile.teamSlots - profile.favoriteTeams.length);
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex-1">
-          <h1 className="text-2xl md:text-3xl font-black italic uppercase tracking-tight text-white mb-2 leading-tight">
-            Équipes<br />Favorites
-          </h1>
-          <p className="text-gray-400 text-sm md:text-base max-w-md">
-            Gérez vos équipes préférées. Jouer des duels avec ces équipes vous rapporte un bonus de ferveur (+20%).
-          </p>
+    <div className="flex flex-col h-full bg-black">
+      {/* Header */}
+      <div className="p-4 sm:p-6 bg-gradient-to-b from-orange-900/40 to-transparent shrink-0">
+        <div className="flex items-center gap-4 mb-6">
+          <button 
+            onClick={onBack}
+            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+          >
+            <ChevronLeft className="w-6 h-6 text-white" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
+              <Shield className="w-6 h-6 text-orange-500" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white">Équipes Favorites</h1>
+              <p className="text-orange-200 text-xs sm:text-sm">Bonus de ferveur (+20%)</p>
+            </div>
+          </div>
         </div>
-        <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-center shrink-0 min-w-[140px] self-start md:self-auto">
-          <div className="text-3xl font-black text-orange-500">{profile.favoriteTeams.length} <span className="text-xl text-orange-500/50">/ {profile.teamSlots}</span></div>
-          <div className="text-[10px] text-gray-400 uppercase font-bold mt-1 tracking-wider">Emplacements</div>
+        
+        <div className="bg-black/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+          <div className="text-gray-400 text-xs sm:text-sm">Emplacements utilisés</div>
+          <div className="text-xl font-black text-orange-500">{profile.favoriteTeams.length} <span className="text-sm text-orange-500/50">/ {profile.teamSlots}</span></div>
         </div>
       </div>
 
-      {/* Current Teams */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-8">
+        {/* Current Teams */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
         {loading ? (
           <div className="col-span-full py-12 text-center text-gray-500 font-bold animate-pulse">
             Chargement de vos équipes...
@@ -259,18 +273,18 @@ export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
 
       {/* Add New Team */}
       {emptySlots > 0 && (
-        <Card className="p-4 md:p-6">
-          <h2 className="text-lg md:text-xl font-black italic uppercase tracking-tight text-white mb-4">
+        <div className="space-y-4">
+          <h2 className="text-lg md:text-xl font-black italic uppercase tracking-tight text-white">
             Ajouter une équipe
           </h2>
-          <div className="relative mb-6">
+          <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher une équipe (ex: Paris)"
-              className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors"
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors"
             />
           </div>
 
@@ -285,7 +299,7 @@ export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
               {searchResults.map((result) => (
                 <div 
                   key={result.team.id}
-                  className="bg-black/40 border border-white/10 rounded-xl p-3 flex items-center justify-between hover:border-orange-500/50 transition-colors"
+                  className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between hover:border-orange-500/50 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 shrink-0 bg-white/5 rounded-lg p-1.5 flex items-center justify-center">
@@ -306,8 +320,9 @@ export function FavoriteTeamsPage({ profile }: FavoriteTeamsPageProps) {
               ))}
             </div>
           )}
-        </Card>
+        </div>
       )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Ticket, ArrowLeft, Lock, Star, Check } from 'lucide-react';
+import { Ticket, ArrowLeft, Lock, Star, Check, ChevronLeft } from 'lucide-react';
 import { Card, Button } from './Layout';
 import { UserProfile, Pass, FanzSkin } from '../types';
 import { db } from '../firebase';
@@ -183,10 +183,26 @@ export function PassPage({ profile, onBack }: PassPageProps) {
 
   if (!selectedPass) {
     return (
-      <div className="flex flex-col h-full bg-[#0a0a0a]">
-        <div className="p-4 flex items-center gap-3 border-b border-white/10">
-          <button onClick={onBack} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center"><ArrowLeft className="w-5 h-5 text-white" /></button>
-          <h1 className="text-xl font-black italic uppercase text-white">FANZ Pass</h1>
+      <div className="flex flex-col h-full bg-black">
+        {/* Header */}
+        <div className="p-4 sm:p-6 bg-gradient-to-b from-purple-900/40 to-transparent shrink-0">
+          <div className="flex items-center gap-4 mb-6">
+            <button 
+              onClick={onBack}
+              className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+            >
+              <ChevronLeft className="w-6 h-6 text-white" />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+                <Ticket className="w-6 h-6 text-purple-500" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white">FANZ Pass</h1>
+                <p className="text-purple-200 text-xs sm:text-sm">Débloquez des récompenses exclusives</p>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -235,18 +251,25 @@ export function PassPage({ profile, onBack }: PassPageProps) {
   const isOwned = profile.purchasedPasses?.includes(selectedPass.id);
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0a]">
+    <div className="flex flex-col h-full bg-black">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-gray-900/90 backdrop-blur-xl border-b border-white/10 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setSelectedPass(null)} className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center"><ArrowLeft className="w-4 h-4 text-white" /></button>
-          <h1 className="text-lg font-black italic uppercase tracking-tighter text-white flex items-center gap-2">
-            {selectedPass.name}
-          </h1>
-        </div>
-        <div className="text-right">
-          <div className="text-[10px] text-gray-400 font-bold uppercase">Points Pass</div>
-          <div className="text-lg font-black text-purple-400">{userPoints}</div>
+      <div className="p-4 sm:p-6 bg-gradient-to-b from-purple-900/40 to-transparent shrink-0">
+        <div className="flex items-center gap-4 mb-6">
+          <button 
+            onClick={() => setSelectedPass(null)}
+            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+          >
+            <ChevronLeft className="w-6 h-6 text-white" />
+          </button>
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+              <Ticket className="w-6 h-6 text-purple-500" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white">{selectedPass.name}</h1>
+              <p className="text-purple-200 text-xs sm:text-sm">Points Pass: <span className="font-black text-white">{userPoints}</span></p>
+            </div>
+          </div>
         </div>
       </div>
 

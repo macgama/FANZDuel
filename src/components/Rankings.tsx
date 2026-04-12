@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Card } from './Layout';
-import { Trophy, Users, Shield, Medal, Activity, ChevronDown } from 'lucide-react';
+import { Trophy, Users, Shield, Medal, Activity, ChevronDown, ChevronLeft } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -16,7 +16,11 @@ interface RankingEntry {
   totalScore: number;
 }
 
-export function Rankings() {
+interface RankingsProps {
+  onBack: () => void;
+}
+
+export function Rankings({ onBack }: RankingsProps) {
   const [activeTab, setActiveTab] = useState<'teams' | 'users'>('teams');
   const currentYearStr = new Date().getFullYear().toString();
   const prevYearStr = (new Date().getFullYear() - 1).toString();
@@ -293,110 +297,93 @@ export function Rankings() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 pb-24">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg">
-          <Trophy className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-black italic uppercase tracking-tighter text-white">Classements</h1>
-          <p className="text-sm text-gray-400 font-medium">Les meilleurs sur le terrain</p>
-        </div>
-        <div className="ml-auto flex gap-2">
+    <div className="flex flex-col h-full bg-black">
+      {/* Header */}
+      <div className="p-4 sm:p-6 bg-gradient-to-b from-orange-900/40 to-transparent shrink-0">
+        <div className="flex items-center gap-4 mb-6">
           <button 
-            onClick={seedRankings}
-            className="px-3 py-1 bg-orange-500/20 text-orange-500 rounded-lg hover:bg-orange-500/30 transition-colors text-xs font-bold"
+            onClick={onBack}
+            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
           >
-            + Test Data
+            <ChevronLeft className="w-6 h-6 text-white" />
           </button>
-          <button 
-            onClick={clearFakeData}
-            className="px-3 py-1 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors text-xs font-bold"
-          >
-            - Clear Test
-          </button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-[#1a1a1a] rounded-2xl p-4 mb-6 border border-white/5 space-y-4">
-        {/* Tabs */}
-        <div className="flex gap-2 p-1 bg-black/40 rounded-xl">
-          <button
-            onClick={() => setActiveTab('teams')}
-            className={`flex-1 py-3 rounded-lg font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'teams' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Shield className="w-4 h-4" />
-            Équipes
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`flex-1 py-3 rounded-lg font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'users' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Supporters
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
+              <Trophy className="w-6 h-6 text-orange-500" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white">Classements</h1>
+              <p className="text-orange-200 text-xs sm:text-sm">Les meilleurs sur le terrain</p>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {/* Season Selector */}
-          <div className="relative">
-            <select
-              value={season}
-              onChange={(e) => setSeason(e.target.value)}
-              className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-orange-500 transition-colors"
+        {/* Filters */}
+        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-4">
+          {/* Tabs */}
+          <div className="flex gap-2 p-1 bg-black/40 rounded-xl">
+            <button
+              onClick={() => setActiveTab('teams')}
+              className={`flex-1 py-2 rounded-lg font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'teams' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
             >
-              {availableSeasons.map(s => (
-                <option key={s} value={s}>Saison {s}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              <Shield className="w-4 h-4" />
+              Équipes
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`flex-1 py-2 rounded-lg font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'users' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Supporters
+            </button>
           </div>
 
-          {/* League Selector */}
-          <div className="relative">
-            <select
-              value={leagueId}
-              onChange={(e) => setLeagueId(e.target.value)}
-              className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-orange-500 transition-colors truncate pr-10"
-            >
-              {availableLeagues.map(l => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+          <div className="grid grid-cols-2 gap-4">
+            {/* Season Selector */}
+            <div className="relative">
+              <select
+                value={season}
+                onChange={(e) => setSeason(e.target.value)}
+                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-colors"
+              >
+                {availableSeasons.map(s => (
+                  <option key={s} value={s}>Saison {s}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
+
+            {/* League Selector */}
+            <div className="relative">
+              <select
+                value={leagueId}
+                onChange={(e) => setLeagueId(e.target.value)}
+                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-colors truncate pr-10"
+              >
+                {availableLeagues.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Leaderboard */}
-      <div className="space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <Activity className="w-8 h-8 text-orange-500 animate-spin" />
           </div>
         ) : rankings.length === 0 ? (
-          <div className="text-center py-12 bg-[#1a1a1a] rounded-2xl border border-white/5">
+          <div className="text-center py-12 bg-white/5 rounded-2xl border border-white/10">
             <Trophy className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400 font-medium">Aucun classement disponible pour ces critères.</p>
-            <div className="flex gap-2 justify-center mt-4">
-              <button 
-                onClick={seedRankings}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-              >
-                Générer des données de test
-              </button>
-              <button 
-                onClick={clearFakeData}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              >
-                Supprimer les données de test
-              </button>
-            </div>
           </div>
         ) : (
           <AnimatePresence>

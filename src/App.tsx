@@ -463,11 +463,11 @@ function AppContent() {
               ) : view === 'fervor-path' ? (
                 <FervorPathPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'favorite-teams' ? (
-                <FavoriteTeamsPage profile={profile} />
+                <FavoriteTeamsPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'leaderboard' ? (
                 <LeaderboardPage />
               ) : view === 'rankings' ? (
-                <Rankings />
+                <Rankings onBack={() => setView('home')} />
               ) : view === 'shop' ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center h-full">
                   <Store className="w-16 h-16 mb-4 text-yellow-500 opacity-50" />

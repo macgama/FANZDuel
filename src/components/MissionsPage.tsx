@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, Gift } from 'lucide-react';
+import { CheckCircle2, Circle, Gift, ChevronLeft, Target } from 'lucide-react';
 import { Card, Button } from './Layout';
 import { UserProfile, Mission } from '../types';
 import { db } from '../firebase';
@@ -101,13 +101,25 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0a]">
+    <div className="flex flex-col h-full bg-black">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-gray-900/90 backdrop-blur-xl border-b border-white/10 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-black italic uppercase tracking-tighter text-white flex items-center gap-2">
-            Missions
-          </h1>
+      <div className="p-4 sm:p-6 bg-gradient-to-b from-purple-900/40 to-transparent shrink-0">
+        <div className="flex items-center gap-4 mb-6">
+          <button 
+            onClick={onBack}
+            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+          >
+            <ChevronLeft className="w-6 h-6 text-white" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+              <Target className="w-6 h-6 text-purple-500" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white">Missions</h1>
+              <p className="text-purple-200 text-xs sm:text-sm">Accomplissez des quêtes pour des récompenses</p>
+            </div>
+          </div>
         </div>
       </div>
 
