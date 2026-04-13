@@ -28,6 +28,8 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
         fanzMap[doc.id] = { id: doc.id, ...doc.data() } as Fanz;
       });
       setFanzList(fanzMap);
+    }, (error) => {
+      console.error("Error in TransactionsPage fanz listener:", error);
     });
 
     // Fetch transactions
@@ -40,6 +42,8 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
     const unsubscribeTransactions = onSnapshot(qTransactions, (snapshot) => {
       const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResourceTransaction));
       setTransactions(txs);
+    }, (error) => {
+      console.error("Error in TransactionsPage transactions listener:", error);
     });
 
     return () => {

@@ -3,9 +3,9 @@ import { UserProfile, GlobalFervorConfig, FerveurLevel } from '../types';
 import { Card, Button } from './Layout';
 import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
-import { ArrowLeft, Lock, Check, Gift, Star, Zap, Flame, Trophy } from 'lucide-react';
+import { ArrowLeft, Lock, Check, Gift, Star, Zap, Flame, Trophy, ChevronRight } from 'lucide-react';
 import { getImageUrl, cn } from '../lib/utils';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { LOGOS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { useReward } from '../context/RewardContext';
@@ -39,21 +39,21 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
             setGlobalConfig({
               id: 'user_fervor',
               ranges: [
-                { level: 1, min: 0, max: 499, step: 10, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 2, min: 500, max: 1549, step: 15, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 3, min: 1550, max: 5099, step: 50, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 4, min: 5100, max: 10099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 5, min: 10100, max: 15099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 6, min: 15100, max: 20099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 7, min: 20100, max: 25099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 8, min: 25100, max: 30199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 9, min: 30200, max: 40199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 10, min: 40200, max: 50199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 11, min: 50200, max: 60199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 12, min: 60200, max: 70199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 13, min: 70200, max: 80199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 14, min: 80200, max: 90199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-                { level: 15, min: 90200, max: 99999, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 1, min: 0, max: 99999, step: 5000, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+                { level: 2, min: 100000, max: 499999, step: 10000, levelReward: { type: 'gems', amount: 100 }, intermediateReward: { type: 'money', amount: 100 } },
+                { level: 3, min: 500000, max: 999999, step: 25000, levelReward: { type: 'boost', amount: 5 }, intermediateReward: { type: 'money', amount: 200 } },
+                { level: 4, min: 1000000, max: 1999999, step: 50000, levelReward: { type: 'gems', amount: 500 }, intermediateReward: { type: 'money', amount: 500 } },
+                { level: 5, min: 2000000, max: 2999999, step: 50000, levelReward: { type: 'money', amount: 10000 }, intermediateReward: { type: 'gems', amount: 10 } },
+                { level: 6, min: 3000000, max: 3999999, step: 100000, levelReward: { type: 'boost', amount: 10 }, intermediateReward: { type: 'money', amount: 1000 } },
+                { level: 7, min: 4000000, max: 4999999, step: 100000, levelReward: { type: 'gems', amount: 1000 }, intermediateReward: { type: 'money', amount: 1000 } },
+                { level: 8, min: 5000000, max: 5999999, step: 100000, levelReward: { type: 'money', amount: 50000 }, intermediateReward: { type: 'gems', amount: 20 } },
+                { level: 9, min: 6000000, max: 6999999, step: 200000, levelReward: { type: 'boost', amount: 20 }, intermediateReward: { type: 'money', amount: 2000 } },
+                { level: 10, min: 7000000, max: 7999999, step: 200000, levelReward: { type: 'gems', amount: 2000 }, intermediateReward: { type: 'money', amount: 2000 } },
+                { level: 11, min: 8000000, max: 8999999, step: 200000, levelReward: { type: 'money', amount: 100000 }, intermediateReward: { type: 'gems', amount: 50 } },
+                { level: 12, min: 9000000, max: 9999999, step: 250000, levelReward: { type: 'boost', amount: 50 }, intermediateReward: { type: 'money', amount: 5000 } },
+                { level: 13, min: 10000000, max: 11999999, step: 250000, levelReward: { type: 'gems', amount: 5000 }, intermediateReward: { type: 'money', amount: 5000 } },
+                { level: 14, min: 12000000, max: 14999999, step: 500000, levelReward: { type: 'money', amount: 500000 }, intermediateReward: { type: 'gems', amount: 100 } },
+                { level: 15, min: 15000000, max: 15000000, step: 1000000, levelReward: { type: 'boost', amount: 100 }, intermediateReward: { type: 'money', amount: 10000 } },
               ]
             });
           } else {
@@ -143,7 +143,9 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
 
   const currentPoints = profile.ferveurPoints || 0;
   const activeFanzCount = fanzTemplates.length;
-  const maxPoints = activeFanzCount > 0 ? activeFanzCount * 1000 : 100000;
+  const maxPoints = globalConfig?.ranges && globalConfig.ranges.length > 0
+    ? globalConfig.ranges[globalConfig.ranges.length - 1].max
+    : (activeFanzCount > 0 ? activeFanzCount * 1000 : 100000);
   const levels = useMemo(() => generateFervorPath(maxPoints, globalConfig), [maxPoints, globalConfig]);
 
   if (loading) {
@@ -157,22 +159,91 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
 
   const majorLevels = levels.filter(l => !l.isIntermediate);
   const reachableMajorLevels = majorLevels.filter(l => currentPoints >= l.pointsRequired);
+  
+  // Find next unreached level
+  const nextLevel = levels.find(l => currentPoints < l.pointsRequired);
+  const nextMajorLevel = majorLevels.find(l => currentPoints < l.pointsRequired);
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0a] overflow-y-auto no-scrollbar relative">
-      <div className="flex flex-col gap-6 pb-20 pt-6">
+    <div className="flex flex-col bg-[#050505] relative min-h-full">
+      {/* Hero Background */}
+      <div className="absolute top-0 left-0 right-0 h-[400px] bg-gradient-to-b from-orange-900/40 via-orange-900/10 to-transparent pointer-events-none" />
+      
+      <div className="flex flex-col gap-6 pb-20 pt-6 relative z-10">
+        
+        {/* Header Title */}
+        <div className="px-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-md flex items-center gap-2">
+              <Flame className="w-8 h-8 text-orange-500" />
+              Chemin de Ferveur
+            </h1>
+            <p className="text-sm text-gray-400 font-medium mt-1">
+              Gagne des duels pour accumuler de la ferveur et débloquer des récompenses épiques !
+            </p>
+          </div>
+        </div>
+
+        {/* Next Reward Highlight */}
+        {nextLevel && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-6"
+          >
+            <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-2xl p-4 flex items-center justify-between shadow-[0_0_30px_rgba(249,115,22,0.15)] relative overflow-hidden">
+              <div className="absolute -right-10 -top-10 w-32 h-32 bg-orange-500/20 blur-3xl rounded-full" />
+              
+              <div>
+                <div className="text-xs font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1">
+                  <Star className="w-3 h-3" /> Prochain Objectif
+                </div>
+                <div className="text-xl font-black italic uppercase tracking-tighter text-white">
+                  {nextLevel.pointsRequired.toLocaleString()} PTS
+                </div>
+                {!nextLevel.isIntermediate && (
+                  <div className="text-sm text-gray-300 font-medium">
+                    Palier {nextLevel.displayLevel}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <div className="text-sm font-black italic uppercase text-green-400">
+                    +{nextLevel.reward?.amount} {nextLevel.reward?.type === 'money' ? '$' : nextLevel.reward?.type}
+                  </div>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-black/50 border border-white/10 flex items-center justify-center shadow-inner">
+                  {nextLevel.reward?.type === 'money' ? (
+                    <img src={LOGOS.money} alt="Money" className="w-8 h-8 object-contain" />
+                  ) : nextLevel.reward?.type === 'gems' ? (
+                    <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 object-contain" />
+                  ) : (
+                    <Gift className="w-6 h-6 text-orange-400" />
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Progress Bar */}
         <div className="px-6">
-          <div className="relative h-10 bg-black/40 rounded-xl border border-white/5 overflow-hidden shadow-2xl">
+          <div className="relative h-12 bg-black/60 rounded-2xl border border-white/10 overflow-hidden shadow-2xl backdrop-blur-sm">
             {/* Progress Fill */}
-            <div 
-              className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-1000 ease-out"
-              style={{ width: `${Math.min(100, (currentPoints / maxPoints) * 100)}%` }}
-            />
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (currentPoints / maxPoints) * 100)}%` }}
+              transition={{ duration: 1.5, ease: "easeOut" }}
+              className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-orange-600 via-orange-500 to-yellow-500"
+            >
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay" />
+            </motion.div>
             {/* Text Overlay */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-xs font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">
-                {currentPoints} / {maxPoints} POINTS DE FERVEUR
+              <span className="text-sm font-black italic uppercase tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                {currentPoints.toLocaleString()} / {maxPoints.toLocaleString()} PTS
               </span>
             </div>
           </div>
@@ -180,8 +251,11 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
 
         {/* Sticky Tier Navigation */}
         {reachableMajorLevels.length > 0 && (
-          <div className="sticky top-0 z-50 px-4 py-2 bg-[#0a0a0a]/90 backdrop-blur-sm border-b border-white/5">
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+          <div className="sticky top-0 z-50 px-4 py-3 bg-[#050505]/95 backdrop-blur-md border-b border-white/5 shadow-lg">
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 items-center">
+              <div className="text-xs font-black uppercase tracking-widest text-gray-500 mr-2 shrink-0">
+                Paliers
+              </div>
               {reachableMajorLevels.map(level => {
                 const isCurrentTier = currentPoints >= level.pointsRequired && 
                   (!majorLevels[majorLevels.indexOf(level) + 1] || currentPoints < majorLevels[majorLevels.indexOf(level) + 1].pointsRequired);
@@ -193,10 +267,10 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                       const el = document.getElementById(`ferveur-node-${level.level}`);
                       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }}
-                    className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-black italic text-sm transition-all ${
+                    className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center font-black italic text-lg transition-all duration-300 ${
                       isCurrentTier 
-                        ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.5)]' 
-                        : 'bg-gray-800 text-gray-400 border border-gray-700 hover:bg-gray-700'
+                        ? 'bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-[0_0_15px_rgba(249,115,22,0.6)] border border-orange-400/50 scale-110' 
+                        : 'bg-gray-900 text-gray-400 border border-gray-800 hover:bg-gray-800 hover:text-white'
                     }`}
                   >
                     {level.displayLevel}
@@ -208,46 +282,59 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
         )}
 
         {/* Vertical Path */}
-        <div className="relative mt-6 px-4">
+        <div className="relative mt-8 px-4">
           {/* Central Line */}
-          <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-orange-500/50 via-orange-500/20 to-transparent -translate-x-1/2" />
+          <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 via-orange-500/30 to-transparent -translate-x-1/2 rounded-full" />
 
-          <div className="space-y-20 relative">
+          <div className="space-y-24 relative">
             {levels.map((level, idx) => {
               const isUnlocked = currentPoints >= level.pointsRequired;
               const slotId = `ferveur-level-${level.level}`;
               const isClaimed = profile.claimedFervorRewards?.includes(slotId);
               const isLeft = idx % 2 === 0;
+              const isCurrentTarget = nextLevel?.level === level.level;
 
               return (
-                <div key={idx} id={`ferveur-node-${level.level}`} className="relative flex items-center justify-center">
+                <motion.div 
+                  initial={{ opacity: 0, y: 50 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.5, delay: idx * 0.05 }}
+                  key={idx} 
+                  id={`ferveur-node-${level.level}`} 
+                  className="relative flex items-center justify-center"
+                >
                   {/* Milestone Node */}
-                  <div className={`relative z-10 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
-                    level.isIntermediate ? 'w-10 h-10' : 'w-16 h-16'
+                  <div className={`relative z-10 rounded-2xl flex items-center justify-center border-2 transition-all duration-500 ${
+                    level.isIntermediate ? 'w-12 h-12 rotate-45' : 'w-20 h-20'
                   } ${
                     isClaimed 
-                      ? 'bg-green-500/20 border-green-500 text-green-500' 
+                      ? 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.2)]' 
                       : isUnlocked 
-                        ? 'bg-orange-500/20 border-orange-500 text-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)]' 
-                        : 'bg-[#1a1a1a] border-white/10 text-gray-600'
+                        ? 'bg-orange-600 border-orange-300 text-white shadow-[0_0_30px_rgba(249,115,22,0.6)]' 
+                        : isCurrentTarget
+                          ? 'bg-gray-900 border-orange-500/50 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)] animate-pulse'
+                          : 'bg-[#111] border-white/10 text-gray-600'
                   }`}>
-                    {isClaimed ? (
-                      <Check className={level.isIntermediate ? "w-5 h-5" : "w-8 h-8"} />
-                    ) : level.reward?.type === 'money' ? (
-                      <img src={LOGOS.money} alt="Money" className={`${level.isIntermediate ? "w-6 h-6" : "w-10 h-10"} object-contain`} />
-                    ) : level.reward?.type === 'gems' ? (
-                      <img src={LOGOS.gems} alt="Gems" className={`${level.isIntermediate ? "w-6 h-6" : "w-10 h-10"} object-contain`} />
-                    ) : (
-                      <Trophy className={level.isIntermediate ? "w-5 h-5" : "w-8 h-8"} />
-                    )}
+                    <div className={level.isIntermediate ? '-rotate-45' : ''}>
+                      {isClaimed ? (
+                        <Check className={level.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
+                      ) : level.reward?.type === 'money' ? (
+                        <img src={LOGOS.money} alt="Money" className={`${level.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
+                      ) : level.reward?.type === 'gems' ? (
+                        <img src={LOGOS.gems} alt="Gems" className={`${level.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
+                      ) : (
+                        <Trophy className={level.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
+                      )}
+                    </div>
 
                     {/* Points Label */}
-                    <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap ${isLeft ? (level.isIntermediate ? 'left-14 text-left' : 'left-20 text-left') : (level.isIntermediate ? 'right-14 text-right' : 'right-20 text-right')}`}>
-                      <div className={`text-sm font-black italic uppercase tracking-tighter ${isUnlocked ? 'text-orange-500' : 'text-gray-600'}`}>
-                        {level.pointsRequired} PTS
+                    <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap ${isLeft ? (level.isIntermediate ? 'left-16 text-left' : 'left-24 text-left') : (level.isIntermediate ? 'right-16 text-right' : 'right-24 text-right')}`}>
+                      <div className={`text-lg font-black italic uppercase tracking-tighter drop-shadow-md ${isUnlocked ? 'text-orange-400' : 'text-gray-500'}`}>
+                        {level.pointsRequired.toLocaleString()} PTS
                       </div>
                       {!level.isIntermediate && (
-                        <div className="text-[10px] font-black uppercase tracking-tighter text-gray-500">
+                        <div className="text-xs font-black uppercase tracking-widest text-gray-400 bg-black/50 px-2 py-0.5 rounded-full inline-block mt-1 border border-white/5">
                           Palier {level.displayLevel}
                         </div>
                       )}
@@ -255,37 +342,39 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                   </div>
 
                   {/* Reward Box */}
-                  <div className={`absolute top-1/2 -translate-y-1/2 ${level.isIntermediate ? 'w-[130px]' : 'w-[160px]'} ${isLeft ? (level.isIntermediate ? 'right-[calc(50%+35px)]' : 'right-[calc(50%+45px)]') : (level.isIntermediate ? 'left-[calc(50%+35px)]' : 'left-[calc(50%+45px)]')}`}>
-                    <div className={`p-4 rounded-2xl border transition-all duration-500 ${
+                  <div className={`absolute top-1/2 -translate-y-1/2 ${level.isIntermediate ? 'w-[140px]' : 'w-[180px]'} ${isLeft ? (level.isIntermediate ? 'right-[calc(50%+45px)]' : 'right-[calc(50%+55px)]') : (level.isIntermediate ? 'left-[calc(50%+45px)]' : 'left-[calc(50%+55px)]')}`}>
+                    <div className={`p-4 rounded-2xl border backdrop-blur-sm transition-all duration-500 ${
                       isClaimed 
-                        ? 'bg-black/40 border-white/5 opacity-50' 
+                        ? 'bg-black/40 border-green-500/20 opacity-60' 
                         : isUnlocked 
-                          ? 'bg-[#1a1614] border-orange-500/30' 
-                          : 'bg-black/20 border-white/5 opacity-30'
+                          ? 'bg-gradient-to-br from-orange-900/40 to-black border-orange-500/50 shadow-[0_0_20px_rgba(249,115,22,0.15)]' 
+                          : isCurrentTarget
+                            ? 'bg-gray-900/80 border-orange-500/30'
+                            : 'bg-black/40 border-white/5 opacity-50'
                     }`}>
                       <div className="text-center">
-                        <div className={`text-base font-black italic uppercase tracking-tighter mb-2 ${isUnlocked && !isClaimed ? 'text-green-500' : 'text-gray-400'}`}>
+                        <div className={`text-lg font-black italic uppercase tracking-tighter mb-3 drop-shadow-md ${isUnlocked && !isClaimed ? 'text-green-400' : 'text-gray-400'}`}>
                           +{level.reward?.amount} {level.reward?.type === 'money' ? '$' : level.reward?.type}
                         </div>
                         {isUnlocked && !isClaimed ? (
                           <Button 
                             size="sm" 
-                            className="w-full h-8 text-xs bg-orange-500 hover:bg-orange-600 font-black italic uppercase tracking-tighter"
+                            className="w-full h-10 text-sm bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-black italic uppercase tracking-widest shadow-lg shadow-orange-500/25 border border-orange-400/50"
                             onClick={() => handleClaimReward(level)}
                             disabled={claiming === slotId}
                           >
                             {claiming === slotId ? '...' : 'Récupérer'}
                           </Button>
                         ) : (
-                          <div className="text-xs font-black uppercase tracking-tighter text-gray-500 flex items-center justify-center gap-1">
-                            {isClaimed ? null : <Lock className="w-3 h-3" />}
+                          <div className={`text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5 ${isClaimed ? 'text-green-500/50' : 'text-gray-600'}`}>
+                            {isClaimed ? <Check className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                             {isClaimed ? 'RÉCUPÉRÉ' : 'BLOQUÉ'}
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -294,3 +383,4 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
     </div>
   );
 }
+

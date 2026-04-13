@@ -4,18 +4,18 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
-import { UserProfile, Fanz, ActiveAction, LifeAction, UserCard, Card as DuelCard, FanzTemplate, FanzSkin, FanzEmote } from '../types';
-import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { UserProfile, Fanz, ActiveAction, LifeAction, UserCard, Card as DuelCard, FanzTemplate, FanzSkin, FanzEmote, GlobalFervorConfig } from '../types';
+import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift } from 'lucide-react';
 import { motion } from 'motion/react';
 import { LOGOS } from '../constants';
 
 import { LifeActionCard } from './LifeActionCard';
-import { FANZ_FERVEUR_LEVELS } from '../constants';
 
 import { BASE_CARDS } from '../constants/cards';
 import { OptimizedMedia } from './OptimizedMedia';
 
 import { useReward } from '../context/RewardContext';
+import { generateFervorPath } from '../utils/fervorPath';
 
 interface FanzDetailsProps {
   fanzId: string;
@@ -30,6 +30,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   const [allCards, setAllCards] = useState<DuelCard[]>([]);
   const [allSkins, setAllSkins] = useState<FanzSkin[]>([]);
   const [allEmotes, setAllEmotes] = useState<FanzEmote[]>([]);
+  const [fanzFervorConfig, setFanzFervorConfig] = useState<GlobalFervorConfig | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'stats' | 'cards' | 'skins' | 'emotes' | 'rank' | 'ferveur'>('stats');
   const [claimingReward, setClaimingReward] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     title: string;
     rankNum?: number;
     slotId: string;
-    rewardType: 'choice' | 'card' | 'xp' | 'skin' | 'emote' | 'action' | 'fanz' | 'team_slot';
+    rewardType: 'choice' | 'card' | 'xp' | 'skin' | 'emote' | 'action' | 'fanz' | 'team_slot' | 'money' | 'gems' | 'boost' | 'energy';
     amount?: number;
     cardId?: string;
     skinId?: string;
@@ -126,6 +127,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         const actionsSnapshot = await getDocs(collection(db, 'life_actions'));
         const actionsData = actionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction));
         setLifeActions(actionsData);
+
+        const configDoc = await getDoc(doc(db, 'global_configs', 'fanz_fervor'));
+        if (configDoc.exists()) {
+          setFanzFervorConfig(configDoc.data() as GlobalFervorConfig);
+        }
       } catch (error) {
         console.error("Error fetching Fanz details or actions:", error);
         handleFirestoreError(error, OperationType.GET, `fanz/${fanzId}`);
@@ -139,6 +145,17 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       if (unsubscribeFanz) unsubscribeFanz();
     };
   }, [fanzId]);
+
+  const ferveurPath = React.useMemo(() => {
+    if (fanzFervorConfig) {
+      // Use the max points from the config, or a high default
+      const maxPoints = fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000;
+      return generateFervorPath(maxPoints, fanzFervorConfig);
+    }
+    return template?.ferveurPath || [];
+  }, [fanzFervorConfig, template]);
+
+  const maxFerveurPoints = ferveurPath.length > 0 ? ferveurPath[ferveurPath.length - 1].pointsRequired : 1000;
 
   if (loading) {
     return (
@@ -387,7 +404,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-20">
+    <div className="flex flex-col pb-20">
       {/* Hero Section (4:3 Aspect Ratio) */}
       <div className="w-full aspect-[4/3] relative shrink-0 overflow-hidden group">
         {/* Rarity Badge */}
@@ -463,24 +480,27 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
             </p>
           )}
 
-          {!activeAction && (
-            <div 
-              onClick={() => setActiveTab('ferveur')}
-              className="mt-3 w-full max-w-[250px] cursor-pointer group/ferveur"
-            >
-              <div className="h-5 bg-black/60 rounded-full border border-white/10 relative overflow-hidden group-hover/ferveur:border-orange-500/50 transition-colors">
-                <div 
-                  className="h-full bg-orange-600 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, (fanz.ferveurPoints / (FANZ_FERVEUR_LEVELS[fanz.ferveurLevel + 1] || 1000)) * 100)}%` }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-[10px] font-black text-white drop-shadow-md">
-                    {fanz.ferveurPoints} / {FANZ_FERVEUR_LEVELS[fanz.ferveurLevel + 1] || 1000}
-                  </span>
+          {!activeAction && (() => {
+            const nextLevelPoints = ferveurPath.find(l => l.level === fanz.ferveurLevel + 1)?.pointsRequired || 1000;
+            return (
+              <div 
+                onClick={() => setActiveTab('ferveur')}
+                className="mt-3 w-full max-w-[250px] cursor-pointer group/ferveur"
+              >
+                <div className="h-5 bg-black/60 rounded-full border border-white/10 relative overflow-hidden group-hover/ferveur:border-orange-500/50 transition-colors">
+                  <div 
+                    className="h-full bg-orange-600 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, (fanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[10px] font-black text-white drop-shadow-md">
+                      {fanz.ferveurPoints} / {nextLevelPoints}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -602,78 +622,159 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
             {activeTab === 'ferveur' && (
               <div className="flex flex-col gap-6 pb-20">
-                {/* Progress Bar 0-1000 */}
+                <div className="text-center mb-2">
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-white drop-shadow-md flex items-center justify-center gap-2">
+                    <Flame className="w-6 h-6 text-orange-500" />
+                    Chemin de Ferveur
+                  </h3>
+                  <p className="text-xs text-gray-400 font-medium mt-1">
+                    Joue avec {fanz.name} pour débloquer ces récompenses !
+                  </p>
+                </div>
+
+                {/* Next Reward Highlight */}
+                {(() => {
+                  const nextStep = ferveurPath.find(l => (fanz.ferveurPoints || 0) < l.pointsRequired);
+                  if (!nextStep) return null;
+                  return (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="px-2"
+                    >
+                      <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-2xl p-4 flex items-center justify-between shadow-[0_0_30px_rgba(249,115,22,0.15)] relative overflow-hidden">
+                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-orange-500/20 blur-3xl rounded-full" />
+                        
+                        <div>
+                          <div className="text-xs font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1">
+                            <Star className="w-3 h-3" /> Prochain Objectif
+                          </div>
+                          <div className="text-xl font-black italic uppercase tracking-tighter text-white">
+                            {nextStep.pointsRequired.toLocaleString()} PTS
+                          </div>
+                          {!nextStep.isIntermediate && (
+                            <div className="text-sm text-gray-300 font-medium">
+                              Palier {nextStep.level}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className="text-sm font-black italic uppercase text-green-400">
+                              +{nextStep.reward?.amount} {nextStep.reward?.type === 'money' ? '$' : nextStep.reward?.type}
+                            </div>
+                          </div>
+                          <div className="w-12 h-12 rounded-full bg-black/50 border border-white/10 flex items-center justify-center shadow-inner">
+                            {nextStep.reward?.type === 'money' ? (
+                              <img src={LOGOS.money} alt="Money" className="w-8 h-8 object-contain" />
+                            ) : nextStep.reward?.type === 'gems' ? (
+                              <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 object-contain" />
+                            ) : (
+                              <Gift className="w-6 h-6 text-orange-400" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+
+                {/* Progress Bar */}
                 <div className="px-2">
-                  <div className="relative h-10 bg-black/40 rounded-xl border border-white/5 overflow-hidden shadow-2xl">
+                  <div className="relative h-12 bg-black/60 rounded-2xl border border-white/10 overflow-hidden shadow-2xl backdrop-blur-sm">
                     {/* Progress Fill */}
-                    <div 
-                      className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-1000 ease-out"
-                      style={{ width: `${Math.min(100, (fanz.ferveurPoints / 1000) * 100)}%` }}
-                    />
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, ((fanz.ferveurPoints || 0) / maxFerveurPoints) * 100)}%` }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                      className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-orange-600 via-orange-500 to-yellow-500"
+                    >
+                      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay" />
+                    </motion.div>
                     {/* Text Overlay */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">
-                        {fanz.ferveurPoints} / 1000 Points de Ferveur
+                      <span className="text-sm font-black italic uppercase tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                        {(fanz.ferveurPoints || 0).toLocaleString()} / {maxFerveurPoints.toLocaleString()} PTS
                       </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Vertical Path */}
-                <div className="relative mt-12 px-4">
+                <div className="relative mt-8 px-4">
                   {/* Central Line */}
-                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-orange-500/50 via-orange-500/20 to-transparent -translate-x-1/2" />
+                  <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 via-orange-500/30 to-transparent -translate-x-1/2 rounded-full" />
 
-                  <div className="space-y-16 relative">
-                    {(template.ferveurPath || []).length > 0 ? (
-                      (template.ferveurPath || []).map((step, idx) => {
+                  <div className="space-y-24 relative">
+                    {ferveurPath.length > 0 ? (
+                      ferveurPath.map((step, idx) => {
                         const isUnlocked = (fanz.ferveurPoints || 0) >= step.pointsRequired;
                         const slotId = step.isIntermediate ? `ferveur-inter-${step.id || step.pointsRequired}` : `ferveur-level-${step.level}`;
                         const isClaimed = fanz.claimedRewards?.includes(slotId);
                         const isLeft = idx % 2 === 0;
+                        const nextStep = ferveurPath.find(l => (fanz.ferveurPoints || 0) < l.pointsRequired);
+                        const isCurrentTarget = nextStep?.pointsRequired === step.pointsRequired;
 
                         return (
-                          <div key={idx} className="relative flex items-center justify-center">
+                          <motion.div 
+                            initial={{ opacity: 0, y: 50 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-50px" }}
+                            transition={{ duration: 0.5, delay: idx * 0.05 }}
+                            key={idx} 
+                            className="relative flex items-center justify-center"
+                          >
                             {/* Milestone Node */}
-                            <div className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
+                            <div className={`relative z-10 rounded-2xl flex items-center justify-center border-2 transition-all duration-500 ${
+                              step.isIntermediate ? 'w-12 h-12 rotate-45' : 'w-20 h-20'
+                            } ${
                               isClaimed 
-                                ? 'bg-green-500/20 border-green-500 text-green-500' 
+                                ? 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.2)]' 
                                 : isUnlocked 
-                                  ? 'bg-orange-500/20 border-orange-500 text-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)]' 
-                                  : 'bg-[#1a1a1a] border-white/10 text-gray-600'
+                                  ? 'bg-orange-600 border-orange-300 text-white shadow-[0_0_30px_rgba(249,115,22,0.6)]' 
+                                  : isCurrentTarget
+                                    ? 'bg-gray-900 border-orange-500/50 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)] animate-pulse'
+                                    : 'bg-[#111] border-white/10 text-gray-600'
                             }`}>
-                              {isClaimed ? (
-                                <Check className="w-6 h-6" />
-                              ) : step.reward?.type === 'money' ? (
-                                <img src={LOGOS.money} alt="Money" className="w-6 h-6 object-contain" />
-                              ) : step.reward?.type === 'gems' ? (
-                                <img src={LOGOS.gems} alt="Gems" className="w-6 h-6 object-contain" />
-                              ) : (
-                                <Trophy className="w-6 h-6" />
-                              )}
+                              <div className={step.isIntermediate ? '-rotate-45' : ''}>
+                                {isClaimed ? (
+                                  <Check className={step.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
+                                ) : step.reward?.type === 'money' ? (
+                                  <img src={LOGOS.money} alt="Money" className={`${step.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
+                                ) : step.reward?.type === 'gems' ? (
+                                  <img src={LOGOS.gems} alt="Gems" className={`${step.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
+                                ) : (
+                                  <Trophy className={step.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
+                                )}
+                              </div>
 
                               {/* Points Label */}
-                              <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap ${isLeft ? 'left-16 text-left' : 'right-16 text-right'}`}>
-                                <div className={`text-xs font-black italic uppercase tracking-tighter ${isUnlocked ? 'text-orange-500' : 'text-gray-600'}`}>
-                                  {step.pointsRequired} PTS
+                              <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap ${isLeft ? (step.isIntermediate ? 'left-16 text-left' : 'left-24 text-left') : (step.isIntermediate ? 'right-16 text-right' : 'right-24 text-right')}`}>
+                                <div className={`text-lg font-black italic uppercase tracking-tighter drop-shadow-md ${isUnlocked ? 'text-orange-400' : 'text-gray-500'}`}>
+                                  {step.pointsRequired.toLocaleString()} PTS
                                 </div>
-                                <div className="text-[8px] font-black uppercase tracking-tighter text-gray-500">
-                                  Palier {step.level || idx + 1}
-                                </div>
+                                {!step.isIntermediate && (
+                                  <div className="text-xs font-black uppercase tracking-widest text-gray-400 bg-black/50 px-2 py-0.5 rounded-full inline-block mt-1 border border-white/5">
+                                    Palier {step.level || idx + 1}
+                                  </div>
+                                )}
                               </div>
                             </div>
 
                             {/* Reward Box */}
-                            <div className={`absolute top-1/2 -translate-y-1/2 w-[140px] ${isLeft ? 'right-[calc(50%+40px)]' : 'left-[calc(50%+40px)]'}`}>
-                              <div className={`p-4 rounded-2xl border transition-all duration-500 ${
+                            <div className={`absolute top-1/2 -translate-y-1/2 ${step.isIntermediate ? 'w-[140px]' : 'w-[180px]'} ${isLeft ? (step.isIntermediate ? 'right-[calc(50%+45px)]' : 'right-[calc(50%+55px)]') : (step.isIntermediate ? 'left-[calc(50%+45px)]' : 'left-[calc(50%+55px)]')}`}>
+                              <div className={`p-4 rounded-2xl border backdrop-blur-sm transition-all duration-500 ${
                                 isClaimed 
-                                  ? 'bg-black/40 border-white/5 opacity-50' 
+                                  ? 'bg-black/40 border-green-500/20 opacity-60' 
                                   : isUnlocked 
-                                    ? 'bg-[#1a1614] border-orange-500/30' 
-                                    : 'bg-black/20 border-white/5 opacity-30'
+                                    ? 'bg-gradient-to-br from-orange-900/40 to-black border-orange-500/50 shadow-[0_0_20px_rgba(249,115,22,0.15)]' 
+                                    : isCurrentTarget
+                                      ? 'bg-gray-900/80 border-orange-500/30'
+                                      : 'bg-black/40 border-white/5 opacity-50'
                               }`}>
                                 <div className="text-center">
-                                  <div className={`text-sm font-black italic uppercase tracking-tighter mb-1 ${isUnlocked && !isClaimed ? 'text-green-500' : 'text-gray-400'}`}>
+                                  <div className={`text-lg font-black italic uppercase tracking-tighter mb-3 drop-shadow-md ${isUnlocked && !isClaimed ? 'text-green-400' : 'text-gray-400'}`}>
                                     +{step.reward?.amount} {step.reward?.type === 'money' ? '$' : step.reward?.type}
                                   </div>
                                   {isUnlocked && !isClaimed ? (
@@ -835,7 +936,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                 </div>
                               </div>
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })
                     ) : (
@@ -857,6 +958,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     const isRankUnlocked = (fanz.rank ?? 0) >= rankNum;
                     const nextRankNum = (fanz.rank ?? 0) + 1;
                     const isNextRank = rankNum === nextRankNum;
+                    const slotId = `rank-${rankNum}`;
+                    const customReward = template?.rankRewards?.[slotId];
+                    const rankCost = template?.rankCosts?.[slotId] || { money: rankNum * 1000, boostPoints: rankNum * 50 };
+                    const costMoney = rankCost.money || 0;
+                    const costBoost = rankCost.boostPoints || 0;
                     
                     return (
                       <div key={rankNum} className="space-y-6">
@@ -873,14 +979,13 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         <div className="grid grid-cols-2 gap-3">
                           <div className={`flex justify-center ${!isRankUnlocked ? 'opacity-40 grayscale' : ''}`}>
                             {(() => {
-                              const slotId = `rank-${rankNum}`;
                               const isClaimed = fanz.claimedRewards?.includes(slotId);
                               const claimedChoice = fanz.claimedChoices?.[slotId];
                               
                               return (
                                 <button
                                   disabled={!isRankUnlocked || !!claimingReward}
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (!isRankUnlocked || claimingReward) return;
                                     
                                     if (isClaimed) {
@@ -908,8 +1013,50 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       return;
                                     }
 
-                                    const customReward = template?.rankRewards?.[slotId];
-                                    
+                                    // If it's a simple reward (not a choice or something needing selection), claim it directly
+                                    if (customReward && 
+                                        !['choice', 'card', 'skin', 'emote', 'action', 'xp'].includes(customReward.type) &&
+                                        (customReward.type !== 'card' || customReward.cardId) &&
+                                        (customReward.type !== 'skin' || customReward.skinId) &&
+                                        (customReward.type !== 'emote' || customReward.emoteId) &&
+                                        (customReward.type !== 'action' || customReward.actionId)) {
+                                      
+                                      setClaimingReward(slotId);
+                                      try {
+                                        const fanzRef = doc(db, 'fanz', fanz.id);
+                                        const userRef = doc(db, 'users', userProfile.uid);
+                                        const newClaimed = [...(fanz.claimedRewards || []), slotId];
+                                        
+                                        const updates: any = { claimedRewards: newClaimed };
+                                        const userUpdates: any = {};
+
+                                        if (customReward.type === 'money') userUpdates.money = (userProfile.money || 0) + (customReward.amount || 0);
+                                        if (customReward.type === 'gems') userUpdates.gems = (userProfile.gems || 0) + (customReward.amount || 0);
+                                        if (customReward.type === 'boost') userUpdates.boostPoints = (userProfile.boostPoints || 0) + (customReward.amount || 0);
+                                        if (customReward.type === 'energy') userUpdates.energy = Math.min(100, (userProfile.energy || 0) + (customReward.amount || 0));
+                                        if (customReward.type === 'team_slot') userUpdates.teamSlots = (userProfile.teamSlots || 2) + 1;
+                                        
+                                        await updateDoc(fanzRef, updates);
+                                        if (Object.keys(userUpdates).length > 0) await updateDoc(userRef, userUpdates);
+
+                                        if (customReward.type === 'money' && customReward.amount) await logTransaction(userProfile.uid, 'money', customReward.amount, `Récompense Rang ${rankNum}`);
+                                        if (customReward.type === 'gems' && customReward.amount) await logTransaction(userProfile.uid, 'gems', customReward.amount, `Récompense Rang ${rankNum}`);
+                                        if (customReward.type === 'boost' && customReward.amount) await logTransaction(userProfile.uid, 'boost', customReward.amount, `Récompense Rang ${rankNum}`);
+                                        
+                                        setFanz({ ...fanz, claimedRewards: newClaimed });
+                                        
+                                        showReward({
+                                          type: customReward.type as any,
+                                          amount: customReward.amount || 1,
+                                          title: `Récompense Rang ${rankNum}`
+                                        });
+                                      } catch (e) {
+                                        console.error("Error claiming rank reward:", e);
+                                      }
+                                      setClaimingReward(null);
+                                      return;
+                                    }
+
                                     setRewardModal({
                                       isOpen: true,
                                       title: `Rang ${rankNum}`,
@@ -918,6 +1065,9 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       rewardType: (customReward?.type || 'choice') as any,
                                       amount: customReward?.amount || 100,
                                       cardId: customReward?.cardId,
+                                      skinId: customReward?.skinId,
+                                      emoteId: customReward?.emoteId,
+                                      actionId: customReward?.actionId,
                                       step: 'initial'
                                     });
                                   }}
@@ -939,9 +1089,20 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       {!claimedChoice && <Trophy className="w-8 h-8" />}
                                     </div>
                                   ) : (
-                                    <div className="flex gap-2">
-                                      <img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" />
-                                      <Activity className="w-5 h-5" />
+                                    <div className="flex gap-2 items-center justify-center">
+                                      {customReward ? (
+                                        customReward.type === 'money' ? <img src={LOGOS.money} alt="Money" className="w-8 h-8 object-contain" /> :
+                                        customReward.type === 'gems' ? <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 object-contain" /> :
+                                        customReward.type === 'boost' ? <img src={LOGOS.boost} alt="Boost" className="w-8 h-8 object-contain" /> :
+                                        customReward.type === 'energy' ? <img src={LOGOS.energy} alt="Energy" className="w-8 h-8 object-contain" /> :
+                                        customReward.type === 'xp' ? <img src={LOGOS.level} alt="XP" className="w-8 h-8 object-contain" /> :
+                                        customReward.type === 'card' ? <Layers className="w-8 h-8" /> :
+                                        customReward.type === 'skin' ? <Shield className="w-8 h-8" /> :
+                                        customReward.type === 'emote' ? <Smile className="w-8 h-8" /> :
+                                        customReward.type === 'action' ? <Activity className="w-8 h-8" /> :
+                                        customReward.type === 'team_slot' ? <div className="font-black">SLOT</div> :
+                                        <><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /><Activity className="w-5 h-5" /></>
+                                      ) : <><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /><Activity className="w-5 h-5" /></>}
                                     </div>
                                   )}
                                   <div className="text-center px-2">
@@ -955,7 +1116,21 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                           {claimedChoice?.type === 'skill' && 'Stat Améliorée'}
                                           {!claimedChoice && 'Récompense Récupérée'}
                                         </>
-                                      ) : 'Récompense de Rang'}
+                                      ) : (
+                                        customReward ? (
+                                          customReward.type === 'money' ? `${customReward.amount} Argent` :
+                                          customReward.type === 'gems' ? `${customReward.amount} Gemmes` :
+                                          customReward.type === 'boost' ? `${customReward.amount} Boost` :
+                                          customReward.type === 'energy' ? `${customReward.amount} Énergie` :
+                                          customReward.type === 'xp' ? `${customReward.amount} XP` :
+                                          customReward.type === 'card' ? 'Carte' :
+                                          customReward.type === 'skin' ? 'Skin' :
+                                          customReward.type === 'emote' ? 'Emote' :
+                                          customReward.type === 'action' ? 'Action' :
+                                          customReward.type === 'team_slot' ? 'Slot Équipe' :
+                                          'Récompense de Rang'
+                                        ) : 'Récompense de Rang'
+                                      )}
                                     </div>
                                     {!isClaimed && isRankUnlocked && (
                                       <div className="text-[8px] font-bold text-orange-500 mt-0.5">Choisir</div>
@@ -977,20 +1152,22 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                               <div className="text-center">
                                 <h4 className="text-[10px] font-black italic uppercase text-orange-500 mb-1">Débloquer Rang {rankNum}</h4>
                                 <div className="flex gap-3 justify-center">
-                                  <div className="flex items-center gap-1 text-yellow-500 font-bold text-xs">
+                                  {costMoney > 0 && (
+                                    <div className="flex items-center gap-1 text-yellow-500 font-bold text-xs">
                                       <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 object-contain" />
-                                    {((fanz.rank ?? 0) + 1) * 1000}
-                                  </div>
-                                  <div className="flex items-center gap-1 text-blue-400 font-bold text-xs">
-                                      <img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 object-contain" />
-                                    {((fanz.rank ?? 0) + 1) * 50}
-                                  </div>
+                                      {costMoney}
+                                    </div>
+                                  )}
+                                  {costBoost > 0 && (
+                                    <div className="flex items-center gap-1 text-blue-400 font-bold text-xs">
+                                      <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 object-contain" />
+                                      {costBoost}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <button
                                 onClick={async () => {
-                                  const costMoney = ((fanz.rank ?? 0) + 1) * 1000;
-                                  const costBoost = ((fanz.rank ?? 0) + 1) * 50;
                                   if (userProfile.money < costMoney || userProfile.boostPoints < costBoost) {
                                     setAlertModal({
                                       title: "Ressources insuffisantes",
@@ -1003,19 +1180,23 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                     setRankingUp(true);
                                     const fanzRef = doc(db, 'fanz', fanz.id);
                                     const userRef = doc(db, 'users', userProfile.uid);
-                                    await updateDoc(fanzRef, { rank: (fanz.rank ?? 0) + 1 });
-                                    await updateDoc(userRef, { 
-                                      money: userProfile.money - costMoney,
-                                      boostPoints: userProfile.boostPoints - costBoost
-                                    });
+                                    await updateDoc(fanzRef, { rank: rankNum });
+                                    
+                                    const userUpdates: any = {};
+                                    if (costMoney > 0) userUpdates.money = userProfile.money - costMoney;
+                                    if (costBoost > 0) userUpdates.boostPoints = userProfile.boostPoints - costBoost;
+                                    
+                                    if (Object.keys(userUpdates).length > 0) {
+                                      await updateDoc(userRef, userUpdates);
+                                    }
 
-                                    if (costMoney > 0) await logTransaction(userProfile.uid, 'money', -costMoney, `Passage Rang ${(fanz.rank ?? 0) + 1} (${fanz.name})`);
-                                    if (costBoost > 0) await logTransaction(userProfile.uid, 'boost', -costBoost, `Passage Rang ${(fanz.rank ?? 0) + 1} (${fanz.name})`);
+                                    if (costMoney > 0) await logTransaction(userProfile.uid, 'money', -costMoney, `Passage Rang ${rankNum} (${fanz.name})`);
+                                    if (costBoost > 0) await logTransaction(userProfile.uid, 'boost', -costBoost, `Passage Rang ${rankNum} (${fanz.name})`);
 
-                                    setFanz({ ...fanz, rank: (fanz.rank ?? 0) + 1 });
+                                    setFanz({ ...fanz, rank: rankNum });
                                     setAlertModal({
                                       title: "Rang débloqué !",
-                                      message: `Félicitations ! Votre FANZ est maintenant Rang ${(fanz.rank ?? 0) + 1}.`,
+                                      message: `Félicitations ! Votre FANZ est maintenant Rang ${rankNum}.`,
                                       type: 'success'
                                     });
                                   } catch (e) { console.error(e); } finally { setRankingUp(false); }
@@ -1247,7 +1428,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   )}
                 </Card>
 
-                {template.skins.map((skin) => {
+                {template.skins.map((skin, idx) => {
                   const isUnlocked = fanz.unlockedSkins?.includes(skin.id);
                   const isEquipped = fanz.equippedSkin === skin.id;
                   const canAfford = !isUnlocked && userProfile && (
@@ -1258,7 +1439,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
                   return (
                     <Card 
-                      key={skin.id} 
+                      key={`${skin.id}-${idx}`} 
                       onClick={() => isUnlocked ? handleEquipSkin(skin.id) : handleBuySkin(skin)}
                       className={`relative overflow-hidden cursor-pointer transition-all hover:scale-105 p-0 ${isEquipped ? 'ring-2 ring-orange-500 bg-orange-500/10' : 'bg-gray-800/50'}`}
                     >
@@ -1327,7 +1508,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
             {activeTab === 'emotes' && (
               <div className="grid grid-cols-2 gap-3">
-                {template.emotes.map((emote) => {
+                {template.emotes.map((emote, idx) => {
                   const isUnlocked = fanz.unlockedEmotes?.includes(emote.id);
                   const canAfford = !isUnlocked && emote.price && userProfile && (
                     (!emote.price.money || (userProfile.money || 0) >= emote.price.money) &&
@@ -1337,7 +1518,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
                   return (
                     <Card 
-                      key={emote.id} 
+                      key={`${emote.id}-${idx}`} 
                       onClick={() => !isUnlocked && emote.price && handleBuyEmote(emote)}
                       className={`relative transition-all overflow-hidden p-0 ${!isUnlocked ? 'cursor-pointer hover:scale-105' : ''}`}
                     >
@@ -1569,6 +1750,57 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       </div>
                     </button>
                   )}
+
+                  {/* Fallback for simple rewards if they somehow end up in the modal */}
+                  {!['choice', 'card', 'skin', 'emote', 'action', 'xp'].includes(rewardModal.rewardType) && (
+                    <button
+                      onClick={async () => {
+                        setClaimingReward(rewardModal.slotId);
+                        try {
+                          const fanzRef = doc(db, 'fanz', fanz.id);
+                          const userRef = doc(db, 'users', userProfile.uid);
+                          const newClaimed = [...(fanz.claimedRewards || []), rewardModal.slotId];
+                          
+                          const updates: any = { claimedRewards: newClaimed };
+                          const userUpdates: any = {};
+
+                          if (rewardModal.rewardType === 'money') userUpdates.money = (userProfile.money || 0) + (rewardModal.amount || 0);
+                          if (rewardModal.rewardType === 'gems') userUpdates.gems = (userProfile.gems || 0) + (rewardModal.amount || 0);
+                          if (rewardModal.rewardType === 'boost') userUpdates.boostPoints = (userProfile.boostPoints || 0) + (rewardModal.amount || 0);
+                          if (rewardModal.rewardType === 'energy') userUpdates.energy = Math.min(100, (userProfile.energy || 0) + (rewardModal.amount || 0));
+                          if (rewardModal.rewardType === 'team_slot') userUpdates.teamSlots = (userProfile.teamSlots || 2) + 1;
+                          
+                          await updateDoc(fanzRef, updates);
+                          if (Object.keys(userUpdates).length > 0) await updateDoc(userRef, userUpdates);
+
+                          if (rewardModal.rewardType === 'money' && rewardModal.amount) await logTransaction(userProfile.uid, 'money', rewardModal.amount, `Récompense ${rewardModal.title}`);
+                          if (rewardModal.rewardType === 'gems' && rewardModal.amount) await logTransaction(userProfile.uid, 'gems', rewardModal.amount, `Récompense ${rewardModal.title}`);
+                          if (rewardModal.rewardType === 'boost' && rewardModal.amount) await logTransaction(userProfile.uid, 'boost', rewardModal.amount, `Récompense ${rewardModal.title}`);
+                          
+                          setFanz({ ...fanz, claimedRewards: newClaimed });
+                          
+                          showReward({
+                            type: rewardModal.rewardType as any,
+                            amount: rewardModal.amount || 1,
+                            title: rewardModal.title
+                          });
+                          setRewardModal({ ...rewardModal, step: 'success' });
+                        } catch (e) { console.error(e); }
+                        setClaimingReward(null);
+                      }}
+                      className="group p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center text-center gap-3 hover:border-green-500 hover:bg-green-500/5 transition-all"
+                    >
+                      <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
+                        <Trophy size={24} />
+                      </div>
+                      <div>
+                        <div className="font-black italic uppercase text-sm">Récupérer</div>
+                        <div className="text-[10px] text-gray-400 font-bold leading-tight">
+                          {rewardModal.amount} {rewardModal.rewardType === 'money' ? '$' : rewardModal.rewardType}
+                        </div>
+                      </div>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1653,9 +1885,9 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     !(userProfile.skins || []).includes(s.id) &&
                     !(fanz.unlockedSkins || []).includes(s.id)
                   )
-                  .map(skin => (
+                  .map((skin, idx) => (
                     <button
-                      key={skin.id}
+                      key={`${skin.id}-${idx}`}
                       onClick={async () => {
                         setClaimingReward(rewardModal.slotId);
                         try {
@@ -1707,9 +1939,9 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     !(userProfile.emotes || []).includes(e.id) &&
                     !(fanz.unlockedEmotes || []).includes(e.id)
                   )
-                  .map(emote => (
+                  .map((emote, idx) => (
                     <button
-                      key={emote.id}
+                      key={`${emote.id}-${idx}`}
                       onClick={async () => {
                         setClaimingReward(rewardModal.slotId);
                         try {

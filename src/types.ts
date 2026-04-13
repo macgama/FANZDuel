@@ -165,6 +165,7 @@ export interface FanzTemplate {
   emotes: FanzEmote[];
   ferveurPath?: FerveurLevel[];
   rankRewards?: Record<string, RankReward>;
+  rankCosts?: Record<string, { money?: number; boostPoints?: number; gems?: number; energy?: number }>;
   isActive?: boolean;
 }
 

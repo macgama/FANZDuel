@@ -1,19 +1,43 @@
 import { FanzStats, LifeAction, FanzSkin, FanzEmote, FanzTemplate, FerveurLevel } from '../types';
 
 const defaultFerveurPath: FerveurLevel[] = [];
-for (let pts = 25; pts <= 1000; pts += 25) {
-  if (pts === 250) {
-    defaultFerveurPath.push({ level: 2, pointsRequired: 250, reward: { type: 'money', amount: 100 } });
-  } else if (pts === 500) {
-    defaultFerveurPath.push({ level: 3, pointsRequired: 500, reward: { type: 'money', amount: 100 } });
-  } else if (pts === 750) {
-    defaultFerveurPath.push({ level: 4, pointsRequired: 750, reward: { type: 'money', amount: 100 } });
-  } else if (pts === 1000) {
-    defaultFerveurPath.push({ level: 5, pointsRequired: 1000, reward: { type: 'money', amount: 100 } });
+const fanzLevels = [
+  { level: 2, points: 5000, reward: { type: 'gems', amount: 50 } },
+  { level: 3, points: 15000, reward: { type: 'money', amount: 1000 } }, 
+  { level: 4, points: 30000, reward: { type: 'gems', amount: 100 } },
+  { level: 5, points: 50000, reward: { type: 'boost', amount: 5 } },
+  { level: 6, points: 75000, reward: { type: 'money', amount: 5000 } },
+  { level: 7, points: 100000, reward: { type: 'gems', amount: 500 } },
+  { level: 8, points: 120000, reward: { type: 'boost', amount: 10 } },
+  { level: 9, points: 135000, reward: { type: 'money', amount: 10000 } },
+  { level: 10, points: 150000, reward: { type: 'gems', amount: 1000 } },
+];
+
+const steps = [];
+for (let pts = 1000; pts <= 30000; pts += 1000) steps.push(pts);
+for (let pts = 32500; pts <= 75000; pts += 2500) steps.push(pts);
+for (let pts = 80000; pts <= 150000; pts += 5000) steps.push(pts);
+
+fanzLevels.forEach(l => {
+  if (!steps.includes(l.points)) steps.push(l.points);
+});
+steps.sort((a, b) => a - b);
+
+const uniqueSteps = Array.from(new Set(steps));
+
+uniqueSteps.forEach(pts => {
+  const major = fanzLevels.find(l => l.points === pts);
+  if (major) {
+    defaultFerveurPath.push({ level: major.level, pointsRequired: pts, reward: major.reward as any });
   } else {
-    defaultFerveurPath.push({ isIntermediate: true, pointsRequired: pts, reward: { type: 'money', amount: 25 } });
+    let reward = { type: 'money', amount: 100 };
+    if (pts % 10000 === 0) reward = { type: 'boost', amount: 2 };
+    else if (pts % 5000 === 0) reward = { type: 'gems', amount: 20 };
+    else if (pts % 2000 === 0) reward = { type: 'xp', amount: 50 };
+    
+    defaultFerveurPath.push({ isIntermediate: true, pointsRequired: pts, reward: reward as any });
   }
-}
+});
 
 export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
   const paddedId = String(i + 1).padStart(3, '0');

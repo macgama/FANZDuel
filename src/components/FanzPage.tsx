@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getImageUrl, cn } from '../lib/utils';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { Card, Button } from './Layout';
-import { FanzTemplate, Fanz, UserProfile } from '../types';
+import { FanzTemplate, Fanz, UserProfile, GlobalFervorConfig } from '../types';
 import { Trophy, Lock, Star, Info, Medal, Users, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { OptimizedMedia } from './OptimizedMedia';
+import { generateFervorPath } from '../utils/fervorPath';
 
 interface FanzPageProps {
   userProfile: UserProfile;
@@ -16,6 +17,7 @@ interface FanzPageProps {
 export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
   const [ownedFanz, setOwnedFanz] = useState<Map<string, Fanz>>(new Map()); // templateId -> Fanz object
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
+  const [fanzFervorConfig, setFanzFervorConfig] = useState<GlobalFervorConfig | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all');
 
@@ -25,6 +27,11 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
         const querySnapshot = await getDocs(collection(db, 'fanz_templates'));
         const templates = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate));
         setFanzTemplates(templates);
+
+        const configDoc = await getDoc(doc(db, 'global_configs', 'fanz_fervor'));
+        if (configDoc.exists()) {
+          setFanzFervorConfig(configDoc.data() as GlobalFervorConfig);
+        }
       } catch (err) {
         console.error("Error fetching fanz templates", err);
       }
@@ -42,10 +49,21 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
       });
       setOwnedFanz(fanzMap);
       setLoading(false);
+    }, (error) => {
+      console.error("Error in FanzPage fanz listener:", error);
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, [userProfile.uid]);
+
+  const globalFerveurPath = React.useMemo(() => {
+    if (fanzFervorConfig) {
+      const maxPoints = fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000;
+      return generateFervorPath(maxPoints, fanzFervorConfig);
+    }
+    return [];
+  }, [fanzFervorConfig]);
 
   const filteredFanz = fanzTemplates.filter((f) => {
     if (filter === 'owned') return ownedFanz.has(f.id);
@@ -141,6 +159,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                       isActive={userProfile.activeFanzId === ownedFanz.get(template.id)?.id}
                       onClick={() => onFanzClick && onFanzClick(ownedFanz.get(template.id)!.id)}
                       userProfile={userProfile}
+                      globalFerveurPath={globalFerveurPath}
                       onSetActive={async (e) => {
                         e.stopPropagation();
                         try {
@@ -174,6 +193,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                       template={template} 
                       isOwned={false} 
                       userProfile={userProfile}
+                      globalFerveurPath={globalFerveurPath}
                     />
                   ))}
                 </div>
@@ -185,7 +205,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
   );
 }
 
-function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onUnlock, userProfile }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; isActive?: boolean; onClick?: () => void; onSetActive?: (e: React.MouseEvent) => void; onUnlock?: () => void; userProfile?: UserProfile }) {
+function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onUnlock, userProfile, globalFerveurPath = [] }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; isActive?: boolean; onClick?: () => void; onSetActive?: (e: React.MouseEvent) => void; onUnlock?: () => void; userProfile?: UserProfile; globalFerveurPath?: any[] }) {
   const [isHovered, setIsHovered] = useState(false);
 
   const equippedSkinData = template.skins?.find(s => s.id === fanz?.equippedSkin);
@@ -291,7 +311,7 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
                 <div className="h-1 sm:h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
                   <div 
                     className="h-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"
-                    style={{ width: `${Math.min(100, (fanz.ferveurPoints / (template.ferveurPath?.find(l => l.level === fanz.ferveurLevel + 1)?.pointsRequired || 100)) * 100)}%` }}
+                    style={{ width: `${Math.min(100, (fanz.ferveurPoints / ((globalFerveurPath.length > 0 ? globalFerveurPath : (template.ferveurPath || [])).find(l => l.level === fanz.ferveurLevel + 1)?.pointsRequired || 100)) * 100)}%` }}
                   />
                 </div>
               </div>

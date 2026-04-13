@@ -52,38 +52,52 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
     };
     fetchEmotes();
 
+    let unsubscribe: () => void;
+
     // Initialize chat document if it doesn't exist
-    const initChat = async () => {
-      const chatRef = doc(db, 'chats', chatId);
-      const chatSnap = await getDoc(chatRef);
-      if (!chatSnap.exists()) {
-        await setDoc(chatRef, {
-          id: chatId,
-          participants: [currentUser.uid, friend.uid],
-          lastMessage: '',
-          lastMessageTime: new Date().toISOString(),
-          unreadCount: {
-            [currentUser.uid]: 0,
-            [friend.uid]: 0
-          }
+    const initChatAndListen = async () => {
+      try {
+        const chatRef = doc(db, 'chats', chatId);
+        const chatSnap = await getDoc(chatRef);
+        if (!chatSnap.exists()) {
+          await setDoc(chatRef, {
+            id: chatId,
+            participants: [currentUser.uid, friend.uid],
+            lastMessage: '',
+            lastMessageTime: new Date().toISOString(),
+            unreadCount: {
+              [currentUser.uid]: 0,
+              [friend.uid]: 0
+            }
+          });
+        }
+
+        const q = query(
+          collection(db, 'chats', chatId, 'messages'),
+          orderBy('timestamp', 'asc')
+        );
+
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setMessages(msgs);
+          setLoading(false);
+          scrollToBottom();
+        }, (error) => {
+          console.error("Error in chat messages listener:", error);
         });
+      } catch (error) {
+        console.error("Error initializing chat:", error);
+        setLoading(false);
       }
     };
-    initChat();
+    
+    initChatAndListen();
 
-    const q = query(
-      collection(db, 'chats', chatId, 'messages'),
-      orderBy('timestamp', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setMessages(msgs);
-      setLoading(false);
-      scrollToBottom();
-    });
-
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [chatId, currentUser.uid, friend.uid]);
 
   const scrollToBottom = () => {
@@ -174,9 +188,9 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
           <div className="absolute bottom-full left-0 right-0 p-4 bg-gray-900 border-t border-white/10 max-h-48 overflow-y-auto">
             {availableEmotes.length > 0 ? (
               <div className="grid grid-cols-4 gap-2">
-                {availableEmotes.map(emote => (
+                {availableEmotes.map((emote, idx) => (
                   <button 
-                    key={emote.id}
+                    key={`${emote.id}-${idx}`}
                     onClick={() => handleSendEmote(emote.id)}
                     className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-colors flex items-center justify-center"
                   >

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
-import { UserProfile, Fanz, FanzTemplate, LifeAction } from '../types';
+import { UserProfile, Fanz, FanzTemplate, LifeAction, GlobalFervorConfig } from '../types';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, getDocs, limit } from 'firebase/firestore';
 import { getImageUrl } from '../lib/utils';
 import { footballApi } from '../services/footballApi';
 import { LifeActionCard } from './LifeActionCard';
+import { generateFervorPath } from '../utils/fervorPath';
 import { 
   Trophy, 
   Activity, 
@@ -28,7 +29,6 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 
 import { UserProfileModal } from './UserProfileModal';
-import { FERVEUR_LEVELS, FANZ_FERVEUR_LEVELS } from '../constants';
 import { Header } from './Header';
 
 interface HomeProps {
@@ -48,6 +48,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
+  const [fanzFervorConfig, setFanzFervorConfig] = useState<GlobalFervorConfig | undefined>(undefined);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -62,6 +63,20 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
 
   const currentActiveAction = lifeActions.find(a => a.id === profile.activeAction?.actionId && profile.activeAction?.fanzId === activeFanz?.id);
   const waitingDuelsCount = activeDuels.filter(d => d.status === 'waiting' && d.creatorId !== profile.uid).length;
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const configDoc = await getDoc(doc(db, 'global_configs', 'fanz_fervor'));
+        if (configDoc.exists()) {
+          setFanzFervorConfig(configDoc.data() as GlobalFervorConfig);
+        }
+      } catch (err) {
+        console.error("Error fetching fanz fervor config", err);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     if (!profile.uid) return;
@@ -95,6 +110,8 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
       } else {
         setAllFanz([]);
       }
+    }, (error) => {
+      console.error("Error in Home fanz listener:", error);
     });
 
     return () => unsubscribe();
@@ -321,21 +338,28 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
               </p>
             )}
 
-            {!currentActiveAction && activeFanz && (
-              <div className="mt-2 w-full max-w-[200px]">
-                <div className="h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
-                  <div 
-                    className="h-full bg-orange-500 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, (activeFanz.ferveurPoints / (FANZ_FERVEUR_LEVELS[activeFanz.ferveurLevel + 1] || 1000)) * 100)}%` }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[10px] font-black text-white drop-shadow-md">
-                      {activeFanz.ferveurPoints} / {FANZ_FERVEUR_LEVELS[activeFanz.ferveurLevel + 1] || 1000}
-                    </span>
+            {!currentActiveAction && activeFanz && (() => {
+              const ferveurPath = fanzFervorConfig 
+                ? generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000, fanzFervorConfig)
+                : fanzTemplate?.ferveurPath || [];
+              const nextLevelPoints = ferveurPath.find(l => l.level === activeFanz.ferveurLevel + 1)?.pointsRequired || 1000;
+              
+              return (
+                <div className="mt-2 w-full max-w-[200px]">
+                  <div className="h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
+                    <div 
+                      className="h-full bg-orange-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, (activeFanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[10px] font-black text-white drop-shadow-md">
+                        {activeFanz.ferveurPoints} / {nextLevelPoints}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
 

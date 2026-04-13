@@ -68,6 +68,8 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
         const finalImageUrl = getImageUrl(imageUrl);
         setDefaultFanzUrl(finalImageUrl ? imageUrl : null);
       }
+    }, (error) => {
+      console.error("Error in UserProfileModal fanz listener:", error);
     });
 
     return () => unsubscribe();
@@ -96,8 +98,8 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
   if (isAvatarPickerOpen) {
     return (
-      <div className="absolute inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-        <Card className="w-full h-full max-h-[90%] relative flex flex-col p-4 sm:p-6">
+      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-hidden">
+        <Card className="w-full max-w-[450px] h-full max-h-[90vh] relative flex flex-col p-4 sm:p-6 overflow-hidden">
           <button 
             onClick={() => setIsAvatarPickerOpen(false)}
             className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors z-10"
@@ -160,20 +162,21 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   }
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <Card className="w-full max-w-sm relative max-h-[90%] overflow-y-auto custom-scrollbar">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
+      <Card className="w-full max-w-[450px] relative max-h-[90vh] overflow-y-auto no-scrollbar flex flex-col">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"
+          className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors z-10"
         >
           <X className="w-5 h-5 text-gray-400" />
         </button>
 
-        <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter mb-6">
-          Mon Profil
-        </h2>
+        <div className="p-2">
+          <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter mb-6">
+            Mon Profil
+          </h2>
 
-        <div className="space-y-6">
+          <div className="space-y-6">
           {/* Avatar Selection */}
           <div className="flex flex-col items-center gap-4">
             <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-orange-500 shadow-xl shadow-orange-500/20 relative bg-black/50 flex items-center justify-center">
@@ -252,6 +255,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
             </Button>
           </div>
         </div>
+      </div>
       </Card>
     </div>
   );

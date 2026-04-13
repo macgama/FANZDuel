@@ -30,7 +30,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 overflow-hidden"
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 overflow-hidden"
       >
         {/* Background Particles/Glow */}
         <div className="absolute inset-0 pointer-events-none">
@@ -48,12 +48,12 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
           <X size={24} />
         </motion.button>
 
-        <div className="max-w-2xl w-full text-center space-y-12 relative z-10">
+        <div className="w-full max-w-[450px] h-full flex flex-col items-center justify-center text-center space-y-8 md:space-y-12 relative z-10 overflow-y-auto no-scrollbar py-12">
           <motion.div
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ type: "spring", damping: 15 }}
-            className="space-y-4"
+            className="space-y-4 w-full"
           >
             <motion.div 
               initial={{ scale: 0 }}
@@ -64,11 +64,11 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
               <Sparkles size={12} />
               Récompense Débloquée !
             </motion.div>
-            <h1 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter text-white drop-shadow-2xl">
+            <h1 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white drop-shadow-2xl leading-none">
               {reward.title || 'Félicitations !'}
             </h1>
             {reward.subtitle && (
-              <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">{reward.subtitle}</p>
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs">{reward.subtitle}</p>
             )}
           </motion.div>
 
@@ -76,10 +76,10 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-            className="relative flex justify-center"
+            className="relative flex justify-center w-full"
           >
             {reward.type === 'card' && reward.card && (
-              <div className="w-72 aspect-[3/4] rounded-3xl border-4 border-orange-500 overflow-hidden shadow-2xl shadow-orange-500/40 bg-gray-900 group">
+              <div className="w-64 md:w-72 aspect-[3/4] rounded-3xl border-4 border-orange-500 overflow-hidden shadow-2xl shadow-orange-500/40 bg-gray-900 group">
                 <img src={getImageUrl(reward.card.imageUrl)} className="w-full h-full object-cover" alt={reward.card.name} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
                 <div className="absolute bottom-0 inset-x-0 p-6 text-left">
@@ -90,7 +90,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             )}
 
             {reward.type === 'skin' && reward.skin && (
-              <div className="w-72 aspect-[3/4] rounded-3xl border-4 border-blue-500 overflow-hidden shadow-2xl shadow-blue-500/40 bg-gray-900">
+              <div className="w-64 md:w-72 aspect-[3/4] rounded-3xl border-4 border-blue-500 overflow-hidden shadow-2xl shadow-blue-500/40 bg-gray-900">
                 {reward.skin.videoUrl ? (
                   <OptimizedMedia
                     type="video"
@@ -115,7 +115,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             )}
 
             {reward.type === 'emote' && reward.emote && (
-              <div className="w-72 aspect-square rounded-3xl border-4 border-purple-500 overflow-hidden shadow-2xl shadow-purple-500/40 bg-gray-900 flex items-center justify-center p-8">
+              <div className="w-64 md:w-72 aspect-square rounded-3xl border-4 border-purple-500 overflow-hidden shadow-2xl shadow-purple-500/40 bg-gray-900 flex items-center justify-center p-8">
                 {reward.emote.videoUrl ? (
                   <OptimizedMedia
                     type="video"
@@ -139,7 +139,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             )}
 
             {reward.type === 'action' && reward.action && (
-              <div className="w-72 aspect-square rounded-3xl border-4 border-green-500 overflow-hidden shadow-2xl shadow-green-500/40 bg-gray-900 flex items-center justify-center p-8">
+              <div className="w-64 md:w-72 aspect-square rounded-3xl border-4 border-green-500 overflow-hidden shadow-2xl shadow-green-500/40 bg-gray-900 flex items-center justify-center p-8">
                 {reward.action.videoUrl ? (
                   <OptimizedMedia
                     type="video"
@@ -163,20 +163,20 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             )}
 
             {(reward.type === 'money' || reward.type === 'gems' || reward.type === 'boost' || reward.type === 'energy' || reward.type === 'xp') && (
-              <div className="w-64 h-64 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-2xl shadow-orange-500/40 border-8 border-white/20">
+              <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-2xl shadow-orange-500/40 border-8 border-white/20">
                 <div className="text-center">
                   <motion.div
                     animate={{ rotate: [0, 10, -10, 0] }}
                     transition={{ repeat: Infinity, duration: 2 }}
                   >
-                    {reward.type === 'money' && <img src={LOGOS.money} alt="Money" className="w-20 h-20 mx-auto mb-2 object-contain" />}
-                    {reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className="w-20 h-20 mx-auto mb-2 object-contain" />}
-                    {reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className="w-20 h-20 mx-auto mb-2 object-contain" />}
-                    {reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className="w-20 h-20 mx-auto mb-2 object-contain" />}
-                    {reward.type === 'xp' && <Trophy size={80} className="text-white mx-auto mb-2" />}
+                    {reward.type === 'money' && <img src={LOGOS.money} alt="Money" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+                    {reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+                    {reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+                    {reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+                    {reward.type === 'xp' && <Trophy size={64} className="text-white mx-auto mb-2" />}
                   </motion.div>
-                  <div className="text-6xl font-black italic text-white tracking-tighter">+{reward.amount}</div>
-                  <div className="text-sm font-black uppercase tracking-widest text-white/80">{reward.type}</div>
+                  <div className="text-5xl md:text-6xl font-black italic text-white tracking-tighter">+{reward.amount}</div>
+                  <div className="text-xs md:text-sm font-black uppercase tracking-widest text-white/80">{reward.type}</div>
                 </div>
               </div>
             )}
@@ -186,11 +186,11 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1 }}
-            className="flex flex-col items-center gap-6"
+            className="flex flex-col items-center gap-6 w-full"
           >
             <button
               onClick={onClose}
-              className="px-16 py-5 bg-white text-black font-black italic uppercase tracking-widest rounded-2xl hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-2xl shadow-white/10"
+              className="w-full md:w-auto px-16 py-5 bg-white text-black font-black italic uppercase tracking-widest rounded-2xl hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-2xl shadow-white/10"
             >
               Continuer
             </button>

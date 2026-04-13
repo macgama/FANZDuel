@@ -115,6 +115,30 @@ service cloud.firestore {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
     }
 
+    function isFriendRequestUpdate() {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let oldRequests = 'friendRequests' in resource.data ? resource.data.friendRequests : [];
+      let newRequests = 'friendRequests' in request.resource.data ? request.resource.data.friendRequests : [];
+      
+      return affectedKeys.hasOnly(['friendRequests']) &&
+             (
+               (newRequests.size() == oldRequests.size() + 1 && request.auth.uid in newRequests && !(request.auth.uid in oldRequests)) ||
+               (newRequests.size() == oldRequests.size() - 1 && !(request.auth.uid in newRequests) && request.auth.uid in oldRequests)
+             );
+    }
+
+    function isFriendUpdate() {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let oldFriends = 'friends' in resource.data ? resource.data.friends : [];
+      let newFriends = 'friends' in request.resource.data ? request.resource.data.friends : [];
+      
+      return affectedKeys.hasOnly(['friends']) &&
+             (
+               (newFriends.size() == oldFriends.size() + 1 && request.auth.uid in newFriends && !(request.auth.uid in oldFriends)) ||
+               (newFriends.size() == oldFriends.size() - 1 && !(request.auth.uid in newFriends) && request.auth.uid in oldFriends)
+             );
+    }
+
     // ===============================================================
     // Domain Validators
     // ===============================================================
@@ -259,7 +283,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated(); // Allow reading other users for duels/leaderboards
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'client' || isAdmin());
-      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow update: if isAuthenticated() && (
+        ((isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin())) ||
+        isFriendRequestUpdate() || 
+        isFriendUpdate()
+      );
     }
 
     match /fanz/{fanzId} {

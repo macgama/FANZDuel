@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, Fanz, FanzTemplate } from '../types';
+import { UserProfile, Fanz, FanzTemplate, GlobalFervorConfig } from '../types';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot, getDoc, doc, getDocs } from 'firebase/firestore';
@@ -15,7 +15,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfileModal } from './UserProfileModal';
 import { getImageUrl, cn } from '../lib/utils';
-import { FERVEUR_LEVELS, LOGOS } from '../constants';
+import { LOGOS } from '../constants';
+import { generateFervorPath } from '../utils/fervorPath';
 
 interface HeaderProps {
   profile: UserProfile;
@@ -37,6 +38,16 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
   useEffect(() => {
     const fetchMaxFerveur = async () => {
       try {
+        const configDoc = await getDoc(doc(db, 'global_configs', 'user_fervor'));
+        if (configDoc.exists()) {
+          const config = configDoc.data() as GlobalFervorConfig;
+          if (config.ranges && config.ranges.length > 0) {
+            setMaxFerveur(config.ranges[config.ranges.length - 1].max);
+            return;
+          }
+        }
+        
+        // Fallback
         const fanzSnapshot = await getDocs(collection(db, 'fanz_templates'));
         const activeCount = fanzSnapshot.docs.filter(doc => {
           const data = doc.data();
@@ -46,7 +57,7 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
           setMaxFerveur(activeCount * 1000);
         }
       } catch (err) {
-        console.error("Error fetching fanz templates for max ferveur", err);
+        console.error("Error fetching max ferveur", err);
       }
     };
     fetchMaxFerveur();
@@ -98,6 +109,8 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
       } else {
         setAvatarUrl(profile.photoURL || null);
       }
+    }, (error) => {
+      console.error("Error in Header fanz listener:", error);
     });
 
     return () => unsubscribe();

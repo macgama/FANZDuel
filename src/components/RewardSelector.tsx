@@ -104,8 +104,8 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
           className={`w-full ${inputClass}`}
         >
           <option value="">Sélectionner un skin...</option>
-          {allSkins.map(s => (
-            <option key={s.id} value={s.id}>{s.templateName} - {s.name}</option>
+          {allSkins.map((s, idx) => (
+            <option key={`${s.id}-${idx}`} value={s.id}>{s.templateName} - {s.name}</option>
           ))}
         </select>
       )}
@@ -117,8 +117,8 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
           className={`w-full ${inputClass}`}
         >
           <option value="">Sélectionner une emote...</option>
-          {allEmotes.map(e => (
-            <option key={e.id} value={e.id}>{e.templateName} - {e.name}</option>
+          {allEmotes.map((e, idx) => (
+            <option key={`${e.id}-${idx}`} value={e.id}>{e.templateName} - {e.name}</option>
           ))}
         </select>
       )}

@@ -66,7 +66,7 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[9999] flex items-center justify-center bg-black/80 overflow-hidden"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 overflow-hidden"
     >
       {/* Background Video or Image */}
       <div className="absolute inset-0 z-0">
@@ -92,13 +92,13 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black" />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-2xl px-6 text-center">
+      {/* Content Container - Constrained for 9:16 feel on desktop, full on mobile */}
+      <div className="relative z-10 w-full max-w-[450px] h-full flex flex-col items-center justify-center px-6 py-12 text-center overflow-y-auto no-scrollbar">
         <motion.div
           initial={{ scale: 0.8, y: 20, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           transition={{ type: "spring", damping: 15, stiffness: 100, delay: 0.2 }}
-          className="space-y-8"
+          className="w-full space-y-6 md:space-y-8 my-auto"
         >
           {/* Icon/Badge */}
           <div className="flex justify-center">
@@ -108,15 +108,15 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
                 transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
                 className="absolute inset-0 bg-orange-500/20 rounded-full blur-2xl scale-150"
               />
-              <div className="relative w-24 h-24 rounded-full bg-orange-600 border-4 border-white flex items-center justify-center shadow-[0_0_50px_rgba(249,115,22,0.5)]">
+              <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full bg-orange-600 border-4 border-white flex items-center justify-center shadow-[0_0_50px_rgba(249,115,22,0.5)]">
                 {alert.type === 'level-up' ? (
-                  <Trophy className="w-12 h-12 text-white" />
+                  <Trophy className="w-10 h-10 md:w-12 md:h-12 text-white" />
                 ) : alert.type === 'unlock' ? (
-                  <Star className="w-12 h-12 text-white fill-current" />
+                  <Star className="w-10 h-10 md:w-12 md:h-12 text-white fill-current" />
                 ) : alert.type === 'error' ? (
-                  <X className="w-12 h-12 text-white" />
+                  <X className="w-10 h-10 md:w-12 md:h-12 text-white" />
                 ) : (
-                  <CheckCircle2 className="w-12 h-12 text-white" />
+                  <CheckCircle2 className="w-10 h-10 md:w-12 md:h-12 text-white" />
                 )}
               </div>
             </div>
@@ -128,7 +128,7 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]"
+              className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] leading-none"
             >
               {alert.title}
             </motion.h2>
@@ -137,7 +137,7 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5 }}
-                className="text-xl md:text-2xl font-bold text-orange-500 uppercase tracking-widest italic"
+                className="text-lg md:text-xl font-bold text-orange-500 uppercase tracking-widest italic"
               >
                 {alert.subtitle}
               </motion.p>
@@ -150,7 +150,7 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="flex flex-wrap justify-center gap-4 py-8"
+              className="grid grid-cols-2 gap-3 md:gap-4 py-4 md:py-8"
             >
               {alert.rewards.map((reward, idx) => (
                 <motion.div
@@ -158,13 +158,13 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.7 + idx * 0.1, type: "spring" }}
-                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 min-w-[120px] flex flex-col items-center gap-2 shadow-xl"
+                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 md:p-4 flex flex-col items-center gap-1 md:gap-2 shadow-xl"
                 >
                   <RewardIcon type={reward.type} stat={reward.stat} />
-                  <div className="text-2xl font-black text-white">
+                  <div className="text-xl md:text-2xl font-black text-white">
                     {reward.amount ? `+${reward.amount}` : ''}
                   </div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     {reward.label || reward.type}
                   </div>
                 </motion.div>
@@ -177,11 +177,11 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.8 }}
-            className="pt-8"
+            className="pt-4 md:pt-8"
           >
             <button
               onClick={onClose}
-              className="px-12 py-4 bg-white text-black font-black italic uppercase tracking-widest rounded-full hover:bg-orange-500 hover:text-white transition-all transform hover:scale-110 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.3)]"
+              className="w-full md:w-auto px-12 py-4 bg-white text-black font-black italic uppercase tracking-widest rounded-full hover:bg-orange-500 hover:text-white transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.3)]"
             >
               Continuer
             </button>
@@ -189,12 +189,12 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
         </motion.div>
       </div>
 
-      {/* Close button (optional, for safety) */}
+      {/* Close button (top right) */}
       <button
         onClick={onClose}
-        className="absolute top-8 right-8 p-2 text-white/50 hover:text-white transition-colors"
+        className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-[10000] border border-white/10"
       >
-        <X className="w-8 h-8" />
+        <X className="w-6 h-6" />
       </button>
     </motion.div>
   );

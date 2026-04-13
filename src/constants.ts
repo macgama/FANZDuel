@@ -14,12 +14,6 @@ export const COLORS = {
   accent: '#ff6600', // Orange
 };
 
-export const FERVEUR_LEVELS = [
-  0, 15000, 50000, 150000, 300000, 600000, 1000000, 1500000, 2500000, 4000000, 6000000, 8500000, 11000000, 13000000, 15000000
-];
-
-export const FANZ_FERVEUR_LEVELS = [0, 1000, 3000, 7500, 15000, 30000, 50000, 75000, 100000, 150000];
-
 export const INITIAL_USER_DATA = {
   money: 1000,
   gems: 5,
@@ -29,7 +23,7 @@ export const INITIAL_USER_DATA = {
   ferveurPoints: 0,
   level: 1,
   teamSlots: 2,
-  cards: [],
+  cards: ['base_1', 'base_2', 'base_3', 'base_4', 'base_5', 'base_6', 'base_7', 'base_8'],
   language: 'fr',
   passPoints: 0,
   isPassPremium: false,

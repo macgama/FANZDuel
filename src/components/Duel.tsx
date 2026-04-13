@@ -2,7 +2,7 @@ import { footballApi } from '../services/footballApi';
 import React, { useState, useEffect, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { useSocket } from '../context/SocketContext';
-import { Duel, UserProfile, Card as GameCard, CardEffect, UserCard, Fanz, FanzTemplate, DuelConfig, FanzStats, FanzEmote } from '../types';
+import { Duel, UserProfile, Card as GameCard, CardEffect, UserCard, Fanz, FanzTemplate, DuelConfig, FanzStats, FanzEmote, GlobalFervorConfig } from '../types';
 import { Card, Button } from './Layout';
 import { motion, AnimatePresence } from 'motion/react';
 import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield, RefreshCw, Activity, Lock, Flame, Brain, Star, Users, Search, Trophy, Target, CreditCard, Layers, Snowflake, MessageCircle, AlertCircle } from 'lucide-react';
@@ -15,6 +15,7 @@ import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, 
 import { logTransaction } from '../services/transactionService';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useAlert } from '../context/AlertContext';
+import { generateFervorPath } from '../utils/fervorPath';
 
 export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void }) {
   const { showAlert } = useAlert();
@@ -790,14 +791,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         const userRef = doc(db, 'users', user.uid);
         const configRef = doc(db, 'global_configs', 'duel_config');
         
-        const [userSnap, configSnap] = await Promise.all([
+        const [userSnap, configSnap, fanzFervorSnap] = await Promise.all([
           getDoc(userRef),
-          getDoc(configRef)
+          getDoc(configRef),
+          getDoc(doc(db, 'global_configs', 'fanz_fervor'))
         ]);
 
         if (userSnap.exists()) {
           const userData = userSnap.data() as UserProfile;
           const configData = configSnap.exists() ? configSnap.data() as DuelConfig : null;
+          const fanzFervorConfig = fanzFervorSnap.exists() ? fanzFervorSnap.data() as GlobalFervorConfig : undefined;
           
           const currentParticipants = participantsRef.current;
           const myParticipant = currentParticipants.find(p => p.uid === user.uid);
@@ -819,7 +822,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           let ferveurGainFanz = 0;
           let ferveurGainGeneral = 0;
           
-          if (isWin) {
+          if (duelType === 'training') {
+            // Pour l'entraînement, gain fixe de 5 points (ne dépend pas du score ni du résultat)
+            ferveurGainFanz = 5;
+            ferveurGainGeneral = 5;
+          } else if (isWin) {
             // L'XP gagnée est basée sur le score multiplié par le type de duel
             ferveurGainFanz = myScore * duelMultiplier;
             ferveurGainGeneral = myScore * duelMultiplier;
@@ -841,11 +848,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               let newFanzPoints = Math.max(0, (fanzData.ferveurPoints || 0) + ferveurGainFanz);
               let newFanzLevel = fanzData.ferveurLevel || 1;
               
-              if (template?.ferveurPath) {
-                const nextLevel = template.ferveurPath.find(p => p.level === newFanzLevel + 1);
-                if (nextLevel && newFanzPoints >= nextLevel.pointsRequired) {
-                  newFanzLevel += 1;
-                }
+              const ferveurPath = fanzFervorConfig 
+                ? generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000, fanzFervorConfig)
+                : template?.ferveurPath || [];
+
+              const nextLevel = ferveurPath.find(p => p.level === newFanzLevel + 1);
+              if (nextLevel && newFanzPoints >= nextLevel.pointsRequired) {
+                newFanzLevel += 1;
               }
               
               await updateDoc(fanzRef, {
@@ -858,7 +867,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   user.uid,
                   'ferveur_fanz',
                   ferveurGainFanz,
-                  isWin ? 'Victoire en duel' : 'Défaite en duel',
+                  duelType === 'training' ? 'Entraînement' : (isWin ? 'Victoire en duel' : 'Défaite en duel'),
                   fanzId
                 );
               }
@@ -870,8 +879,35 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           // Update User General
           if (ferveurGainGeneral > 0 || myScore > 0) {
             let newUserPoints = (userData.ferveurPoints || 0) + ferveurGainGeneral;
+            
+            // Recalculate user level
+            let newUserLevel = 1;
+            const FERVOR_RANGES = [
+              { level: 1, min: 0 },
+              { level: 2, min: 100000 },
+              { level: 3, min: 500000 },
+              { level: 4, min: 1000000 },
+              { level: 5, min: 2000000 },
+              { level: 6, min: 3000000 },
+              { level: 7, min: 4000000 },
+              { level: 8, min: 5000000 },
+              { level: 9, min: 6000000 },
+              { level: 10, min: 7000000 },
+              { level: 11, min: 8000000 },
+              { level: 12, min: 9000000 },
+              { level: 13, min: 10000000 },
+              { level: 14, min: 12000000 },
+              { level: 15, min: 15000000 }
+            ];
+            for (const range of FERVOR_RANGES) {
+              if (newUserPoints >= range.min) {
+                newUserLevel = range.level;
+              }
+            }
+
             const updates: any = {
               ferveurPoints: newUserPoints,
+              level: newUserLevel,
               totalScore: increment(myScore),
               matchesPlayed: increment(1)
             };
@@ -887,7 +923,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 user.uid,
                 'ferveur_general',
                 ferveurGainGeneral,
-                'Victoire en duel'
+                duelType === 'training' ? 'Entraînement' : (isWin ? 'Victoire en duel' : 'Défaite en duel')
               );
             }
           }
@@ -1414,9 +1450,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             {showEmotes && (
               <div className="absolute top-full right-0 mt-2 w-64 bg-gray-900 border border-white/10 rounded-xl p-2 grid grid-cols-4 gap-2 max-h-48 overflow-y-auto shadow-2xl z-[100]">
                 {allEmotes.filter(e => user.emotes?.includes(e.id)).length > 0 ? (
-                  allEmotes.filter(e => user.emotes?.includes(e.id)).map(emote => (
+                  allEmotes.filter(e => user.emotes?.includes(e.id)).map((emote, idx) => (
                     <button 
-                      key={emote.id}
+                      key={`${emote.id}-${idx}`}
                       onClick={() => {
                         setShowEmotes(false);
                         const myTeam = participants.find(p => p.uid === user.uid)?.team || 'A';

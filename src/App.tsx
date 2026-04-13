@@ -374,7 +374,7 @@ function AppContent() {
               />
             )}
             
-            <div className={cn("flex-1 overflow-y-auto pb-6", (!selectedFanzId && !selectedMatchId && view !== 'matches') && "pt-6 px-[30px]", (selectedMatchId || view === 'matches') && "pt-6 px-0")}>
+            <div className={cn("flex-1 overflow-y-auto pb-6", (!selectedFanzId && !selectedMatchId && view !== 'matches' && view !== 'fervor-path') && "pt-6 px-[30px]", (selectedMatchId || view === 'matches' || view === 'fervor-path') && "pt-6 px-0")}>
               {selectedTeam ? (
                 <TeamDetails 
                   teamId={selectedTeam.id} 

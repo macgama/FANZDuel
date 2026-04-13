@@ -16,6 +16,7 @@ import { footballDataService } from '../services/footballDataService';
 export function AdminZone() {
   const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
+  const [activeFanzSubTab, setActiveFanzSubTab] = useState<'templates' | 'fervor'>('templates');
   
   // Duel Config state
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
@@ -46,6 +47,7 @@ export function AdminZone() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [passes, setPasses] = useState<Pass[]>([]);
   const [userFervorConfig, setUserFervorConfig] = useState<GlobalFervorConfig | null>(null);
+  const [fanzFervorConfig, setFanzFervorConfig] = useState<GlobalFervorConfig | null>(null);
   const [streakCycles, setStreakCycles] = useState<WeeklyStreakCycle[]>([]);
   const [editingCycle, setEditingCycle] = useState<WeeklyStreakCycle | null>(null);
   const [editingMission, setEditingMission] = useState<Mission | null>(null);
@@ -57,9 +59,13 @@ export function AdminZone() {
     } else if (activeTab === 'duelCards') {
       fetchDuelCards();
     } else if (activeTab === 'fanz') {
-      fetchFanzTemplates();
-      if (duelCards.length === 0) fetchDuelCards();
-      if (lifeActions.length === 0) fetchLifeActions();
+      if (activeFanzSubTab === 'templates') {
+        fetchFanzTemplates();
+        if (duelCards.length === 0) fetchDuelCards();
+        if (lifeActions.length === 0) fetchLifeActions();
+      } else if (activeFanzSubTab === 'fervor') {
+        fetchUserFervorConfig();
+      }
     } else if (activeTab === 'users') {
       fetchUserData();
       if (fanzTemplates.length === 0) fetchFanzTemplates();
@@ -68,7 +74,7 @@ export function AdminZone() {
     } else if (activeTab === 'duelConfig') {
       fetchDuelConfig();
     }
-  }, [activeTab]);
+  }, [activeTab, activeFanzSubTab]);
 
   useEffect(() => {
     if (activeTab === 'users') {
@@ -204,25 +210,42 @@ export function AdminZone() {
     try {
       const docSnap = await getDocs(collection(db, 'global_configs'));
       const fervorDoc = docSnap.docs.find(d => d.id === 'user_fervor');
+      const fanzFervorDoc = docSnap.docs.find(d => d.id === 'fanz_fervor');
       
       const defaultConfig: GlobalFervorConfig = {
         id: 'user_fervor',
         ranges: [
-          { level: 1, min: 0, max: 499, step: 10, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 2, min: 500, max: 1549, step: 15, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 3, min: 1550, max: 5099, step: 50, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 4, min: 5100, max: 10099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 5, min: 10100, max: 15099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 6, min: 15100, max: 20099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 7, min: 20100, max: 25099, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 8, min: 25100, max: 30199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 9, min: 30200, max: 40199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 10, min: 40200, max: 50199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 11, min: 50200, max: 60199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 12, min: 60200, max: 70199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 13, min: 70200, max: 80199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 14, min: 80200, max: 90199, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 15, min: 90200, max: 99999, step: 100, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 1, min: 0, max: 99999, step: 5000, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 2, min: 100000, max: 499999, step: 10000, levelReward: { type: 'gems', amount: 100 }, intermediateReward: { type: 'money', amount: 100 } },
+          { level: 3, min: 500000, max: 999999, step: 25000, levelReward: { type: 'boost', amount: 5 }, intermediateReward: { type: 'money', amount: 200 } },
+          { level: 4, min: 1000000, max: 1999999, step: 50000, levelReward: { type: 'gems', amount: 500 }, intermediateReward: { type: 'money', amount: 500 } },
+          { level: 5, min: 2000000, max: 2999999, step: 50000, levelReward: { type: 'money', amount: 10000 }, intermediateReward: { type: 'gems', amount: 10 } },
+          { level: 6, min: 3000000, max: 3999999, step: 100000, levelReward: { type: 'boost', amount: 10 }, intermediateReward: { type: 'money', amount: 1000 } },
+          { level: 7, min: 4000000, max: 4999999, step: 100000, levelReward: { type: 'gems', amount: 1000 }, intermediateReward: { type: 'money', amount: 1000 } },
+          { level: 8, min: 5000000, max: 5999999, step: 100000, levelReward: { type: 'money', amount: 50000 }, intermediateReward: { type: 'gems', amount: 20 } },
+          { level: 9, min: 6000000, max: 6999999, step: 200000, levelReward: { type: 'boost', amount: 20 }, intermediateReward: { type: 'money', amount: 2000 } },
+          { level: 10, min: 7000000, max: 7999999, step: 200000, levelReward: { type: 'gems', amount: 2000 }, intermediateReward: { type: 'money', amount: 2000 } },
+          { level: 11, min: 8000000, max: 8999999, step: 200000, levelReward: { type: 'money', amount: 100000 }, intermediateReward: { type: 'gems', amount: 50 } },
+          { level: 12, min: 9000000, max: 9999999, step: 250000, levelReward: { type: 'boost', amount: 50 }, intermediateReward: { type: 'money', amount: 5000 } },
+          { level: 13, min: 10000000, max: 11999999, step: 250000, levelReward: { type: 'gems', amount: 5000 }, intermediateReward: { type: 'money', amount: 5000 } },
+          { level: 14, min: 12000000, max: 14999999, step: 500000, levelReward: { type: 'money', amount: 500000 }, intermediateReward: { type: 'gems', amount: 100 } },
+          { level: 15, min: 15000000, max: 15000000, step: 1000000, levelReward: { type: 'boost', amount: 100 }, intermediateReward: { type: 'money', amount: 10000 } },
+        ]
+      };
+
+      const defaultFanzConfig: GlobalFervorConfig = {
+        id: 'fanz_fervor',
+        ranges: [
+          { level: 1, min: 0, max: 4999, step: 1000, levelReward: { type: 'gems', amount: 50 }, intermediateReward: { type: 'money', amount: 100 } },
+          { level: 2, min: 5000, max: 14999, step: 1000, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 100 } },
+          { level: 3, min: 15000, max: 29999, step: 1000, levelReward: { type: 'gems', amount: 100 }, intermediateReward: { type: 'money', amount: 100 } },
+          { level: 4, min: 30000, max: 49999, step: 2500, levelReward: { type: 'boost', amount: 5 }, intermediateReward: { type: 'money', amount: 200 } },
+          { level: 5, min: 50000, max: 74999, step: 2500, levelReward: { type: 'money', amount: 5000 }, intermediateReward: { type: 'gems', amount: 10 } },
+          { level: 6, min: 75000, max: 99999, step: 5000, levelReward: { type: 'gems', amount: 500 }, intermediateReward: { type: 'money', amount: 500 } },
+          { level: 7, min: 100000, max: 119999, step: 5000, levelReward: { type: 'boost', amount: 10 }, intermediateReward: { type: 'money', amount: 500 } },
+          { level: 8, min: 120000, max: 134999, step: 5000, levelReward: { type: 'money', amount: 10000 }, intermediateReward: { type: 'gems', amount: 20 } },
+          { level: 9, min: 135000, max: 149999, step: 5000, levelReward: { type: 'gems', amount: 1000 }, intermediateReward: { type: 'money', amount: 1000 } },
+          { level: 10, min: 150000, max: 150000, step: 10000, levelReward: { type: 'gems', amount: 2000 }, intermediateReward: { type: 'money', amount: 2000 } },
         ]
       };
 
@@ -234,8 +257,18 @@ export function AdminZone() {
           setUserFervorConfig({ id: fervorDoc.id, ...data } as GlobalFervorConfig);
         }
       } else {
-        // Initialize if missing
         setUserFervorConfig(defaultConfig);
+      }
+
+      if (fanzFervorDoc) {
+        const data = fanzFervorDoc.data();
+        if (!data.ranges || data.ranges.length === 0) {
+          setFanzFervorConfig({ id: fanzFervorDoc.id, ranges: defaultFanzConfig.ranges, ...data } as GlobalFervorConfig);
+        } else {
+          setFanzFervorConfig({ id: fanzFervorDoc.id, ...data } as GlobalFervorConfig);
+        }
+      } else {
+        setFanzFervorConfig(defaultFanzConfig);
       }
     } catch (err) {
       console.error("Error fetching user fervor config", err);
@@ -355,6 +388,21 @@ export function AdminZone() {
     } catch (err) {
       console.error("Error saving user fervor config", err);
       handleFirestoreError(err, OperationType.WRITE, 'global_configs/user_fervor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveFanzFervorConfig = async () => {
+    if (!fanzFervorConfig) return;
+    setLoading(true);
+    try {
+      const configRef = doc(db, 'global_configs', 'fanz_fervor');
+      await setDoc(configRef, fanzFervorConfig);
+      setStatus({ type: 'success', message: 'Chemin de ferveur FANZ sauvegardé !' });
+    } catch (err) {
+      console.error("Error saving fanz fervor config", err);
+      handleFirestoreError(err, OperationType.WRITE, 'global_configs/fanz_fervor');
     } finally {
       setLoading(false);
     }
@@ -673,42 +721,179 @@ export function AdminZone() {
 
   const handleFixFerveurPaths = async () => {
     setLoading(true);
-    setStatus({ type: 'info', message: 'Réparation des chemins de ferveur...' });
+    setStatus({ type: 'info', message: 'Mise à jour de tous les chemins de ferveur...' });
     try {
-      const querySnapshot = await getDocs(collection(db, 'fanz_templates'));
-      const batch = writeBatch(db);
-      let count = 0;
-
       const defaultPath: FerveurLevel[] = [];
-      for (let pts = 25; pts <= 1000; pts += 25) {
-        if (pts === 250) {
-          defaultPath.push({ level: 2, pointsRequired: 250, reward: { type: 'money' as const, amount: 100 } });
-        } else if (pts === 500) {
-          defaultPath.push({ level: 3, pointsRequired: 500, reward: { type: 'money' as const, amount: 100 } });
-        } else if (pts === 750) {
-          defaultPath.push({ level: 4, pointsRequired: 750, reward: { type: 'money' as const, amount: 100 } });
-        } else if (pts === 1000) {
-          defaultPath.push({ level: 5, pointsRequired: 1000, reward: { type: 'money' as const, amount: 100 } });
+      const fanzLevels = [
+        { level: 2, points: 5000, reward: { type: 'gems', amount: 50 } },
+        { level: 3, points: 15000, reward: { type: 'money', amount: 1000 } }, 
+        { level: 4, points: 30000, reward: { type: 'gems', amount: 100 } },
+        { level: 5, points: 50000, reward: { type: 'boost', amount: 5 } },
+        { level: 6, points: 75000, reward: { type: 'money', amount: 5000 } },
+        { level: 7, points: 100000, reward: { type: 'gems', amount: 500 } },
+        { level: 8, points: 120000, reward: { type: 'boost', amount: 10 } },
+        { level: 9, points: 135000, reward: { type: 'money', amount: 10000 } },
+        { level: 10, points: 150000, reward: { type: 'gems', amount: 1000 } },
+      ];
+
+      const steps = [];
+      for (let pts = 1000; pts <= 30000; pts += 1000) steps.push(pts);
+      for (let pts = 32500; pts <= 75000; pts += 2500) steps.push(pts);
+      for (let pts = 80000; pts <= 150000; pts += 5000) steps.push(pts);
+
+      fanzLevels.forEach(l => {
+        if (!steps.includes(l.points)) steps.push(l.points);
+      });
+      steps.sort((a, b) => a - b);
+
+      const uniqueSteps = Array.from(new Set(steps));
+
+      uniqueSteps.forEach(pts => {
+        const major = fanzLevels.find(l => l.points === pts);
+        if (major) {
+          defaultPath.push({ level: major.level, pointsRequired: pts, reward: major.reward as any });
         } else {
-          defaultPath.push({ isIntermediate: true, pointsRequired: pts, reward: { type: 'money' as const, amount: 25 } });
+          let reward = { type: 'money', amount: 100 };
+          if (pts % 10000 === 0) reward = { type: 'boost', amount: 2 };
+          else if (pts % 5000 === 0) reward = { type: 'gems', amount: 20 };
+          else if (pts % 2000 === 0) reward = { type: 'xp', amount: 50 };
+          
+          defaultPath.push({ isIntermediate: true, pointsRequired: pts, reward: reward as any });
+        }
+      });
+
+      let count = 0;
+      
+      // Update fanz_templates
+      const templatesSnapshot = await getDocs(collection(db, 'fanz_templates'));
+      let batch = writeBatch(db);
+      let opsCount = 0;
+      
+      for (const docSnap of templatesSnapshot.docs) {
+        batch.update(docSnap.ref, { ferveurPath: defaultPath });
+        count++;
+        opsCount++;
+        if (opsCount >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          opsCount = 0;
         }
       }
 
-      for (const docSnap of querySnapshot.docs) {
+      // Update fanz instances
+      const fanzSnapshot = await getDocs(collection(db, 'fanz'));
+      for (const docSnap of fanzSnapshot.docs) {
         const data = docSnap.data();
-        if (!data.ferveurPath || data.ferveurPath.length === 0) {
-          batch.update(docSnap.ref, { ferveurPath: defaultPath });
-          count++;
+        const pts = data.ferveurPoints || 0;
+        
+        let newLevel = 1;
+        const majorLevels = defaultPath.filter(l => !l.isIntermediate).sort((a, b) => a.pointsRequired - b.pointsRequired);
+        for (const ml of majorLevels) {
+          if (pts >= ml.pointsRequired) {
+            newLevel = ml.level;
+          }
+        }
+
+        batch.update(docSnap.ref, { 
+          ferveurPath: defaultPath,
+          ferveurLevel: newLevel
+        });
+        count++;
+        opsCount++;
+        if (opsCount >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          opsCount = 0;
         }
       }
 
-      await batch.commit();
-      setStatus({ type: 'success', message: `${count} chemins de ferveur réparés !` });
+      if (opsCount > 0) {
+        await batch.commit();
+        batch = writeBatch(db);
+        opsCount = 0;
+      }
+
+      // Update global configs
+      const userFervorRef = doc(db, 'global_configs', 'user_fervor');
+      const fanzFervorRef = doc(db, 'global_configs', 'fanz_fervor');
+      
+      const defaultUserConfig = {
+        id: 'user_fervor',
+        ranges: [
+          { level: 1, min: 0, max: 99999, step: 5000, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
+          { level: 2, min: 100000, max: 499999, step: 10000, levelReward: { type: 'gems', amount: 100 }, intermediateReward: { type: 'money', amount: 100 } },
+          { level: 3, min: 500000, max: 999999, step: 25000, levelReward: { type: 'boost', amount: 5 }, intermediateReward: { type: 'money', amount: 200 } },
+          { level: 4, min: 1000000, max: 1999999, step: 50000, levelReward: { type: 'gems', amount: 500 }, intermediateReward: { type: 'money', amount: 500 } },
+          { level: 5, min: 2000000, max: 2999999, step: 50000, levelReward: { type: 'money', amount: 10000 }, intermediateReward: { type: 'gems', amount: 10 } },
+          { level: 6, min: 3000000, max: 3999999, step: 100000, levelReward: { type: 'boost', amount: 10 }, intermediateReward: { type: 'money', amount: 1000 } },
+          { level: 7, min: 4000000, max: 4999999, step: 100000, levelReward: { type: 'gems', amount: 1000 }, intermediateReward: { type: 'money', amount: 1000 } },
+          { level: 8, min: 5000000, max: 5999999, step: 100000, levelReward: { type: 'money', amount: 50000 }, intermediateReward: { type: 'gems', amount: 20 } },
+          { level: 9, min: 6000000, max: 6999999, step: 200000, levelReward: { type: 'boost', amount: 20 }, intermediateReward: { type: 'money', amount: 2000 } },
+          { level: 10, min: 7000000, max: 7999999, step: 200000, levelReward: { type: 'gems', amount: 2000 }, intermediateReward: { type: 'money', amount: 2000 } },
+          { level: 11, min: 8000000, max: 8999999, step: 200000, levelReward: { type: 'money', amount: 100000 }, intermediateReward: { type: 'gems', amount: 50 } },
+          { level: 12, min: 9000000, max: 9999999, step: 250000, levelReward: { type: 'boost', amount: 50 }, intermediateReward: { type: 'money', amount: 5000 } },
+          { level: 13, min: 10000000, max: 11999999, step: 250000, levelReward: { type: 'gems', amount: 5000 }, intermediateReward: { type: 'money', amount: 5000 } },
+          { level: 14, min: 12000000, max: 14999999, step: 500000, levelReward: { type: 'money', amount: 500000 }, intermediateReward: { type: 'gems', amount: 100 } },
+          { level: 15, min: 15000000, max: 15000000, step: 1000000, levelReward: { type: 'boost', amount: 100 }, intermediateReward: { type: 'money', amount: 10000 } },
+        ]
+      };
+
+      const defaultFanzConfig = {
+        id: 'fanz_fervor',
+        ranges: [
+          { level: 1, min: 0, max: 4999, step: 1000, levelReward: { type: 'gems', amount: 50 }, intermediateReward: { type: 'money', amount: 100 } },
+          { level: 2, min: 5000, max: 14999, step: 1000, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 100 } },
+          { level: 3, min: 15000, max: 29999, step: 1000, levelReward: { type: 'gems', amount: 100 }, intermediateReward: { type: 'money', amount: 100 } },
+          { level: 4, min: 30000, max: 49999, step: 2500, levelReward: { type: 'boost', amount: 5 }, intermediateReward: { type: 'money', amount: 200 } },
+          { level: 5, min: 50000, max: 74999, step: 2500, levelReward: { type: 'money', amount: 5000 }, intermediateReward: { type: 'gems', amount: 10 } },
+          { level: 6, min: 75000, max: 99999, step: 5000, levelReward: { type: 'gems', amount: 500 }, intermediateReward: { type: 'money', amount: 500 } },
+          { level: 7, min: 100000, max: 119999, step: 5000, levelReward: { type: 'boost', amount: 10 }, intermediateReward: { type: 'money', amount: 500 } },
+          { level: 8, min: 120000, max: 134999, step: 5000, levelReward: { type: 'money', amount: 10000 }, intermediateReward: { type: 'gems', amount: 20 } },
+          { level: 9, min: 135000, max: 149999, step: 5000, levelReward: { type: 'gems', amount: 1000 }, intermediateReward: { type: 'money', amount: 1000 } },
+          { level: 10, min: 150000, max: 150000, step: 10000, levelReward: { type: 'gems', amount: 2000 }, intermediateReward: { type: 'money', amount: 2000 } },
+        ]
+      };
+
+      await setDoc(userFervorRef, defaultUserConfig);
+      await setDoc(fanzFervorRef, defaultFanzConfig);
+
+      // Update users level
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      for (const docSnap of usersSnapshot.docs) {
+        const data = docSnap.data();
+        const pts = data.ferveurPoints || 0;
+        
+        let newLevel = 1;
+        for (const range of defaultUserConfig.ranges) {
+          if (pts >= range.min) {
+            newLevel = range.level;
+          }
+        }
+        if (pts >= 15000000) newLevel = 15;
+
+        batch.update(docSnap.ref, { 
+          level: newLevel
+        });
+        count++;
+        opsCount++;
+        if (opsCount >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          opsCount = 0;
+        }
+      }
+
+      if (opsCount > 0) {
+        await batch.commit();
+      }
+
+      setStatus({ type: 'success', message: `${count} chemins de ferveur mis à jour et configs globales réinitialisées !` });
       fetchFanzTemplates();
+      fetchUserFervorConfig();
     } catch (err) {
       console.error("Error fixing ferveur paths", err);
       handleFirestoreError(err, OperationType.WRITE, 'fanz_templates');
-      setStatus({ type: 'error', message: 'Erreur lors de la réparation.' });
+      setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
     } finally {
       setLoading(false);
     }
@@ -1226,13 +1411,63 @@ export function AdminZone() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userFervorConfig.ranges?.map((range, idx) => (
-                  <div key={idx} className="p-4 rounded-xl border bg-gray-900/50 border-blue-900/50 space-y-3">
-                    <div className="flex justify-between items-center">
+                  <div key={idx} className="p-4 rounded-xl border bg-gray-900/50 border-blue-900/50 space-y-3 relative">
+                    <button 
+                      onClick={() => {
+                        const newRanges = userFervorConfig.ranges.filter((_, i) => i !== idx);
+                        // Re-number levels
+                        newRanges.forEach((r, i) => r.level = i + 1);
+                        setUserFervorConfig({ ...userFervorConfig, ranges: newRanges });
+                      }}
+                      className="absolute top-2 right-2 text-red-500 hover:text-red-400"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <div className="flex justify-between items-center mb-2">
                       <span className="font-black text-blue-400">
                         NIVEAU {range.level}
                       </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-gray-500">De {range.min} à {range.max} (pas de {range.step})</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-gray-500">Min</label>
+                        <input
+                          type="number"
+                          value={range.min}
+                          onChange={(e) => {
+                            const newRanges = [...userFervorConfig.ranges];
+                            newRanges[idx] = { ...range, min: Number(e.target.value) };
+                            setUserFervorConfig({ ...userFervorConfig, ranges: newRanges });
+                          }}
+                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-gray-500">Max</label>
+                        <input
+                          type="number"
+                          value={range.max}
+                          onChange={(e) => {
+                            const newRanges = [...userFervorConfig.ranges];
+                            newRanges[idx] = { ...range, max: Number(e.target.value) };
+                            setUserFervorConfig({ ...userFervorConfig, ranges: newRanges });
+                          }}
+                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-gray-500">Pas</label>
+                        <input
+                          type="number"
+                          value={range.step}
+                          onChange={(e) => {
+                            const newRanges = [...userFervorConfig.ranges];
+                            newRanges[idx] = { ...range, step: Number(e.target.value) };
+                            setUserFervorConfig({ ...userFervorConfig, ranges: newRanges });
+                          }}
+                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
+                        />
                       </div>
                     </div>
                     
@@ -1267,6 +1502,36 @@ export function AdminZone() {
                     </div>
                   </div>
                 ))}
+                
+                <div 
+                  className="p-4 rounded-xl border border-dashed border-gray-700 bg-gray-900/20 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-900/50 hover:border-blue-500/50 transition-colors min-h-[200px]"
+                  onClick={() => {
+                    const lastRange = userFervorConfig.ranges[userFervorConfig.ranges.length - 1];
+                    const newLevel = (lastRange?.level || 0) + 1;
+                    const newMin = (lastRange?.max || 0) + 1;
+                    const newMax = newMin + 9999;
+                    const newStep = lastRange?.step || 100;
+                    setUserFervorConfig({
+                      ...userFervorConfig,
+                      ranges: [
+                        ...userFervorConfig.ranges,
+                        {
+                          level: newLevel,
+                          min: newMin,
+                          max: newMax,
+                          step: newStep,
+                          levelReward: { type: 'money', amount: 1000 },
+                          intermediateReward: { type: 'money', amount: 50 }
+                        }
+                      ]
+                    });
+                  }}
+                >
+                  <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-2">
+                    <span className="text-2xl text-blue-400">+</span>
+                  </div>
+                  <span className="font-bold text-gray-400">Ajouter un Niveau</span>
+                </div>
               </div>
             </Card>
           )}
@@ -2605,29 +2870,49 @@ export function AdminZone() {
       )}
       {activeTab === 'fanz' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">Gestion des FANZ</h2>
-            <div className="flex gap-3">
-              <Button onClick={handleCreateNewFanz} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
-                <Plus className="w-5 h-5" /> Nouveau FANZ
-              </Button>
-            </div>
+          <div className="flex gap-4 border-b border-gray-200 mb-6">
+            <button
+              className={`pb-2 px-4 font-bold text-sm ${activeFanzSubTab === 'templates' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveFanzSubTab('templates')}
+            >
+              Modèles FANZ
+            </button>
+            <button
+              className={`pb-2 px-4 font-bold text-sm ${activeFanzSubTab === 'fervor' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveFanzSubTab('fervor')}
+            >
+              Chemin Ferveur FANZ
+            </button>
           </div>
 
-          {status && activeTab === 'fanz' && (
-            <div className={`p-4 rounded-lg flex items-center gap-3 ${
-              status.type === 'success' ? 'bg-green-100 text-green-800' :
-              status.type === 'error' ? 'bg-red-100 text-red-800' :
-              'bg-blue-100 text-blue-800'
-            }`}>
-              {status.type === 'success' ? <CheckCircle className="w-5 h-5" /> :
-               status.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
-               <RefreshCw className="w-5 h-5 animate-spin" />}
-              {status.message}
-            </div>
-          )}
+          {activeFanzSubTab === 'templates' && (
+            <>
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Modèles FANZ</h2>
+                <div className="flex gap-3">
+                  <Button onClick={handleFixFerveurPaths} variant="outline" className="flex items-center gap-2 border-orange-500 text-orange-500 hover:bg-orange-500/10">
+                    <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /> Mettre à jour Ferveur
+                  </Button>
+                  <Button onClick={handleCreateNewFanz} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+                    <Plus className="w-5 h-5" /> Nouveau FANZ
+                  </Button>
+                </div>
+              </div>
 
-          {editingFanz && (
+              {status && activeTab === 'fanz' && (
+                <div className={`p-4 rounded-lg flex items-center gap-3 ${
+                  status.type === 'success' ? 'bg-green-100 text-green-800' :
+                  status.type === 'error' ? 'bg-red-100 text-red-800' :
+                  'bg-blue-100 text-blue-800'
+                }`}>
+                  {status.type === 'success' ? <CheckCircle className="w-5 h-5" /> :
+                   status.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
+                   <RefreshCw className="w-5 h-5 animate-spin" />}
+                  {status.message}
+                </div>
+              )}
+
+              {editingFanz && (
             <Card className="p-6 border-blue-500">
               <h3 className="text-xl font-bold mb-4">
                 {editingFanz.id.startsWith('fanz-') ? 'Créer' : 'Modifier'} le FANZ
@@ -3219,6 +3504,7 @@ export function AdminZone() {
                       const rankNum = rIdx + 1;
                       const slotId = `rank-${rankNum}`;
                       const reward = editingFanz.rankRewards?.[slotId] || { id: slotId, type: 'choice' };
+                      const cost = editingFanz.rankCosts?.[slotId] || { money: rankNum * 1000, boostPoints: rankNum * 50 };
                       
                       return (
                         <div key={rankNum} className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-200">
@@ -3226,6 +3512,41 @@ export function AdminZone() {
                             <div className="font-black italic uppercase text-sm text-gray-500">Rang {rankNum}</div>
                             <Trophy className="w-4 h-4 text-orange-500" />
                           </div>
+                          
+                          {rankNum > 1 && (
+                            <div className="space-y-2 pb-3 border-b border-gray-200">
+                              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Coût pour débloquer</div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] text-gray-500 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-3 h-3" /> Argent</label>
+                                  <input 
+                                    type="number" 
+                                    value={cost.money || 0}
+                                    onChange={e => {
+                                      const newCosts = { ...(editingFanz.rankCosts || {}) };
+                                      newCosts[slotId] = { ...cost, money: Number(e.target.value) };
+                                      setEditingFanz({...editingFanz, rankCosts: newCosts});
+                                    }}
+                                    className="w-full p-1.5 text-sm bg-white border border-gray-300 rounded"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] text-gray-500 flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-3 h-3" /> Boost</label>
+                                  <input 
+                                    type="number" 
+                                    value={cost.boostPoints || 0}
+                                    onChange={e => {
+                                      const newCosts = { ...(editingFanz.rankCosts || {}) };
+                                      newCosts[slotId] = { ...cost, boostPoints: Number(e.target.value) };
+                                      setEditingFanz({...editingFanz, rankCosts: newCosts});
+                                    }}
+                                    className="w-full p-1.5 text-sm bg-white border border-gray-300 rounded"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="space-y-2">
                             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Récompense unique</div>
                             <RewardSelector
@@ -3340,6 +3661,147 @@ export function AdminZone() {
               </div>
             )}
           </div>
+          </>
+          )}
+
+          {activeFanzSubTab === 'fervor' && fanzFervorConfig && (
+            <Card className="p-6 space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold">Chemin de Ferveur FANZ</h3>
+                <div className="flex gap-2">
+                  <Button onClick={handleSaveFanzFervorConfig} disabled={loading}>
+                    <Save className="w-4 h-4 mr-2" /> Sauvegarder
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {fanzFervorConfig.ranges?.map((range, idx) => (
+                  <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4 relative">
+                    <button 
+                      onClick={() => {
+                        const newRanges = fanzFervorConfig.ranges.filter((_, i) => i !== idx);
+                        // Re-number levels
+                        newRanges.forEach((r, i) => r.level = i + 1);
+                        setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
+                      }}
+                      className="absolute top-2 right-2 text-red-500 hover:text-red-400"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-bold text-blue-600">NIVEAU {range.level}</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-gray-500">Min</label>
+                        <input
+                          type="number"
+                          value={range.min}
+                          onChange={(e) => {
+                            const newRanges = [...fanzFervorConfig.ranges];
+                            newRanges[idx] = { ...range, min: Number(e.target.value) };
+                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded p-1 text-sm text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-gray-500">Max</label>
+                        <input
+                          type="number"
+                          value={range.max}
+                          onChange={(e) => {
+                            const newRanges = [...fanzFervorConfig.ranges];
+                            newRanges[idx] = { ...range, max: Number(e.target.value) };
+                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded p-1 text-sm text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-gray-500">Pas</label>
+                        <input
+                          type="number"
+                          value={range.step}
+                          onChange={(e) => {
+                            const newRanges = [...fanzFervorConfig.ranges];
+                            newRanges[idx] = { ...range, step: Number(e.target.value) };
+                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded p-1 text-sm text-gray-900"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Récompense de niveau</label>
+                        <RewardSelector
+                          reward={range.levelReward}
+                          onChange={(reward) => {
+                            const newRanges = [...fanzFervorConfig.ranges];
+                            newRanges[idx].levelReward = reward;
+                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
+                          }}
+                          fanzTemplates={fanzTemplates}
+                          lifeActions={lifeActions}
+                          duelCards={duelCards}
+                          theme="light"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Gain intermédiaire</label>
+                        <RewardSelector
+                          reward={range.intermediateReward}
+                          onChange={(reward) => {
+                            const newRanges = [...fanzFervorConfig.ranges];
+                            newRanges[idx].intermediateReward = reward;
+                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
+                          }}
+                          fanzTemplates={fanzTemplates}
+                          lifeActions={lifeActions}
+                          duelCards={duelCards}
+                          theme="light"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <div 
+                  className="p-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-blue-500/50 transition-colors min-h-[200px]"
+                  onClick={() => {
+                    const lastRange = fanzFervorConfig.ranges[fanzFervorConfig.ranges.length - 1];
+                    const newLevel = (lastRange?.level || 0) + 1;
+                    const newMin = (lastRange?.max || 0) + 1;
+                    const newMax = newMin + 9999;
+                    const newStep = lastRange?.step || 100;
+                    setFanzFervorConfig({
+                      ...fanzFervorConfig,
+                      ranges: [
+                        ...fanzFervorConfig.ranges,
+                        {
+                          level: newLevel,
+                          min: newMin,
+                          max: newMax,
+                          step: newStep,
+                          levelReward: { type: 'money', amount: 1000 },
+                          intermediateReward: { type: 'money', amount: 50 }
+                        }
+                      ]
+                    });
+                  }}
+                >
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                    <span className="text-2xl text-blue-600">+</span>
+                  </div>
+                  <span className="font-bold text-gray-500">Ajouter un Niveau</span>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
       )}
     </div>

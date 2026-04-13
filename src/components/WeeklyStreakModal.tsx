@@ -200,14 +200,14 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
   if (loading) return null;
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative"
+        className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-[450px] h-full max-h-[85vh] overflow-hidden shadow-2xl relative flex flex-col"
       >
         {/* Header */}
-        <div className="relative h-32 bg-gradient-to-br from-orange-600 to-red-700 flex items-center justify-center overflow-hidden">
+        <div className="relative shrink-0 h-32 bg-gradient-to-br from-orange-600 to-red-700 flex items-center justify-center overflow-hidden">
           <button 
             onClick={onClose}
             className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-colors z-10"
@@ -229,14 +229,14 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto no-scrollbar flex-1">
           {/* Days Grid */}
           {configs.length === 0 ? (
             <div className="text-center py-8 text-gray-500 italic">
               Aucune récompense configurée pour le moment.
             </div>
           ) : (
-            <div className="grid grid-cols-4 md:grid-cols-7 gap-3 mb-8">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-8">
               {configs.map((config) => {
                 const isPast = config.day < currentDay;
                 const isCurrent = config.day === currentDay;

@@ -139,7 +139,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
 
       const teamPath = `teams/${teamId}`;
       let ferveurBonus = 0;
-      let initialCards: string[] = [];
+      let initialCards: string[] = [...INITIAL_USER_DATA.cards];
       let isFirstFan = false;
 
       try {
@@ -147,7 +147,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
         const teamSnap = await getDoc(teamRef);
         if (!teamSnap.exists()) {
           ferveurBonus = 10;
-          initialCards = ['card_first_supporter'];
+          initialCards.push('card_first_supporter');
           isFirstFan = true;
           await setDoc(teamRef, {
             teamId: teamId,
@@ -161,6 +161,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
         handleFirestoreError(err, OperationType.WRITE, teamPath);
       }
 
+      const fanzId = Math.random().toString(36).substring(7);
       const userPath = `users/${user.uid}`;
       try {
         await setDoc(doc(db, userPath), {
@@ -171,6 +172,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           favoriteTeams: [teamId],
           ferveurPoints: ferveurBonus,
           cards: initialCards,
+          activeFanzId: fanzId,
           lastEnergyRefill: new Date().toISOString(),
           role: ((user.email || email) === 'gael.manigley@gmail.com' || (user.email || email) === 'michel@gmail.com') ? 'admin' : 'client',
         });
@@ -183,7 +185,6 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
         handleFirestoreError(err, OperationType.CREATE, userPath);
       }
 
-      const fanzId = Math.random().toString(36).substring(7);
       const fanzPath = `fanz/${fanzId}`;
       try {
         await setDoc(doc(db, fanzPath), {
@@ -204,7 +205,8 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           ferveurPoints: 0,
           ferveurLevel: 1,
           energy: 100,
-          equippedCards: [],
+          equippedCards: initialCards.slice(0, 8),
+          deck: initialCards.slice(0, 8),
           unlockedSkins: ['default'],
           unlockedEmotes: ['default'],
           equippedSkin: 'default',

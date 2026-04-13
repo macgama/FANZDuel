@@ -1,21 +1,21 @@
 import { GlobalFervorConfig } from '../types';
 
 export const FERVOR_RANGES = [
-  { level: 1, min: 0, max: 499, step: 10 },
-  { level: 2, min: 500, max: 1549, step: 15 },
-  { level: 3, min: 1550, max: 5099, step: 50 },
-  { level: 4, min: 5100, max: 10099, step: 100 },
-  { level: 5, min: 10100, max: 15099, step: 100 },
-  { level: 6, min: 15100, max: 20099, step: 100 },
-  { level: 7, min: 20100, max: 25099, step: 100 },
-  { level: 8, min: 25100, max: 30199, step: 100 },
-  { level: 9, min: 30200, max: 40199, step: 100 },
-  { level: 10, min: 40200, max: 50199, step: 100 },
-  { level: 11, min: 50200, max: 60199, step: 100 },
-  { level: 12, min: 60200, max: 70199, step: 100 },
-  { level: 13, min: 70200, max: 80199, step: 100 },
-  { level: 14, min: 80200, max: 90199, step: 100 },
-  { level: 15, min: 90200, max: 99999, step: 100 },
+  { level: 1, min: 0, max: 99999, step: 5000 },
+  { level: 2, min: 100000, max: 499999, step: 10000 },
+  { level: 3, min: 500000, max: 999999, step: 25000 },
+  { level: 4, min: 1000000, max: 1999999, step: 50000 },
+  { level: 5, min: 2000000, max: 2999999, step: 50000 },
+  { level: 6, min: 3000000, max: 3999999, step: 100000 },
+  { level: 7, min: 4000000, max: 4999999, step: 100000 },
+  { level: 8, min: 5000000, max: 5999999, step: 100000 },
+  { level: 9, min: 6000000, max: 6999999, step: 200000 },
+  { level: 10, min: 7000000, max: 7999999, step: 200000 },
+  { level: 11, min: 8000000, max: 8999999, step: 200000 },
+  { level: 12, min: 9000000, max: 9999999, step: 250000 },
+  { level: 13, min: 10000000, max: 11999999, step: 250000 },
+  { level: 14, min: 12000000, max: 14999999, step: 500000 },
+  { level: 15, min: 15000000, max: 15000000, step: 1000000 },
 ];
 
 export function generateFervorPath(maxPoints: number, config?: GlobalFervorConfig) {
@@ -25,8 +25,8 @@ export function generateFervorPath(maxPoints: number, config?: GlobalFervorConfi
   
   const rangesToUse = config?.ranges || FERVOR_RANGES.map(r => ({
     ...r,
-    levelReward: { type: 'gems', amount: r.level * 5 },
-    intermediateReward: { type: 'money', amount: r.level * 100 }
+    levelReward: { type: 'gems', amount: r.level * 100 },
+    intermediateReward: { type: 'money', amount: r.level * 1000 }
   }));
   
   for (const range of rangesToUse) {
@@ -52,16 +52,6 @@ export function generateFervorPath(maxPoints: number, config?: GlobalFervorConfi
       });
       nextStep += range.step;
     }
-  }
-  
-  if (maxPoints >= 100000) {
-    milestones.push({
-      pointsRequired: 100000,
-      isIntermediate: false,
-      level: nodeIndex++,
-      displayLevel: majorLevelIndex++,
-      reward: { type: 'boost', amount: 10 }
-    });
   }
   
   return milestones;
