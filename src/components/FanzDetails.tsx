@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getImageUrl } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSnapshot, arrayUnion } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
 import { UserProfile, Fanz, ActiveAction, LifeAction, UserCard, Card as DuelCard, FanzTemplate, FanzSkin, FanzEmote, GlobalFervorConfig } from '../types';
@@ -264,7 +264,9 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       const fanzRef = doc(db, 'fanz', fanz.id);
       
       const updatedSkins = [...(fanz.unlockedSkins || []), skin.id];
-      const userUpdates: any = {};
+      const userUpdates: any = {
+        skins: arrayUnion(skin.id)
+      };
       if (skin.price.money) userUpdates.money = (userProfile.money || 0) - skin.price.money;
       if (skin.price.gems) userUpdates.gems = (userProfile.gems || 0) - skin.price.gems;
       if (skin.price.boostPoints) userUpdates.boostPoints = (userProfile.boostPoints || 0) - skin.price.boostPoints;
@@ -313,7 +315,9 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       const fanzRef = doc(db, 'fanz', fanz.id);
       
       const updatedEmotes = [...(fanz.unlockedEmotes || []), emote.id];
-      const userUpdates: any = {};
+      const userUpdates: any = {
+        emotes: arrayUnion(emote.id)
+      };
       if (emote.price.money) userUpdates.money = (userProfile.money || 0) - emote.price.money;
       if (emote.price.gems) userUpdates.gems = (userProfile.gems || 0) - emote.price.gems;
       if (emote.price.boostPoints) userUpdates.boostPoints = (userProfile.boostPoints || 0) - emote.price.boostPoints;

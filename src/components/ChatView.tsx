@@ -17,6 +17,7 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
   const [loading, setLoading] = useState(true);
   const [showEmotes, setShowEmotes] = useState(false);
   const [allEmotes, setAllEmotes] = useState<FanzEmote[]>([]);
+  const [unlockedEmoteIds, setUnlockedEmoteIds] = useState<string[]>(currentUser.emotes || []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const chatId = [currentUser.uid, friend.uid].sort().join('_');
@@ -50,7 +51,33 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
         console.error("Error fetching emotes", err);
       }
     };
+
+    const fetchUserFanzEmotes = async () => {
+      if (!currentUser.uid) return;
+      try {
+        const q = query(collection(db, 'fanz'), where('ownerUid', '==', currentUser.uid));
+        const snap = await getDocs(q);
+        const fanzEmotes: string[] = [];
+        snap.forEach(doc => {
+          const data = doc.data();
+          if (data.unlockedEmotes) {
+            fanzEmotes.push(...data.unlockedEmotes);
+          }
+        });
+        
+        // Combine with currentUser.emotes and remove duplicates
+        const combined = Array.from(new Set([
+          ...(currentUser.emotes || []),
+          ...fanzEmotes
+        ]));
+        setUnlockedEmoteIds(combined);
+      } catch (err) {
+        console.error("Error fetching user fanz emotes", err);
+      }
+    };
+
     fetchEmotes();
+    fetchUserFanzEmotes();
 
     let unsubscribe: () => void;
 
@@ -130,7 +157,7 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
   };
 
   // Filter available emotes based on what the user has unlocked
-  const availableEmotes = allEmotes.filter(e => currentUser.emotes?.includes(e.id));
+  const availableEmotes = allEmotes.filter(e => unlockedEmoteIds.includes(e.id));
 
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a]">

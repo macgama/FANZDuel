@@ -567,6 +567,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
   // Emotes State
   const [allEmotes, setAllEmotes] = useState<FanzEmote[]>([]);
+  const [unlockedEmoteIds, setUnlockedEmoteIds] = useState<string[]>(user.emotes || []);
   const [showEmotes, setShowEmotes] = useState(false);
   const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, team: string, x: number, y: number}[]>([]);
 
@@ -655,6 +656,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         }
         
         setAllEmotes(emotes);
+
+        // Fetch User Fanz Emotes to sync
+        const fanzQ = query(collection(db, 'fanz'), where('ownerUid', '==', user.uid));
+        const fanzSnapshots = await getDocs(fanzQ);
+        const fanzEmotes: string[] = [];
+        fanzSnapshots.forEach(doc => {
+          const data = doc.data();
+          if (data.unlockedEmotes) {
+            fanzEmotes.push(...data.unlockedEmotes);
+          }
+        });
+        
+        const combinedEmotes = Array.from(new Set([
+          ...(user.emotes || []),
+          ...fanzEmotes
+        ]));
+        setUnlockedEmoteIds(combinedEmotes);
 
         const shuffled = [...cardsToUse].sort(() => Math.random() - 0.5);
         setDeck(shuffled);
@@ -1449,8 +1467,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             </button>
             {showEmotes && (
               <div className="absolute top-full right-0 mt-2 w-64 bg-gray-900 border border-white/10 rounded-xl p-2 grid grid-cols-4 gap-2 max-h-48 overflow-y-auto shadow-2xl z-[100]">
-                {allEmotes.filter(e => user.emotes?.includes(e.id)).length > 0 ? (
-                  allEmotes.filter(e => user.emotes?.includes(e.id)).map((emote, idx) => (
+                {allEmotes.filter(e => unlockedEmoteIds.includes(e.id)).length > 0 ? (
+                  allEmotes.filter(e => unlockedEmoteIds.includes(e.id)).map((emote, idx) => (
                     <button 
                       key={`${emote.id}-${idx}`}
                       onClick={() => {
