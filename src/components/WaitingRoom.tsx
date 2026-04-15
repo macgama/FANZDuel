@@ -74,7 +74,7 @@ export function WaitingRoom({ user, onJoinDuel, onBack }: WaitingRoomProps) {
     };
 
     fetchDuels();
-    const interval = setInterval(fetchDuels, 5000); // Refresh every 5s
+    const interval = setInterval(fetchDuels, 10000); // Refresh every 10s instead of 5s
     return () => clearInterval(interval);
   }, []);
 

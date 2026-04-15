@@ -382,8 +382,9 @@ async function startServer() {
   });
 
   app.get("/api/duels", (req, res) => {
-    const activeDuels = Object.values(duels).filter(d => d.status === 'waiting' && !d.isPrivate);
-    res.json(activeDuels);
+    const waitingDuels = Object.values(duels).filter(d => d.status === 'waiting' && !d.isPrivate);
+    console.log(`[API] Fetching waiting duels. Count: ${waitingDuels.length}`);
+    res.json(waitingDuels);
   });
 
   app.get("/api/duels/:matchId", (req, res) => {

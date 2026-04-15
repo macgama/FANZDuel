@@ -34,12 +34,14 @@ export function LeaderboardPage() {
     const fetchTeams = async () => {
       setLoadingTeams(true);
       try {
-        const snapshot = await getDocs(collection(db, 'teams'));
+        // Limit to top 100 teams by ferveurEarned to reduce reads
+        const q = query(collection(db, 'teams'), orderBy('ferveurEarned', 'desc'), limit(100));
+        const snapshot = await getDocs(q);
         const teamsData = await Promise.all(snapshot.docs.map(async (docSnapshot) => {
           const data = docSnapshot.data();
           let leagueIds = data.leagueIds;
           
-          // Backfill leagueIds if missing
+          // Backfill leagueIds if missing - only if strictly necessary and not hitting quota
           if (!leagueIds && !isNaN(Number(docSnapshot.id))) {
             try {
               const leaguesData = await footballApi.getLeaguesByTeam(Number(docSnapshot.id));
@@ -122,7 +124,9 @@ export function LeaderboardPage() {
     const fetchUsers = async () => {
       setLoadingUsers(true);
       try {
-        const snapshot = await getDocs(collection(db, 'users'));
+        // Limit to top 100 users by ferveurPoints to reduce reads
+        const q = query(collection(db, 'users'), orderBy('ferveurPoints', 'desc'), limit(100));
+        const snapshot = await getDocs(q);
         const usersData = snapshot.docs.map(doc => {
           const data = doc.data() as UserProfile;
           return {

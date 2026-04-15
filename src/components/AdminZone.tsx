@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { footballApi } from '../services/footballApi';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where, getDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
 import { Card, Button } from './Layout';
 import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle, DuelConfig, FanzSkin, PassLevel } from '../types';
 import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
+import { generateFervorPath } from '../utils/fervorPath';
 import { RewardSelector } from './RewardSelector';
 import { BASE_CARDS } from '../constants/cards';
 import { ALL_FANZ } from '../constants/fanz';
@@ -16,7 +17,6 @@ import { footballDataService } from '../services/footballDataService';
 export function AdminZone() {
   const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
-  const [activeFanzSubTab, setActiveFanzSubTab] = useState<'templates' | 'fervor'>('templates');
   
   // Duel Config state
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
@@ -59,32 +59,19 @@ export function AdminZone() {
     } else if (activeTab === 'duelCards') {
       fetchDuelCards();
     } else if (activeTab === 'fanz') {
-      if (activeFanzSubTab === 'templates') {
-        fetchFanzTemplates();
-        if (duelCards.length === 0) fetchDuelCards();
-        if (lifeActions.length === 0) fetchLifeActions();
-      } else if (activeFanzSubTab === 'fervor') {
-        fetchUserFervorConfig();
-      }
+      fetchFanzTemplates();
+      fetchUserFervorConfig();
     } else if (activeTab === 'users') {
-      fetchUserData();
-      if (fanzTemplates.length === 0) fetchFanzTemplates();
-      if (duelCards.length === 0) fetchDuelCards();
-      if (lifeActions.length === 0) fetchLifeActions();
-    } else if (activeTab === 'duelConfig') {
-      fetchDuelConfig();
-    }
-  }, [activeTab, activeFanzSubTab]);
-
-  useEffect(() => {
-    if (activeTab === 'users') {
+      // Only fetch the current sub-tab's data to avoid massive reads
       if (activeUserSubTab === 'profiles') fetchUsers();
       if (activeUserSubTab === 'missions') fetchMissions();
       if (activeUserSubTab === 'passes') fetchPasses();
       if (activeUserSubTab === 'fervor') fetchUserFervorConfig();
       if (activeUserSubTab === 'streak') fetchStreakCycles();
+    } else if (activeTab === 'duelConfig') {
+      fetchDuelConfig();
     }
-  }, [activeUserSubTab, activeTab]);
+  }, [activeTab, activeUserSubTab]); // Added activeUserSubTab to dependencies
 
   const fetchUserData = () => {
     fetchUsers();
@@ -97,7 +84,9 @@ export function AdminZone() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'users'));
+      // Limit to 100 most recent users to avoid hitting quota
+      const q = query(collection(db, 'users'), orderBy('lastLoginDate', 'desc'), limit(100));
+      const querySnapshot = await getDocs(q);
       const usersData = querySnapshot.docs.map(doc => ({ ...doc.data() } as UserProfile));
       setUsers(usersData);
     } catch (err) {
@@ -353,7 +342,8 @@ export function AdminZone() {
     setLoading(true);
     try {
       const configRef = doc(db, 'global_configs', 'duel_config');
-      await setDoc(configRef, duelConfig);
+      const sanitizedConfig = JSON.parse(JSON.stringify(duelConfig));
+      await setDoc(configRef, sanitizedConfig);
       setStatus({ type: 'success', message: 'Configuration des duels sauvegardée !' });
     } catch (err) {
       console.error("Error saving duel config", err);
@@ -383,7 +373,8 @@ export function AdminZone() {
     setLoading(true);
     try {
       const configRef = doc(db, 'global_configs', 'user_fervor');
-      await setDoc(configRef, userFervorConfig);
+      const sanitizedConfig = JSON.parse(JSON.stringify(userFervorConfig));
+      await setDoc(configRef, sanitizedConfig);
       setStatus({ type: 'success', message: 'Chemin de ferveur global sauvegardé !' });
     } catch (err) {
       console.error("Error saving user fervor config", err);
@@ -398,7 +389,8 @@ export function AdminZone() {
     setLoading(true);
     try {
       const configRef = doc(db, 'global_configs', 'fanz_fervor');
-      await setDoc(configRef, fanzFervorConfig);
+      const sanitizedConfig = JSON.parse(JSON.stringify(fanzFervorConfig));
+      await setDoc(configRef, sanitizedConfig);
       setStatus({ type: 'success', message: 'Chemin de ferveur FANZ sauvegardé !' });
     } catch (err) {
       console.error("Error saving fanz fervor config", err);
@@ -414,7 +406,8 @@ export function AdminZone() {
     setLoading(true);
     try {
       const ref = doc(db, 'weekly_streak_cycles', editingCycle.id);
-      await setDoc(ref, editingCycle);
+      const sanitizedCycle = JSON.parse(JSON.stringify(editingCycle));
+      await setDoc(ref, sanitizedCycle);
       setStatus({ type: 'success', message: 'Cycle sauvegardé !' });
       setEditingCycle(null);
       fetchStreakCycles();
@@ -472,7 +465,8 @@ export function AdminZone() {
     setLoading(true);
     try {
       const ref = doc(db, 'missions', editingMission.id);
-      await setDoc(ref, editingMission);
+      const sanitizedMission = JSON.parse(JSON.stringify(editingMission));
+      await setDoc(ref, sanitizedMission);
       setStatus({ type: 'success', message: 'Mission sauvegardée !' });
       fetchMissions();
       setEditingMission(null);
@@ -490,7 +484,8 @@ export function AdminZone() {
     setLoading(true);
     try {
       const ref = doc(db, 'passes', editingPass.id);
-      await setDoc(ref, editingPass);
+      const sanitizedPass = JSON.parse(JSON.stringify(editingPass));
+      await setDoc(ref, sanitizedPass);
       setStatus({ type: 'success', message: 'Pass sauvegardé !' });
       fetchPasses();
       setEditingPass(null);
@@ -720,47 +715,15 @@ export function AdminZone() {
   };
 
   const handleFixFerveurPaths = async () => {
+    if (!fanzFervorConfig) {
+      setStatus({ type: 'error', message: 'Configuration globale de la ferveur FANZ non trouvée.' });
+      return;
+    }
+
     setLoading(true);
     setStatus({ type: 'info', message: 'Mise à jour de tous les chemins de ferveur...' });
     try {
-      const defaultPath: FerveurLevel[] = [];
-      const fanzLevels = [
-        { level: 2, points: 5000, reward: { type: 'gems', amount: 50 } },
-        { level: 3, points: 15000, reward: { type: 'money', amount: 1000 } }, 
-        { level: 4, points: 30000, reward: { type: 'gems', amount: 100 } },
-        { level: 5, points: 50000, reward: { type: 'boost', amount: 5 } },
-        { level: 6, points: 75000, reward: { type: 'money', amount: 5000 } },
-        { level: 7, points: 100000, reward: { type: 'gems', amount: 500 } },
-        { level: 8, points: 120000, reward: { type: 'boost', amount: 10 } },
-        { level: 9, points: 135000, reward: { type: 'money', amount: 10000 } },
-        { level: 10, points: 150000, reward: { type: 'gems', amount: 1000 } },
-      ];
-
-      const steps = [];
-      for (let pts = 1000; pts <= 30000; pts += 1000) steps.push(pts);
-      for (let pts = 32500; pts <= 75000; pts += 2500) steps.push(pts);
-      for (let pts = 80000; pts <= 150000; pts += 5000) steps.push(pts);
-
-      fanzLevels.forEach(l => {
-        if (!steps.includes(l.points)) steps.push(l.points);
-      });
-      steps.sort((a, b) => a - b);
-
-      const uniqueSteps = Array.from(new Set(steps));
-
-      uniqueSteps.forEach(pts => {
-        const major = fanzLevels.find(l => l.points === pts);
-        if (major) {
-          defaultPath.push({ level: major.level, pointsRequired: pts, reward: major.reward as any });
-        } else {
-          let reward = { type: 'money', amount: 100 };
-          if (pts % 10000 === 0) reward = { type: 'boost', amount: 2 };
-          else if (pts % 5000 === 0) reward = { type: 'gems', amount: 20 };
-          else if (pts % 2000 === 0) reward = { type: 'xp', amount: 50 };
-          
-          defaultPath.push({ isIntermediate: true, pointsRequired: pts, reward: reward as any });
-        }
-      });
+      const defaultPath = generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 150000, fanzFervorConfig);
 
       let count = 0;
       
@@ -809,8 +772,6 @@ export function AdminZone() {
 
       if (opsCount > 0) {
         await batch.commit();
-        batch = writeBatch(db);
-        opsCount = 0;
       }
 
       // Update global configs
@@ -1304,6 +1265,19 @@ export function AdminZone() {
           Config DUEL
         </button>
       </div>
+
+      {status && (
+        <div className={`p-4 rounded-xl flex items-center gap-3 border animate-in fade-in slide-in-from-top-4 duration-300 ${
+          status.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400' :
+          status.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
+          'bg-blue-500/10 border-blue-500/20 text-blue-400'
+        }`}>
+          {status.type === 'success' ? <CheckCircle className="w-5 h-5" /> :
+           status.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
+           <RefreshCw className="w-5 h-5 animate-spin" />}
+          <p className="font-bold">{status.message}</p>
+        </div>
+      )}
 
       {activeTab === 'users' && (
         <div className="space-y-6">
@@ -2174,18 +2148,6 @@ export function AdminZone() {
           </Button>
         </div>
 
-        {status && (
-          <div className={`p-4 rounded-lg flex items-center gap-3 ${
-            status.type === 'success' ? 'bg-green-100 text-green-800' :
-            status.type === 'error' ? 'bg-red-100 text-red-800' :
-            'bg-blue-100 text-blue-800'
-          }`}>
-            {status.type === 'success' ? <CheckCircle className="w-5 h-5" /> :
-             status.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
-             <RefreshCw className="w-5 h-5 animate-spin" />}
-            {status.message}
-          </div>
-        )}
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -2236,18 +2198,6 @@ export function AdminZone() {
             </div>
           </div>
 
-          {status && activeTab === 'duelCards' && (
-            <div className={`p-4 rounded-lg flex items-center gap-3 ${
-              status.type === 'success' ? 'bg-green-100 text-green-800' :
-              status.type === 'error' ? 'bg-red-100 text-red-800' :
-              'bg-blue-100 text-blue-800'
-            }`}>
-              {status.type === 'success' ? <CheckCircle className="w-5 h-5" /> :
-               status.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
-               <RefreshCw className="w-5 h-5 animate-spin" />}
-              {status.message}
-            </div>
-          )}
 
           {editingCard && (
             <Card className="p-6 border-blue-500">
@@ -2870,23 +2820,6 @@ export function AdminZone() {
       )}
       {activeTab === 'fanz' && (
         <div className="space-y-6">
-          <div className="flex gap-4 border-b border-gray-200 mb-6">
-            <button
-              className={`pb-2 px-4 font-bold text-sm ${activeFanzSubTab === 'templates' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setActiveFanzSubTab('templates')}
-            >
-              Modèles FANZ
-            </button>
-            <button
-              className={`pb-2 px-4 font-bold text-sm ${activeFanzSubTab === 'fervor' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setActiveFanzSubTab('fervor')}
-            >
-              Chemin Ferveur FANZ
-            </button>
-          </div>
-
-          {activeFanzSubTab === 'templates' && (
-            <>
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Modèles FANZ</h2>
                 <div className="flex gap-3">
@@ -2899,18 +2832,6 @@ export function AdminZone() {
                 </div>
               </div>
 
-              {status && activeTab === 'fanz' && (
-                <div className={`p-4 rounded-lg flex items-center gap-3 ${
-                  status.type === 'success' ? 'bg-green-100 text-green-800' :
-                  status.type === 'error' ? 'bg-red-100 text-red-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {status.type === 'success' ? <CheckCircle className="w-5 h-5" /> :
-                   status.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
-                   <RefreshCw className="w-5 h-5 animate-spin" />}
-                  {status.message}
-                </div>
-              )}
 
               {editingFanz && (
             <Card className="p-6 border-blue-500">
@@ -3661,23 +3582,32 @@ export function AdminZone() {
               </div>
             )}
           </div>
-          </>
-          )}
 
-          {activeFanzSubTab === 'fervor' && fanzFervorConfig && (
-            <Card className="p-6 space-y-6">
+          {fanzFervorConfig && (
+            <Card className="p-6 space-y-6 mt-12 bg-gray-900 border-orange-500/30">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold">Chemin de Ferveur FANZ</h3>
-                <div className="flex gap-2">
-                  <Button onClick={handleSaveFanzFervorConfig} disabled={loading}>
-                    <Save className="w-4 h-4 mr-2" /> Sauvegarder
-                  </Button>
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black italic uppercase text-white flex items-center gap-3">
+                    <RefreshCw className="w-6 h-6 text-orange-500" />
+                    Chemin de Ferveur FANZ
+                  </h3>
+                  <p className="text-sm text-gray-400">
+                    Configuration globale servant de modèle par défaut pour tous les FANZ.
+                  </p>
                 </div>
+                <Button 
+                  onClick={handleSaveFanzFervorConfig} 
+                  disabled={loading}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-black uppercase italic px-8 py-4 h-auto flex flex-col items-center gap-1 rounded-2xl shadow-xl shadow-orange-500/20"
+                >
+                  <Save className="w-6 h-6" />
+                  <span className="text-xs">Sauvegarder</span>
+                </Button>
               </div>
 
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {fanzFervorConfig.ranges?.map((range, idx) => (
-                  <div key={idx} className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4 relative">
+                  <div key={idx} className="p-4 rounded-xl border bg-gray-800/50 border-orange-900/30 space-y-4 relative">
                     <button 
                       onClick={() => {
                         const newRanges = fanzFervorConfig.ranges.filter((_, i) => i !== idx);
@@ -3690,7 +3620,9 @@ export function AdminZone() {
                       <Trash2 className="w-4 h-4" />
                     </button>
                     <div className="flex justify-between items-center mb-2">
-                      <h4 className="font-bold text-blue-600">NIVEAU {range.level}</h4>
+                      <span className="font-black text-orange-400 uppercase italic">
+                        NIVEAU {range.level}
+                      </span>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-2">
@@ -3704,7 +3636,7 @@ export function AdminZone() {
                             newRanges[idx] = { ...range, min: Number(e.target.value) };
                             setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
                           }}
-                          className="w-full bg-white border border-gray-300 rounded p-1 text-sm text-gray-900"
+                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
                         />
                       </div>
                       <div>
@@ -3717,7 +3649,7 @@ export function AdminZone() {
                             newRanges[idx] = { ...range, max: Number(e.target.value) };
                             setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
                           }}
-                          className="w-full bg-white border border-gray-300 rounded p-1 text-sm text-gray-900"
+                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
                         />
                       </div>
                       <div>
@@ -3730,48 +3662,45 @@ export function AdminZone() {
                             newRanges[idx] = { ...range, step: Number(e.target.value) };
                             setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
                           }}
-                          className="w-full bg-white border border-gray-300 rounded p-1 text-sm text-gray-900"
+                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
                         />
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 mt-4">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Récompense de niveau</label>
-                        <RewardSelector
-                          reward={range.levelReward}
-                          onChange={(reward) => {
-                            const newRanges = [...fanzFervorConfig.ranges];
-                            newRanges[idx].levelReward = reward;
-                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
-                          }}
-                          fanzTemplates={fanzTemplates}
-                          lifeActions={lifeActions}
-                          duelCards={duelCards}
-                          theme="light"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Gain intermédiaire</label>
-                        <RewardSelector
-                          reward={range.intermediateReward}
-                          onChange={(reward) => {
-                            const newRanges = [...fanzFervorConfig.ranges];
-                            newRanges[idx].intermediateReward = reward;
-                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
-                          }}
-                          fanzTemplates={fanzTemplates}
-                          lifeActions={lifeActions}
-                          duelCards={duelCards}
-                          theme="light"
-                        />
-                      </div>
+                    <div className="space-y-2 mt-4">
+                      <label className="text-[10px] font-bold uppercase text-gray-500">Récompense de Niveau</label>
+                      <RewardSelector
+                        reward={range.levelReward}
+                        onChange={(reward) => {
+                          const newRanges = [...fanzFervorConfig.ranges];
+                          newRanges[idx] = { ...range, levelReward: reward };
+                          setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
+                        }}
+                        fanzTemplates={fanzTemplates}
+                        lifeActions={lifeActions}
+                        duelCards={duelCards}
+                      />
+                    </div>
+
+                    <div className="space-y-2 mt-4 pt-4 border-t border-gray-700">
+                      <label className="text-[10px] font-bold uppercase text-gray-500">Gain Intermédiaire</label>
+                      <RewardSelector
+                        reward={range.intermediateReward}
+                        onChange={(reward) => {
+                          const newRanges = [...fanzFervorConfig.ranges];
+                          newRanges[idx] = { ...range, intermediateReward: reward };
+                          setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
+                        }}
+                        fanzTemplates={fanzTemplates}
+                        lifeActions={lifeActions}
+                        duelCards={duelCards}
+                      />
                     </div>
                   </div>
                 ))}
                 
                 <div 
-                  className="p-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-blue-500/50 transition-colors min-h-[200px]"
+                  className="p-4 rounded-xl border border-dashed border-gray-700 bg-gray-800/20 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-800/50 hover:border-orange-500/50 transition-colors min-h-[200px]"
                   onClick={() => {
                     const lastRange = fanzFervorConfig.ranges[fanzFervorConfig.ranges.length - 1];
                     const newLevel = (lastRange?.level || 0) + 1;
@@ -3794,10 +3723,10 @@ export function AdminZone() {
                     });
                   }}
                 >
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-2">
-                    <span className="text-2xl text-blue-600">+</span>
+                  <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center mb-2">
+                    <span className="text-2xl text-orange-400">+</span>
                   </div>
-                  <span className="font-bold text-gray-500">Ajouter un Niveau</span>
+                  <span className="font-bold text-gray-400">Ajouter un Niveau</span>
                 </div>
               </div>
             </Card>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, query, collection, where } from 'firebase/firestore';
-import { Layout, Card } from './components/Layout';
+import { Layout, Card, Button } from './components/Layout';
 import { cn } from './lib/utils';
 import { Auth } from './components/Auth';
 import { AdminZone } from './components/AdminZone';
@@ -26,7 +26,7 @@ import { LeaderboardPage } from './components/LeaderboardPage';
 import { Rankings } from './components/Rankings';
 import { PassPage } from './components/PassPage';
 import { MissionsPage } from './components/MissionsPage';
-import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon } from 'lucide-react';
+import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
 
@@ -70,6 +70,7 @@ function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [joiningDuel, setJoiningDuel] = useState<{ id: string; type: string; matchId: number } | null>(null);
   const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   const [showActiveActionModal, setShowActiveActionModal] = useState(false);
   const [activeActionDetails, setActiveActionDetails] = useState<any>(null);
@@ -84,7 +85,7 @@ function AppContent() {
   useEffect(() => {
     if (!user) return;
     
-    const fetchWaitingDuels = async () => {
+    const fetchWaitingDuels = async (retries = 3) => {
       try {
         const res = await fetch('/api/duels');
         if (res.ok) {
@@ -92,14 +93,19 @@ function AppContent() {
           // Filter out duels where the current user is already a participant
           const waitingCount = duels.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)).length;
           setWaitingDuelsCount(waitingCount);
+        } else if (retries > 0) {
+          setTimeout(() => fetchWaitingDuels(retries - 1), 2000);
         }
       } catch (err) {
         console.error("Failed to fetch waiting duels", err);
+        if (retries > 0) {
+          setTimeout(() => fetchWaitingDuels(retries - 1), 2000);
+        }
       }
     };
 
     fetchWaitingDuels();
-    const interval = setInterval(fetchWaitingDuels, 5000);
+    const interval = setInterval(fetchWaitingDuels, 15000); // Reduce frequency to 15s
     return () => clearInterval(interval);
   }, [user]);
 
@@ -263,6 +269,9 @@ function AppContent() {
           setLoading(false);
         }, (error) => {
           console.error("Profile snapshot error:", error);
+          if (error.message?.includes('Quota limit exceeded') || error.message?.includes('quota')) {
+            setQuotaExceeded(true);
+          }
           setLoading(false);
         });
       } else {
@@ -299,6 +308,24 @@ function AppContent() {
     const interval = setInterval(checkEnergy, 60000); // Check every minute
     return () => clearInterval(interval);
   }, [user, profile]);
+
+  if (quotaExceeded) {
+    return (
+      <Layout containerClassName="flex flex-col items-center justify-center p-8 text-center">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-black uppercase italic text-white mb-4">Quota de lecture dépassé</h2>
+          <p className="text-gray-400 mb-6">
+            L'application a atteint sa limite quotidienne de lectures Firestore. 
+            Le service sera rétabli automatiquement demain.
+          </p>
+          <Button onClick={() => window.location.reload()} className="bg-red-500 hover:bg-red-600">
+            Réessayer
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   if (loading) {
     return (

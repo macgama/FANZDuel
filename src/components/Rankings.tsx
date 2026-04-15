@@ -106,8 +106,15 @@ export function Rankings({ onBack }: RankingsProps) {
       setLoading(true);
       try {
         const collectionName = activeTab === 'teams' ? 'ranking_teams' : 'ranking_users';
-        // Fetch all documents and filter client-side to avoid any index or type mismatch issues
-        const q = query(collection(db, collectionName));
+        
+        // Use server-side filtering and sorting to minimize reads and processing
+        const q = query(
+          collection(db, collectionName),
+          where('season', '==', season.toString()),
+          where('leagueId', '==', leagueId.toString()),
+          orderBy('averageScore', 'desc'),
+          limit(50)
+        );
 
         const snapshot = await getDocs(q);
         console.log(`Fetched ${snapshot.size} documents from ${collectionName}`);
@@ -115,27 +122,14 @@ export function Rankings({ onBack }: RankingsProps) {
 
         for (const docSnap of snapshot.docs) {
           const data = docSnap.data();
-          console.log(`Doc ${docSnap.id}:`, data);
           
-          // Client-side filtering
-          const docSeason = data.season?.toString();
-          const docLeagueId = data.leagueId?.toString();
-          
-          if (docSeason !== season.toString() || docLeagueId !== leagueId.toString()) {
-            console.log(`Filtered out ${docSnap.id} because season ${docSeason} !== ${season} or leagueId ${docLeagueId} !== ${leagueId}`);
-            continue;
-          }
-
           let name = 'Inconnu';
           let imageUrl = '';
 
           if (activeTab === 'teams') {
             // Fetch team details
             const teamId = data.teamId?.toString();
-            if (!teamId) {
-              console.log(`Filtered out ${docSnap.id} because teamId is undefined`);
-              continue;
-            }
+            if (!teamId) continue;
             
             const teamDoc = await getDoc(doc(db, 'teams', teamId));
             if (teamDoc.exists()) {
@@ -156,10 +150,7 @@ export function Rankings({ onBack }: RankingsProps) {
           } else {
             // Fetch user details
             const userId = data.userId?.toString();
-            if (!userId) {
-              console.log(`Filtered out ${docSnap.id} because userId is undefined`);
-              continue;
-            }
+            if (!userId) continue;
             
             const userDoc = await getDoc(doc(db, 'users', userId));
             if (userDoc.exists()) {
@@ -179,11 +170,8 @@ export function Rankings({ onBack }: RankingsProps) {
           });
         }
 
-        // Sort client-side
-        entries.sort((a, b) => b.averageScore - a.averageScore);
-        
-        // Assign ranks and limit to 50
-        entries = entries.slice(0, 50).map((entry, index) => ({
+        // Assign ranks (already sorted by query)
+        entries = entries.map((entry, index) => ({
           ...entry,
           rank: index + 1
         }));
