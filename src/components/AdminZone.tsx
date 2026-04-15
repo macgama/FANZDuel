@@ -3500,7 +3500,9 @@ export function AdminZone() {
                       setEditingFanz({
                         ...editingFanz,
                         id: newId,
-                        name: `${editingFanz.name} (Copie)`
+                        name: `${editingFanz.name} (Copie)`,
+                        skins: editingFanz.skins?.map(skin => ({ ...skin, id: `skin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, fanzId: newId })),
+                        emotes: editingFanz.emotes?.map(emote => ({ ...emote, id: `emote-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, fanzId: newId }))
                       });
                     }}
                   >

@@ -1072,7 +1072,17 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     };
     socket.on('duel-finished', handleDuelFinished);
 
-    const handleEnemyCardPlayed = ({ card }: { team: string, card: GameCard }) => {
+    const handleEnemyCardPlayed = ({ team, card }: { team: string, card: GameCard }) => {
+      const currentMyTeam = myTeamRef.current || participants.find(p => p.uid === user.uid)?.team || 'A';
+
+      if (team === currentMyTeam) {
+        // Teammate played a card
+        setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
+        setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
+        addFloatingEffect(`🤝 Allié: ${card.name}`, window.innerWidth / 2, 100, 'text-blue-400 font-black scale-125');
+        return;
+      }
+
       setLastEnemyCard(card);
       setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);

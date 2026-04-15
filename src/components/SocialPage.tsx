@@ -3,7 +3,7 @@ import { UserProfile } from '../types';
 import { Card, Button } from './Layout';
 import { Users, UserPlus, Search, Check, X, Clock, Shield, MessageCircle } from 'lucide-react';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, arrayUnion, arrayRemove, getDoc, onSnapshot } from 'firebase/firestore';
 import { ChatView } from './ChatView';
 import { useAlert } from '../context/AlertContext';
 
@@ -32,35 +32,48 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
   const { showAlert } = useAlert();
 
+  const friendsStr = JSON.stringify(user.friends || []);
+  const requestsStr = JSON.stringify(user.friendRequests || []);
+
   useEffect(() => {
     fetchFriendsAndRequests();
-    fetchChats();
-  }, [user]);
+  }, [friendsStr, requestsStr]);
 
-  const fetchChats = async () => {
-    try {
-      const q = query(collection(db, 'chats'), where('participants', 'array-contains', user.uid));
-      const querySnapshot = await getDocs(q);
-      const chatsData = await Promise.all(querySnapshot.docs.map(async (chatDoc): Promise<Chat | null> => {
-        const data = chatDoc.data();
-        const otherUserId = data.participants.find((id: string) => id !== user.uid);
-        if (!otherUserId) return null;
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    const q = query(collection(db, 'chats'), where('participants', 'array-contains', user.uid));
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      try {
+        const chatsData = await Promise.all(querySnapshot.docs.map(async (chatDoc): Promise<Chat | null> => {
+          const data = chatDoc.data();
+          const otherUserId = data.participants.find((id: string) => id !== user.uid);
+          if (!otherUserId) return null;
+          
+          const userDoc = await getDoc(doc(db, 'users', otherUserId));
+          if (!userDoc.exists()) return null;
+          
+          return {
+            id: chatDoc.id,
+            ...data,
+            otherUser: { uid: userDoc.id, ...userDoc.data() } as UserProfile
+          } as Chat;
+        }));
         
-        const userDoc = await getDoc(doc(db, 'users', otherUserId));
-        if (!userDoc.exists()) return null;
-        
-        return {
-          id: chatDoc.id,
-          ...data,
-          otherUser: { uid: userDoc.id, ...userDoc.data() } as UserProfile
-        } as Chat;
-      }));
-      
-      setChats((chatsData.filter(c => c !== null) as Chat[]).sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()));
-    } catch (err) {
-      console.error("Error fetching chats", err);
-    }
-  };
+        setChats((chatsData.filter(c => c !== null) as Chat[]).sort((a, b) => {
+          const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+          const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+          return timeB - timeA;
+        }));
+      } catch (err) {
+        console.error("Error processing chats", err);
+      }
+    }, (error) => {
+      console.error("Error fetching chats snapshot", error);
+    });
+
+    return () => unsubscribe();
+  }, [user.uid]);
 
   const fetchFriendsAndRequests = async () => {
     setLoading(true);
@@ -143,9 +156,8 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
       await updateDoc(doc(db, 'users', targetUser.uid), {
         friends: arrayUnion(user.uid)
       });
-      fetchFriendsAndRequests();
       showAlert({
-        title: `${targetUser.pseudo} a accepté votre invitation`,
+        title: `Vous êtes maintenant ami avec ${targetUser.pseudo}`,
         type: 'success'
       });
     } catch (err) {
@@ -158,7 +170,6 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
       await updateDoc(doc(db, 'users', user.uid), {
         friendRequests: arrayRemove(targetUser.uid)
       });
-      fetchFriendsAndRequests();
       showAlert({
         title: `Vous avez refusé l'invitation de ${targetUser.pseudo}`,
         type: 'success'
@@ -177,7 +188,6 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
       await updateDoc(doc(db, 'users', targetUid), {
         friends: arrayRemove(user.uid)
       });
-      fetchFriendsAndRequests();
     } catch (err) {
       console.error("Error removing friend", err);
     }

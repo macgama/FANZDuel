@@ -32,7 +32,11 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
         templatesSnap.forEach(doc => {
           const template = doc.data() as FanzTemplate;
           if (template.emotes) {
-            emotes.push(...template.emotes);
+            template.emotes.forEach(emote => {
+              if (!emotes.find(e => e.id === emote.id)) {
+                emotes.push(emote);
+              }
+            });
           }
         });
 
@@ -40,7 +44,9 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
         try {
           const emotesSnap = await getDocs(collection(db, 'emotes'));
           emotesSnap.forEach(doc => {
-            emotes.push({ id: doc.id, ...doc.data() } as FanzEmote);
+            if (!emotes.find(e => e.id === doc.id)) {
+              emotes.push({ id: doc.id, ...doc.data() } as FanzEmote);
+            }
           });
         } catch (e) {
           console.warn("Could not fetch from emotes collection", e);

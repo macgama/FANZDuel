@@ -343,17 +343,24 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   };
 
   const handleEquipSkin = async (skinId: string | undefined) => {
-    if (!fanz || !template) return;
+    if (!fanz || !template || !userProfile) return;
     
     try {
       const fanzRef = doc(db, 'fanz', fanz.id);
-      const skin = template.skins.find(s => s.id === skinId);
+      const skin = template.skins?.find(s => s.id === skinId);
       const newName = skin ? skin.name : template.name;
       
       await updateDoc(fanzRef, {
         equippedSkin: skinId || null,
         name: newName
       });
+
+      if (userProfile.activeFanzId === fanz.id) {
+        const skinImageUrl = skin ? skin.imageUrl : (fanz.imageUrl || template.image);
+        await updateDoc(doc(db, 'users', userProfile.uid), {
+          photoURL: skinImageUrl || null
+        });
+      }
     } catch (error) {
       console.error("Error equipping skin:", error);
       handleFirestoreError(error, OperationType.UPDATE, `fanz/${fanz.id}`);
@@ -389,8 +396,10 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   const handleSetActiveFanz = async () => {
     if (!userProfile || !fanz) return;
     try {
+      const skinImageUrl = equippedSkinData ? equippedSkinData.imageUrl : (fanz.imageUrl || template?.image);
       await updateDoc(doc(db, 'users', userProfile.uid), {
-        activeFanzId: fanz.id
+        activeFanzId: fanz.id,
+        photoURL: skinImageUrl || null
       });
       setAlertModal({
         title: 'FANZ Actif',
