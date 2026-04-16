@@ -5,8 +5,8 @@ import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSn
 import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
 import { UserProfile, Fanz, ActiveAction, LifeAction, UserCard, Card as DuelCard, FanzTemplate, FanzSkin, FanzEmote, GlobalFervorConfig } from '../types';
-import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { LOGOS } from '../constants';
 
 import { LifeActionCard } from './LifeActionCard';
@@ -59,6 +59,12 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     message: string;
     type: 'success' | 'error' | 'info';
   } | null>(null);
+
+  const [purchaseConfirm, setPurchaseConfirm] = useState<{
+    type: 'skin' | 'emote';
+    item: any;
+  } | null>(null);
+  const [purchasing, setPurchasing] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -256,9 +262,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         message: `Il vous manque : ${missingCurrencies.join(', ')} pour acheter ce skin.`,
         type: 'error'
       });
+      setPurchaseConfirm(null);
       return;
     }
 
+    setPurchasing(true);
     try {
       const userRef = doc(db, 'users', userProfile.uid);
       const fanzRef = doc(db, 'fanz', fanz.id);
@@ -282,6 +290,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       if (skin.price.gems) await logTransaction(userProfile.uid, 'gems', -skin.price.gems, `Achat skin: ${skin.name}`);
       if (skin.price.boostPoints) await logTransaction(userProfile.uid, 'boost', -skin.price.boostPoints, `Achat skin: ${skin.name}`);
 
+      setPurchaseConfirm(null);
       setAlertModal({
         title: 'Skin acheté !',
         message: `Vous avez débloqué le skin ${skin.name}.`,
@@ -290,6 +299,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     } catch (error) {
       console.error("Error buying skin:", error);
       handleFirestoreError(error, OperationType.UPDATE, `fanz/${fanz.id}`);
+    } finally {
+      setPurchasing(false);
     }
   };
 
@@ -307,9 +318,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         message: `Il vous manque : ${missingCurrencies.join(', ')} pour acheter cet emote.`,
         type: 'error'
       });
+      setPurchaseConfirm(null);
       return;
     }
 
+    setPurchasing(true);
     try {
       const userRef = doc(db, 'users', userProfile.uid);
       const fanzRef = doc(db, 'fanz', fanz.id);
@@ -331,6 +344,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       if (emote.price.gems) await logTransaction(userProfile.uid, 'gems', -emote.price.gems, `Achat emote: ${emote.name}`);
       if (emote.price.boostPoints) await logTransaction(userProfile.uid, 'boost', -emote.price.boostPoints, `Achat emote: ${emote.name}`);
 
+      setPurchaseConfirm(null);
       setAlertModal({
         title: 'Emote acheté !',
         message: `Vous avez débloqué l'emote ${emote.name}.`,
@@ -339,6 +353,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     } catch (error) {
       console.error("Error buying emote:", error);
       handleFirestoreError(error, OperationType.UPDATE, `fanz/${fanz.id}`);
+    } finally {
+      setPurchasing(false);
     }
   };
 
@@ -1442,7 +1458,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                 </Card>
 
                 {template.skins.map((skin, idx) => {
-                  const isUnlocked = fanz.unlockedSkins?.includes(skin.id);
+                  const isUnlocked = fanz.unlockedSkins?.includes(skin.id) || userProfile?.skins?.includes(skin.id);
                   const isEquipped = fanz.equippedSkin === skin.id;
                   const canAfford = !isUnlocked && userProfile && (
                     (!skin.price.money || (userProfile.money || 0) >= skin.price.money) &&
@@ -1453,7 +1469,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   return (
                     <Card 
                       key={`${skin.id}-${idx}`} 
-                      onClick={() => isUnlocked ? handleEquipSkin(skin.id) : handleBuySkin(skin)}
+                      onClick={() => isUnlocked ? handleEquipSkin(skin.id) : setPurchaseConfirm({ type: 'skin', item: skin })}
                       className={`relative overflow-hidden cursor-pointer transition-all hover:scale-105 p-0 ${isEquipped ? 'ring-2 ring-orange-500 bg-orange-500/10' : 'bg-gray-800/50'}`}
                     >
                       {!isUnlocked && (
@@ -1522,7 +1538,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
             {activeTab === 'emotes' && (
               <div className="grid grid-cols-2 gap-3">
                 {template.emotes.map((emote, idx) => {
-                  const isUnlocked = fanz.unlockedEmotes?.includes(emote.id);
+                  const isUnlocked = fanz.unlockedEmotes?.includes(emote.id) || userProfile?.emotes?.includes(emote.id);
                   const canAfford = !isUnlocked && emote.price && userProfile && (
                     (!emote.price.money || (userProfile.money || 0) >= emote.price.money) &&
                     (!emote.price.gems || (userProfile.gems || 0) >= emote.price.gems) &&
@@ -1532,7 +1548,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   return (
                     <Card 
                       key={`${emote.id}-${idx}`} 
-                      onClick={() => !isUnlocked && emote.price && handleBuyEmote(emote)}
+                      onClick={() => !isUnlocked && emote.price && setPurchaseConfirm({ type: 'emote', item: emote })}
                       className={`relative transition-all overflow-hidden p-0 ${!isUnlocked ? 'cursor-pointer hover:scale-105' : ''}`}
                     >
                       {!isUnlocked && (
@@ -1598,6 +1614,68 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         </div>
 
       {/* Alert Modal */}
+      {/* Purchase Confirmation Modal */}
+      <AnimatePresence>
+        {purchaseConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative"
+            >
+              <button
+                onClick={() => setPurchaseConfirm(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-black italic uppercase text-white mb-2">Confirmer l'achat</h3>
+                <p className="text-sm text-gray-400">Êtes-vous sûr de vouloir acheter :</p>
+                <p className="text-lg font-bold text-orange-500 mt-1">{purchaseConfirm.item.name}</p>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {purchaseConfirm.item.price?.money > 0 && (
+                  <Button
+                    onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : handleBuyEmote(purchaseConfirm.item)}
+                    disabled={purchasing || (userProfile?.money || 0) < purchaseConfirm.item.price.money}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase"
+                  >
+                    {purchasing ? 'Achat en cours...' : `Acheter pour ${purchaseConfirm.item.price.money} $`}
+                  </Button>
+                )}
+                
+                {purchaseConfirm.item.price?.gems > 0 && (
+                  <Button
+                    onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : handleBuyEmote(purchaseConfirm.item)}
+                    disabled={purchasing || (userProfile?.gems || 0) < purchaseConfirm.item.price.gems}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black uppercase"
+                  >
+                    {purchasing ? 'Achat en cours...' : `Acheter pour ${purchaseConfirm.item.price.gems} Gemmes`}
+                  </Button>
+                )}
+
+                <Button
+                  onClick={() => setPurchaseConfirm(null)}
+                  disabled={purchasing}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-bold uppercase"
+                >
+                  Annuler
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {alertModal && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <motion.div 

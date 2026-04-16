@@ -167,6 +167,11 @@ export interface FanzTemplate {
   rankRewards?: Record<string, RankReward>;
   rankCosts?: Record<string, { money?: number; boostPoints?: number; gems?: number; energy?: number }>;
   isActive?: boolean;
+  price?: {
+    money?: number;
+    gems?: number;
+    boostPoints?: number;
+  };
 }
 
 export interface Fanz {
@@ -247,6 +252,11 @@ export interface Card {
   fanzIds?: string[]; // For specific cards
   blockedFanzIds?: string[]; // Blocked Fanz templates
   unlockRequirements?: CardUnlockRequirement[];
+  price?: {
+    money?: number;
+    gems?: number;
+    boostPoints?: number;
+  };
 }
 
 export interface UserCard {

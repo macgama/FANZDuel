@@ -569,7 +569,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [allEmotes, setAllEmotes] = useState<FanzEmote[]>([]);
   const [unlockedEmoteIds, setUnlockedEmoteIds] = useState<string[]>(user.emotes || []);
   const [showEmotes, setShowEmotes] = useState(false);
-  const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, team: string, x: number, y: number}[]>([]);
+  const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, team: string, x: number | string, y: number | string}[]>([]);
 
   // Preload card images
   useEffect(() => {
@@ -1207,9 +1207,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
     const handleReceiveEmote = ({ team, emoteId, senderId }: { team: string, emoteId: string, senderId: string }) => {
       const id = Math.random().toString(36).substring(7);
-      // Random position roughly in the middle of the screen
-      const x = window.innerWidth / 2 + (Math.random() * 100 - 50);
-      const y = window.innerHeight / 2 + (Math.random() * 100 - 50);
+      // Random position roughly in the middle of the container
+      const x = `${40 + Math.random() * 20}%`;
+      const y = `${40 + Math.random() * 20}%`;
       
       setActiveEmotes(prev => [...prev, { id, emoteId, team, x, y }]);
       setTimeout(() => {
@@ -1487,8 +1487,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                         socket?.emit('send-emote', { duelId: currentDuelIdRef.current, team: myTeam, emoteId: emote.id, senderId: user.uid });
                         // Show locally
                         const id = Math.random().toString(36).substring(7);
-                        const x = window.innerWidth / 2 + (Math.random() * 100 - 50);
-                        const y = window.innerHeight / 2 + (Math.random() * 100 - 50);
+                        const x = `${40 + Math.random() * 20}%`;
+                        const y = `${40 + Math.random() * 20}%`;
                         setActiveEmotes(prev => [...prev, { id, emoteId: emote.id, team: myTeam, x, y }]);
                         setTimeout(() => setActiveEmotes(prev => prev.filter(e => e.id !== id)), 3000);
                       }}
@@ -1523,7 +1523,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   className="absolute"
                   style={{ left: emote.x, top: emote.y }}
                 >
-                  <div className={`p-2 rounded-2xl ${emote.team === (participants.find(p => p.uid === user.uid)?.team || 'A') ? 'bg-blue-600/40' : 'bg-red-600/40'} backdrop-blur-sm shadow-lg`}>
+                  <div className={`p-2 rounded-2xl ${emote.team === (participants.find(p => p.uid === user.uid)?.team || 'A') ? 'bg-blue-600/40' : 'bg-red-600/40'} backdrop-blur-sm shadow-lg -translate-x-1/2 -translate-y-1/2`}>
                     <img src={getImageUrl(emoteData.imageUrl)} alt={emoteData.name} className="w-16 h-16 object-contain" />
                   </div>
                 </motion.div>

@@ -154,7 +154,7 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
     <>
       <header className={cn(
         "left-0 right-0 z-50 p-4 flex items-start justify-between",
-        absolute ? "absolute top-0 bg-gradient-to-b from-black/80 to-transparent" : "sticky top-0 bg-gray-900/80 backdrop-blur-xl border-b border-white/10"
+        absolute ? "absolute top-0 bg-gradient-to-b from-black/80 to-transparent" : "sticky top-0 bg-[#0a0a0a] backdrop-blur-xl"
       )}>
         {/* Left: Avatar & Level OR Back Button */}
         {variant === 'subpage' ? (

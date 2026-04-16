@@ -257,7 +257,7 @@ function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoi
   };
 
   return (
-    <div className="space-y-2 max-w-[420px] mx-auto w-full">
+    <div className="space-y-2 max-w-[420px] mx-auto w-full px-4">
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors group"

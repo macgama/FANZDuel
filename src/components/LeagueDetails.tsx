@@ -164,17 +164,11 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
   }
 
   return (
-    <div className="space-y-3 pb-20">
+    <div className="space-y-3 pb-20 px-4">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button 
-              onClick={onBack}
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors border border-white/10"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-white rounded-lg p-1.5 flex items-center justify-center shadow-lg">
                 <img src={league.league.logo} alt="" className="w-full h-full object-contain" />

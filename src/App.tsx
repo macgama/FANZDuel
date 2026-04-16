@@ -26,7 +26,7 @@ import { LeaderboardPage } from './components/LeaderboardPage';
 import { Rankings } from './components/Rankings';
 import { PassPage } from './components/PassPage';
 import { MissionsPage } from './components/MissionsPage';
-import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon, AlertCircle } from 'lucide-react';
+import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon, AlertCircle, LayoutGrid, Layers, Briefcase, Search, Calendar, Sparkles, Wallet, BarChart2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
 
@@ -36,6 +36,7 @@ import { SocketProvider } from './context/SocketContext';
 import { GlobalSocketListener } from './components/GlobalSocketListener';
 
 import { Home } from './components/Home';
+import { ShopPage } from './components/ShopPage';
 
 import { TransactionsPage } from './components/TransactionsPage';
 
@@ -89,10 +90,15 @@ function AppContent() {
       try {
         const res = await fetch('/api/duels');
         if (res.ok) {
-          const duels = await res.json();
-          // Filter out duels where the current user is already a participant
-          const waitingCount = duels.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)).length;
-          setWaitingDuelsCount(waitingCount);
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const duels = await res.json();
+            // Filter out duels where the current user is already a participant
+            const waitingCount = duels.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)).length;
+            setWaitingDuelsCount(waitingCount);
+          } else {
+            console.warn("Expected JSON from /api/duels, got", contentType);
+          }
         } else if (retries > 0) {
           setTimeout(() => fetchWaitingDuels(retries - 1), 2000);
         }
@@ -163,10 +169,10 @@ function AppContent() {
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
         </button>
         <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-5 sm:-top-7 group">
-          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#121212] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'} ${waitingDuelsCount > 0 && view !== 'waiting-room' ? 'animate-[pulse_2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(249,115,22,0.6)]' : ''}`}>
+          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#0a0a0a] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'} ${waitingDuelsCount > 0 && view !== 'waiting-room' ? 'animate-[pulse_2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(249,115,22,0.6)]' : ''}`}>
             <Swords className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
             {waitingDuelsCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#121212] flex items-center justify-center text-[10px] font-black text-white shadow-lg">
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#0a0a0a] flex items-center justify-center text-[10px] font-black text-white shadow-lg">
                 {waitingDuelsCount}
               </div>
             )}
@@ -401,7 +407,11 @@ function AppContent() {
               />
             )}
             
-            <div className={cn("flex-1 overflow-y-auto pb-6", (!selectedFanzId && !selectedMatchId && view !== 'matches' && view !== 'fervor-path') && "pt-6 px-[30px]", (selectedMatchId || view === 'matches' || view === 'fervor-path') && "pt-6 px-0")}>
+            <div className={cn(
+              "flex-1 overflow-y-auto pb-6", 
+              (!selectedFanzId && !selectedMatchId && !selectedLeague && !selectedTeam && !['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-[30px]", 
+              (selectedFanzId || selectedMatchId || selectedLeague || selectedTeam || ['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-0"
+            )}>
               {selectedTeam ? (
                 <TeamDetails 
                   teamId={selectedTeam.id} 
@@ -496,11 +506,7 @@ function AppContent() {
               ) : view === 'rankings' ? (
                 <Rankings onBack={() => setView('home')} />
               ) : view === 'shop' ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center h-full">
-                  <Store className="w-16 h-16 mb-4 text-yellow-500 opacity-50" />
-                  <h2 className="text-2xl font-black uppercase tracking-tighter text-white mb-2">Shop</h2>
-                  <p className="text-sm">Bientôt disponible. Achetez des skins, emotes, gemmes et boosts !</p>
-                </div>
+                <ShopPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'missions' ? (
                 <MissionsPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'pass' ? (
@@ -531,17 +537,10 @@ function AppContent() {
           >
           <div className="p-6 flex items-center justify-between border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 overflow-hidden">
-                {profile.photoURL ? (
-                  <img src={profile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <Users className="w-6 h-6 text-white" />
-                )}
+              <div className="text-orange-500">
+                <LayoutGrid className="w-6 h-6" />
               </div>
-              <div>
-                <div className="text-sm font-black italic uppercase tracking-wider text-orange-500">Menu</div>
-                <div className="text-xs font-bold text-white/60">{profile.pseudo}</div>
-              </div>
+              <h2 className="text-xl font-black uppercase tracking-wider text-white">Menu TBFO</h2>
             </div>
             <button 
               onClick={() => setIsMenuOpen(false)}
@@ -551,31 +550,42 @@ function AppContent() {
             </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-3 sm:space-y-4">
-            <MenuButton icon={<HomeIcon />} label="Accueil" onClick={() => { setView('home'); setIsMenuOpen(false); }} />
-            <MenuButton 
-              icon={
-                <div className="relative">
-                  <Swords />
-                  {waitingDuelsCount > 0 && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-[#121212] flex items-center justify-center text-[8px] font-black text-white">
-                      {waitingDuelsCount}
-                    </div>
-                  )}
-                </div>
-              } 
-              label="Salle d'Attente" 
-              onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} 
-            />
-            <MenuButton icon={<Users />} label="Social" onClick={() => { setView('social'); setIsMenuOpen(false); }} />
-            <MenuButton icon={<Star />} label="Équipes Favorites" onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
-            <MenuButton icon={<Trophy />} label="Classements" onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
-            <MenuButton icon={<Activity />} label="Matchs en direct" onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
-            <MenuButton icon={<Globe />} label="Compétitions" onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
-            <MenuButton icon={<Users />} label="Équipes" onClick={() => { setView('teams'); setIsMenuOpen(false); }} />
-            <MenuButton icon={<Star />} label="Mes FANZ" onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
-            
-            <MenuButton icon={<Settings />} label="Admin" onClick={() => { setView('admin'); setIsMenuOpen(false); }} />
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              <MenuButton icon={<HomeIcon />} label="Accueil" onClick={() => { setView('home'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Users />} label="Mes Fans" onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
+              <MenuButton 
+                icon={
+                  <div className="relative">
+                    <Swords />
+                    {waitingDuelsCount > 0 && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-[#0a0a0a] flex items-center justify-center text-[8px] font-black text-white">
+                        {waitingDuelsCount}
+                      </div>
+                    )}
+                  </div>
+                } 
+                label="Duels" 
+                onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} 
+              />
+              
+              <MenuButton icon={<Layers />} label="Arsenal" onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Briefcase />} label="Fanlife" onClick={() => { setView('fervor-path'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Store />} label="Boutique" onClick={() => { setView('shop'); setIsMenuOpen(false); }} />
+              
+              <MenuButton icon={<Search />} label="Social" onClick={() => { setView('social'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Target />} label="Missions" onClick={() => { setView('missions'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Calendar />} label="Série" onClick={() => { setShowStreakModal(true); setIsMenuOpen(false); }} />
+              
+              <MenuButton icon={<Sparkles />} label="Pass" onClick={() => { setView('pass'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Wallet />} label="Banque" onClick={() => { setView('transactions'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<BarChart2 />} label="Stats" onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
+
+              {/* Extra items not in the image but needed */}
+              <MenuButton icon={<Activity />} label="Matchs" onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Globe />} label="Compétitions" onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Settings />} label="Admin" onClick={() => { setView('admin'); setIsMenuOpen(false); }} />
+            </div>
           </div>
 
           <div className="p-4 sm:p-8 mt-auto border-t border-white/10 shrink-0">
@@ -623,12 +633,12 @@ function MenuButton({ icon, label, onClick }: { icon: React.ReactNode, label: st
   return (
     <button 
       onClick={onClick}
-      className="w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-orange-500 transition-all group"
+      className="flex flex-col items-center justify-center gap-3 p-4 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:bg-white/10 hover:border-orange-500 transition-all group aspect-square"
     >
-      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors shrink-0">
+      <div className="w-12 h-12 bg-orange-500/10 text-orange-500 rounded-2xl flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
         {icon}
       </div>
-      <span className="text-[12px] sm:text-sm md:text-base font-black italic uppercase tracking-wider text-left leading-tight">{label}</span>
+      <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-center leading-tight text-white">{label}</span>
     </button>
   );
 }

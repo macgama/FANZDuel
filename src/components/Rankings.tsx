@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Card } from './Layout';
-import { Trophy, Users, Shield, Medal, Activity, ChevronDown, ChevronLeft } from 'lucide-react';
+import { Trophy, Users, Shield, Medal, Activity, ChevronDown } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -22,6 +22,7 @@ interface RankingsProps {
 
 export function Rankings({ onBack }: RankingsProps) {
   const [activeTab, setActiveTab] = useState<'teams' | 'users'>('teams');
+  const [metric, setMetric] = useState<'averageScore' | 'totalScore' | 'popularity'>('averageScore');
   const currentYearStr = new Date().getFullYear().toString();
   const prevYearStr = (new Date().getFullYear() - 1).toString();
   const [season, setSeason] = useState<string>(currentYearStr);
@@ -30,6 +31,13 @@ export function Rankings({ onBack }: RankingsProps) {
   const [loading, setLoading] = useState(true);
   const [availableLeagues, setAvailableLeagues] = useState<{id: string, name: string}[]>([{ id: 'global', name: 'Global (Toutes compétitions)' }]);
   const [availableSeasons, setAvailableSeasons] = useState<string[]>([currentYearStr, prevYearStr]);
+
+  // Reset metric if switching to users and popularity is selected
+  useEffect(() => {
+    if (activeTab === 'users' && metric === 'popularity') {
+      setMetric('averageScore');
+    }
+  }, [activeTab, metric]);
 
   useEffect(() => {
     // Fetch active seasons and leagues from database
@@ -105,31 +113,30 @@ export function Rankings({ onBack }: RankingsProps) {
     const fetchRankings = async () => {
       setLoading(true);
       try {
-        const collectionName = activeTab === 'teams' ? 'ranking_teams' : 'ranking_users';
-        
-        // Use server-side filtering and sorting to minimize reads and processing
-        const q = query(
-          collection(db, collectionName),
-          where('season', '==', season.toString()),
-          where('leagueId', '==', leagueId.toString()),
-          orderBy('averageScore', 'desc'),
-          limit(50)
-        );
-
-        const snapshot = await getDocs(q);
-        console.log(`Fetched ${snapshot.size} documents from ${collectionName}`);
         let entries: RankingEntry[] = [];
 
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
+        if (activeTab === 'teams' && metric === 'popularity') {
+          // Fetch all users to count favorite teams
+          const usersSnap = await getDocs(collection(db, 'users'));
+          const teamCounts: Record<string, number> = {};
           
-          let name = 'Inconnu';
-          let imageUrl = '';
+          usersSnap.forEach(docSnap => {
+            const userData = docSnap.data();
+            if (userData.favoriteTeams && Array.isArray(userData.favoriteTeams)) {
+              userData.favoriteTeams.forEach((teamId: string) => {
+                teamCounts[teamId] = (teamCounts[teamId] || 0) + 1;
+              });
+            }
+          });
 
-          if (activeTab === 'teams') {
-            // Fetch team details
-            const teamId = data.teamId?.toString();
-            if (!teamId) continue;
+          // Sort teams by count
+          const sortedTeams = Object.entries(teamCounts)
+            .sort(([, countA], [, countB]) => countB - countA)
+            .slice(0, 50);
+
+          for (const [teamId, count] of sortedTeams) {
+            let name = 'Inconnu';
+            let imageUrl = '';
             
             const teamDoc = await getDoc(doc(db, 'teams', teamId));
             if (teamDoc.exists()) {
@@ -147,30 +154,84 @@ export function Rankings({ onBack }: RankingsProps) {
                  console.error(`Failed to fetch team info for ${teamId}`, e);
                }
             }
-          } else {
-            // Fetch user details
-            const userId = data.userId?.toString();
-            if (!userId) continue;
             
-            const userDoc = await getDoc(doc(db, 'users', userId));
-            if (userDoc.exists()) {
-              name = userDoc.data().pseudo || 'Supporter';
-              imageUrl = userDoc.data().photoURL;
-            }
+            entries.push({
+              id: teamId,
+              rank: 0,
+              name,
+              imageUrl,
+              averageScore: 0,
+              matches: 0,
+              totalScore: count // We use totalScore to store the count for display
+            });
           }
+        } else {
+          const collectionName = activeTab === 'teams' ? 'ranking_teams' : 'ranking_users';
+          
+          // Use server-side filtering and sorting to minimize reads and processing
+          const q = query(
+            collection(db, collectionName),
+            where('season', '==', season.toString()),
+            where('leagueId', '==', leagueId.toString()),
+            orderBy(metric === 'popularity' ? 'averageScore' : metric, 'desc'),
+            limit(50)
+          );
 
-          entries.push({
-            id: docSnap.id,
-            rank: 0, // Will be set after sorting
-            name,
-            imageUrl,
-            averageScore: data.averageScore,
-            matches: data.matches,
-            totalScore: data.totalScore
-          });
+          const snapshot = await getDocs(q);
+          console.log(`Fetched ${snapshot.size} documents from ${collectionName}`);
+
+          for (const docSnap of snapshot.docs) {
+            const data = docSnap.data();
+            
+            let name = 'Inconnu';
+            let imageUrl = '';
+
+            if (activeTab === 'teams') {
+              // Fetch team details
+              const teamId = data.teamId?.toString();
+              if (!teamId) continue;
+              
+              const teamDoc = await getDoc(doc(db, 'teams', teamId));
+              if (teamDoc.exists()) {
+                name = teamDoc.data().name;
+                imageUrl = teamDoc.data().logo;
+              } else if (!isNaN(Number(teamId))) {
+                 try {
+                   const { footballApi } = await import('../services/footballApi');
+                   const teamData = await footballApi.getTeamInfo(Number(teamId));
+                   if (teamData) {
+                     name = teamData.team.name;
+                     imageUrl = teamData.team.logo;
+                   }
+                 } catch (e) {
+                   console.error(`Failed to fetch team info for ${teamId}`, e);
+                 }
+              }
+            } else {
+              // Fetch user details
+              const userId = data.userId?.toString();
+              if (!userId) continue;
+              
+              const userDoc = await getDoc(doc(db, 'users', userId));
+              if (userDoc.exists()) {
+                name = userDoc.data().pseudo || 'Supporter';
+                imageUrl = userDoc.data().photoURL;
+              }
+            }
+
+            entries.push({
+              id: docSnap.id,
+              rank: 0, // Will be set after sorting
+              name,
+              imageUrl,
+              averageScore: data.averageScore,
+              matches: data.matches,
+              totalScore: data.totalScore
+            });
+          }
         }
 
-        // Assign ranks (already sorted by query)
+        // Assign ranks (already sorted by query or our custom sort)
         entries = entries.map((entry, index) => ({
           ...entry,
           rank: index + 1
@@ -185,7 +246,7 @@ export function Rankings({ onBack }: RankingsProps) {
     };
 
     fetchRankings();
-  }, [activeTab, season, leagueId]);
+  }, [activeTab, season, leagueId, metric]);
 
   const seedRankings = async () => {
     try {
@@ -285,31 +346,19 @@ export function Rankings({ onBack }: RankingsProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-black">
-      {/* Header */}
-      <div className="p-4 sm:p-6 bg-gradient-to-b from-orange-900/40 to-transparent shrink-0">
-        <div className="flex items-center gap-4 mb-6">
-          <button 
-            onClick={onBack}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-          >
-            <ChevronLeft className="w-6 h-6 text-white" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
-              <Trophy className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white">Classements</h1>
-              <p className="text-orange-200 text-xs sm:text-sm">Les meilleurs sur le terrain</p>
-            </div>
-          </div>
+    <div className="space-y-6 pb-20">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between px-4">
+          <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+            Classements
+          </h1>
         </div>
 
         {/* Filters */}
-        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-4">
-          {/* Tabs */}
-          <div className="flex gap-2 p-1 bg-black/40 rounded-xl">
+        <div className="px-4">
+          <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-4">
+            {/* Tabs */}
+            <div className="flex gap-2 p-1 bg-black/40 rounded-xl">
             <button
               onClick={() => setActiveTab('teams')}
               className={`flex-1 py-2 rounded-lg font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
@@ -331,6 +380,22 @@ export function Rankings({ onBack }: RankingsProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            {/* Metric Selector */}
+            <div className="relative col-span-2">
+              <select
+                value={metric}
+                onChange={(e) => setMetric(e.target.value as any)}
+                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-colors"
+              >
+                <option value="averageScore">Points par match</option>
+                <option value="totalScore">Total des points</option>
+                {activeTab === 'teams' && (
+                  <option value="popularity">Popularité (Supporters)</option>
+                )}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
+
             {/* Season Selector */}
             <div className="relative">
               <select
@@ -361,9 +426,10 @@ export function Rankings({ onBack }: RankingsProps) {
           </div>
         </div>
       </div>
+      </div>
 
       {/* Leaderboard */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="px-4 space-y-3">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <Activity className="w-8 h-8 text-orange-500 animate-spin" />
@@ -409,18 +475,32 @@ export function Rankings({ onBack }: RankingsProps) {
                   <h3 className={`font-black uppercase truncate ${index === 0 ? 'text-yellow-400 text-lg' : 'text-white'}`}>
                     {entry.name}
                   </h3>
-                  <p className="text-xs text-gray-400 font-medium">
-                    {entry.matches} match{entry.matches > 1 ? 's' : ''} joué{entry.matches > 1 ? 's' : ''}
-                  </p>
+                  {metric !== 'popularity' && (
+                    <p className="text-xs text-gray-400 font-medium">
+                      {entry.matches} match{entry.matches > 1 ? 's' : ''} joué{entry.matches > 1 ? 's' : ''}
+                    </p>
+                  )}
                 </div>
 
                 <div className="text-right">
-                  <div className="text-2xl font-black text-white tracking-tighter">
-                    {entry.averageScore != null ? entry.averageScore.toFixed(1) : '0.0'}<span className="text-sm text-gray-500 ml-1">pts/m</span>
-                  </div>
-                  <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                    Total: {entry.totalScore || 0}
-                  </div>
+                  {metric === 'popularity' ? (
+                    <div className="text-2xl font-black text-white tracking-tighter">
+                      {entry.totalScore} <span className="text-sm text-gray-500 ml-1">fans</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-black text-white tracking-tighter">
+                        {metric === 'averageScore' ? (
+                          <>{entry.averageScore != null ? entry.averageScore.toFixed(1) : '0.0'}<span className="text-sm text-gray-500 ml-1">pts/m</span></>
+                        ) : (
+                          <>{entry.totalScore || 0}<span className="text-sm text-gray-500 ml-1">pts</span></>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                        {metric === 'averageScore' ? `Total: ${entry.totalScore || 0}` : `Moy: ${entry.averageScore != null ? entry.averageScore.toFixed(1) : '0.0'}`}
+                      </div>
+                    </>
+                  )}
                 </div>
               </motion.div>
             ))}

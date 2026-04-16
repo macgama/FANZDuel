@@ -6,6 +6,7 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs, doc, updateDoc, arrayUnion, arrayRemove, getDoc, onSnapshot } from 'firebase/firestore';
 import { ChatView } from './ChatView';
 import { useAlert } from '../context/AlertContext';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface SocialPageProps {
   user: UserProfile;
@@ -30,6 +31,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
+  const [friendToRemove, setFriendToRemove] = useState<UserProfile | null>(null);
   const { showAlert } = useAlert();
 
   const friendsStr = JSON.stringify(user.friends || []);
@@ -180,7 +182,6 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
   };
 
   const removeFriend = async (targetUid: string) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer cet ami ?')) return;
     try {
       await updateDoc(doc(db, 'users', user.uid), {
         friends: arrayRemove(targetUid)
@@ -188,6 +189,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
       await updateDoc(doc(db, 'users', targetUid), {
         friends: arrayRemove(user.uid)
       });
+      setFriendToRemove(null);
     } catch (err) {
       console.error("Error removing friend", err);
     }
@@ -205,6 +207,11 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
 
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a]">
+      <div className="flex items-center justify-between px-4">
+        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+          Social
+        </h1>
+      </div>
       {/* Tabs */}
       <div className="flex gap-1 p-4 bg-[#111111]/50 border-b border-white/5">
         <button 
@@ -297,7 +304,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
                   <button onClick={() => setSelectedFriend(friend)} className="p-2 bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20 transition-colors">
                     <MessageCircle className="w-4 h-4" />
                   </button>
-                  <button onClick={() => removeFriend(friend.uid)} className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors">
+                  <button onClick={() => setFriendToRemove(friend)} className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -398,6 +405,54 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
           </div>
         )}
       </div>
+
+      {/* Remove Friend Confirmation Modal */}
+      <AnimatePresence>
+        {friendToRemove && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative"
+            >
+              <button
+                onClick={() => setFriendToRemove(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-black italic uppercase text-white mb-2">Supprimer l'ami</h3>
+                <p className="text-sm text-gray-400">Êtes-vous sûr de vouloir supprimer cet ami ?</p>
+                <p className="text-lg font-bold text-red-500 mt-1">{friendToRemove.pseudo}</p>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <Button
+                  onClick={() => removeFriend(friendToRemove.uid)}
+                  className="w-full bg-red-500 hover:bg-red-600 text-white font-black uppercase"
+                >
+                  Oui, supprimer
+                </Button>
+
+                <Button
+                  onClick={() => setFriendToRemove(null)}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-bold uppercase"
+                >
+                  Annuler
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

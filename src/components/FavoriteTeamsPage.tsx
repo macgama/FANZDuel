@@ -197,34 +197,18 @@ export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
 
   return (
     <div className="flex flex-col h-full bg-black">
-      {/* Header */}
-      <div className="p-4 sm:p-6 bg-gradient-to-b from-orange-900/40 to-transparent shrink-0">
-        <div className="flex items-center gap-4 mb-6">
-          <button 
-            onClick={onBack}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-          >
-            <ChevronLeft className="w-6 h-6 text-white" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
-              <Shield className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white">Équipes Favorites</h1>
-              <p className="text-orange-200 text-xs sm:text-sm">Bonus de ferveur (+20%)</p>
-            </div>
-          </div>
-        </div>
-        
+      <div className="flex items-center justify-between px-4">
+        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+          Équipes Favorites
+        </h1>
+      </div>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-8">
         <div className="bg-black/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
           <div className="text-gray-400 text-xs sm:text-sm">Emplacements utilisés</div>
           <div className="text-xl font-black text-orange-500">{profile.favoriteTeams.length} <span className="text-sm text-orange-500/50">/ {profile.teamSlots}</span></div>
         </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-8">
+        
         {/* Current Teams */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
         {loading ? (

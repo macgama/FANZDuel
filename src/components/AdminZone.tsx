@@ -73,6 +73,212 @@ export function AdminZone() {
     }
   }, [activeTab, activeUserSubTab]); // Added activeUserSubTab to dependencies
 
+  useEffect(() => {
+    const addLifeActionsToFanz2 = async () => {
+      try {
+        const lifeActionsToAdd = [
+          {
+            id: 'action-fanz2-001',
+            fanzTemplateId: 'fanz-2',
+            name: "Transport d'une peluche géante",
+            image: '/fanz/imageFanz002Life001.png',
+            videoUrl: '/fanz/videoFanz002Life001.mp4',
+            durationMinutes: 30,
+            energyCost: 10,
+            moneyCost: 0,
+            gemsCost: 0,
+            boostCost: 0,
+            energyGain: 0,
+            moneyGain: 0,
+            gemsGain: 0,
+            boostGain: 0,
+            xpGains: { force: 5 }
+          },
+          {
+            id: 'action-fanz2-002',
+            fanzTemplateId: 'fanz-2',
+            name: "Faire la queue pour le méga-câlin",
+            image: '/fanz/imageFanz002Life002.png',
+            videoUrl: '/fanz/videoFanz002Life002.mp4',
+            durationMinutes: 60,
+            energyCost: 10,
+            moneyCost: 0,
+            gemsCost: 0,
+            boostCost: 0,
+            energyGain: 0,
+            moneyGain: 0,
+            gemsGain: 0,
+            boostGain: 0,
+            xpGains: { endurance: 5 }
+          },
+          {
+            id: 'action-fanz2-003',
+            fanzTemplateId: 'fanz-2',
+            name: "Apprendre la chorégraphie de la mascotte",
+            image: '/fanz/imageFanz002Life003.png',
+            videoUrl: '/fanz/videoFanz002Life003.mp4',
+            durationMinutes: 30,
+            energyCost: 5,
+            moneyCost: 0,
+            gemsCost: 0,
+            boostCost: 0,
+            energyGain: 0,
+            moneyGain: 0,
+            gemsGain: 0,
+            boostGain: 0,
+            xpGains: { mental: 5 }
+          },
+          {
+            id: 'action-fanz2-004',
+            fanzTemplateId: 'fanz-2',
+            name: "Les yeux doux à la boutique du stade",
+            image: '/fanz/imageFanz002Life004.png',
+            videoUrl: '/fanz/videoFanz002Life004.mp4',
+            durationMinutes: 30,
+            energyCost: 5,
+            moneyCost: 0,
+            gemsCost: 0,
+            boostCost: 0,
+            energyGain: 0,
+            moneyGain: 0,
+            gemsGain: 0,
+            boostGain: 0,
+            xpGains: { charisma: 5 }
+          },
+          {
+            id: 'action-fanz2-005',
+            fanzTemplateId: 'fanz-2',
+            name: "Atelier Origami Mascottes",
+            image: '/fanz/imageFanz002Life005.png',
+            videoUrl: '/fanz/videoFanz002Life005.mp4',
+            durationMinutes: 60,
+            energyCost: 10,
+            moneyCost: 0,
+            gemsCost: 0,
+            boostCost: 0,
+            energyGain: 0,
+            moneyGain: 0,
+            gemsGain: 0,
+            boostGain: 0,
+            xpGains: { creativity: 5 }
+          },
+          {
+            id: 'action-fanz2-006',
+            fanzTemplateId: 'fanz-2',
+            name: "Bourse d'échange de stickers à la mi-temps",
+            image: '/fanz/imageFanz002Life006.png',
+            videoUrl: '/fanz/videoFanz002Life006.mp4',
+            durationMinutes: 30,
+            energyCost: 5,
+            moneyCost: 0,
+            gemsCost: 0,
+            boostCost: 0,
+            energyGain: 0,
+            moneyGain: 0,
+            gemsGain: 0,
+            boostGain: 0,
+            xpGains: { social: 5 }
+          },
+          {
+            id: 'action-fanz2-007',
+            fanzTemplateId: 'fanz-2',
+            name: "Le jeu des paires (Mascotte / Équipe)",
+            image: '/fanz/imageFanz002Life007.png',
+            videoUrl: '/fanz/videoFanz002Life007.mp4',
+            durationMinutes: 30,
+            energyCost: 5,
+            moneyCost: 0,
+            gemsCost: 0,
+            boostCost: 0,
+            energyGain: 0,
+            moneyGain: 0,
+            gemsGain: 0,
+            boostGain: 0,
+            xpGains: { intelligence: 5 }
+          },
+          {
+            id: 'action-fanz2-008',
+            fanzTemplateId: 'fanz-2',
+            name: "Arriver au stade en mini-cosplay",
+            image: '/fanz/imageFanz002Life008.png',
+            videoUrl: '/fanz/videoFanz002Life008.mp4',
+            durationMinutes: 60,
+            energyCost: 10,
+            moneyCost: 0,
+            gemsCost: 0,
+            boostCost: 0,
+            energyGain: 0,
+            moneyGain: 0,
+            gemsGain: 0,
+            boostGain: 0,
+            xpGains: { bluff: 5 }
+          }
+        ];
+
+        for (const action of lifeActionsToAdd) {
+          const actionRef = doc(db, 'life_actions', action.id);
+          const actionSnap = await getDoc(actionRef);
+          if (!actionSnap.exists()) {
+            await setDoc(actionRef, action);
+            console.log(`Added life action: ${action.name}`);
+          }
+        }
+        
+        // Refresh life actions if we are on the lifeActions tab
+        if (activeTab === 'lifeActions') {
+          fetchLifeActions();
+        }
+      } catch (err) {
+        console.error('Error adding life actions to fanz-2:', err);
+      }
+    };
+    
+    addLifeActionsToFanz2();
+  }, []); // Run once on mount
+
+  useEffect(() => {
+    const addSkinsToFanz2 = async () => {
+      try {
+        const fanzRef = doc(db, 'fanz_templates', 'fanz-2');
+        const fanzSnap = await getDoc(fanzRef);
+        if (fanzSnap.exists()) {
+          const data = fanzSnap.data() as FanzTemplate;
+          const existingSkins = data.skins || [];
+          
+          const skinsToAdd = [
+            { id: 'skin001', name: 'Mascotte Fanzzy Lion', imageUrl: '/fanz/imageFanz002Skin001.png', videoUrl: '/fanz/videoFanz002Skin001.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin002', name: 'Mascotte Fanzzy Glove', imageUrl: '/fanz/imageFanz002Skin002.png', videoUrl: '/fanz/videoFanz002Skin002.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin003', name: 'Mascotte Fanzzy Redgirl', imageUrl: '/fanz/imageFanz002Skin003.png', videoUrl: '/fanz/videoFanz002Skin003.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin004', name: 'Mascotte Fanzzy Megaphone', imageUrl: '/fanz/imageFanz002Skin004.png', videoUrl: '/fanz/videoFanz002Skin004.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin005', name: 'Mascotte Fanzzy Green', imageUrl: '/fanz/imageFanz002Skin005.png', videoUrl: '/fanz/videoFanz002Skin005.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin006', name: 'Mascotte Fanzzy Ball', imageUrl: '/fanz/imageFanz002Skin006.png', videoUrl: '/fanz/videoFanz002Skin006.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin007', name: 'Mascotte Fanzzy Hotdog', imageUrl: '/fanz/imageFanz002Skin007.png', videoUrl: '/fanz/videoFanz002Skin007.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin008', name: 'Mascotte Fanzzy Goldcup', imageUrl: '/fanz/imageFanz002Skin008.png', videoUrl: '/fanz/videoFanz002Skin008.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin009', name: 'Mascotte Fanzzy Eagle', imageUrl: '/fanz/imageFanz002Skin009.png', videoUrl: '/fanz/videoFanz002Skin009.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin010', name: 'Mascotte Fanzzy Vuvuzela', imageUrl: '/fanz/imageFanz002Skin010.png', videoUrl: '/fanz/videoFanz002Skin010.mp4', price: { money: 100, gems: 0, boostPoints: 0 } },
+            { id: 'skin011', name: 'Mascotte Fanzzy Festival', imageUrl: '/fanz/imageFanz002Skin011.png', videoUrl: '/fanz/videoFanz002Skin011.mp4', price: { money: 100, gems: 0, boostPoints: 0 } }
+          ];
+
+          const newSkins = skinsToAdd.filter(s => !existingSkins.find(ex => ex.id === s.id));
+          
+          if (newSkins.length > 0) {
+            const updatedSkins = [...existingSkins, ...newSkins];
+            await updateDoc(fanzRef, { skins: updatedSkins });
+            console.log(`Successfully added ${newSkins.length} skins to fanz-2.`);
+            // Refresh templates if we are on the fanz tab
+            if (activeTab === 'fanz') {
+              fetchFanzTemplates();
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error adding skins to fanz-2:', err);
+      }
+    };
+    
+    addSkinsToFanz2();
+  }, []); // Run once on mount
+
   const fetchUserData = () => {
     fetchUsers();
     fetchMissions();
@@ -2284,6 +2490,24 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Prix (Billets)</label>
+                    <input
+                      type="number"
+                      value={editingCard.price?.money || 0}
+                      onChange={e => setEditingCard({...editingCard, price: { ...editingCard.price, money: Number(e.target.value) }})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Prix (Gemmes)</label>
+                    <input
+                      type="number"
+                      value={editingCard.price?.gems || 0}
+                      onChange={e => setEditingCard({...editingCard, price: { ...editingCard.price, gems: Number(e.target.value) }})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">URL Image</label>
                     <div className="flex gap-4">
                       <input
@@ -2884,6 +3108,24 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Prix (Billets)</label>
+                    <input
+                      type="number"
+                      value={editingFanz.price?.money || 0}
+                      onChange={e => setEditingFanz({...editingFanz, price: { ...editingFanz.price, money: Number(e.target.value) }})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Prix (Gemmes)</label>
+                    <input
+                      type="number"
+                      value={editingFanz.price?.gems || 0}
+                      onChange={e => setEditingFanz({...editingFanz, price: { ...editingFanz.price, gems: Number(e.target.value) }})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">Excitation de Base (1-10)</label>
                     <input
                       type="number"
@@ -2990,7 +3232,7 @@ export function AdminZone() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h4 className="font-bold flex items-center gap-2">
-                      <img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> Chemin de la Ferveur
+                      <img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> Chemin de la Ferveur (Spécifique à ce FANZ)
                     </h4>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => setEditingFanz({
@@ -3042,7 +3284,6 @@ export function AdminZone() {
                             }}
                             className="w-full p-2 bg-white text-gray-900 rounded border-none text-sm"
                             min="1"
-                            max="1000"
                           />
                         </div>
                         <div className="flex-1 space-y-1">
@@ -3442,10 +3683,10 @@ export function AdminZone() {
                                   <label className="text-[10px] text-gray-500 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-3 h-3" /> Argent</label>
                                   <input 
                                     type="number" 
-                                    value={cost.money || 0}
+                                    value={cost.money ?? ''}
                                     onChange={e => {
                                       const newCosts = { ...(editingFanz.rankCosts || {}) };
-                                      newCosts[slotId] = { ...cost, money: Number(e.target.value) };
+                                      newCosts[slotId] = { ...cost, money: e.target.value === '' ? undefined : Number(e.target.value) };
                                       setEditingFanz({...editingFanz, rankCosts: newCosts});
                                     }}
                                     className="w-full p-1.5 text-sm bg-white border border-gray-300 rounded"
@@ -3455,10 +3696,10 @@ export function AdminZone() {
                                   <label className="text-[10px] text-gray-500 flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-3 h-3" /> Boost</label>
                                   <input 
                                     type="number" 
-                                    value={cost.boostPoints || 0}
+                                    value={cost.boostPoints ?? ''}
                                     onChange={e => {
                                       const newCosts = { ...(editingFanz.rankCosts || {}) };
-                                      newCosts[slotId] = { ...cost, boostPoints: Number(e.target.value) };
+                                      newCosts[slotId] = { ...cost, boostPoints: e.target.value === '' ? undefined : Number(e.target.value) };
                                       setEditingFanz({...editingFanz, rankCosts: newCosts});
                                     }}
                                     className="w-full p-1.5 text-sm bg-white border border-gray-300 rounded"

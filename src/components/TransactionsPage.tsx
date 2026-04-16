@@ -80,6 +80,11 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
 
   return (
     <div className="min-h-full bg-[#0a0a0a] text-white pb-20">
+      <div className="flex items-center justify-between px-4">
+        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+          Wallet
+        </h1>
+      </div>
       <div className="p-4 max-w-3xl mx-auto">
         {/* Filters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">
