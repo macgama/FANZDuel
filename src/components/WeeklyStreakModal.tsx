@@ -204,7 +204,7 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-[450px] h-full max-h-[85vh] overflow-hidden shadow-2xl relative flex flex-col"
+        className="bg-gray-900 border border-gray-800 rounded-2xl w-full lg:max-w-[450px] h-full max-h-[85vh] overflow-hidden shadow-2xl relative flex flex-col"
       >
         {/* Header */}
         <div className="relative shrink-0 h-32 bg-gradient-to-br from-orange-600 to-red-700 flex items-center justify-center overflow-hidden">

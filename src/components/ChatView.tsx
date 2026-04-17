@@ -172,7 +172,7 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
         <button onClick={onBack} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <img src={friend.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} alt={friend.pseudo} className="w-10 h-10 rounded-full bg-white/10" />
+        <img src={getImageUrl(friend.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} alt={friend.pseudo} className="w-10 h-10 rounded-full bg-white/10" referrerPolicy="no-referrer" />
         <div>
           <div className="font-black text-white">{friend.pseudo}</div>
           <div className="text-[10px] text-gray-500 uppercase font-bold">Niv. {friend.level}</div>

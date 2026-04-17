@@ -385,7 +385,7 @@ export function Rankings({ onBack }: RankingsProps) {
               <select
                 value={metric}
                 onChange={(e) => setMetric(e.target.value as any)}
-                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white font-bold text-[11px] sm:text-sm focus:outline-none focus:border-orange-500 transition-colors"
               >
                 <option value="averageScore">Points par match</option>
                 <option value="totalScore">Total des points</option>
@@ -401,7 +401,7 @@ export function Rankings({ onBack }: RankingsProps) {
               <select
                 value={season}
                 onChange={(e) => setSeason(e.target.value)}
-                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white font-bold text-[11px] sm:text-sm focus:outline-none focus:border-orange-500 transition-colors"
               >
                 {availableSeasons.map(s => (
                   <option key={s} value={s}>Saison {s}</option>
@@ -415,7 +415,7 @@ export function Rankings({ onBack }: RankingsProps) {
               <select
                 value={leagueId}
                 onChange={(e) => setLeagueId(e.target.value)}
-                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-colors truncate pr-10"
+                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white font-bold text-[11px] sm:text-sm focus:outline-none focus:border-orange-500 transition-colors truncate pr-8 sm:pr-10"
               >
                 {availableLeagues.map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
@@ -447,56 +447,56 @@ export function Rankings({ onBack }: RankingsProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                className={`flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all ${
                   index === 0 ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/5 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.1)]' :
                   index === 1 ? 'bg-gradient-to-r from-gray-300/10 to-transparent border-gray-400/30' :
                   index === 2 ? 'bg-gradient-to-r from-amber-700/20 to-transparent border-amber-700/30' :
                   'bg-[#1a1a1a] border-white/5 hover:bg-white/5'
                 }`}
               >
-                <div className="flex items-center justify-center w-8 font-black text-xl">
-                  {index === 0 ? <Medal className="w-8 h-8 text-yellow-400" /> :
-                   index === 1 ? <Medal className="w-7 h-7 text-gray-300" /> :
-                   index === 2 ? <Medal className="w-6 h-6 text-amber-600" /> :
+                <div className="flex items-center justify-center w-6 sm:w-8 font-black text-base sm:text-xl shrink-0">
+                  {index === 0 ? <Medal className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" /> :
+                   index === 1 ? <Medal className="w-5 h-5 sm:w-7 sm:h-7 text-gray-300" /> :
+                   index === 2 ? <Medal className="w-4 h-4 sm:w-6 sm:h-6 text-amber-600" /> :
                    <span className="text-gray-500">{entry.rank}</span>}
                 </div>
 
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-black/50 border-2 border-white/10 shrink-0 flex items-center justify-center">
+                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-black/50 border-2 border-white/10 shrink-0 flex items-center justify-center">
                   {entry.imageUrl ? (
                     <img src={getImageUrl(entry.imageUrl)} alt={entry.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : activeTab === 'teams' ? (
-                    <Shield className="w-6 h-6 text-gray-500" />
+                    <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
                   ) : (
-                    <Users className="w-6 h-6 text-gray-500" />
+                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${entry.id}`} alt={entry.name} className="w-full h-full object-cover bg-white/10" referrerPolicy="no-referrer" />
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <h3 className={`font-black uppercase truncate ${index === 0 ? 'text-yellow-400 text-lg' : 'text-white'}`}>
+                <div className="flex-1 min-w-0 pr-1 sm:pr-2">
+                  <h3 className={`font-black uppercase truncate leading-tight ${index === 0 ? 'text-yellow-400 text-[11px] sm:text-lg' : 'text-white text-[10px] sm:text-base'}`}>
                     {entry.name}
                   </h3>
                   {metric !== 'popularity' && (
-                    <p className="text-xs text-gray-400 font-medium">
+                    <p className="text-[9px] sm:text-xs text-gray-400 font-medium truncate mt-0.5 sm:mt-0">
                       {entry.matches} match{entry.matches > 1 ? 's' : ''} joué{entry.matches > 1 ? 's' : ''}
                     </p>
                   )}
                 </div>
 
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   {metric === 'popularity' ? (
-                    <div className="text-2xl font-black text-white tracking-tighter">
-                      {entry.totalScore} <span className="text-sm text-gray-500 ml-1">fans</span>
+                    <div className="text-base sm:text-2xl font-black text-white tracking-tighter">
+                      {entry.totalScore} <span className="text-[9px] sm:text-sm text-gray-500 ml-0.5 sm:ml-1">fans</span>
                     </div>
                   ) : (
                     <>
-                      <div className="text-2xl font-black text-white tracking-tighter">
+                      <div className="text-base sm:text-2xl font-black text-white tracking-tighter">
                         {metric === 'averageScore' ? (
-                          <>{entry.averageScore != null ? entry.averageScore.toFixed(1) : '0.0'}<span className="text-sm text-gray-500 ml-1">pts/m</span></>
+                          <>{entry.averageScore != null ? entry.averageScore.toFixed(1) : '0.0'}<span className="text-[9px] sm:text-sm text-gray-500 ml-0.5 sm:ml-1">pts/m</span></>
                         ) : (
-                          <>{entry.totalScore || 0}<span className="text-sm text-gray-500 ml-1">pts</span></>
+                          <>{entry.totalScore || 0}<span className="text-[9px] sm:text-sm text-gray-500 ml-0.5 sm:ml-1">pts</span></>
                         )}
                       </div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                      <div className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-wider">
                         {metric === 'averageScore' ? `Total: ${entry.totalScore || 0}` : `Moy: ${entry.averageScore != null ? entry.averageScore.toFixed(1) : '0.0'}`}
                       </div>
                     </>

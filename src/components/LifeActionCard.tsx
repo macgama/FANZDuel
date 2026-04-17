@@ -330,15 +330,23 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
             <div className="flex-1 pr-2">
               <div className="text-orange-500 font-bold text-[10px] tracking-widest uppercase mb-1 drop-shadow-md">Activité en cours</div>
               <h4 className="text-xl font-black text-white uppercase tracking-tighter drop-shadow-md leading-tight">{action.name}</h4>
-              <div className="flex items-center gap-1 text-orange-500 mt-1 drop-shadow-md">
+              <div className="flex items-center gap-1 text-orange-500 mb-1 drop-shadow-md">
                 <Star className="w-3 h-3 fill-current" />
-                <span className="font-bold text-xs">L.{currentLevel}</span>
+                <span className="font-black text-[10px] uppercase">Niveau {currentLevel}</span>
+                {currentLevel > 1 && (
+                  <span className="font-black text-[9px] text-green-400 uppercase bg-black/50 px-1.5 py-0.5 rounded ml-1 border border-green-500/30">
+                    +{Math.round((scaleFactor - 1) * 100)}% Bonus
+                  </span>
+                )}
               </div>
-              <div className="w-24 h-1.5 bg-black/80 rounded-full border border-white/10 overflow-hidden relative mt-2" title={`${(actionProgress.xp || 0) % 50} / 50 XP`}>
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-300"
-                  style={{ width: `${((actionProgress.xp || 0) % 50) / 50 * 100}%` }}
-                />
+              <div className="w-full sm:w-32 bg-black/80 rounded-lg p-1 border border-white/10 shadow-lg">
+                <div className="text-[8px] text-blue-400 font-bold uppercase text-center mb-0.5 tracking-widest leading-none">XP Action</div>
+                <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative" title={`${(actionProgress.xp || 0) % 50} / 50 XP`}>
+                  <div 
+                    className="h-full bg-blue-500 transition-all duration-300"
+                    style={{ width: `${((actionProgress.xp || 0) % 50) / 50 * 100}%` }}
+                  />
+                </div>
               </div>
             </div>
             <div className="w-14 h-14 rounded-full border-2 border-orange-500 flex items-center justify-center bg-black/80 backdrop-blur-md shadow-[0_0_15px_rgba(249,115,22,0.3)] shrink-0">
@@ -432,15 +440,18 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
       </div>
 
-      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 w-16">
-        <div className="bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg text-white font-black text-sm border border-white/10 flex items-center justify-center gap-1">
-          <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" /> L.{currentLevel}
+      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 w-24">
+        <div className="bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg text-white font-black text-[10px] border border-white/10 flex items-center justify-center gap-1 shadow-lg">
+          <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" /> NIVEAU {currentLevel}
         </div>
-        <div className="w-full h-1.5 bg-black/80 rounded-full border border-white/10 overflow-hidden relative" title={`${(actionProgress.xp || 0) % 50} / 50 XP`}>
-          <div 
-            className="h-full bg-blue-500 transition-all duration-300"
-            style={{ width: `${((actionProgress.xp || 0) % 50) / 50 * 100}%` }}
-          />
+        <div className="w-full bg-black/80 rounded-lg p-1 border border-white/10 shadow-lg">
+          <div className="text-[8px] text-blue-400 font-bold uppercase text-center mb-0.5 tracking-widest leading-none">XP Action</div>
+          <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative" title="La montée de niveau augmente les récompenses (et les coûts) de 20%">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-300"
+              style={{ width: `${((actionProgress.xp || 0) % 50) / 50 * 100}%` }}
+            />
+          </div>
         </div>
       </div>
       <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">

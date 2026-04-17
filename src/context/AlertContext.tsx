@@ -93,7 +93,7 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
       </div>
 
       {/* Content Container - Constrained for 9:16 feel on desktop, full on mobile */}
-      <div className="relative z-10 w-full max-w-[450px] h-full flex flex-col items-center justify-center px-6 py-12 text-center overflow-y-auto no-scrollbar">
+      <div className="relative z-10 w-full lg:max-w-[450px] h-full flex flex-col items-center justify-center px-6 py-12 text-center overflow-y-auto no-scrollbar">
         <motion.div
           initial={{ scale: 0.8, y: 20, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}

@@ -48,7 +48,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
           <X size={24} />
         </motion.button>
 
-        <div className="w-full max-w-[450px] h-full flex flex-col items-center justify-center text-center space-y-8 md:space-y-12 relative z-10 overflow-y-auto no-scrollbar py-12">
+        <div className="w-full lg:max-w-[450px] h-full flex flex-col items-center justify-center text-center space-y-8 md:space-y-12 relative z-10 overflow-y-auto no-scrollbar py-12">
           <motion.div
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}

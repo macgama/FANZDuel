@@ -80,7 +80,7 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
           if ((dataB.xp || 0) !== (dataA.xp || 0)) return (dataB.xp || 0) - (dataA.xp || 0);
           return a.id.localeCompare(b.id);
         });
-        const activeFanzDoc = sortedDocs.find(d => d.id === profile.activeAction?.fanzId) || sortedDocs[0];
+        const activeFanzDoc = sortedDocs.find(d => d.id === (profile.activeFanzId || profile.activeAction?.fanzId)) || sortedDocs[0];
         const fanzData = activeFanzDoc.data() as Fanz;
         
         let imageUrl = fanzData.imageUrl;
@@ -105,7 +105,17 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
         }
         
         const finalImageUrl = getImageUrl(imageUrl);
-        setAvatarUrl(finalImageUrl ? imageUrl : (profile.photoURL || null));
+        const resolvedUrl = finalImageUrl ? imageUrl : (profile.photoURL || null);
+        setAvatarUrl(resolvedUrl);
+
+        if (resolvedUrl && profile.photoURL !== resolvedUrl) {
+          try {
+            const { updateDoc } = await import('firebase/firestore');
+            await updateDoc(doc(db, 'users', profile.uid), { photoURL: resolvedUrl });
+          } catch(e) {
+             console.error('Failed to sync photoURL', e);
+          }
+        }
       } else {
         setAvatarUrl(profile.photoURL || null);
       }
@@ -114,7 +124,7 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
     });
 
     return () => unsubscribe();
-  }, [profile.uid, profile.activeAction?.fanzId, profile.photoURL]);
+  }, [profile.uid, profile.activeFanzId, profile.activeAction?.fanzId, profile.photoURL]);
 
   useEffect(() => {
     if (profile.energy >= 100) {

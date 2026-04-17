@@ -173,6 +173,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           ferveurPoints: ferveurBonus,
           cards: initialCards,
           activeFanzId: fanzId,
+          photoURL: 'https://thebestfan.online/img/public/fanz/imageFanz001Skin000.png',
           lastEnergyRefill: new Date().toISOString(),
           role: ((user.email || email) === 'gael.manigley@gmail.com' || (user.email || email) === 'michel@gmail.com') ? 'admin' : 'client',
         });

@@ -163,9 +163,16 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                       onSetActive={async (e) => {
                         e.stopPropagation();
                         try {
-                          await updateDoc(doc(db, 'users', userProfile.uid), {
-                            activeFanzId: ownedFanz.get(template.id)!.id
-                          });
+                          const fanzToSet = ownedFanz.get(template.id);
+                          if (fanzToSet) {
+                            const equippedSkinData = template.skins?.find(s => s.id === fanzToSet.equippedSkin);
+                            const skinImageUrl = equippedSkinData ? equippedSkinData.imageUrl : (fanzToSet.imageUrl || template.image);
+
+                            await updateDoc(doc(db, 'users', userProfile.uid), {
+                              activeFanzId: fanzToSet.id,
+                              photoURL: skinImageUrl || null
+                            });
+                          }
                         } catch (error) {
                           console.error("Error setting active FANZ:", error);
                         }

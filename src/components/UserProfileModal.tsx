@@ -23,6 +23,8 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [avatarTab, setAvatarTab] = useState<'flags' | 'fanz' | 'skins'>('flags');
   const [defaultFanzUrl, setDefaultFanzUrl] = useState<string | null>(null);
+  const [ownedTemplateIds, setOwnedTemplateIds] = useState<string[]>([]);
+  const [ownedSkinIds, setOwnedSkinIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!profile.uid) return;
@@ -30,6 +32,20 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
     const q = query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (!snapshot.empty) {
+        const templates = new Set<string>();
+        const skins = new Set<string>();
+
+        snapshot.docs.forEach(d => {
+          const data = d.data() as Fanz;
+          if (data.templateId) templates.add(data.templateId);
+          if (data.unlockedSkins) {
+             data.unlockedSkins.forEach(s => skins.add(s));
+          }
+        });
+
+        setOwnedTemplateIds(Array.from(templates));
+        setOwnedSkinIds(Array.from(skins));
+        
         const sortedDocs = [...snapshot.docs].sort((a, b) => {
           const dataA = a.data() as Fanz;
           const dataB = b.data() as Fanz;
@@ -41,7 +57,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
           if ((dataB.xp || 0) !== (dataA.xp || 0)) return (dataB.xp || 0) - (dataA.xp || 0);
           return a.id.localeCompare(b.id);
         });
-        const activeFanzDoc = sortedDocs.find(d => d.id === profile.activeAction?.fanzId) || sortedDocs[0];
+        const activeFanzDoc = sortedDocs.find(d => d.id === (profile.activeFanzId || profile.activeAction?.fanzId)) || sortedDocs[0];
         const fanzData = activeFanzDoc.data() as Fanz;
         
         let imageUrl = fanzData.imageUrl;
@@ -73,7 +89,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
     });
 
     return () => unsubscribe();
-  }, [profile.uid, profile.activeAction?.fanzId]);
+  }, [profile.uid, profile.activeFanzId, profile.activeAction?.fanzId]);
 
   const handleSave = async () => {
     if (!pseudo.trim()) {
@@ -99,7 +115,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   if (isAvatarPickerOpen) {
     return (
       <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-hidden">
-        <Card className="w-full max-w-[450px] h-full max-h-[90vh] relative flex flex-col p-4 sm:p-6 overflow-hidden">
+        <Card className="w-full lg:max-w-[450px] h-full max-h-[90vh] relative flex flex-col p-4 sm:p-6 overflow-hidden">
           <button 
             onClick={() => setIsAvatarPickerOpen(false)}
             className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors z-10"
@@ -134,7 +150,9 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
           <div className="overflow-y-auto flex-1 pr-1 custom-scrollbar">
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
-              {(avatarTab === 'flags' ? FLAG_AVATARS : avatarTab === 'fanz' ? FANZ_AVATARS : SKIN_AVATARS).map(avatar => (
+              {(avatarTab === 'flags' ? FLAG_AVATARS : 
+                 avatarTab === 'fanz' ? FANZ_AVATARS.filter(f => ownedTemplateIds.includes(f.id.replace('avatar-', '')) || profile.role === 'admin') : 
+                 SKIN_AVATARS.filter(s => ownedSkinIds.includes(s.id.replace('avatar-skin-', '')) || profile.role === 'admin')).map(avatar => (
                 <button
                   key={avatar.id}
                   onClick={() => {
@@ -163,7 +181,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
-      <Card className="w-full max-w-[450px] relative max-h-[90vh] overflow-y-auto no-scrollbar flex flex-col">
+      <Card className="w-full lg:max-w-[450px] relative max-h-[90vh] overflow-y-auto no-scrollbar flex flex-col">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors z-10"

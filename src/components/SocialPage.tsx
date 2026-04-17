@@ -7,6 +7,7 @@ import { collection, query, where, getDocs, doc, updateDoc, arrayUnion, arrayRem
 import { ChatView } from './ChatView';
 import { useAlert } from '../context/AlertContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { getImageUrl } from '../lib/utils';
 
 interface SocialPageProps {
   user: UserProfile;
@@ -262,7 +263,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
                 onClick={() => setSelectedFriend(chat.otherUser)}
               >
                 <div className="flex items-center gap-3">
-                  <img src={chat.otherUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.otherUser.uid}`} alt={chat.otherUser.pseudo} className="w-12 h-12 rounded-full bg-white/10" />
+                  <img src={getImageUrl(chat.otherUser.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.otherUser.uid}`} alt={chat.otherUser.pseudo} className="w-12 h-12 rounded-full bg-white/10" referrerPolicy="no-referrer" />
                   <div>
                     <div className="font-black text-white">{chat.otherUser.pseudo}</div>
                     <div className="text-xs text-gray-400 flex items-center gap-1">
@@ -294,7 +295,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
             friends.map(friend => (
               <div key={friend.uid} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <img src={friend.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} alt={friend.pseudo} className="w-10 h-10 rounded-full bg-white/10" />
+                  <img src={getImageUrl(friend.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} alt={friend.pseudo} className="w-10 h-10 rounded-full bg-white/10" referrerPolicy="no-referrer" />
                   <div>
                     <div className="font-black text-white">{friend.pseudo}</div>
                     <div className="text-[10px] text-gray-500 uppercase font-bold">Niv. {friend.level}</div>
@@ -318,7 +319,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
             requests.map(request => (
               <div key={request.uid} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <img src={request.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.uid}`} alt={request.pseudo} className="w-10 h-10 rounded-full bg-white/10" />
+                  <img src={getImageUrl(request.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.uid}`} alt={request.pseudo} className="w-10 h-10 rounded-full bg-white/10" referrerPolicy="no-referrer" />
                   <div>
                     <div className="font-black text-white">{request.pseudo}</div>
                     <div className="text-[10px] text-gray-500 uppercase font-bold">Niv. {request.level}</div>
@@ -365,7 +366,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
                 return (
                   <div key={result.uid} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3 sm:gap-4">
-                      <img src={result.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${result.uid}`} alt={result.pseudo} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10" />
+                      <img src={getImageUrl(result.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${result.uid}`} alt={result.pseudo} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10" referrerPolicy="no-referrer" />
                       <div>
                         <div className="font-black text-white sm:text-lg">{result.pseudo}</div>
                         <div className="text-[10px] sm:text-xs text-gray-500 uppercase font-bold">Niv. {result.level}</div>
