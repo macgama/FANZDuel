@@ -6,6 +6,7 @@ import { format, addDays, subDays, isSameDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { MatchDetails } from './MatchDetails';
+import { MatchEvents } from './MatchEvents';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 
@@ -476,26 +477,14 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
           </div>
         )}
 
-        {/* Scorers Section */}
-        {scorers.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-3">
-            <div className="space-y-1">
-              {scorers.filter((e: any) => e.team.id === match.teams.home.id).map((e: any, i: number) => (
-                <div key={i} className="flex items-center justify-end gap-1.5 text-[9px] sm:text-[10px] text-gray-400 font-bold">
-                  <span>{e.player.name}</span>
-                  <span className="text-orange-500">{e.time.elapsed}{e.time.extra ? `+${e.time.extra}` : ''}'</span>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-1">
-              {scorers.filter((e: any) => e.team.id === match.teams.away.id).map((e: any, i: number) => (
-                <div key={i} className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-gray-400 font-bold">
-                  <span className="text-orange-500">{e.time.elapsed}{e.time.extra ? `+${e.time.extra}` : ''}'</span>
-                  <span>{e.player.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* External Events Component */}
+        {(isLive || isFinished) && (
+          <MatchEvents 
+            fixtureId={match.fixture.id} 
+            homeId={match.teams.home.id} 
+            awayId={match.teams.away.id} 
+            initialEvents={match.events} 
+          />
         )}
         
         {isLive && (

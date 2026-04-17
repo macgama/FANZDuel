@@ -41,8 +41,8 @@ uniqueSteps.forEach(pts => {
 
 export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
   const paddedId = String(i + 1).padStart(3, '0');
-  const imageUrl = `gs://thebestfanonlinegas.firebasestorage.app/public/fanz/imageFanz${paddedId}Skin000.png`;
-  const videoUrl = `gs://thebestfanonlinegas.firebasestorage.app/public/fanz/videoFanz${paddedId}Skin000.mp4`;
+  const imageUrl = `https://thebestfan.online/img/public/fanz/imageFanz${paddedId}Skin000.png`;
+  const videoUrl = `https://thebestfan.online/img/public/fanz/videoFanz${paddedId}Skin000.mp4`;
 
   if (i === 0) {
     return {
@@ -69,7 +69,7 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
           id: 'skin-bebe-gold',
           fanzId: 'fanz-1',
           name: 'Bébé Fanzzy Gold',
-          imageUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/imageFanz001Skin001.png',
+          imageUrl: 'https://thebestfan.online/img/public/fanz/imageFanz001Skin001.png',
           price: { gems: 500 },
         }
       ],
@@ -78,13 +78,13 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
           id: 'emote-bebe-cry',
           fanzId: 'fanz-1',
           name: 'Pleure',
-          imageUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/emoteFanz001Cry.png',
+          imageUrl: 'https://thebestfan.online/img/public/fanz/emoteFanz001Cry.png',
         },
         {
           id: 'emote-bebe-laugh',
           fanzId: 'fanz-1',
           name: 'Rigole',
-          imageUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/emoteFanz001Laugh.png',
+          imageUrl: 'https://thebestfan.online/img/public/fanz/emoteFanz001Laugh.png',
         }
       ],
       ferveurPath: defaultFerveurPath

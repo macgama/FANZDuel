@@ -193,8 +193,8 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           ownerUid: user.uid,
           name: `Bébé Fanzzy`,
           sport: 'soccer',
-          imageUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/imageFanz001Skin000.png',
-          videoUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/videoFanz001Skin000.mp4',
+          imageUrl: 'https://thebestfan.online/img/public/fanz/imageFanz001Skin000.png',
+          videoUrl: 'https://thebestfan.online/img/public/fanz/videoFanz001Skin000.mp4',
           stats: {
             force: 1, endurance: 1, mental: 1, bluff: 2,
             creativity: 1, social: 101, intelligence: 1, charisma: 101
@@ -248,7 +248,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
       showAlert({
         title: "Votre Premier FANZ",
         subtitle: "Prenez-en soin et faites-le évoluer !",
-        videoUrl: 'gs://thebestfanonlinegas.firebasestorage.app/public/fanz/videoFanz001Skin000.mp4',
+        videoUrl: 'https://thebestfan.online/img/public/fanz/videoFanz001Skin000.mp4',
         type: "unlock"
       });
 

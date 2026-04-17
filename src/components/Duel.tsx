@@ -297,11 +297,11 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/back1v1.png', fullWidth: false },
-                  { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/back1v1.png', fullWidth: false },
-                  { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/back2v2.png', fullWidth: false },
-                  { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/back5v5.png', fullWidth: false },
-                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'gs://thebestfanonlinegas.firebasestorage.app/public/background/backKOP.png', fullWidth: true }
+                  { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'https://thebestfan.online/img/public/background/back1v1.png', fullWidth: false },
+                  { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'https://thebestfan.online/img/public/background/back1v1.png', fullWidth: false },
+                  { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'https://thebestfan.online/img/public/background/back2v2.png', fullWidth: false },
+                  { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'https://thebestfan.online/img/public/background/back5v5.png', fullWidth: false },
+                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'https://thebestfan.online/img/public/background/backKOP.png', fullWidth: true }
                 ].filter(arena => isLiveMatch || arena.id === 'training').map(arena => {
                   const cost = duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
                   const bgUrl = getImageUrl(arena.bg);

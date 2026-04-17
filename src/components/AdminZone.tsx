@@ -351,7 +351,7 @@ export function AdminZone() {
             id: skinId,
             fanzId: 'fanz-1',
             name: `Skin WC26 - Équipe ${i}`,
-            imageUrl: `gs://thebestfanonlinegas.firebasestorage.app/public/fanz/wc26/equipe${i}.png`,
+            imageUrl: `https://thebestfan.online/img/public/fanz/wc26/equipe${i}.png`,
             price: {} // Exclusive to pass
           });
         }

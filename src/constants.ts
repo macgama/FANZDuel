@@ -1,10 +1,10 @@
 export const LOGOS = {
-  money: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoDollar.png?alt=media',
-  gems: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoGemme.png?alt=media',
-  boost: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoBoost.png?alt=media',
-  energy: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoEnergy.png?alt=media',
-  level: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoLevel.png?alt=media',
-  ferveur: 'https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/public%2Flogo%2FlogoFerveur.png?alt=media',
+  money: 'https://thebestfan.online/img/public/logo/logoDollar.png',
+  gems: 'https://thebestfan.online/img/public/logo/logoGemme.png',
+  boost: 'https://thebestfan.online/img/public/logo/logoBoost.png',
+  energy: 'https://thebestfan.online/img/public/logo/logoEnergy.png',
+  level: 'https://thebestfan.online/img/public/logo/logoLevel.png',
+  ferveur: 'https://thebestfan.online/img/public/logo/logoFerveur.png',
 };
 
 export const COLORS = {

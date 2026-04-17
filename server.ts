@@ -5,6 +5,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import axios from "axios";
 import * as dotenv from "dotenv";
+import sharp from "sharp";
 import { BASE_CARDS } from "./src/constants/cards.ts";
 
 dotenv.config();
@@ -415,6 +416,43 @@ async function startServer() {
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Image Optimization Proxy
+  app.get("/api/image-proxy", async (req, res) => {
+    try {
+      const targetUrl = req.query.url as string;
+      const width = parseInt(req.query.w as string) || 800; // Default max width
+
+      if (!targetUrl) {
+        return res.status(400).send("Missing url parameter");
+      }
+
+      // Fetch the original image
+      const response = await axios.get(targetUrl, { 
+        responseType: 'arraybuffer',
+        timeout: 8000 // 8 second timeout so it doesn't hang
+      });
+      const buffer = Buffer.from(response.data, 'binary');
+
+      // Optimize and resize
+      const optimized = await sharp(buffer)
+        .resize({ width, withoutEnlargement: true })
+        .webp({ quality: 80 }) // Compress to WebP!
+        .toBuffer();
+
+      res.set('Content-Type', 'image/webp');
+      res.set('Cache-Control', 'public, max-age=31536000, immutable'); // Cache for 1 year
+      res.send(optimized);
+    } catch (e: any) {
+      console.error("[Image Proxy Error]", e.message);
+      // If it fails, redirect to original or send an error
+      if (typeof req.query.url === 'string') {
+        res.redirect(req.query.url);
+      } else {
+        res.status(500).send("Error processing image");
+      }
+    }
   });
 
   // Diagnostic route

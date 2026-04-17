@@ -535,7 +535,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
       {/* Tabs Menu */}
       <div className="flex justify-center mt-[10px] px-5">
-        <div className={`flex w-full gap-0.5 p-1 bg-white/5 rounded-xl border border-white/10 ${userProfile.activeAction ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className="flex w-full gap-0.5 p-1 bg-white/5 rounded-xl border border-white/10">
           <TabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} label="Stats" icon={<Activity className="w-4 h-4" />} />
           <TabButton active={activeTab === 'ferveur'} onClick={() => setActiveTab('ferveur')} label="Ferveur" icon={<Flame className="w-4 h-4" />} />
           <TabButton active={activeTab === 'rank'} onClick={() => setActiveTab('rank')} label="Rang" icon={<Trophy className="w-4 h-4" />} />
@@ -546,26 +546,26 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       </div>
 
       <div className="py-6 px-5 space-y-6">
-        {/* Active Action Banner */}
-        {userProfile.activeAction?.fanzId === fanz.id && (
-          <div className="mb-6">
-            {lifeActions
-              .filter(a => a.id === userProfile.activeAction?.actionId)
-              .map(action => (
-                <LifeActionCard 
-                  key={action.id} 
-                  action={action} 
-                  fanz={fanz} 
-                  userProfile={userProfile} 
-                />
-              ))}
-          </div>
-        )}
-
         {/* Tab Content */}
-        <div className={`min-h-[400px] ${userProfile.activeAction ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className="min-h-[400px]">
             {activeTab === 'stats' && (
-              <div className="space-y-6">
+            <div className="space-y-6">
+              {/* Active Action Banner */}
+              {userProfile.activeAction?.fanzId === fanz.id ? (
+                <div className="mb-6">
+                  {lifeActions
+                    .filter(a => a.id === userProfile.activeAction?.actionId)
+                    .map(action => (
+                      <LifeActionCard 
+                        key={action.id} 
+                        action={action} 
+                        fanz={fanz} 
+                        userProfile={userProfile} 
+                      />
+                    ))}
+                </div>
+              ) : (
+                <>
                 <div className="grid grid-cols-2 gap-4">
                   {Object.entries(statLabels).map(([stat, label]) => {
                     const xp = fanz.stats[stat as keyof typeof statLabels] || 1;
@@ -646,6 +646,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     </button>
                   </div>
                 </Card>
+              </>
+              )}
               </div>
             )}
 
@@ -1700,11 +1702,13 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       )}
 
       {/* Reward Modal */}
+      <AnimatePresence>
       {rewardModal && rewardModal.isOpen && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <motion.div 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
             className="bg-gray-900 border border-white/10 rounded-3xl p-6 max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl"
           >
             <div className="text-center space-y-1 mb-4 flex-shrink-0">
@@ -2210,6 +2214,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         </motion.div>
       </div>
     )}
+    </AnimatePresence>
     </div>
   );
 }

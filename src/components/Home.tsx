@@ -4,7 +4,14 @@ import { UserProfile, Fanz, FanzTemplate, LifeAction, GlobalFervorConfig } from 
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, getDocs, limit } from 'firebase/firestore';
 import { getImageUrl } from '../lib/utils';
+// ... (rest of imports)
+
+// Since getImageUrl handles the logic for converting gs:// to https://thebestfan.online/img/, 
+// we just need to ensure it's used consistently for images and videos fetched from Firebase.
+
+// Inside getImageUrl utility, I will add logic to replace gs://thebestfanonlinegas.firebasestorage.app/ with https://thebestfan.online/img/ if it isn't already.
 import { footballApi } from '../services/footballApi';
+import { MatchEvents } from './MatchEvents';
 import { LifeActionCard } from './LifeActionCard';
 import { generateFervorPath } from '../utils/fervorPath';
 import { 
@@ -519,6 +526,15 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                       </div>
                     </div>
 
+                    <div className="mt-4 border-t border-white/5 mx-[-16px] px-4 pt-4">
+                      <MatchEvents 
+                        fixtureId={match.fixture.id} 
+                        homeId={match.teams.home.id} 
+                        awayId={match.teams.away.id} 
+                        initialEvents={match.events} 
+                      />
+                    </div>
+
                     {/* Buttons */}
                     <div className="flex gap-3 mt-4 relative">
                       <button 
@@ -583,7 +599,19 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                   </div>
                 )})
               ) : (
-                activeFanz && fanzTemplate ? (
+                activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id ? (
+                  lifeActions
+                    .filter(action => action.id === profile.activeAction?.actionId)
+                    .map(action => (
+                      <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
+                        <LifeActionCard 
+                          action={action} 
+                          fanz={activeFanz} 
+                          userProfile={profile} 
+                        />
+                      </div>
+                    ))
+                ) : activeFanz && fanzTemplate && !profile.activeAction ? (
                   lifeActions
                     .filter(action => action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId)
                     .map(action => (

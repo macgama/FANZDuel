@@ -5,26 +5,29 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function getImageUrl(path: string | null, width?: number) {
+export function getImageUrl(path: string | null, width: number = 800) {
   if (!path) return '';
   
-  // If it's a Picsum URL, we can modify the URL to request a specific width
-  if (path.includes('picsum.photos') && width) {
-    // Example: https://picsum.photos/seed/xyz/800/600 -> we can't easily regex it without knowing the exact format,
-    // but we can try to replace the width part if it matches a known pattern.
-    // For simplicity, we'll just return the path for now, but this is where CDN-specific logic goes.
+  let finalPath = path;
+
+  // Handle gs:// URLs (Legacy database records)
+  if (path.startsWith('gs://thebestfanonlinegas.firebasestorage.app/')) {
+    const filePath = path.replace('gs://thebestfanonlinegas.firebasestorage.app/', '');
+    finalPath = `https://thebestfan.online/img/${filePath}`;
+  } else if (!path.startsWith('http')) {
+    // Fallback for relative paths
+    finalPath = `https://thebestfan.online/img/${path}`;
   }
 
-  if (path.startsWith('http')) return path;
-  
-  // Handle gs:// URLs
-  if (path.startsWith('gs://')) {
-    const bucket = 'thebestfanonlinegas.firebasestorage.app';
-    const filePath = path.replace(`gs://${bucket}/`, '');
-    // If we had a Firebase Resize Images extension, we could append `_${width}x${width}` to the filename here.
-    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+  // Optimize only images through the local proxy, exclude videos
+  if (
+    finalPath.includes('thebestfan.online/img/') && 
+    !finalPath.endsWith('.mp4') && 
+    !finalPath.endsWith('.webm') &&
+    !finalPath.endsWith('.mov')
+  ) {
+    return `/api/image-proxy?url=${encodeURIComponent(finalPath)}&w=${width}`;
   }
 
-  // Fallback for relative paths
-  return `https://firebasestorage.googleapis.com/v0/b/thebestfanonlinegas.firebasestorage.app/o/${encodeURIComponent(path)}?alt=media`;
+  return finalPath;
 }
