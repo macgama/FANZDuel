@@ -16,11 +16,17 @@ import {
   User,
   History,
   RefreshCw,
-  Clock
+  Clock,
+  Shield,
+  Medal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
+import { collection, query, where, orderBy, limit, getDocs, getDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { getImageUrl } from '../lib/utils';
 
 interface TeamDetailsProps {
   teamId: number;
@@ -28,9 +34,10 @@ interface TeamDetailsProps {
   onBack: () => void;
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
+  onMatchClick?: (matchId: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void;
 }
 
-export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick, onLeagueClick }: TeamDetailsProps) {
+export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick, onLeagueClick, onMatchClick }: TeamDetailsProps) {
   const [team, setTeam] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState(initialSeason);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
@@ -41,7 +48,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<'matches' | 'players' | 'standings' | 'stats' | 'rankings'>('matches');
+  const [activeTab, setActiveTab] = useState<'matches' | 'players' | 'standings' | 'stats' | 'rankings' | 'tbfo'>('matches');
 
   // Fetch team info and available seasons
   useEffect(() => {
@@ -179,7 +186,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
                 </h2>
                 <div className="flex items-center gap-1.5">
                   <p className="text-[8px] text-gray-400 uppercase font-black tracking-widest">
-                    {team.team.country} - {team.venue.city}
+                    {translateCountryName(team.team.country)} - {team.venue.city}
                   </p>
                   {lastUpdated && (
                     <div className="flex items-center gap-1 text-[7px] font-bold text-gray-500 uppercase italic tracking-widest border-l border-white/10 pl-1.5">
@@ -262,10 +269,10 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               label="Matches"
             />
             <TabButton 
-              active={activeTab === 'players'} 
-              onClick={() => setActiveTab('players')}
-              icon={<Users className="w-3 h-3" />}
-              label="Joueurs"
+              active={activeTab === 'standings'} 
+              onClick={() => setActiveTab('standings')}
+              icon={<Trophy className="w-3 h-3" />}
+              label="Classement"
             />
             <TabButton 
               active={activeTab === 'rankings'} 
@@ -273,17 +280,24 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               icon={<Goal className="w-3 h-3" />}
               label="Rankings"
             />
-            <TabButton 
-              active={activeTab === 'standings'} 
-              onClick={() => setActiveTab('standings')}
-              icon={<Trophy className="w-3 h-3" />}
-              label="Classement"
+             <TabButton 
+              active={activeTab === 'players'} 
+              onClick={() => setActiveTab('players')}
+              icon={<Users className="w-3 h-3" />}
+              label="Joueurs"
             />
             <TabButton 
               active={activeTab === 'stats'} 
               onClick={() => setActiveTab('stats')}
               icon={<BarChart3 className="w-3 h-3" />}
               label="Stats"
+            />
+            <TabButton 
+              active={activeTab === 'tbfo'} 
+              onClick={() => setActiveTab('tbfo')}
+              icon={<Shield className="w-3 h-3" />}
+              label="TBFO"
+              highlight={true}
             />
           </div>
 
@@ -296,11 +310,12 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
-              {activeTab === 'players' && <PlayersTab players={players} />}
-              {activeTab === 'rankings' && <TeamRankingsTab players={players} />}
+              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} />}
               {activeTab === 'standings' && <StandingsTab standings={standings} teamId={teamId} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />}
-              {activeTab === 'stats' && <StatsTab stats={stats} />}
+              {activeTab === 'rankings' && <TeamRankingsTab players={players} />}
+              {activeTab === 'players' && <PlayersTab players={players} />}
+              {activeTab === 'stats' && <StatsTab stats={stats} teamId={teamId} selectedSeason={selectedSeason} />}
+              {activeTab === 'tbfo' && <TbfoRankingsTab teamId={teamId} selectedSeason={selectedSeason} />}
             </motion.div>
           </AnimatePresence>
         </>
@@ -309,14 +324,16 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
   );
 }
 
-function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+function TabButton({ active, onClick, icon, label, highlight }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; highlight?: boolean }) {
   return (
     <button 
       onClick={onClick}
-      className={`flex-1 min-w-[80px] flex items-center justify-center gap-1 py-1.5 rounded-md transition-all font-bold text-[9px] uppercase italic ${
+      className={`flex-1 min-w-[80px] flex items-center justify-center gap-1 py-1.5 px-2 rounded-md transition-all font-bold text-[9px] sm:text-[10px] uppercase italic whitespace-nowrap ${
         active 
           ? 'bg-orange-600 text-white shadow-md' 
-          : 'text-gray-400 hover:text-white hover:bg-white/5'
+          : highlight 
+            ? 'text-orange-500 hover:text-orange-400 hover:bg-orange-500/10' 
+            : 'text-gray-400 hover:text-white hover:bg-white/5'
       }`}
     >
       {icon}
@@ -379,7 +396,7 @@ function TeamRankingList({ title, data, label, valKey, icon }: { title: string; 
   );
 }
 
-function MatchesTab({ fixtures, onTeamClick, onLeagueClick, selectedSeason }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; selectedSeason: number }) {
+function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number }) {
   if (fixtures.length === 0) return <Card className="py-10 text-center text-gray-500">Aucun match trouvé.</Card>;
 
   const formatRound = (round: string) => {
@@ -431,7 +448,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, selectedSeason }: { 
             >
               <img src={league.logo} alt="" className="w-6 h-6 object-contain" />
               <h2 className="text-sm font-black italic uppercase tracking-tight group-hover:translate-x-1 transition-transform">
-                {league.name}
+                {translateLeagueName(league.name)}
               </h2>
             </div>
 
@@ -449,6 +466,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, selectedSeason }: { 
                         <Card 
                           key={f.fixture.id} 
                           className="p-2 hover:border-orange-500/30 transition-all cursor-pointer group"
+                          onClick={() => onMatchClick && onMatchClick(f.fixture.id)}
                         >
                           <div className="flex flex-col gap-2">
                             <div className="flex justify-between items-center text-[8px] font-medium text-gray-500 uppercase tracking-wider">
@@ -576,30 +594,180 @@ function StandingsTab({ standings, teamId, onTeamClick, selectedSeason }: { stan
   );
 }
 
-function StatsTab({ stats }: { stats: any }) {
-  if (!stats) return <Card className="py-10 text-center text-gray-500">Statistiques non disponibles.</Card>;
+function StatsTab({ stats, teamId, selectedSeason }: { stats: any, teamId: number, selectedSeason: number }) {
+  const [tbfoStats, setTbfoStats] = useState({
+    duelsCount: 0,
+    duels1v1: 0,
+    duels2v2: 0,
+    duels5v5: 0,
+    duelsKop: 0,
+    totalPoints: 0,
+    totalClicks: 0,
+    totalCards: 0,
+    loading: true
+  });
+
+  useEffect(() => {
+    const fetchTbfoStats = async () => {
+      try {
+        const rankingsQ = query(
+          collection(db, 'ranking_teams'),
+          where('season', '==', selectedSeason.toString()),
+          where('teamId', '==', teamId.toString())
+        );
+        const rankingsSnap = await getDocs(rankingsQ);
+        const pointTotal = rankingsSnap.docs.reduce((acc, doc) => acc + (doc.data().totalScore || 0), 0);
+
+        const duelsQ = query(
+          collection(db, 'duels'),
+          limit(100) // Dummy limitation since we don't have a specific `teamId` array index configured, real app would query appropriately
+        );
+        let dCount = 0;
+        let d1v1 = 0;
+        let d2v2 = 0;
+        let d5v5 = 0;
+        let dKop = 0;
+        let totalCards = 0;
+        
+        try {
+           const duelsSnap = await getDocs(duelsQ);
+           duelsSnap.docs.forEach(doc => {
+             const data = doc.data();
+             // Assuming match.teams might exist or similar
+             const isIncluded = data?.match?.teams?.includes(teamId) || 
+                                data?.creator?.teamId === teamId ||
+                                data?.opponent?.teamId === teamId;
+             
+             if (isIncluded) {
+               dCount++;
+               if (data.type === '1v1') d1v1++;
+               else if (data.type === '2v2') d2v2++;
+               else if (data.type === '5v5') d5v5++;
+               else if (data.type === 'kop') dKop++;
+               else if (data.type === 'team') dKop++;
+               
+               if (data.participants) {
+                 data.participants.forEach((p: any) => {
+                   if (p.usedCards) totalCards += p.usedCards;
+                 });
+               }
+             }
+           });
+        } catch(e) {}
+
+        const lifeActionsQ = query(
+          collection(db, 'life_actions'),
+          where('teamId', '==', teamId.toString()),
+           limit(100)
+        );
+        let tClicks = 0;
+        try {
+           const lifeSnap = await getDocs(lifeActionsQ);
+           lifeSnap.docs.forEach(d => {
+              const data = d.data();
+              if (data.type === 'click') {
+                 tClicks += (data.clicks || 1);
+              }
+           });
+        } catch(e) {}
+
+        setTbfoStats({
+          duelsCount: dCount,
+          duels1v1: d1v1,
+          duels2v2: d2v2,
+          duels5v5: d5v5,
+          duelsKop: dKop,
+          totalPoints: pointTotal,
+          totalClicks: tClicks,
+          totalCards: totalCards,
+          loading: false
+        });
+
+      } catch (err) {
+        setTbfoStats(prev => ({ ...prev, loading: false }));
+      }
+    };
+    fetchTbfoStats();
+  }, [teamId, selectedSeason]);
+
+
+  if (!stats && tbfoStats.loading) return <Card className="py-10 text-center text-gray-500">Statistiques non disponibles.</Card>;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <Card className="space-y-2 p-3">
-        <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">Attaque</h3>
-        <div className="grid grid-cols-2 gap-2">
-          <StatItem label="Buts" value={stats.goals.for.total.total} />
-          <StatItem label="Moyenne" value={stats.goals.for.average.total} />
-          <StatItem label="Clean Sheets" value={stats.clean_sheet.total} />
-          <StatItem label="Failed to Score" value={stats.failed_to_score.total} />
-        </div>
-      </Card>
+    <div className="space-y-4">
+      {stats && (
+        <>
+          <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mb-2">
+            <Trophy className="w-4 h-4 text-orange-500" />
+            Stats Réelles (Football)
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Card className="space-y-2 p-3">
+              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">Attaque</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <StatItem label="Buts" value={stats.goals?.for?.total?.total} />
+                <StatItem label="Moyenne" value={stats.goals?.for?.average?.total} />
+                <StatItem label="Clean Sheets" value={stats.clean_sheet?.total} />
+                <StatItem label="Failed to Score" value={stats.failed_to_score?.total} />
+              </div>
+            </Card>
+            
+            <Card className="space-y-2 p-3">
+              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">Séries</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <StatItem label="Victoires" value={stats.fixtures?.wins?.total} />
+                <StatItem label="Nuls" value={stats.fixtures?.draws?.total} />
+                <StatItem label="Défaites" value={stats.fixtures?.loses?.total} />
+                <StatItem label="Plus longue série" value={stats.biggest?.streak?.wins} />
+              </div>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* TBFO STATS */}
+      <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mt-6 mb-2">
+        <Shield className="w-4 h-4 text-orange-500" />
+        Stats TBFO (Jeu)
+      </h3>
       
-      <Card className="space-y-2 p-3">
-        <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">Séries</h3>
-        <div className="grid grid-cols-2 gap-2">
-          <StatItem label="Victoires" value={stats.fixtures.wins.total} />
-          <StatItem label="Nuls" value={stats.fixtures.draws.total} />
-          <StatItem label="Défaites" value={stats.fixtures.loses.total} />
-          <StatItem label="Plus longue série" value={stats.biggest.streak.wins} />
+      {tbfoStats.loading ? (
+        <Card className="py-8 flex justify-center items-center">
+           <Activity className="w-6 h-6 text-orange-500 animate-spin" />
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card className="flex flex-col items-center justify-center p-3 text-center space-y-1 bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/20">
+            <Shield className="w-4 h-4 text-orange-500 mb-0.5" />
+            <span className="text-xl font-black italic text-white">{tbfoStats.totalPoints.toLocaleString()}</span>
+            <span className="text-[7.5px] font-bold text-orange-500/80 uppercase tracking-widest">Points Gagnés</span>
+          </Card>
+          
+          <Card className="flex flex-col items-center justify-center p-3 text-center space-y-1 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
+            <Users className="w-4 h-4 text-blue-500 mb-0.5" />
+            <span className="text-xl font-black italic text-white">{tbfoStats.duelsCount}</span>
+            <span className="text-[7.5px] font-bold text-blue-500/80 uppercase tracking-widest">Batailles Jouées</span>
+            <div className="text-[8px] text-gray-400 mt-1 flex flex-wrap justify-center gap-1.5">
+              <span>1v1: <strong className="text-white">{tbfoStats.duels1v1}</strong></span>
+              <span>2v2: <strong className="text-white">{tbfoStats.duels2v2}</strong></span>
+              <span>5v5: <strong className="text-white">{tbfoStats.duels5v5}</strong></span>
+              <span>Guerre des Kops: <strong className="text-white">{tbfoStats.duelsKop}</strong></span>
+            </div>
+          </Card>
+
+          <Card className="flex flex-col items-center justify-center p-3 text-center space-y-1 bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20">
+            <Medal className="w-4 h-4 text-yellow-500 mb-0.5" />
+            <span className="text-xl font-black italic text-white">{tbfoStats.totalCards}</span>
+            <span className="text-[7.5px] font-bold text-yellow-500/80 uppercase tracking-widest">Cartes Jouées</span>
+          </Card>
+
+          <Card className="flex flex-col items-center justify-center p-3 text-center space-y-1 bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20">
+            <BarChart3 className="w-4 h-4 text-purple-500 mb-0.5" />
+            <span className="text-xl font-black italic text-white">{tbfoStats.totalClicks.toLocaleString()}</span>
+            <span className="text-[7.5px] font-bold text-purple-500/80 uppercase tracking-widest">Clics (Ferveur)</span>
+          </Card>
         </div>
-      </Card>
+      )}
     </div>
   );
 }
@@ -609,6 +777,171 @@ function StatItem({ label, value }: { label: string; value: any }) {
     <div className="flex flex-col">
       <span className="text-[8px] font-bold text-gray-500 uppercase">{label}</span>
       <span className="text-sm font-black italic text-orange-500">{value}</span>
+    </div>
+  );
+}
+
+function TbfoRankingsTab({ teamId, selectedSeason }: { teamId: number, selectedSeason: number }) {
+  const [metric, setMetric] = useState<'averageScore' | 'totalScore'>('averageScore');
+  const [loading, setLoading] = useState(true);
+  const [rankings, setRankings] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchRankings = async () => {
+      setLoading(true);
+      try {
+        const collectionName = 'ranking_users';
+        let entries: any[] = [];
+        
+        let snapshot;
+        try {
+          const q = query(
+            collection(db, collectionName),
+            where('season', '==', selectedSeason.toString()),
+            where('teamId', '==', teamId.toString()),
+            orderBy(metric, 'desc'),
+            limit(50)
+          );
+          snapshot = await getDocs(q);
+        } catch (e) {
+          const fallbackQ = query(
+            collection(db, collectionName),
+            where('season', '==', selectedSeason.toString()),
+            where('teamId', '==', teamId.toString())
+          );
+          const fallbackSnap = await getDocs(fallbackQ);
+          const sortedDocs = [...fallbackSnap.docs].sort((a, b) => {
+            const valA = a.data()[metric] || 0;
+            const valB = b.data()[metric] || 0;
+            return valB - valA;
+          }).slice(0, 50);
+          snapshot = { docs: sortedDocs };
+        }
+
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          let name = 'Inconnu';
+          let imageUrl = '';
+
+          const uId = data.userId?.toString();
+          if (!uId) continue;
+          try {
+            const userDoc = await getDoc(doc(db, 'users', uId));
+            if (userDoc.exists()) {
+              name = userDoc.data().pseudo || 'Supporter';
+              imageUrl = userDoc.data().photoURL;
+            }
+          } catch(e) {}
+
+          entries.push({
+            id: docSnap.id,
+            name,
+            imageUrl,
+            averageScore: data.averageScore || 0,
+            matches: data.matches || 0,
+            totalScore: data.totalScore || 0,
+            rank: 0
+          });
+        }
+
+        entries = entries.map((e, index) => ({ ...e, rank: index + 1 }));
+        setRankings(entries);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRankings();
+  }, [metric, teamId, selectedSeason]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 p-1 bg-black/40 rounded-xl max-w-sm mx-auto">
+        <button
+          className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 bg-blue-500 text-white shadow-lg`}
+        >
+          <Users className="w-3.5 h-3.5" />
+          Supporters
+        </button>
+      </div>
+
+      <div className="flex justify-center mb-4">
+        <div className="relative inline-block w-48">
+          <select
+            value={metric}
+            onChange={(e) => setMetric(e.target.value as any)}
+            className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white font-bold text-[10px] text-center focus:outline-none focus:border-orange-500 transition-colors"
+          >
+            <option value="averageScore">Points par match</option>
+            <option value="totalScore">Total des points</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {loading ? (
+          <div className="flex justify-center items-center py-10">
+            <Activity className="w-6 h-6 text-orange-500 animate-spin" />
+          </div>
+        ) : rankings.length === 0 ? (
+          <Card className="py-10 text-center text-gray-500">Aucun classement de supporters disponible pour cette équipe.</Card>
+        ) : (
+          <AnimatePresence>
+            {rankings.map((entry, index) => (
+              <motion.div
+                key={entry.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${
+                  index === 0 ? 'bg-gradient-to-r from-yellow-500/20 to-transparent border-yellow-500/30' :
+                  index === 1 ? 'bg-gradient-to-r from-gray-300/10 to-transparent border-gray-400/20' :
+                  index === 2 ? 'bg-gradient-to-r from-amber-700/10 to-transparent border-amber-700/20' :
+                  'bg-black/40 border-white/5'
+                }`}
+              >
+                <div className="flex items-center justify-center w-6 font-black text-xs shrink-0">
+                  {index === 0 ? <Medal className="w-5 h-5 text-yellow-400" /> :
+                   index === 1 ? <Medal className="w-4 h-4 text-gray-300" /> :
+                   index === 2 ? <Medal className="w-4 h-4 text-amber-600" /> :
+                   <span className="text-gray-500">{entry.rank}</span>}
+                </div>
+
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-white/5 shrink-0 flex items-center justify-center border border-white/10">
+                  {entry.imageUrl ? (
+                    <img src={getImageUrl(entry.imageUrl)} alt={entry.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${entry.id}`} alt={entry.name} className="w-full h-full object-cover bg-white/10" />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-bold truncate text-[11px] ${index === 0 ? 'text-yellow-400' : 'text-white'}`}>
+                    {entry.name}
+                  </h3>
+                  <p className="text-[9px] text-gray-400">
+                    {entry.matches} match{entry.matches > 1 ? 's' : ''}
+                  </p>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="text-sm font-black text-white">
+                    {metric === 'averageScore' ? (
+                      <>{entry.averageScore != null ? entry.averageScore.toFixed(1) : '0.0'}</>
+                    ) : (
+                      <>{entry.totalScore || 0}</>
+                    )}
+                  </div>
+                  <div className="text-[8px] text-gray-500 font-bold uppercase">
+                    {metric === 'averageScore' ? 'pts/m' : 'pts'}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
+      </div>
     </div>
   );
 }

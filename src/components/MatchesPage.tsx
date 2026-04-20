@@ -9,6 +9,7 @@ import { MatchDetails } from './MatchDetails';
 import { MatchEvents } from './MatchEvents';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 
 export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -289,7 +290,7 @@ function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoi
             {country.name.substring(0, 2).toUpperCase()}
           </div>
           <h2 className="font-black italic uppercase tracking-wider text-[11px] sm:text-xs">
-            {country.name}
+            {translateCountryName(country.name)}
           </h2>
           <span className="text-[9px] font-bold px-1.5 py-0.5 bg-white/10 rounded-full text-gray-400">
             {country.leagues.reduce((acc: number, l: any) => acc + l.matches.length, 0)}
@@ -319,7 +320,7 @@ function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoi
                 >
                   <img src={group.league.logo} alt="" className="w-4 h-4 object-contain" />
                   <h3 className="font-bold italic uppercase text-[9px] sm:text-[10px] tracking-widest text-gray-500 group-hover:text-orange-500 transition-colors">
-                    {group.league.name}
+                    {translateLeagueName(group.league.name)}
                   </h3>
                 </button>
                 
@@ -396,8 +397,12 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
   const scoreA = matchScore?.scoreA || 0;
   const scoreB = matchScore?.scoreB || 0;
   const totalScore = scoreA + scoreB;
-  const dominanceA = totalScore > 0 ? Math.round((scoreA / totalScore) * 100) : 50;
-  const dominanceB = totalScore > 0 ? Math.round((scoreB / totalScore) * 100) : 50;
+  let dominanceA = 50;
+  let dominanceB = 50;
+  if (totalScore > 0) {
+    dominanceA = Math.round((scoreA / totalScore) * 100);
+    dominanceB = 100 - dominanceA;
+  }
 
   return (
     <Card 
@@ -498,15 +503,7 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
           </div>
         )}
 
-        {/* External Events Component */}
-        {(isLive || isFinished) && (
-          <MatchEvents 
-            fixtureId={match.fixture.id} 
-            homeId={match.teams.home.id} 
-            awayId={match.teams.away.id} 
-            initialEvents={match.events} 
-          />
-        )}
+        {/* External Events Component removed to prevent huge height in MatchCards */}
         
         {isLive && (
           <div className="mt-2 flex gap-2 sm:gap-3">

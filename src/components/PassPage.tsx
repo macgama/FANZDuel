@@ -240,7 +240,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
                            pass.conditionType === 'league' ? 'Pass Compétition' :
                            pass.conditionType === 'country' ? 'Pass Pays' :
                            pass.conditionType === 'team' ? 'Pass Équipe' :
-                           pass.conditionType === 'season' ? 'Pass Saison' : 'Pass Spécial'}
+                           pass.conditionType === 'season' ? 'Pass Saison' : 'Pass Spécial'}{pass.conditionSeason ? ` - ${pass.conditionSeason}` : ''}
                         </span>
                       </div>
                       <h2 className="text-2xl md:text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-md mb-2">{pass.name}</h2>
@@ -346,7 +346,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
                    selectedPass.conditionType === 'league' ? 'Pass Compétition' :
                    selectedPass.conditionType === 'country' ? 'Pass Pays' :
                    selectedPass.conditionType === 'team' ? 'Pass Équipe' :
-                   selectedPass.conditionType === 'season' ? 'Pass Saison' : 'Pass Spécial'}
+                   selectedPass.conditionType === 'season' ? 'Pass Saison' : 'Pass Spécial'}{selectedPass.conditionSeason ? ` - ${selectedPass.conditionSeason}` : ''}
                 </span>
               </div>
               <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] mb-2 leading-none">{selectedPass.name}</h2>

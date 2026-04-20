@@ -14,6 +14,7 @@ import { footballApi } from '../services/footballApi';
 import { MatchEvents } from './MatchEvents';
 import { LifeActionCard } from './LifeActionCard';
 import { generateFervorPath } from '../utils/fervorPath';
+import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { 
   Trophy, 
   Activity, 
@@ -43,11 +44,13 @@ interface HomeProps {
   onNavigate: (view: 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams' | 'waiting-room') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
+  onLeagueClick?: (leagueId: number, season: number) => void;
+  onTeamClick?: (teamId: number, season: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
   onOpenStreak: () => void;
 }
 
-export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDuel, onOpenStreak }: HomeProps) {
+export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onOpenStreak }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [allFanz, setAllFanz] = useState<Fanz[]>([]);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
@@ -56,6 +59,8 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
   const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
+  const [worldCupStandings, setWorldCupStandings] = useState<any[]>([]);
+  const [worldCupFixtures, setWorldCupFixtures] = useState<any[]>([]);
   const [fanzFervorConfig, setFanzFervorConfig] = useState<GlobalFervorConfig | undefined>(undefined);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -71,6 +76,24 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
 
   const currentActiveAction = lifeActions.find(a => a.id === profile.activeAction?.actionId && profile.activeAction?.fanzId === activeFanz?.id);
   const waitingDuelsCount = activeDuels.filter(d => d.status === 'waiting' && d.creatorId !== profile.uid).length;
+
+  useEffect(() => {
+    const fetchWorldCup = async () => {
+      try {
+        const standingsInfo = await footballApi.getStandings(1, 2026);
+        if (standingsInfo && standingsInfo.length > 0 && standingsInfo[0].league && standingsInfo[0].league.standings) {
+          setWorldCupStandings(standingsInfo[0].league.standings);
+        }
+        const fixturesInfo = await footballApi.getFixtures(1, 2026);
+        if (fixturesInfo) {
+          setWorldCupFixtures(fixturesInfo);
+        }
+      } catch (err) {
+        console.error("Error fetching World Cup Data", err);
+      }
+    };
+    fetchWorldCup();
+  }, []);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -331,28 +354,6 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
         absolute
       />
 
-      {/* Favorite Teams Row */}
-      {favoriteTeamsInfo.length > 0 && (
-        <div className="absolute top-[84px] left-0 right-0 z-40 px-4 overflow-x-auto no-scrollbar py-2">
-          <div className="flex items-center gap-3">
-            {favoriteTeamsInfo.map((team) => (
-              <div 
-                key={team.id} 
-                className="flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full pl-1 pr-3 py-1 border border-white/10 shrink-0 cursor-pointer hover:bg-black/60 transition-colors"
-                onClick={() => onNavigate('favorite-teams')}
-              >
-                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center p-0.5 sm:p-1">
-                  <img src={getImageUrl(team.logo)} alt={team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                </div>
-                <span className="text-[10px] sm:text-xs font-black uppercase tracking-tight text-white/90 truncate max-w-[80px]">
-                  {team.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Waiting Duels Alert */}
       {waitingDuelsCount > 0 && (
         <div className="absolute top-20 left-4 right-4 z-50">
@@ -458,56 +459,35 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
           </div>
         </div>
 
-        {/* Quick Links */}
-        <div className="px-4 sm:px-8 py-6 grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
-          <button 
-            onClick={onOpenStreak}
-            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-          >
-            <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
-            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Série</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('fervor-path')}
-            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-          >
-            <Flame className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
-            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Ferveur</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('favorite-teams')}
-            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-          >
-            <Star className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
-            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Équipes</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('shop')}
-            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-          >
-            <Store className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
-            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Shop</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('missions')}
-            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-          >
-            <Target className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
-            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Missions</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('pass')}
-            className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-          >
-            <Ticket className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500" />
-            <span className="text-[10px] sm:text-xs font-black uppercase text-center leading-tight">Pass</span>
-          </button>
-        </div>
-
         {/* Content Below Video (Live Matches or Life Actions) */}
-        <div className="flex-1 flex flex-col justify-center py-4">
+        <div className="flex-1 flex flex-col justify-start py-2">
+          {/* Quick Links */}
+          <div className="px-4 sm:px-8 pt-3 pb-2 grid grid-cols-3 gap-3 sm:gap-4">
+            <button 
+              onClick={() => onNavigate('shop')}
+              className="flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+            >
+              <Store className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
+              <span className="text-[10px] font-black uppercase text-center leading-tight">Shop</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('missions')}
+              className="flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+            >
+              <Target className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
+              <span className="text-[10px] font-black uppercase text-center leading-tight">Missions</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('pass')}
+              className="flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+            >
+              <Ticket className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
+              <span className="text-[10px] font-black uppercase text-center leading-tight">Pass</span>
+            </button>
+          </div>
+
           {liveMatches.length === 0 && activeFanz && fanzTemplate && (
-            <p className="text-center text-gray-400 text-xs font-bold px-6 mb-4">
+            <p className="text-center text-gray-400 text-xs font-bold px-6 pt-2 pb-4">
               Pas de match en direct actuellement, profites-en pour monter tes FANZ en compétences et gagner de l'argent ou de l'énergie !
             </p>
           )}
@@ -523,20 +503,6 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
               </button>
             </div>
           )}
-
-          <div className="px-[30px] mb-6">
-            <a 
-              href="https://buymeacoffee.com/fanz.sports" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full relative group overflow-hidden rounded-2xl flex items-center justify-center p-0.5"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 rounded-2xl animate-spin-slow opacity-70 group-hover:opacity-100 transition-opacity" style={{ animationDuration: '3s' }} />
-              <div className="relative w-full bg-[#111] backdrop-blur-md px-4 py-3 rounded-2xl flex items-center justify-center gap-3 transition-transform duration-300 group-hover:scale-[0.98]">
-                <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a ball&emoji=⚽&slug=fanz.sports&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a ball" className="h-10" />
-              </div>
-            </a>
-          </div>
 
           <div className="relative w-full pb-4">
             {/* Left Scroll Button */}
@@ -558,39 +524,64 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                   const scoreA = matchScores[matchId]?.scoreA || 0;
                   const scoreB = matchScores[matchId]?.scoreB || 0;
                   const totalScore = scoreA + scoreB;
-                  const dominanceA = totalScore > 0 ? Math.round((scoreA / totalScore) * 100) : 50;
-                  const dominanceB = totalScore > 0 ? Math.round((scoreB / totalScore) * 100) : 50;
+                  const hasScore = totalScore > 0;
+                  
+                  let dominanceA = 50;
+                  let dominanceB = 50;
+                  if (totalScore > 0) {
+                    dominanceA = Math.round((scoreA / totalScore) * 100);
+                    dominanceB = 100 - dominanceA;
+                  }
+
+                  const homeEvents = match.events?.filter((e: any) => e.team.id === match.teams.home.id && (e.type === 'Goal' || e.type === 'Card')) || [];
+                  const awayEvents = match.events?.filter((e: any) => e.team.id === match.teams.away.id && (e.type === 'Goal' || e.type === 'Card')) || [];
 
                   return (
                   <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group">
                     {/* Header: Country & League */}
                     <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         {match.league?.flag && <img src={getImageUrl(match.league.flag, 40)} alt="" className="w-4 h-3 object-cover rounded-sm" referrerPolicy="no-referrer" />}
-                        <span>{match.league?.country}</span>
+                        <span className="truncate">{translateCountryName(match.league?.country || '')}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        {match.league?.logo && <img src={getImageUrl(match.league.logo, 40)} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}
-                        <span>{match.league?.name}</span>
+                      <div 
+                        className="flex items-center gap-1.5 cursor-pointer hover:text-orange-500 transition-colors min-w-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onLeagueClick && match.league) {
+                            onLeagueClick(match.league.id, match.league.season || new Date().getFullYear());
+                          }
+                        }}
+                      >
+                        {match.league?.logo && <img src={getImageUrl(match.league.logo, 40)} alt="" className="w-4 h-4 object-contain shrink-0" referrerPolicy="no-referrer" />}
+                        <span className="truncate">{translateLeagueName(match.league?.name || '')}</span>
                       </div>
                     </div>
 
                     {/* Teams & Score */}
                     <div className="flex justify-between items-start mt-2">
                       {/* Home Team */}
-                      <div className="flex flex-col items-center gap-2 flex-1">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center">
+                      <div 
+                        className="flex flex-col items-center gap-2 flex-1 cursor-pointer group min-w-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onTeamClick && match.teams.home) {
+                            onTeamClick(match.teams.home.id, match.league?.season || new Date().getFullYear());
+                          }
+                        }}
+                      >
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform">
                           <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
                         </div>
-                        <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight h-8 flex items-center">{match.teams.home.name}</span>
+                        <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center group-hover:text-orange-500 transition-colors line-clamp-2 w-full px-1">{match.teams.home.name}</span>
                         <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
                           <Flame className="w-3 h-3 text-orange-500" />
-                          <span className="text-[10px] sm:text-xs font-black text-orange-500">{scoreA} PTS</span>
+                          <span className="text-[10px] sm:text-xs font-black text-orange-500">{hasScore ? scoreA : '0'}</span>
                         </div>
                       </div>
 
                       {/* Score & Time */}
-                      <div className="flex flex-col items-center justify-center px-3 sm:px-4">
+                      <div className="flex flex-col items-center justify-center px-2 sm:px-3 shrink-0">
                         <div className="text-3xl sm:text-4xl font-black tracking-tighter flex items-center gap-1">
                           <span>{match.goals.home ?? 0}</span>
                           <span className="text-orange-500">:</span>
@@ -602,39 +593,76 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                       </div>
 
                       {/* Away Team */}
-                      <div className="flex flex-col items-center gap-2 flex-1">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-transparent flex items-center justify-center">
-                          <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" referrerPolicy="no-referrer" />
+                      <div 
+                        className="flex flex-col items-center gap-2 flex-1 cursor-pointer group min-w-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onTeamClick && match.teams.away) {
+                            onTeamClick(match.teams.away.id, match.league?.season || new Date().getFullYear());
+                          }
+                        }}
+                      >
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform">
+                          <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
                         </div>
-                        <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight h-8 flex items-center">{match.teams.away.name}</span>
+                        <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center group-hover:text-blue-500 transition-colors line-clamp-2 w-full px-1">{match.teams.away.name}</span>
                         <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
                           <Flame className="w-3 h-3 text-blue-500" />
-                          <span className="text-[10px] sm:text-xs font-black text-blue-500">{scoreB} PTS</span>
+                          <span className="text-[10px] sm:text-xs font-black text-blue-500">{hasScore ? scoreB : '0'}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Dominance Bar */}
-                    <div className="mt-4">
-                      <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
-                        <span className="text-orange-500">{dominanceA}%</span>
-                        <span>DOMINANCE MONDIALE</span>
-                        <span className="text-blue-500">{dominanceB}%</span>
+                    {/* Match Events */}
+                    {(homeEvents.length > 0 || awayEvents.length > 0) && (
+                      <div className="flex justify-between items-start text-[9px] sm:text-[10px] text-gray-300 px-2 mt-1 min-h-[30px] max-h-[60px] overflow-y-auto no-scrollbar gap-2">
+                        <div className="flex-1 flex flex-col items-start gap-1">
+                          {homeEvents.map((e: any, idx: number) => (
+                            <div key={idx} className="flex items-center gap-1">
+                              <span className="text-gray-500 w-4">{e.time.elapsed}'</span>
+                              {e.type === 'Goal' ? <span>⚽</span> : 
+                               e.detail === 'Yellow Card' ? <div className="w-1.5 h-2.5 bg-yellow-500 rounded-[1px]" /> :
+                               <div className="w-1.5 h-2.5 bg-red-500 rounded-[1px]" />}
+                              <span className="truncate max-w-[80px]">{e.player.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex-1 flex flex-col items-end gap-1">
+                          {awayEvents.map((e: any, idx: number) => (
+                            <div key={idx} className="flex items-center gap-1 justify-end">
+                              <span className="truncate max-w-[80px] text-right">{e.player.name}</span>
+                              {e.type === 'Goal' ? <span>⚽</span> : 
+                               e.detail === 'Yellow Card' ? <div className="w-1.5 h-2.5 bg-yellow-500 rounded-[1px]" /> :
+                               <div className="w-1.5 h-2.5 bg-red-500 rounded-[1px]" />}
+                              <span className="text-gray-500 w-4 text-right">{e.time.elapsed}'</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="h-2 w-full bg-black/60 rounded-full overflow-hidden flex relative">
-                        <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${dominanceA}%` }} />
-                        <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${dominanceB}%` }} />
-                        <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
-                      </div>
-                    </div>
+                    )}
 
-                    <div className="mt-4 border-t border-white/5 mx-[-16px] px-4 pt-4">
-                      <MatchEvents 
-                        fixtureId={match.fixture.id} 
-                        homeId={match.teams.home.id} 
-                        awayId={match.teams.away.id} 
-                        initialEvents={match.events} 
-                      />
+                    {/* Dominance Bar */}
+                    <div className="mt-3">
+                      {hasScore ? (
+                        <>
+                          <div className="flex justify-between items-center text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                            <span className="text-orange-500">{dominanceA}%</span>
+                            <span>DOMINANCE MONDIALE</span>
+                            <span className="text-blue-500">{dominanceB}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden flex relative">
+                            <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${dominanceA}%` }} />
+                            <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${dominanceB}%` }} />
+                            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-1">
+                          <span className="text-[8px] sm:text-[9px] font-bold text-gray-500 uppercase tracking-widest">
+                            Aucun duel n'a été joué
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Buttons */}
@@ -742,6 +770,136 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
+
+          {/* Buy me a ball after live slider / actions */}
+          <div className="px-[30px] pt-4 mb-4">
+            <a 
+              href="https://buymeacoffee.com/thebestfanonline" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-full relative group overflow-hidden rounded-2xl flex items-center justify-center p-0.5"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 rounded-2xl animate-spin-slow opacity-70 group-hover:opacity-100 transition-opacity" style={{ animationDuration: '3s' }} />
+              <div className="relative w-full bg-[#111] backdrop-blur-md px-4 py-3 rounded-2xl flex items-center justify-center gap-3 transition-transform duration-300 group-hover:scale-[0.98]">
+                <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a ball&emoji=⚽&slug=fanz.sports&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a ball" className="h-10" />
+              </div>
+            </a>
+          </div>
+
+        {/* HUB COUPE DU MONDE 2026 */}
+        <div className="mb-8 pb-8 pt-4 relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-700/10 pointer-events-none"></div>
+          <div className="relative z-10 flex items-center justify-between px-[30px] mb-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-yellow-500" /> 
+              <span className="text-xs font-black uppercase tracking-widest text-white drop-shadow-md">COUPE DU MONDE 2026</span>
+            </div>
+            {onLeagueClick && (
+              <button 
+                onClick={() => onLeagueClick(1, 2026)}
+                className="text-[10px] font-black text-orange-500 uppercase flex items-center gap-1 hover:text-orange-400 transition-colors"
+              >
+                TOUT VOIR <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          
+          <div className="relative z-10 px-4 sm:px-[30px]">
+            {worldCupStandings && worldCupStandings.length > 0 ? (
+              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {worldCupStandings.map((group: any[], index: number) => {
+                  const groupName = group[0]?.group || `Groupe ${String.fromCharCode(65 + index)}`;
+                  return (
+                    <div key={index} className="snap-center shrink-0 w-[85vw] sm:w-[320px] max-w-[340px] bg-black/40 border border-white/10 rounded-xl overflow-hidden flex flex-col">
+                      <div className="bg-white/5 px-3 py-2 text-xs font-black uppercase tracking-widest text-orange-500 border-b border-white/5 flex justify-between items-center">
+                        <span>{groupName}</span>
+                        <span className="text-[10px] text-gray-500">PHASES DE POULES</span>
+                      </div>
+                      <div className="p-3">
+                        <div className="flex justify-between text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 px-1">
+                          <span className="w-5">#</span>
+                          <span className="flex-1 text-left">Nation</span>
+                          <span className="w-6 text-center" title="Joués">J</span>
+                          <span className="w-8 text-center" title="Différence de buts">+/-</span>
+                          <span className="w-8 text-center">PTS</span>
+                        </div>
+                        {group.map((teamData: any) => (
+                          <div key={teamData.team.id} className="flex justify-between items-center py-1.5 px-1 border-b border-white/5 last:border-0 hover:bg-white/5 rounded cursor-pointer transition-colors" onClick={() => onTeamClick && onTeamClick(teamData.team.id, 2026)}>
+                            <span className="w-5 text-xs font-black text-gray-400">{teamData.rank}</span>
+                            <div className="flex-1 flex items-center gap-2 overflow-hidden pr-2">
+                              {teamData.team.logo && <img src={getImageUrl(teamData.team.logo, 40)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />}
+                              <span className="text-sm font-bold text-white truncate">{translateCountryName(teamData.team.name)}</span>
+                            </div>
+                            <span className="w-6 text-xs text-gray-500 text-center font-bold">{teamData.all?.played ?? 0}</span>
+                            <span className="w-8 text-[11px] text-gray-500 text-center font-bold">{teamData.goalsDiff > 0 ? `+${teamData.goalsDiff}` : (teamData.goalsDiff || 0)}</span>
+                            <span className="w-8 text-sm font-black text-orange-400 text-center">{teamData.points}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {worldCupFixtures && worldCupFixtures.length > 0 && (() => {
+                        // Extract all team IDs from this group to filter fixtures
+                        const groupTeamIds = group.map(t => t.team.id);
+                        
+                        // Find fixtures where both home and away teams are in this group
+                        const groupFixtures = worldCupFixtures.filter(f => 
+                           f.teams && 
+                           f.teams.home && 
+                           f.teams.away && 
+                           groupTeamIds.includes(f.teams.home.id) && 
+                           groupTeamIds.includes(f.teams.away.id)
+                        ).sort((a,b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime());
+
+                        if (groupFixtures.length === 0) return null;
+
+                        return (
+                          <div className="p-3 border-t border-white/5 bg-black/20">
+                             <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-3 px-1">Matchs Prévus</div>
+                             <div className="grid grid-cols-1 gap-2">
+                               {groupFixtures.slice(0, 6).map((fx: any) => {
+                                 const isFinished = fx.fixture.status.short === 'FT' || fx.fixture.status.short === 'AET' || fx.fixture.status.short === 'PEN';
+                                 return (
+                                 <div key={fx.fixture.id} className="flex flex-col gap-1.5 p-2.5 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => onMatchClick && onMatchClick(fx.fixture.id)}>
+                                   <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-orange-400 transition-colors">
+                                     {new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(fx.fixture.date))}
+                                   </div>
+                                   <div className="flex flex-col gap-1.5">
+                                      <div className="flex justify-between items-center">
+                                         <div className="flex items-center gap-2 overflow-hidden">
+                                           <img src={getImageUrl(fx.teams.home.logo, 20)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />
+                                           <span className="text-xs text-white font-bold truncate">{translateCountryName(fx.teams.home.name)}</span>
+                                         </div>
+                                         <span className="text-xs font-black text-gray-300 ml-2">{isFinished ? fx.goals.home : '-'}</span>
+                                      </div>
+                                      <div className="flex justify-between items-center">
+                                         <div className="flex items-center gap-2 overflow-hidden">
+                                           <img src={getImageUrl(fx.teams.away.logo, 20)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />
+                                           <span className="text-xs text-white font-bold truncate">{translateCountryName(fx.teams.away.name)}</span>
+                                         </div>
+                                         <span className="text-xs font-black text-gray-300 ml-2">{isFinished ? fx.goals.away : '-'}</span>
+                                      </div>
+                                   </div>
+                                 </div>
+                               )})}
+                             </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="w-full h-32 flex items-center justify-center border border-white/5 rounded-xl bg-white/5">
+                <div className="flex flex-col items-center gap-2 text-gray-500">
+                  <div className="w-6 h-6 border-2 border-orange-500/50 border-t-orange-500 rounded-full animate-spin" />
+                  <span className="text-xs font-bold uppercase">Chargement des poules...</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         </div>
       </div>
 

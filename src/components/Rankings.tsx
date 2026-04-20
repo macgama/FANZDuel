@@ -135,24 +135,30 @@ export function Rankings({ onBack }: RankingsProps) {
             .slice(0, 50);
 
           for (const [teamId, count] of sortedTeams) {
+            if (!teamId || teamId === 'undefined' || teamId === 'null') continue;
+            
             let name = 'Inconnu';
             let imageUrl = '';
             
-            const teamDoc = await getDoc(doc(db, 'teams', teamId));
-            if (teamDoc.exists()) {
-              name = teamDoc.data().name;
-              imageUrl = teamDoc.data().logo;
-            } else if (!isNaN(Number(teamId))) {
-               try {
-                 const { footballApi } = await import('../services/footballApi');
-                 const teamData = await footballApi.getTeamInfo(Number(teamId));
-                 if (teamData) {
-                   name = teamData.team.name;
-                   imageUrl = teamData.team.logo;
+            try {
+              const teamDoc = await getDoc(doc(db, 'teams', teamId));
+              if (teamDoc.exists()) {
+                name = teamDoc.data().name;
+                imageUrl = teamDoc.data().logo;
+              } else if (!isNaN(Number(teamId))) {
+                 try {
+                   const { footballApi } = await import('../services/footballApi');
+                   const teamData = await footballApi.getTeamInfo(Number(teamId));
+                   if (teamData) {
+                     name = teamData.team.name;
+                     imageUrl = teamData.team.logo;
+                   }
+                 } catch (e) {
+                   console.error(`Failed to fetch team info for ${teamId} from API`, e);
                  }
-               } catch (e) {
-                 console.error(`Failed to fetch team info for ${teamId}`, e);
-               }
+              }
+            } catch (err) {
+              console.error(`Failed to fetch team doc for ${teamId}`, err);
             }
             
             entries.push({

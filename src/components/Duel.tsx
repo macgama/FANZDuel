@@ -51,7 +51,7 @@ const DEFAULT_DUEL_CONFIG: DuelConfig = {
   }
 };
 
-export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz, duelLeagueId }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void; duelLeagueId?: string }) {
+export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz, duelLeagueId, duelSeason }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void; duelLeagueId?: string; duelSeason?: string }) {
   const { showAlert } = useAlert();
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
@@ -230,6 +230,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
           teamBLogo={teamBLogo} 
           selectedTeam={selectedTeam!} 
           duelLeagueId={duelLeagueId}
+          duelSeason={duelSeason}
           onExit={(status) => {
             onExit(); // Always exit completely back to MatchDetails
           }} 
@@ -489,7 +490,7 @@ interface FloatingEffect {
   color: string;
 }
 
-export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, selectedTeam, duelLeagueId }: { duel: Duel; user: UserProfile; onExit: (status?: string) => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, teamALogo?: string, teamBLogo?: string, selectedTeam: string, duelLeagueId?: string }) {
+export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, selectedTeam, duelLeagueId, duelSeason }: { duel: Duel; user: UserProfile; onExit: (status?: string) => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, teamALogo?: string, teamBLogo?: string, selectedTeam: string, duelLeagueId?: string, duelSeason?: string }) {
   const { showAlert } = useAlert();
   const [progress, setProgress] = useState(50);
   const [excitement, setExcitement] = useState(5);
@@ -1015,15 +1016,25 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   const cType = pass.conditionType;
                   const cVal = pass.conditionValue?.toString();
                   
+                  // Base condition check
                   if (!cType || cType === 'global') {
                     matchesCondition = true;
                   } else if (cType === 'league' && duelLeagueId && cVal === duelLeagueId) {
                     matchesCondition = true;
                   } else if (cType === 'team' && cVal && (cVal === teamAId || cVal === teamBId || cVal === teamA || cVal === teamB)) {
                     matchesCondition = true;
-                  } else if (cType === 'country' || cType === 'season') {
+                  } else if (cType === 'season' && duelSeason && cVal === duelSeason) {
+                    matchesCondition = true;
+                  } else if (cType === 'country') {
                     // Extended contexts can be matched here later
                     matchesCondition = true;
+                  }
+
+                  // If there is an explicit secondary season condition, enforce it
+                  if (matchesCondition && pass.conditionSeason && pass.conditionSeason !== '') {
+                    if (duelSeason !== pass.conditionSeason) {
+                      matchesCondition = false;
+                    }
                   }
 
                   if (matchesCondition) {
@@ -1053,10 +1064,15 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             }
           }
 
+          const isSideAHome = duel.teamA === teamA;
+
           // Update Team Stats
-          const myTeamId = currentMyTeam === 'A' ? teamAId || teamA : teamBId || teamB;
-          if (myTeamId) {
-            const teamRef = doc(db, 'teams', myTeamId);
+          const myGlobalTeamId = currentMyTeam === 'A' 
+            ? (isSideAHome ? teamAId || teamA : teamBId || teamB)
+            : (isSideAHome ? teamBId || teamB : teamAId || teamA);
+            
+          if (myGlobalTeamId) {
+            const teamRef = doc(db, 'teams', myGlobalTeamId);
             const teamDoc = await getDoc(teamRef);
             if (teamDoc.exists()) {
               await updateDoc(teamRef, {
@@ -1067,10 +1083,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             } else {
               // Fetch leagues for this team
               let leagueIds: number[] = [];
-              if (!isNaN(Number(myTeamId))) {
+              if (!isNaN(Number(myGlobalTeamId))) {
                 try {
                   const { footballApi } = await import('../services/footballApi');
-                  const leaguesData = await footballApi.getLeaguesByTeam(Number(myTeamId));
+                  const leaguesData = await footballApi.getLeaguesByTeam(Number(myGlobalTeamId));
                   leagueIds = leaguesData.map((l: any) => l.league.id);
                 } catch (e) {
                   console.error("Failed to fetch leagues for team", e);
@@ -1161,23 +1177,34 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               }
 
               // Team Rankings
-              if (myTeamId) {
-                await updateRanking('ranking_teams', 'teamId', myTeamId, s, 'global', myScore);
+              if (myGlobalTeamId) {
+                await updateRanking('ranking_teams', 'teamId', myGlobalTeamId, s, 'global', myScore);
                 if (leagueId !== 'global') {
-                  await updateRanking('ranking_teams', 'teamId', myTeamId, s, leagueId, myScore);
+                  await updateRanking('ranking_teams', 'teamId', myGlobalTeamId, s, leagueId, myScore);
                 }
               }
 
               // Record opponent team score if it's a bot (to ensure all teams get ranked)
               const opponentTeam = currentMyTeam === 'A' ? 'B' : 'A';
-              const isOpponentBot = !currentParticipants.some(p => p.team === opponentTeam);
-              if (isOpponentBot) {
-                const opponentTeamId = opponentTeam === 'A' ? (teamAId || teamA) : (teamBId || teamB);
+              const opponentUid = currentParticipants.find((p: any) => p.team === opponentTeam)?.uid;
+              
+              // If there's no opponent, OR the opponent is essentially disconnected/not present, we should rank the team anyway.
+              // Actually, to guarantee BOTH teams get ranked instantly for the viewer, it's safer if the winner just logs both.
+              // BUT to prevent doubling up, we log if isOpponentBot OR if we just want to ensure it's written.
+              // Let's ensure the opposing team is always updated by the winner (or a designated leader if a draw). 
+              const isDesignatedWriterForOpponent = isWin || (winner==='draw' && currentMyTeam === 'A');
+              
+              if (!opponentUid || isDesignatedWriterForOpponent) {
+                const opponentGlobalTeamId = opponentTeam === 'A' 
+                  ? (isSideAHome ? teamAId || teamA : teamBId || teamB)
+                  : (isSideAHome ? teamBId || teamB : teamAId || teamA);
+                  
                 const opponentScore = opponentTeam === 'A' ? scoreA : scoreB;
-                if (opponentTeamId) {
-                  await updateRanking('ranking_teams', 'teamId', opponentTeamId, s, 'global', opponentScore);
+                if (opponentGlobalTeamId) {
+                  // Wait, only update their team, not their user rank.
+                  await updateRanking('ranking_teams', 'teamId', opponentGlobalTeamId, s, 'global', opponentScore);
                   if (leagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', opponentTeamId, s, leagueId, opponentScore);
+                    await updateRanking('ranking_teams', 'teamId', opponentGlobalTeamId, s, leagueId, opponentScore);
                   }
                 }
               }

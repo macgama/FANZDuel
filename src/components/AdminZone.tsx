@@ -2022,7 +2022,7 @@ export function AdminZone() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-300">Condition du Pass</label>
                         <select
@@ -2038,6 +2038,16 @@ export function AdminZone() {
                         </select>
                       </div>
                       <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Saison (Optionnelle)</label>
+                        <input
+                          type="text"
+                          value={editingPass.conditionSeason || ''}
+                          onChange={e => setEditingPass({...editingPass, conditionSeason: e.target.value})}
+                          placeholder="Ex: 2026"
+                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700"
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-300">Valeur de la condition (ID / Nom)</label>
                         <input
                           type="text"
@@ -2050,12 +2060,23 @@ export function AdminZone() {
                       </div>
                     </div>
 
+                    <div className="space-y-2 mt-4">
+                      <label className="text-sm font-medium text-gray-300">Description du Pass</label>
+                      <textarea
+                        value={editingPass.description || ''}
+                        onChange={e => setEditingPass({...editingPass, description: e.target.value})}
+                        className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 min-h-[80px]"
+                        placeholder="Description affichée aux joueurs..."
+                        required
+                      />
+                    </div>
+
                     <div className="space-y-4">
                       <h4 className="font-bold text-sm border-b border-gray-800 pb-2 text-white">Niveaux & Récompenses</h4>
                       <div className="space-y-4">
                         {(editingPass.levels || []).map((lvl, idx) => (
-                          <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end p-3 bg-gray-900/50 rounded-lg border border-gray-800">
-                            <div className="space-y-1">
+                          <div key={idx} className="grid grid-cols-1 md:grid-cols-[100px_1fr_1fr_auto] gap-4 items-end p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+                            <div className="space-y-2">
                               <label className="text-[10px] font-bold text-gray-500">NIVEAU {lvl.level}</label>
                               <input
                                 type="number"
@@ -2065,10 +2086,10 @@ export function AdminZone() {
                                   newLevels[idx] = { ...lvl, pointsRequired: Number(e.target.value) };
                                   setEditingPass({ ...editingPass, levels: newLevels });
                                 }}
-                                className="w-full p-1 bg-gray-800 text-white rounded border border-gray-700 text-xs"
+                                className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-sm"
                               />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               <label className="text-[10px] font-bold text-gray-500">RECOMPENSE GRATUITE</label>
                               <RewardSelector
                                 reward={lvl.freeReward}
@@ -2082,7 +2103,7 @@ export function AdminZone() {
                                 duelCards={duelCards}
                               />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               <label className="text-[10px] font-bold text-gray-500">RECOMPENSE PREMIUM</label>
                               <RewardSelector
                                 reward={lvl.premiumReward}

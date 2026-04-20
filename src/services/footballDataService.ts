@@ -135,13 +135,21 @@ export const footballDataService = {
       if (!forceRefresh) {
         const snapshot = await getDocs(collection(db, path));
         if (!snapshot.empty) {
-          return snapshot.docs.map(doc => doc.data()).sort((a, b) => a.rank - b.rank);
+          const cachedStandings = snapshot.docs.map(doc => doc.data()).sort((a, b) => a.rank - b.rank);
+          // If it's a major tournament and we seem to only have 1 group cached due to a previous bug, ignore cache
+          const uniqueGroups = new Set(cachedStandings.map(s => s.group)).size;
+          if (leagueId === 1 && uniqueGroups <= 1 && cachedStandings.length <= 4) {
+             console.log("Incomplete cache detected, forcing refresh from API...");
+          } else {
+             return cachedStandings;
+          }
         }
       }
 
       // Not in Firestore or force refresh, fetch from API
       const apiData = await footballApi.getStandings(leagueId, season);
-      const standings = apiData[0]?.league?.standings[0] || [];
+      const standingsArrays = apiData[0]?.league?.standings || [];
+      const standings = standingsArrays.flat();
 
       if (standings.length > 0) {
         // Cache in Firestore

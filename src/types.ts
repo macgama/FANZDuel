@@ -313,6 +313,7 @@ export interface Pass {
   skinReward?: FanzSkin;
   conditionType?: 'global' | 'country' | 'team' | 'league' | 'season';
   conditionValue?: string;
+  conditionSeason?: string;
 }
 
 export interface WeeklyStreakConfig {

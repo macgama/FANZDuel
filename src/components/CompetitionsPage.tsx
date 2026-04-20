@@ -6,6 +6,7 @@ import { Search, Trophy, Globe, ChevronRight, History, ChevronDown, RefreshCw, C
 import { motion, AnimatePresence } from 'motion/react';
 import { LeagueDetails } from './LeagueDetails';
 import { format } from 'date-fns';
+import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 
 // Simple continent mapping helper
 const getContinent = (country: string): string => {
@@ -207,7 +208,7 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
                         ) : (
                           <Globe className="w-3.5 h-3.5 text-gray-500" />
                         )}
-                        <span className="font-black italic uppercase tracking-tight text-xs group-hover:text-orange-500 transition-colors">{country}</span>
+                        <span className="font-black italic uppercase tracking-tight text-xs group-hover:text-orange-500 transition-colors">{translateCountryName(country)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[8px] font-bold text-gray-600 bg-white/5 px-1.5 py-0.5 rounded-full">{data.leagues.length}</span>
@@ -237,7 +238,7 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
                                       <img src={l.league.logo} alt="" className="w-full h-full object-contain" />
                                     </div>
                                     <div className="min-w-0">
-                                      <h3 className="font-bold text-[10px] text-white group-hover:text-orange-500 transition-colors truncate leading-tight">{l.league.name}</h3>
+                                      <h3 className="font-bold text-[10px] text-white group-hover:text-orange-500 transition-colors truncate leading-tight">{translateLeagueName(l.league.name)}</h3>
                                       <div className="flex items-center gap-1.5 mt-0.5">
                                         <p className="text-[7px] text-gray-500 uppercase font-black tracking-widest">{l.league.type}</p>
                                         <span className="text-[7px] bg-orange-500/10 text-orange-500 px-1 py-0.5 rounded font-black italic">

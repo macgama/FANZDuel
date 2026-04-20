@@ -263,7 +263,7 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
                 e.stopPropagation();
                 onMenuClick?.();
               }} 
-              className="flex md:hidden flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg"
+              className="flex flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg"
             >
               <Menu className="w-6 h-6 text-white" />
               <span className="text-[9px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500 leading-none">Menu</span>

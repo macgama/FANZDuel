@@ -24,6 +24,7 @@ import { DuelManager } from './Duel';
 import { getImageUrl } from '../lib/utils';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 
 interface MatchDetailsProps {
   fixtureId: number;
@@ -221,13 +222,35 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         isPrivate={isPrivateDuel}
         onNavigateToFanz={onFanzClick}
         duelLeagueId={details.league.id.toString()}
+        duelSeason={details.league.season.toString()}
       />
     );
   }
 
-  const totalScore = (matchScore?.scoreA || 0) + (matchScore?.scoreB || 0);
-  const dominanceA = totalScore > 0 ? Math.round(((matchScore?.scoreA || 0) / totalScore) * 100) : 50;
-  const dominanceB = totalScore > 0 ? Math.round(((matchScore?.scoreB || 0) / totalScore) * 100) : 50;
+  const scoreHome = matchScore?.scoreA || 0;
+  const scoreAway = matchScore?.scoreB || 0;
+  const totalScore = scoreHome + scoreAway;
+  
+  let dominanceA = 50;
+  let dominanceB = 50;
+  
+  if (totalScore > 0) {
+    const rawA = (scoreHome / totalScore) * 100;
+    const rawB = (scoreAway / totalScore) * 100;
+    dominanceA = Math.round(rawA);
+    dominanceB = Math.round(rawB);
+    
+    // Fix rounding errors so they don't exceed 100
+    if (dominanceA + dominanceB !== 100) {
+      if (rawA > rawB) {
+        dominanceA += 100 - (dominanceA + dominanceB);
+      } else {
+        dominanceB += 100 - (dominanceA + dominanceB);
+      }
+    }
+  }
+
+  const hasScore = totalScore > 0;
 
   return (
     <div className="space-y-2 pb-20 px-2 sm:px-4">
@@ -237,11 +260,11 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         <div className="flex justify-between items-center mb-2 text-[8px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider">
           <div className="flex items-center gap-1 min-w-0">
             {details.league.flag && <img src={getImageUrl(details.league.flag, 40)} alt="" className="w-3 h-2.5 sm:w-4 sm:h-3 object-cover rounded-xs flex-shrink-0" />}
-            <span className="truncate">{details.league.country}</span>
+            <span className="truncate">{translateCountryName(details.league.country)}</span>
           </div>
           <div className="flex items-center gap-1 text-right cursor-pointer hover:text-orange-500 transition-colors min-w-0" onClick={() => onLeagueClick(details.league.id, details.league.season)}>
             {details.league.logo && <img src={getImageUrl(details.league.logo, 40)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 object-contain flex-shrink-0" />}
-            <span className="truncate">{details.league.name} - {details.league.round}</span>
+            <span className="truncate">{translateLeagueName(details.league.name)} - {details.league.round}</span>
           </div>
         </div>
 
@@ -257,7 +280,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
             </span>
             <div className="flex items-center gap-1 px-2 py-0.5 bg-[#2a2a2a] border border-orange-500/20 rounded-full mt-0.5">
               <span className="text-orange-500 text-[9px] sm:text-[10px]">🔥</span>
-              <span className="text-orange-500 font-black text-[9px] sm:text-[10px]">{matchScore?.scoreA || 0}</span>
+              <span className="text-orange-500 font-black text-[9px] sm:text-[10px]">{hasScore ? scoreHome : '0'}</span>
             </div>
           </div>
 
@@ -282,55 +305,65 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform">
               <img src={getImageUrl(details.teams.away.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
-            <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-xs text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full leading-tight">
+            <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-xs text-white group-hover:text-blue-500 transition-colors line-clamp-2 w-full leading-tight">
               {details.teams.away.name}
             </span>
             <div className="flex items-center gap-1 px-2 py-0.5 bg-[#2a2a2a] border border-blue-500/20 rounded-full mt-0.5">
               <span className="text-blue-500 text-[9px] sm:text-[10px]">🔥</span>
-              <span className="text-blue-500 font-black text-[9px] sm:text-[10px]">{matchScore?.scoreB || 0}</span>
+              <span className="text-blue-500 font-black text-[9px] sm:text-[10px]">{hasScore ? scoreAway : '0'}</span>
             </div>
           </div>
         </div>
 
         {/* Dominance Mondiale */}
         <div className="mb-2 sm:mb-3 px-2">
-          <div className="text-center mb-2">
-            <span className="text-[8px] sm:text-[10px] font-black text-yellow-500 tracking-[0.15em] uppercase bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
-              Dominance Mondiale
-            </span>
-          </div>
-          
-          <div className="flex justify-between items-end mb-1 px-1">
-            <div className="flex flex-col items-start">
-              <span className="text-lg sm:text-2xl font-black text-orange-500 leading-none">
-                {dominanceA}
-                <span className="text-[10px] sm:text-sm text-orange-500/50 ml-0.5">%</span>
-              </span>
-            </div>
-            
-            <div className="flex flex-col items-end">
-              <span className="text-lg sm:text-2xl font-black text-blue-500 leading-none">
-                {dominanceB}
-                <span className="text-[10px] sm:text-sm text-blue-500/50 ml-0.5">%</span>
-              </span>
-            </div>
-          </div>
+          {hasScore ? (
+            <>
+              <div className="text-center mb-2">
+                <span className="text-[8px] sm:text-[10px] font-black text-yellow-500 tracking-[0.15em] uppercase bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
+                  Dominance Mondiale
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-end mb-1 px-1">
+                <div className="flex flex-col items-start">
+                  <span className="text-lg sm:text-2xl font-black text-orange-500 leading-none">
+                    {dominanceA}
+                    <span className="text-[10px] sm:text-sm text-orange-500/50 ml-0.5">%</span>
+                  </span>
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <span className="text-lg sm:text-2xl font-black text-blue-500 leading-none">
+                    {dominanceB}
+                    <span className="text-[10px] sm:text-sm text-blue-500/50 ml-0.5">%</span>
+                  </span>
+                </div>
+              </div>
 
-          <div className="relative h-1.5 sm:h-2 bg-gray-800 rounded-full overflow-hidden flex border border-gray-700 shadow-inner">
-            <div 
-              className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-1000 ease-out relative" 
-              style={{ width: `${dominanceA}%` }}
-            >
-              <div className="absolute inset-0 bg-white/20 w-full animate-pulse"></div>
+              <div className="relative h-1.5 sm:h-2 bg-gray-800 rounded-full overflow-hidden flex border border-gray-700 shadow-inner">
+                <div 
+                  className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-1000 ease-out relative" 
+                  style={{ width: `${dominanceA}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 w-full animate-pulse"></div>
+                </div>
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-1000 ease-out" 
+                  style={{ width: `${dominanceB}%` }}
+                ></div>
+                
+                {/* Center Marker */}
+                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
+                Aucun duel n'a été joué
+              </span>
             </div>
-            <div 
-              className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-1000 ease-out" 
-              style={{ width: `${dominanceB}%` }}
-            ></div>
-            
-            {/* Center Marker */}
-            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
-          </div>
+          )}
         </div>
 
         {/* Buttons */}

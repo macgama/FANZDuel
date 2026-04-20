@@ -139,14 +139,14 @@ function AppContent() {
   };
 
   const handleBack = () => {
-    if (selectedTeam) {
-      setSelectedTeam(null);
-    } else if (selectedLeague) {
-      setSelectedLeague(null);
-    } else if (selectedMatchId) {
+    if (selectedMatchId) {
       setSelectedMatchId(null);
       setSelectedMatchTab('summary');
       setJoiningDuel(null);
+    } else if (selectedTeam) {
+      setSelectedTeam(null);
+    } else if (selectedLeague) {
+      setSelectedLeague(null);
     } else if (selectedFanzId) {
       setSelectedFanzId(null);
     } else if (viewHistory.current.length > 1) {
@@ -377,8 +377,8 @@ function AppContent() {
              
              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
                  <h4 className="hidden lg:block text-[10px] font-black uppercase text-gray-500 px-4 mb-1 tracking-widest">Fonctions</h4>
-                 <SidebarButton icon={<Layers />} label="Arsenal" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Briefcase />} label="Fanlife" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Layers />} label="Équipes" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Briefcase />} label="Ferveur" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Target />} label="Missions" active={view==='missions'} onClick={() => { setView('missions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Calendar />} label="Série" active={false} onClick={() => { setShowStreakModal(true); }} />
                  <SidebarButton icon={<Sparkles />} label="Pass" active={view==='pass'} onClick={() => { setView('pass'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
@@ -389,7 +389,7 @@ function AppContent() {
                  <SidebarButton icon={<Users />} label="Social" active={view==='social'} onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Activity />} label="Matchs" active={view==='matches'} onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Globe />} label="Compétitions" active={view==='competitions'} onClick={() => { setView('competitions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<BarChart2 />} label="Stats" active={view==='rankings'} onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<BarChart2 />} label="Rank" active={view==='rankings'} onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Wallet />} label="Banque" active={view==='transactions'} onClick={() => { setView('transactions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Settings />} label="Admin" active={view===('admin' as any)} onClick={() => { setView('admin' as any); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              </div>
@@ -422,6 +422,14 @@ function AppContent() {
               setSelectedMatchId(id);
               setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
               setView('matches');
+            }}
+            onLeagueClick={(id, season) => {
+              setSelectedLeague({ id, season });
+              setView('competitions'); 
+            }}
+            onTeamClick={(id, season) => {
+              setSelectedTeam({ id, season });
+              setView('teams');
             }}
             onJoinDuel={(id, isLive) => {
               handleDuelIntent(() => {
@@ -460,22 +468,7 @@ function AppContent() {
               (selectedFanzId || selectedMatchId || selectedLeague || selectedTeam || ['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-0"
             )}>
               <div className="w-full max-w-3xl mx-auto h-full lg:border-x border-white/5 shadow-2xl relative">
-              {selectedTeam ? (
-                <TeamDetails 
-                  teamId={selectedTeam.id} 
-                  season={selectedTeam.season} 
-                  onBack={() => setSelectedTeam(null)} 
-                  onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
-                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
-                />
-              ) : selectedLeague ? (
-                <LeagueDetails 
-                  leagueId={selectedLeague.id} 
-                  season={selectedLeague.season} 
-                  onBack={() => setSelectedLeague(null)}
-                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
-                />
-              ) : selectedMatchId ? (
+              {selectedMatchId ? (
                 <MatchDetails 
                   fixtureId={selectedMatchId} 
                   user={profile}
@@ -489,11 +482,42 @@ function AppContent() {
                     setSelectedMatchTab('summary');
                     setJoiningDuel(null);
                   }}
-                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
-                  onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
+                  onTeamClick={(id, season) => {
+                    setSelectedTeam({ id, season });
+                    setSelectedMatchId(null);
+                  }}
+                  onLeagueClick={(id, season) => {
+                    setSelectedLeague({ id, season });
+                    setSelectedMatchId(null);
+                  }}
                   onFanzClick={(id) => {
                     setSelectedMatchId(null);
                     setSelectedFanzId(id);
+                  }}
+                />
+              ) : selectedTeam ? (
+                <TeamDetails 
+                  teamId={selectedTeam.id} 
+                  season={selectedTeam.season} 
+                  onBack={() => setSelectedTeam(null)} 
+                  onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
+                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
+                  onMatchClick={(id, tab = 'summary') => {
+                    setSelectedMatchId(id);
+                    setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
+                    setView('matches');
+                  }}
+                />
+              ) : selectedLeague ? (
+                <LeagueDetails 
+                  leagueId={selectedLeague.id} 
+                  season={selectedLeague.season} 
+                  onBack={() => setSelectedLeague(null)}
+                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
+                  onMatchClick={(id, tab = 'summary') => {
+                    setSelectedMatchId(id);
+                    setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
+                    setView('matches');
                   }}
                 />
               ) : selectedFanzId ? (
@@ -623,8 +647,8 @@ function AppContent() {
                 onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} 
               />
               
-              <MenuButton icon={<Layers />} label="Arsenal" onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Briefcase />} label="Fanlife" onClick={() => { setView('fervor-path'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Layers />} label="Équipes" onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<Briefcase />} label="Ferveur" onClick={() => { setView('fervor-path'); setIsMenuOpen(false); }} />
               <MenuButton icon={<Store />} label="Boutique" onClick={() => { setView('shop'); setIsMenuOpen(false); }} />
               
               <MenuButton icon={<Search />} label="Social" onClick={() => { setView('social'); setIsMenuOpen(false); }} />
@@ -633,7 +657,7 @@ function AppContent() {
               
               <MenuButton icon={<Sparkles />} label="Pass" onClick={() => { setView('pass'); setIsMenuOpen(false); }} />
               <MenuButton icon={<Wallet />} label="Banque" onClick={() => { setView('transactions'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<BarChart2 />} label="Stats" onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<BarChart2 />} label="Rank" onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
 
 
 
