@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Card } from './Layout';
 import { Trophy, Users, Shield, Medal, Activity, ChevronDown } from 'lucide-react';
@@ -110,10 +110,10 @@ export function Rankings({ onBack }: RankingsProps) {
   }, []);
 
   useEffect(() => {
+    let unsub = () => {};
     const fetchRankings = async () => {
       setLoading(true);
       try {
-        let entries: RankingEntry[] = [];
 
         if (activeTab === 'teams' && metric === 'popularity') {
           // Fetch all users to count favorite teams
@@ -134,6 +134,7 @@ export function Rankings({ onBack }: RankingsProps) {
             .sort(([, countA], [, countB]) => countB - countA)
             .slice(0, 50);
 
+          let entries: RankingEntry[] = [];
           for (const [teamId, count] of sortedTeams) {
             if (!teamId || teamId === 'undefined' || teamId === 'null') continue;
             
@@ -163,7 +164,7 @@ export function Rankings({ onBack }: RankingsProps) {
             
             entries.push({
               id: teamId,
-              rank: 0,
+              rank: entries.length + 1,
               name,
               imageUrl,
               averageScore: 0,
@@ -171,12 +172,16 @@ export function Rankings({ onBack }: RankingsProps) {
               totalScore: count // We use totalScore to store the count for display
             });
           }
+          
+          setRankings(entries);
+          setLoading(false);
+          
         } else {
           const collectionName = activeTab === 'teams' ? 'ranking_teams' : 'ranking_users';
           
-          let snapshot;
+          let unsubscribe: () => void = () => {};
           try {
-            // Attempt optimized query (requires composite index)
+            // Setup optimized query
             const q = query(
               collection(db, collectionName),
               where('season', '==', season.toString()),
@@ -184,108 +189,110 @@ export function Rankings({ onBack }: RankingsProps) {
               orderBy(metric === 'popularity' ? 'averageScore' : metric, 'desc'),
               limit(50)
             );
-            snapshot = await getDocs(q);
-          } catch (e: any) {
-            console.warn("Optimized query failed (likely missing index), falling back to in-memory sort", e);
-            // Fallback: Filter by season and league, then sort in memory
-            // This is more resilient when indexes aren't yet created
-            const fallbackQ = query(
-              collection(db, collectionName),
-              where('season', '==', season.toString()),
-              where('leagueId', '==', leagueId.toString())
-            );
-            const fallbackSnap = await getDocs(fallbackQ);
             
-            // Sort in memory
-            const sortedDocs = [...fallbackSnap.docs].sort((a, b) => {
-              const valA = a.data()[metric === 'popularity' ? 'averageScore' : metric] || 0;
-              const valB = b.data()[metric === 'popularity' ? 'averageScore' : metric] || 0;
-              return valB - valA;
-            }).slice(0, 50);
-            
-            snapshot = { docs: sortedDocs };
-          }
-
-          console.log(`Fetched ${snapshot.docs.length} documents from ${collectionName} for season ${season} and league ${leagueId}`);
-
-          if (snapshot.docs.length === 0) {
-            console.warn(`[Rankings] No data found in ${collectionName} for filters:`, { season, leagueId, metric });
-          }
-
-          // Pre-fetch all teams to avoid sequential getDoc in loop
-          if (activeTab === 'teams') {
-            const teamIds = snapshot.docs.map(d => d.data().teamId?.toString()).filter(Boolean);
-            if (teamIds.length > 0) {
-              // We could chunk and fetch, but for now we skip to keep it simple and just add logging
-              console.log(`[Rankings] Processing ${teamIds.length} team ranking entries`);
-            }
-          }
-          for (const docSnap of snapshot.docs) {
-            const data = docSnap.data() as any;
-            
-            let name = 'Inconnu';
-            let imageUrl = '';
-
-            if (activeTab === 'teams') {
-              // Fetch team details
-              const teamId = data.teamId?.toString();
-              if (!teamId) continue;
+            unsubscribe = onSnapshot(q, async (snap) => {
+              await processSnapshot(snap);
+            }, async (err) => {
+              console.warn("Optimized query failed in onSnapshot (likely missing index), falling back to in-memory sort", err);
+              // Fallback
+              const fallbackQ = query(
+                collection(db, collectionName),
+                where('season', '==', season.toString()),
+                where('leagueId', '==', leagueId.toString())
+              );
               
-              const teamDoc = await getDoc(doc(db, 'teams', teamId));
-              if (teamDoc.exists()) {
-                name = teamDoc.data().name;
-                imageUrl = teamDoc.data().logo;
-              } else if (!isNaN(Number(teamId))) {
-                 try {
-                   const { footballApi } = await import('../services/footballApi');
-                   const teamData = await footballApi.getTeamInfo(Number(teamId));
-                   if (teamData) {
-                     name = teamData.team.name;
-                     imageUrl = teamData.team.logo;
-                   }
-                 } catch (e) {
-                   console.error(`Failed to fetch team info for ${teamId}`, e);
-                 }
-              }
-            } else {
-              // Fetch user details
-              const userId = data.userId?.toString();
-              if (!userId) continue;
+              const fallbackUnsub = onSnapshot(fallbackQ, async (fallbackSnap) => {
+                const sortedDocs = [...fallbackSnap.docs].sort((a, b) => {
+                  const valA = a.data()[metric === 'popularity' ? 'averageScore' : metric] || 0;
+                  const valB = b.data()[metric === 'popularity' ? 'averageScore' : metric] || 0;
+                  return valB - valA;
+                }).slice(0, 50);
+                
+                await processSnapshot({ docs: sortedDocs });
+              });
               
-              const userDoc = await getDoc(doc(db, 'users', userId));
-              if (userDoc.exists()) {
-                name = userDoc.data().pseudo || 'Supporter';
-                imageUrl = userDoc.data().photoURL;
-              }
-            }
-
-            entries.push({
-              id: docSnap.id,
-              rank: 0, // Will be set after sorting
-              name,
-              imageUrl,
-              averageScore: data.averageScore,
-              matches: data.matches,
-              totalScore: data.totalScore
+              // We replace the outer unsubscribe with this inner one so the cleanup effect works
+              unsubscribe = fallbackUnsub;
             });
+          } catch (e: any) {
+             console.error("Critical error setting up ranking snapshots:", e);
           }
+          
+          async function processSnapshot(snapshot: any) {
+            console.log(`Fetched ${snapshot.docs.length} documents from ${collectionName} for season ${season} and league ${leagueId}`);
+            if (snapshot.docs.length === 0) {
+              console.warn(`[Rankings] No data found in ${collectionName} for filters:`, { season, leagueId, metric });
+            }
+
+            let newEntries: RankingEntry[] = [];
+            for (const docSnap of snapshot.docs) {
+              const data = docSnap.data() as any;
+              
+              let name = 'Inconnu';
+              let imageUrl = '';
+
+              if (activeTab === 'teams') {
+                const teamId = data.teamId?.toString();
+                if (!teamId) continue;
+                
+                const teamDoc = await getDoc(doc(db, 'teams', teamId));
+                if (teamDoc.exists()) {
+                  name = teamDoc.data().name;
+                  imageUrl = teamDoc.data().logo;
+                } else if (!isNaN(Number(teamId))) {
+                   try {
+                     const { footballApi } = await import('../services/footballApi');
+                     const teamData = await footballApi.getTeamInfo(Number(teamId));
+                     if (teamData) {
+                       name = teamData.team.name;
+                       imageUrl = teamData.team.logo;
+                     }
+                   } catch (e) {
+                     console.error(`Failed to fetch team info for ${teamId}`, e);
+                   }
+                }
+              } else {
+                const userId = data.userId?.toString();
+                if (!userId) continue;
+                
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists()) {
+                  name = userDoc.data().pseudo || 'Supporter';
+                  imageUrl = userDoc.data().photoURL;
+                }
+              }
+
+              newEntries.push({
+                id: docSnap.id,
+                rank: 0,
+                name,
+                imageUrl,
+                averageScore: data.averageScore,
+                matches: data.matches,
+                totalScore: data.totalScore
+              });
+            }
+
+            newEntries = newEntries.map((entry, index) => ({
+              ...entry,
+              rank: index + 1
+            }));
+
+            setRankings(newEntries);
+            setLoading(false);
+          }
+          
+          unsub = () => unsubscribe();
         }
-
-        // Assign ranks (already sorted by query or our custom sort)
-        entries = entries.map((entry, index) => ({
-          ...entry,
-          rank: index + 1
-        }));
-
-        setRankings(entries);
       } catch (error) {
         console.error("Error fetching rankings:", error);
-      } finally {
         setLoading(false);
       }
     };
 
     fetchRankings();
+    
+    return () => unsub();
   }, [activeTab, season, leagueId, metric]);
 
   const seedRankings = async () => {

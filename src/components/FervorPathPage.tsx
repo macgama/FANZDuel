@@ -153,10 +153,16 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
   };
 
   const currentPoints = profile.ferveurPoints || 0;
-  const activeFanzCount = fanzTemplates.length;
-  const maxPoints = globalConfig?.ranges && globalConfig.ranges.length > 0
-    ? globalConfig.ranges[globalConfig.ranges.length - 1].max
-    : (activeFanzCount > 0 ? activeFanzCount * 1000 : 100000);
+  
+  const maxPoints = useMemo(() => {
+    let calculatedMax = 0;
+    fanzTemplates.forEach(f => {
+      const fMax = f.ferveurConfig?.ranges?.[f.ferveurConfig.ranges.length - 1]?.max || 150000;
+      calculatedMax += fMax;
+    });
+    return calculatedMax > 0 ? calculatedMax : 150000;
+  }, [fanzTemplates]);
+  
   const levels = useMemo(() => generateFervorPath(maxPoints, globalConfig), [maxPoints, globalConfig]);
 
   const allSkins = useMemo(() => fanzTemplates.flatMap(t => t.skins?.map((s: any) => ({ ...s, templateName: t.name })) || []), [fanzTemplates]);

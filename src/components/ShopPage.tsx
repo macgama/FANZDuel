@@ -72,7 +72,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
         // Fetch Fanz Templates
         const fanzSnapshot = await getDocs(collection(db, 'fanz_templates'));
-        const fanzData = fanzSnapshot.docs.map(doc => doc.data() as FanzTemplate);
+        const fanzData = fanzSnapshot.docs
+          .map(doc => doc.data() as FanzTemplate)
+          .filter(f => f.isActive !== false);
         
         const fanzForSale = fanzData
           .filter(f => f.price && (f.price.money || f.price.gems))

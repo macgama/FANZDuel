@@ -25,7 +25,9 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
     const fetchTemplates = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'fanz_templates'));
-        const templates = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate));
+        const templates = querySnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate))
+          .filter(t => t.isActive !== false);
         setFanzTemplates(templates);
 
         const configDoc = await getDoc(doc(db, 'global_configs', 'fanz_fervor'));
@@ -58,12 +60,18 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
   }, [userProfile.uid]);
 
   const globalFerveurPath = React.useMemo(() => {
+    let calculatedMax = 0;
+    fanzTemplates.forEach(f => {
+      const fMax = f.ferveurConfig?.ranges?.[f.ferveurConfig.ranges.length - 1]?.max || 150000;
+      calculatedMax += fMax;
+    });
+    const maxPoints = calculatedMax > 0 ? calculatedMax : 150000;
+    
     if (fanzFervorConfig) {
-      const maxPoints = fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000;
       return generateFervorPath(maxPoints, fanzFervorConfig);
     }
     return [];
-  }, [fanzFervorConfig]);
+  }, [fanzFervorConfig, fanzTemplates]);
 
   const filteredFanz = fanzTemplates.filter((f) => {
     if (filter === 'owned') return ownedFanz.has(f.id);

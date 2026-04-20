@@ -44,23 +44,20 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
   useEffect(() => {
     const fetchMaxFerveur = async () => {
       try {
-        const configDoc = await getDoc(doc(db, 'global_configs', 'user_fervor'));
-        if (configDoc.exists()) {
-          const config = configDoc.data() as GlobalFervorConfig;
-          if (config.ranges && config.ranges.length > 0) {
-            setMaxFerveur(config.ranges[config.ranges.length - 1].max);
-            return;
-          }
-        }
-        
-        // Fallback
         const fanzSnapshot = await getDocs(collection(db, 'fanz_templates'));
-        const activeCount = fanzSnapshot.docs.filter(doc => {
-          const data = doc.data();
-          return data.isActive !== false;
-        }).length;
-        if (activeCount > 0) {
-          setMaxFerveur(activeCount * 1000);
+        let calculatedMax = 0;
+        fanzSnapshot.docs.forEach(doc => {
+          const data = doc.data() as FanzTemplate;
+          if (data.isActive !== false) {
+            const fMax = data.ferveurConfig?.ranges?.[data.ferveurConfig.ranges.length - 1]?.max || 150000;
+            calculatedMax += fMax;
+          }
+        });
+        
+        if (calculatedMax > 0) {
+          setMaxFerveur(calculatedMax);
+        } else {
+          setMaxFerveur(150000); // default
         }
       } catch (err) {
         console.error("Error fetching max ferveur", err);

@@ -1,0 +1,6 @@
+{
+  "firestore": {
+    "target": "fanz-database-pro",
+    "rules": "firestore.rules"
+  }
+}

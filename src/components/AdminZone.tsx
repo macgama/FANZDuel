@@ -17,6 +17,7 @@ import { footballDataService } from '../services/footballDataService';
 export function AdminZone() {
   const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
+  const [confirmRecalculate, setConfirmRecalculate] = useState(false);
   
   // Duel Config state
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
@@ -1411,6 +1412,150 @@ export function AdminZone() {
     }
   };
 
+  const handleRecalculateRankings = async () => {
+    setLoading(true);
+    setStatus({ type: 'info', message: 'Recalcul des classements en cours...' });
+    try {
+      let fixturesSnap;
+      try {
+        fixturesSnap = await getDocs(collection(db, 'fixture_results'));
+      } catch(e) {
+        throw new Error('Error fetching fixture_results: ' + (e as Error).message);
+      }
+      
+      const teamStats: Record<string, { totalScore: number, matches: number }> = {};
+      const userStats: Record<string, { totalScore: number, matches: number }> = {};
+      
+      fixturesSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.type === 'training') return; // Do not include trainings in rankings
+        
+        const season = data.season || new Date().getFullYear().toString();
+        const leagueId = data.leagueId || 'global';
+        
+        const seasons = [season];
+        const currentYear = new Date().getFullYear().toString();
+        if (season !== currentYear) seasons.push(currentYear);
+        
+        const teamAId = data.teamHome?.id?.toString();
+        const scoreA = Number(data.teamHome?.score) || 0;
+        const teamBId = data.teamAway?.id?.toString();
+        const scoreB = Number(data.teamAway?.score) || 0;
+        
+        const activeSeasons = Array.from(new Set(seasons));
+
+        for (const s of activeSeasons) {
+          if (teamAId) {
+            const keyGlobal = `${teamAId}_${s}_global`.replace(/\//g, '-');
+            if (!teamStats[keyGlobal]) teamStats[keyGlobal] = { totalScore: 0, matches: 0 };
+            teamStats[keyGlobal].totalScore += scoreA;
+            teamStats[keyGlobal].matches += 1;
+            
+            if (leagueId !== 'global') {
+              const keyLeague = `${teamAId}_${s}_${leagueId}`.replace(/\//g, '-');
+              if (!teamStats[keyLeague]) teamStats[keyLeague] = { totalScore: 0, matches: 0 };
+              teamStats[keyLeague].totalScore += scoreA;
+              teamStats[keyLeague].matches += 1;
+            }
+          }
+          if (teamBId) {
+            const keyGlobal = `${teamBId}_${s}_global`.replace(/\//g, '-');
+            if (!teamStats[keyGlobal]) teamStats[keyGlobal] = { totalScore: 0, matches: 0 };
+            teamStats[keyGlobal].totalScore += scoreB;
+            teamStats[keyGlobal].matches += 1;
+            
+            if (leagueId !== 'global') {
+              const keyLeague = `${teamBId}_${s}_${leagueId}`.replace(/\//g, '-');
+              if (!teamStats[keyLeague]) teamStats[keyLeague] = { totalScore: 0, matches: 0 };
+              teamStats[keyLeague].totalScore += scoreB;
+              teamStats[keyLeague].matches += 1;
+            }
+          }
+        }
+        
+        if (data.users && typeof data.users === 'object') {
+          Object.keys(data.users).forEach(uid => {
+            const uData = data.users[uid];
+            const uScore = Number(uData.score) || 0;
+            
+            for (const s of activeSeasons) {
+              const keyGlobal = `${uid}_${s}_global`.replace(/\//g, '-');
+              if (!userStats[keyGlobal]) userStats[keyGlobal] = { totalScore: 0, matches: 0 };
+              userStats[keyGlobal].totalScore += uScore;
+              userStats[keyGlobal].matches += 1;
+              
+              if (leagueId !== 'global') {
+                const keyLeague = `${uid}_${s}_${leagueId}`.replace(/\//g, '-');
+                if (!userStats[keyLeague]) userStats[keyLeague] = { totalScore: 0, matches: 0 };
+                userStats[keyLeague].totalScore += uScore;
+                userStats[keyLeague].matches += 1;
+              }
+            }
+          });
+        }
+      });
+      
+      const { setDoc } = await import('firebase/firestore');
+      
+      let teamUpdateCount = 0;
+      for (const key of Object.keys(teamStats)) {
+        const parts = key.split('_');
+        if (parts.length < 3) continue;
+        const leagueIdStr = parts.pop()!;
+        const season = parts.pop()!;
+        const entityId = parts.join('_');
+        
+        const stats = teamStats[key];
+        try {
+          await setDoc(doc(db, 'ranking_teams', key), {
+            teamId: entityId,
+            season,
+            leagueId: leagueIdStr,
+            totalScore: stats.totalScore,
+            matches: stats.matches,
+            averageScore: stats.matches > 0 ? stats.totalScore / stats.matches : 0,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch(e) {
+          throw new Error(`Error writing ranking_teams (key: ${key}): ` + (e as Error).message);
+        }
+        teamUpdateCount++;
+      }
+
+      let userUpdateCount = 0;
+      for (const key of Object.keys(userStats)) {
+        const parts = key.split('_');
+        if (parts.length < 3) continue;
+        const leagueIdStr = parts.pop()!;
+        const season = parts.pop()!;
+        const entityId = parts.join('_');
+        
+        const stats = userStats[key];
+        try {
+          await setDoc(doc(db, 'ranking_users', key), {
+            userId: entityId,
+            season,
+            leagueId: leagueIdStr,
+            totalScore: stats.totalScore,
+            matches: stats.matches,
+            averageScore: stats.matches > 0 ? stats.totalScore / stats.matches : 0,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch(e) {
+          throw new Error(`Error writing ranking_users (key: ${key}): ` + (e as Error).message);
+        }
+        userUpdateCount++;
+      }
+      
+      setStatus({ type: 'success', message: `Classements recalculés ! Équipes: ${teamUpdateCount}, Users: ${userUpdateCount}` });
+    } catch (e: any) {
+      console.error(e);
+      setStatus({ type: 'error', message: e.message || 'Erreur lors du recalcul.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredLeagues = leagues
     .filter(l => l.league.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.country.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => a.country.name.localeCompare(b.country.name));
@@ -1422,6 +1567,23 @@ export function AdminZone() {
           <Database className="w-8 h-8 text-blue-500" />
           Zone Admin
         </h1>
+        <Button 
+          onClick={() => {
+            if (!confirmRecalculate) {
+              setConfirmRecalculate(true);
+              setTimeout(() => setConfirmRecalculate(false), 3000);
+            } else {
+              setConfirmRecalculate(false);
+              handleRecalculateRankings();
+            }
+          }} 
+          variant={confirmRecalculate ? "destructive" : "secondary"} 
+          className="flex items-center gap-2" 
+          disabled={loading}
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          {confirmRecalculate ? "Confirmer le recalcul ?" : "Recalculer Classements"}
+        </Button>
       </div>
 
       <div className="flex gap-4 border-b border-gray-200">

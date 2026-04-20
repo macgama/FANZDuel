@@ -161,9 +161,20 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (!snapshot.empty) {
         const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
-        const templatesMap = new Map(templatesSnap.docs.map(d => [d.id, d.data()]));
+        const templatesMap = new Map();
+        templatesSnap.docs.forEach(d => {
+          const t = d.data() as FanzTemplate;
+          if (t.isActive !== false) {
+            templatesMap.set(d.id, t);
+          }
+        });
 
-        const sortedDocs = [...snapshot.docs].sort((a, b) => {
+        const validDocs = [...snapshot.docs].filter(d => {
+          const data = d.data() as Fanz;
+          return templatesMap.has(data.templateId);
+        });
+
+        const sortedDocs = validDocs.sort((a, b) => {
           const dataA = a.data() as Fanz;
           const dataB = b.data() as Fanz;
           if (dataA.equippedSkin && !dataB.equippedSkin) return -1;
@@ -175,7 +186,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
         
         setAllFanz(sortedDocs.map(d => {
           const data = d.data() as Fanz;
-          const template = templatesMap.get(data.templateId) as any;
+          const template = templatesMap.get(data.templateId);
           return {
             ...data,
             id: d.id,

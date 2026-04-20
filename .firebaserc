@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "thebestfanonlinegas"
+  },
+  "targets": {
+    "thebestfanonlinegas": {
+      "firestore": {
+        "fanz-database-pro": [
+          "fanz-database-pro"
+        ]
+      }
+    }
+  }
+}
