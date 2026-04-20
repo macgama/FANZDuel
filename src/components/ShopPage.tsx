@@ -94,47 +94,50 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         const emotesForSale: any[] = [];
         
         fanzData.forEach(fanz => {
-          if (fanz.skins) {
-            fanz.skins.forEach(skin => {
-              if (skin.price && (skin.price.money || skin.price.gems) && !(profile.skins || []).includes(skin.id) && (skin.category !== 'event' || skin.isActive !== false)) {
-                skinsForSale.push({
-                  id: `${fanz.id}-${skin.id}`,
-                  originalId: skin.id,
-                  type: 'skin',
-                  name: skin.name,
-                  category: skin.category,
-                  fanz: fanz.name,
-                  fanzId: fanz.id,
-                  rarity: 'epic', // Default rarity for skins if not specified
-                  price: skin.price.gems ? skin.price.gems : skin.price.money,
-                  currency: skin.price.gems ? 'gems' : 'money',
-                  fullPrice: skin.price,
-                  image: skin.imageUrl ? getImageUrl(skin.imageUrl) : '👕',
-                  video: skin.videoUrl
-                });
-              }
-            });
-          }
-          if (fanz.emotes) {
-            fanz.emotes.forEach(emote => {
-              if (emote.price && (emote.price.money || emote.price.gems) && !(profile.emotes || []).includes(emote.id) && (emote.category !== 'event' || emote.isActive !== false)) {
-                emotesForSale.push({
-                  id: `${fanz.id}-${emote.id}`,
-                  originalId: emote.id,
-                  type: 'emote',
-                  name: emote.name,
-                  category: emote.category,
-                  fanz: fanz.name,
-                  fanzId: fanz.id,
-                  rarity: 'rare', // Default rarity for emotes
-                  price: emote.price.gems ? emote.price.gems : emote.price.money,
-                  currency: emote.price.gems ? 'gems' : 'money',
-                  fullPrice: emote.price,
-                  icon: emote.imageUrl ? getImageUrl(emote.imageUrl) : '😀',
-                  video: emote.videoUrl
-                });
-              }
-            });
+          // Only show skins and emotes if the user has unlocked this FANZ
+          if (ownedFanzTemplateIds.includes(fanz.id)) {
+            if (fanz.skins) {
+              fanz.skins.forEach(skin => {
+                if (skin.price && (skin.price.money || skin.price.gems) && !(profile.skins || []).includes(skin.id) && (skin.category !== 'event' || skin.isActive !== false)) {
+                  skinsForSale.push({
+                    id: `${fanz.id}-${skin.id}`,
+                    originalId: skin.id,
+                    type: 'skin',
+                    name: skin.name,
+                    category: skin.category,
+                    fanz: fanz.name,
+                    fanzId: fanz.id,
+                    rarity: 'epic', // Default rarity for skins if not specified
+                    price: skin.price.gems ? skin.price.gems : skin.price.money,
+                    currency: skin.price.gems ? 'gems' : 'money',
+                    fullPrice: skin.price,
+                    image: skin.imageUrl ? getImageUrl(skin.imageUrl) : '👕',
+                    video: skin.videoUrl
+                  });
+                }
+              });
+            }
+            if (fanz.emotes) {
+              fanz.emotes.forEach(emote => {
+                if (emote.price && (emote.price.money || emote.price.gems) && !(profile.emotes || []).includes(emote.id) && (emote.category !== 'event' || emote.isActive !== false)) {
+                  emotesForSale.push({
+                    id: `${fanz.id}-${emote.id}`,
+                    originalId: emote.id,
+                    type: 'emote',
+                    name: emote.name,
+                    category: emote.category,
+                    fanz: fanz.name,
+                    fanzId: fanz.id,
+                    rarity: 'rare', // Default rarity for emotes
+                    price: emote.price.gems ? emote.price.gems : emote.price.money,
+                    currency: emote.price.gems ? 'gems' : 'money',
+                    fullPrice: emote.price,
+                    icon: emote.imageUrl ? getImageUrl(emote.imageUrl) : '😀',
+                    video: emote.videoUrl
+                  });
+                }
+              });
+            }
           }
         });
 
@@ -145,6 +148,13 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         const cardsForSale = cardsData
           .filter(c => c.price && (c.price.money || c.price.gems))
           .filter(c => !(profile.cards || []).includes(c.id))
+          .filter(c => {
+            // Only show cards if they don't have specific fanzIds, or if the user owns at least one of those FANZ
+            if (c.fanzIds && c.fanzIds.length > 0) {
+              return c.fanzIds.some(fid => ownedFanzTemplateIds.includes(fid));
+            }
+            return true;
+          })
           .map(c => ({
             id: c.id,
             type: 'card',
