@@ -573,7 +573,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                         <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform">
                           <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
                         </div>
-                        <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center group-hover:text-orange-500 transition-colors line-clamp-2 w-full px-1">{match.teams.home.name}</span>
+                        <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover:text-orange-500 transition-colors line-clamp-2 w-full px-1">{match.teams.home.name}</span>
                         <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
                           <Flame className="w-3 h-3 text-orange-500" />
                           <span className="text-[10px] sm:text-xs font-black text-orange-500">{hasScore ? scoreA : '0'}</span>
@@ -605,7 +605,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                         <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform">
                           <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
                         </div>
-                        <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center group-hover:text-blue-500 transition-colors line-clamp-2 w-full px-1">{match.teams.away.name}</span>
+                        <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover:text-blue-500 transition-colors line-clamp-2 w-full px-1">{match.teams.away.name}</span>
                         <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
                           <Flame className="w-3 h-3 text-blue-500" />
                           <span className="text-[10px] sm:text-xs font-black text-blue-500">{hasScore ? scoreB : '0'}</span>

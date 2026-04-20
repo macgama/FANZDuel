@@ -427,6 +427,11 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    match /duel_locks/{lockId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
     // Default deny
     match /{path=**} {
       allow read, write: if false;

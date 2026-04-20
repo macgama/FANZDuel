@@ -1169,42 +1169,57 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               }
             };
 
-            for (const s of seasonsToUpdate) {
-              // User Rankings
-              await updateRanking('ranking_users', 'userId', user.uid, s, 'global', myScore);
-              if (leagueId !== 'global') {
-                await updateRanking('ranking_users', 'userId', user.uid, s, leagueId, myScore);
-              }
-
-              // Team Rankings
-              if (myGlobalTeamId) {
-                await updateRanking('ranking_teams', 'teamId', myGlobalTeamId, s, 'global', myScore);
-                if (leagueId !== 'global') {
-                  await updateRanking('ranking_teams', 'teamId', myGlobalTeamId, s, leagueId, myScore);
+            let isDesignatedWriter = false;
+            try {
+              const lockRef = doc(db, 'duel_locks', duel.id);
+              await runTransaction(db, async (transaction) => {
+                const lockDoc = await transaction.get(lockRef);
+                if (!lockDoc.exists()) {
+                  transaction.set(lockRef, { processedAt: new Date().toISOString(), byUser: user.uid });
+                  isDesignatedWriter = true;
                 }
-              }
+              });
+            } catch (lockError) {
+              console.error("[Duel] Failed to acquire lock for ranking updates", lockError);
+            }
 
-              // Record opponent team score if it's a bot (to ensure all teams get ranked)
-              const opponentTeam = currentMyTeam === 'A' ? 'B' : 'A';
-              const opponentUid = currentParticipants.find((p: any) => p.team === opponentTeam)?.uid;
+            if (isDesignatedWriter) {
+              const teamAUid = currentParticipants.find((p: any) => p.team === 'A')?.uid;
+              const teamBUid = currentParticipants.find((p: any) => p.team === 'B')?.uid;
               
-              // If there's no opponent, OR the opponent is essentially disconnected/not present, we should rank the team anyway.
-              // Actually, to guarantee BOTH teams get ranked instantly for the viewer, it's safer if the winner just logs both.
-              // BUT to prevent doubling up, we log if isOpponentBot OR if we just want to ensure it's written.
-              // Let's ensure the opposing team is always updated by the winner (or a designated leader if a draw). 
-              const isDesignatedWriterForOpponent = isWin || (winner==='draw' && currentMyTeam === 'A');
-              
-              if (!opponentUid || isDesignatedWriterForOpponent) {
-                const opponentGlobalTeamId = opponentTeam === 'A' 
-                  ? (isSideAHome ? teamAId || teamA : teamBId || teamB)
-                  : (isSideAHome ? teamBId || teamB : teamAId || teamA);
-                  
-                const opponentScore = opponentTeam === 'A' ? scoreA : scoreB;
-                if (opponentGlobalTeamId) {
-                  // Wait, only update their team, not their user rank.
-                  await updateRanking('ranking_teams', 'teamId', opponentGlobalTeamId, s, 'global', opponentScore);
+              const globalTeamAId = isSideAHome ? teamAId || teamA : teamBId || teamB;
+              const globalTeamBId = isSideAHome ? teamBId || teamB : teamAId || teamA;
+
+              for (const s of seasonsToUpdate) {
+                // User Rankings (Side A)
+                if (teamAUid && !teamAUid.startsWith('mock_')) {
+                  await updateRanking('ranking_users', 'userId', teamAUid, s, 'global', Number(scoreA));
                   if (leagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', opponentGlobalTeamId, s, leagueId, opponentScore);
+                    await updateRanking('ranking_users', 'userId', teamAUid, s, leagueId, Number(scoreA));
+                  }
+                }
+                
+                // User Rankings (Side B)
+                if (teamBUid && !teamBUid.startsWith('mock_')) {
+                  await updateRanking('ranking_users', 'userId', teamBUid, s, 'global', Number(scoreB));
+                  if (leagueId !== 'global') {
+                    await updateRanking('ranking_users', 'userId', teamBUid, s, leagueId, Number(scoreB));
+                  }
+                }
+
+                // Team Rankings (Side A)
+                if (globalTeamAId) {
+                  await updateRanking('ranking_teams', 'teamId', globalTeamAId, s, 'global', Number(scoreA));
+                  if (leagueId !== 'global') {
+                    await updateRanking('ranking_teams', 'teamId', globalTeamAId, s, leagueId, Number(scoreA));
+                  }
+                }
+
+                // Team Rankings (Side B)
+                if (globalTeamBId) {
+                  await updateRanking('ranking_teams', 'teamId', globalTeamBId, s, 'global', Number(scoreB));
+                  if (leagueId !== 'global') {
+                    await updateRanking('ranking_teams', 'teamId', globalTeamBId, s, leagueId, Number(scoreB));
                   }
                 }
               }
