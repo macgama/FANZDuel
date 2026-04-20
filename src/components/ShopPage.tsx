@@ -313,9 +313,12 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 Événement
               </div>
             )}
-            <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-[8px] font-black uppercase px-2 py-1 rounded-full text-white/80 z-20 shadow-md">
-              {rarityLabel}
-            </div>
+            
+            {type !== 'skin' && type !== 'emote' && (
+              <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-[8px] font-black uppercase px-2 py-1 rounded-full text-white/80 z-20 shadow-md">
+                {rarityLabel}
+              </div>
+            )}
             
             <div className="absolute inset-0 bg-black/20 mix-blend-overlay z-0"></div>
             {type === 'fanz' && (

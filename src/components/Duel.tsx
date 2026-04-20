@@ -838,35 +838,87 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       let ferveurGain = 0;
       let teamGain = 0;
       
-      // Normalize scores for match history (scoreA = global home team, scoreB = global away team)
-      // duel.teamA is the name of the team assigned to Side A in the duel
+      // Normalize scores for match history (scoreA = virtual team A, scoreB = virtual team B)
       // props.teamA is the official Home Team name of the match
       const isSideAHome = duel.teamA === teamA;
+      
+      // Fetch match details EARLY to use for the fixture logs
+      let currentMatchDetails = matchDetails;
+      if (!currentMatchDetails && duel.matchId && duel.matchId !== 'global') {
+        try {
+          const { footballApi } = await import('../services/footballApi');
+          currentMatchDetails = await footballApi.getFixtureDetails(parseInt(duel.matchId));
+        } catch (e) {
+          console.error("Failed to fetch match details for ranking", e);
+        }
+      }
+      
+      const matchSeason = currentMatchDetails?.league?.season?.toString() || new Date().getFullYear().toString();
+      const currentYear = new Date().getFullYear().toString();
+      const leagueId = currentMatchDetails?.league?.id?.toString() || 'global';
+      const safeLeagueId = duelLeagueId || leagueId;
+      const safeSeason = duelSeason || matchSeason;
       const globalScoreA = isSideAHome ? Number(scoreA) : Number(scoreB);
       const globalScoreB = isSideAHome ? Number(scoreB) : Number(scoreA);
+      const safeTeamAId = teamAId || teamA;
+      const safeTeamBId = teamBId || teamB;
+
+      const currentParticipants = participantsRef.current;
+      const myParticipant = currentParticipants.find(p => p.uid === user.uid);
+      const currentMyTeam = myTeamRef.current || myParticipant?.team || 'A';
       
-      // Save match score to Firestore
+      // Save legacy match score and fixture_results to Firestore
       if (duel.matchId && duel.matchId !== 'global' && duel.type !== 'training') {
         try {
           const matchIdStr = duel.matchId.toString();
-          const scoreAVal = Number(globalScoreA);
-          const scoreBVal = Number(globalScoreB);
-          
-          console.log(`[Duel] ATTEMPTING to record match_score for match ${matchIdStr}! Document ID: ${duel.id}, Scores: ${scoreAVal}-${scoreBVal}`);
           
           await setDoc(doc(db, 'match_scores', duel.id), {
             matchId: matchIdStr,
-            scoreA: scoreAVal,
-            scoreB: scoreBVal,
+            scoreA: Number(globalScoreA),
+            scoreB: Number(globalScoreB),
             timestamp: serverTimestamp()
           }, { merge: true });
           
-          console.log(`[Duel] SUCCESS! match_score ${duel.id} recorded for ${matchIdStr}`);
+          // Save a purely detailed breakdown by participant for historic tracking:
+          await setDoc(doc(db, 'fixture_results', duel.id), {
+            fixtureId: matchIdStr,
+            leagueId: safeLeagueId,
+            season: safeSeason,
+            duelId: duel.id,
+            type: duel.type,
+            teamHome: {
+              id: safeTeamAId,
+              name: teamA,
+              score: Number(globalScoreA)
+            },
+            teamAway: {
+              id: safeTeamBId,
+              name: teamB,
+              score: Number(globalScoreB)
+            },
+            winnerVirtualTeam: winner,
+            users: currentParticipants.reduce((acc: any, p: any) => {
+              const userVirtualTeam = p.team || 'A';
+              const userPoints = userVirtualTeam === 'A' ? Number(scoreA) : Number(scoreB);
+              // if user is 'A' and sideA is home -> user is Home
+              const isUserHome = userVirtualTeam === 'A' ? isSideAHome : !isSideAHome;
+              
+              acc[p.uid] = {
+                pseudo: p.pseudo || 'Unknown',
+                virtualTeam: userVirtualTeam,
+                teamSide: isUserHome ? 'Home' : 'Away',
+                realTeamName: isUserHome ? teamA : teamB,
+                score: userPoints
+              };
+              return acc;
+            }, {}),
+            timestamp: serverTimestamp()
+          }, { merge: true });
+          
+          console.log(`[Duel] SUCCESS! fixture_results ${duel.id} recorded for ${matchIdStr}`);
         } catch (e) {
-          console.error("[Duel] CRITICAL ERROR saving match score to Firestore:", e);
+          console.error("[Duel] ERROR saving fixture_results to Firestore:", e);
         }
-      } else {
-        console.log(`[Duel] Skipping match_score recording (matchId: ${duel.matchId}, type: ${duel.type})`);
       }
 
       try {
@@ -1110,21 +1162,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           try {
             const { runTransaction } = await import('firebase/firestore');
             
-            // Fetch match details here if not available in state to ensure we have league info
-            let currentMatchDetails = matchDetails;
-            if (!currentMatchDetails && duel.matchId && duel.matchId !== 'global') {
-              try {
-                const { footballApi } = await import('../services/footballApi');
-                currentMatchDetails = await footballApi.getFixtureDetails(parseInt(duel.matchId));
-              } catch (e) {
-                console.error("Failed to fetch match details for ranking", e);
-              }
-            }
-
-            const matchSeason = currentMatchDetails?.league?.season?.toString() || new Date().getFullYear().toString();
-            const currentYear = new Date().getFullYear().toString();
-            const leagueId = currentMatchDetails?.league?.id?.toString() || 'global';
-            
             const seasonsToUpdate = [matchSeason];
             if (currentYear !== matchSeason) {
               seasonsToUpdate.push(currentYear);
@@ -1151,7 +1188,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     matches = Number(data.matches || 0) + 1;
                   }
 
-                  const averageScore = totalScore / matches;
+                  const averageScore = matches > 0 ? (totalScore / matches) : 0;
 
                   transaction.set(docRef, {
                     [entityIdField]: safeEntityId,
@@ -1169,59 +1206,49 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               }
             };
 
+            // 1. Every user updates THEIR OWN User Ranking
+            // Use myScore (which is my team's global score corresponding to scoreA or scoreB appropriately)
+            const myGlobalScore = currentMyTeam === 'A' ? Number(scoreA) : Number(scoreB);
+            
+            for (const s of seasonsToUpdate) {
+              await updateRanking('ranking_users', 'userId', user.uid, s, 'global', myGlobalScore);
+              if (safeLeagueId !== 'global') {
+                await updateRanking('ranking_users', 'userId', user.uid, s, safeLeagueId, myGlobalScore);
+              }
+            }
+
+            // 2. Only a designated writer updates the Team Rankings to avoid duplicate matches added
             let isDesignatedWriter = false;
             try {
-              const lockRef = doc(db, 'duel_locks', duel.id);
+              const lockRef = doc(db, 'duel_locks', `team_rankings_${duel.id}`);
               await runTransaction(db, async (transaction) => {
                 const lockDoc = await transaction.get(lockRef);
                 if (!lockDoc.exists()) {
                   transaction.set(lockRef, { processedAt: new Date().toISOString(), byUser: user.uid });
                   isDesignatedWriter = true;
+                } else {
+                  isDesignatedWriter = false;
                 }
               });
             } catch (lockError) {
-              console.error("[Duel] Failed to acquire lock for ranking updates", lockError);
+              console.error("[Duel] Failed to acquire lock for team ranking updates", lockError);
             }
 
             if (isDesignatedWriter) {
-              const teamAUid = currentParticipants.find((p: any) => p.team === 'A')?.uid;
-              const teamBUid = currentParticipants.find((p: any) => p.team === 'B')?.uid;
-              
-              const globalTeamAId = isSideAHome ? teamAId || teamA : teamBId || teamB;
-              const globalTeamBId = isSideAHome ? teamBId || teamB : teamAId || teamA;
-
               for (const s of seasonsToUpdate) {
-                // User Rankings (Side A)
-                if (teamAUid && !teamAUid.startsWith('mock_')) {
-                  await updateRanking('ranking_users', 'userId', teamAUid, s, 'global', Number(scoreA));
-                  if (leagueId !== 'global') {
-                    await updateRanking('ranking_users', 'userId', teamAUid, s, leagueId, Number(scoreA));
-                  }
-                }
-                
-                // User Rankings (Side B)
-                if (teamBUid && !teamBUid.startsWith('mock_')) {
-                  await updateRanking('ranking_users', 'userId', teamBUid, s, 'global', Number(scoreB));
-                  if (leagueId !== 'global') {
-                    await updateRanking('ranking_users', 'userId', teamBUid, s, leagueId, Number(scoreB));
-                  }
-                }
-
-                // Team Rankings (Home Team) - Maps to globalScoreA instead of scoreA if it wasn't SideA
-                if (teamAId || teamA) {
-                  const safeTeamAId = teamAId || teamA;
+                // Team Rankings (Home Team) - Maps to globalScoreA
+                if (safeTeamAId) {
                   await updateRanking('ranking_teams', 'teamId', safeTeamAId as string, s, 'global', Number(globalScoreA));
-                  if (leagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', safeTeamAId as string, s, leagueId, Number(globalScoreA));
+                  if (safeLeagueId !== 'global') {
+                    await updateRanking('ranking_teams', 'teamId', safeTeamAId as string, s, safeLeagueId, Number(globalScoreA));
                   }
                 }
 
                 // Team Rankings (Away Team) - Maps to globalScoreB
-                if (teamBId || teamB) {
-                  const safeTeamBId = teamBId || teamB;
+                if (safeTeamBId) {
                   await updateRanking('ranking_teams', 'teamId', safeTeamBId as string, s, 'global', Number(globalScoreB));
-                  if (leagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', safeTeamBId as string, s, leagueId, Number(globalScoreB));
+                  if (safeLeagueId !== 'global') {
+                    await updateRanking('ranking_teams', 'teamId', safeTeamBId as string, s, safeLeagueId, Number(globalScoreB));
                   }
                 }
               }
