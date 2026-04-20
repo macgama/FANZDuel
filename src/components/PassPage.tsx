@@ -38,7 +38,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
         setAllPasses(passesData);
         
         // Fetch skins for all passes to have them ready
-        const allSkinIds = passesData.flatMap(p => p.levels.map(l => l.premiumReward?.skinId).filter(Boolean)) as string[];
+        const allSkinIds = passesData.flatMap(p => (p.levels || []).map(l => l.premiumReward?.skinId).filter(Boolean)) as string[];
         
         if (allSkinIds.length > 0) {
           const allSkins: Record<string, FanzSkin> = {};
@@ -104,8 +104,8 @@ export function PassPage({ profile, onBack }: PassPageProps) {
   const handleClaimReward = async (level: number, type: 'free' | 'premium') => {
     if (!selectedPass) return;
     
-    if (!profile.purchasedPasses?.includes(selectedPass.id)) {
-      showAlert({ title: "Pass non possédé", subtitle: "Vous devez activer ce pass pour récupérer les récompenses.", type: "error" });
+    if (type === 'premium' && !profile.purchasedPasses?.includes(selectedPass.id)) {
+      showAlert({ title: "Pass Premium Requis", subtitle: "Vous devez activer le pass premium pour récupérer ces récompenses.", type: "error" });
       return;
     }
 
@@ -183,7 +183,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
 
   if (!selectedPass) {
     return (
-      <div className="flex flex-col h-full bg-black">
+      <div className="flex flex-col h-full bg-transparent">
         <div className="flex items-center justify-between px-4">
           <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
             Pass
@@ -195,29 +195,69 @@ export function PassPage({ profile, onBack }: PassPageProps) {
           ) : (
             allPasses.map(pass => {
               const isOwned = profile.purchasedPasses?.includes(pass.id);
+              const sampleSkins = (pass.levels || [])
+                .map(l => l.premiumReward?.skinId ? skins[l.premiumReward.skinId]?.imageUrl : null)
+                .filter(Boolean)
+                .slice(0, 4);
+
               return (
                 <Card 
                   key={pass.id} 
                   onClick={() => setSelectedPass(pass)}
-                  className={`relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] ${isOwned ? 'border-purple-500/50' : 'border-white/10'}`}
+                  className={`relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] min-h-[180px] flex flex-col justify-end p-0 border-2 ${isOwned ? 'border-purple-500 shadow-[0_0_30px_rgba(147,51,234,0.2)]' : 'border-gray-800 hover:border-purple-500/50'}`}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-r ${isOwned ? 'from-purple-900/40 to-purple-500/10' : 'from-gray-900 to-gray-800/50'}`} />
-                  <div className="relative p-6 flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-black italic uppercase tracking-tighter text-white mb-1">{pass.name}</h2>
-                      <p className="text-xs text-gray-400 font-bold">{pass.description}</p>
+                  <div className="absolute inset-0 z-0 bg-[#0a0a0c]">
+                    {sampleSkins.length > 0 ? (
+                      <div className="absolute inset-0 flex justify-end items-center opacity-60 mix-blend-screen overflow-hidden pointer-events-none pr-8">
+                        {sampleSkins.map((skinUrl, idx) => (
+                          <div 
+                            key={idx} 
+                            className="w-40 h-40 md:w-56 md:h-56 shrink-0 saturate-150 contrast-125 transition-transform duration-700 ease-out group-hover:scale-110"
+                            style={{ 
+                              transform: `translateX(${idx * -40}px) translateY(${idx % 2 === 0 ? '-10px' : '10px'}) rotate(${idx * 10 - 15}deg)`,
+                              zIndex: 10 - idx
+                            }}
+                          >
+                            <img src={getImageUrl(skinUrl)} alt="Skin" className="w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(147,51,234,0.3)]" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={`absolute inset-0 bg-gradient-to-r ${isOwned ? 'from-purple-900/40 to-purple-500/10' : 'from-gray-900 to-gray-800/50'}`} />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+                    <div className="absolute top-0 bottom-0 left-0 w-3/4 bg-gradient-to-r from-black via-black/90 to-transparent" />
+                  </div>
+                  
+                  <div className="relative z-10 p-5 md:p-6 flex items-end justify-between w-full h-full mt-auto">
+                    <div className="flex-1 pr-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`px-2.5 py-1 rounded-sm text-[10px] font-black uppercase tracking-widest ${
+                          !pass.conditionType || pass.conditionType === 'global' ? 'bg-blue-600 text-white' : 
+                          'bg-orange-600 text-white'
+                        } shadow-lg`}>
+                          {!pass.conditionType || pass.conditionType === 'global' ? 'Pass Général' :
+                           pass.conditionType === 'league' ? 'Pass Compétition' :
+                           pass.conditionType === 'country' ? 'Pass Pays' :
+                           pass.conditionType === 'team' ? 'Pass Équipe' :
+                           pass.conditionType === 'season' ? 'Pass Saison' : 'Pass Spécial'}
+                        </span>
+                      </div>
+                      <h2 className="text-2xl md:text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-md mb-2">{pass.name}</h2>
+                      <p className="text-xs md:text-sm text-gray-300 font-bold max-w-md line-clamp-2 drop-shadow-md">{pass.description}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
+                    
+                    <div className="flex flex-col items-end gap-3 shrink-0">
                       {isOwned ? (
-                        <div className="px-3 py-1 bg-green-500/20 border border-green-500/50 rounded-full text-[10px] font-black text-green-400 uppercase">
-                          Possédé
+                        <div className="px-5 py-2.5 bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)] rounded-lg text-xs md:text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                          <Check className="w-4 h-4" /> Actif
                         </div>
                       ) : (
-                        <div className="px-3 py-1 bg-purple-500/20 border border-purple-500/50 rounded-full text-[10px] font-black text-purple-400 uppercase">
+                        <div className="px-6 py-2.5 bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)] rounded-lg text-xs md:text-sm font-black uppercase tracking-widest hover:bg-purple-500 transition-colors">
                           Découvrir
                         </div>
                       )}
-                      <div className="text-[10px] font-bold text-gray-500 uppercase">
+                      <div className="text-[11px] md:text-xs font-black tracking-widest text-purple-400 uppercase drop-shadow-md bg-black/50 border border-purple-500/30 px-3 py-1 rounded">
                         {pass.levels.length} Niveaux
                       </div>
                     </div>
@@ -231,52 +271,100 @@ export function PassPage({ profile, onBack }: PassPageProps) {
     );
   }
 
-  const userPoints = profile.passPoints || 0;
+  const userPoints = (!selectedPass.conditionType || selectedPass.conditionType === 'global') ? (profile.passPoints || 0) : (profile.passProgress?.[selectedPass.id] || 0);
   const isOwned = profile.purchasedPasses?.includes(selectedPass.id);
+  const maxPoints = selectedPass.levels[selectedPass.levels.length - 1]?.pointsRequired || 100;
+  const progressPercent = Math.min(100, Math.max(0, (userPoints / maxPoints) * 100));
 
   return (
     <div className="flex flex-col h-full bg-black">
-      {/* Header */}
-      <div className="p-4 sm:p-6 bg-gradient-to-b from-purple-900/40 to-transparent shrink-0">
-        <div className="flex items-center gap-4 mb-6">
-          <button 
-            onClick={() => setSelectedPass(null)}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-          >
-            <ChevronLeft className="w-6 h-6 text-white" />
-          </button>
-          <div className="flex items-center gap-3 flex-1">
-            <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
-              <Ticket className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white">{selectedPass.name}</h1>
-              <p className="text-purple-200 text-xs sm:text-sm">Points Pass: <span className="font-black text-white">{userPoints}</span></p>
-            </div>
+      <div className="flex-1 overflow-y-auto p-4 pb-20">
+        {/* Tiny back button replacing big header */}
+        <button 
+          onClick={() => setSelectedPass(null)}
+          className="text-gray-500 hover:text-white flex items-center gap-1 text-xs font-bold uppercase tracking-wider mb-4 transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4" /> Retour aux passes
+        </button>
+
+        {/* Progress Tracker */}
+        <div className="mb-6">
+          <div className="flex justify-between items-end mb-2">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Ma progression</h3>
+            <span className="text-sm font-black text-purple-400">{userPoints} <span className="text-xs text-purple-500/50">/ {maxPoints} PTS</span></span>
+          </div>
+          <div className="h-4 w-full bg-gray-900/80 rounded-full overflow-hidden border border-gray-800 relative">
+            <div 
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-700 via-purple-500 to-blue-500 shadow-[0_0_15px_rgba(168,85,247,0.6)] rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+            {/* Pattern overlay on progress */}
+            <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] pointer-events-none" />
           </div>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pb-20">
         {/* Pass Banner */}
-        <Card className={`relative overflow-hidden mb-8 ${isOwned ? 'border-purple-500/50' : 'border-white/10'}`}>
-          <div className={`absolute inset-0 bg-gradient-to-r ${isOwned ? 'from-purple-900/80 to-purple-500/20' : 'from-gray-900 to-gray-800'}`} />
-          <div className="relative p-6 flex flex-col items-center text-center">
-            <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-1">{selectedPass.name}</h2>
-            <p className="text-xs text-purple-200 font-bold mb-4">{selectedPass.description}</p>
+        <Card className={`relative overflow-hidden mb-8 min-h-[220px] md:min-h-[250px] flex flex-col justify-end p-0 border-2 ${isOwned ? 'border-purple-500 shadow-[0_0_30px_rgba(147,51,234,0.3)]' : 'border-gray-800'}`}>
+          <div className="absolute inset-0 z-0 bg-[#0a0a0c]">
+            {(() => {
+              const sampleSkins = (selectedPass.levels || [])
+                .map(l => l.premiumReward?.skinId ? skins[l.premiumReward.skinId]?.imageUrl : null)
+                .filter(Boolean)
+                .slice(0, 3); // Top 3 skins for display
+
+              return sampleSkins.length > 0 ? (
+                <div className="absolute inset-0 flex justify-end items-center pointer-events-none pr-2 sm:pr-8 opacity-90">
+                  {sampleSkins.map((skinUrl, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`relative shrink-0 saturate-150 contrast-125 z-[${10 - idx}] ${idx === 0 ? 'w-40 h-40 md:w-56 md:h-56' : 'w-24 h-24 md:w-40 md:h-40 blur-[1px]'}`}
+                      style={{ 
+                        transform: `translateX(${idx * -40}px) translateY(${idx * 15}px) rotate(${idx * 10 - 15}deg)`
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-purple-500/20 blur-2xl rounded-full" />
+                      <img src={getImageUrl(skinUrl)} alt="Skin" className="w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(147,51,234,0.5)] relative z-10" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={`absolute inset-0 bg-gradient-to-r ${isOwned ? 'from-purple-900/40 to-purple-500/10' : 'from-gray-900 to-gray-800/50'}`} />
+              );
+            })()}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/80 to-transparent" />
+            <div className="absolute top-0 bottom-0 left-0 w-full sm:w-2/3 bg-gradient-to-r from-[#0a0a0c] via-[#0a0a0c]/90 to-transparent" />
+          </div>
+          
+          <div className="relative z-10 p-6 flex flex-col sm:flex-row items-center sm:items-end text-center sm:text-left justify-between w-full h-full mt-auto">
+            <div className="mb-6 sm:mb-0 max-w-md">
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">
+                <span className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest ${
+                  !selectedPass.conditionType || selectedPass.conditionType === 'global' ? 'bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.5)] text-white' : 
+                  'bg-orange-600 shadow-[0_0_10px_rgba(234,88,12,0.5)] text-white'
+                }`}>
+                  {!selectedPass.conditionType || selectedPass.conditionType === 'global' ? 'Pass Général' :
+                   selectedPass.conditionType === 'league' ? 'Pass Compétition' :
+                   selectedPass.conditionType === 'country' ? 'Pass Pays' :
+                   selectedPass.conditionType === 'team' ? 'Pass Équipe' :
+                   selectedPass.conditionType === 'season' ? 'Pass Saison' : 'Pass Spécial'}
+                </span>
+              </div>
+              <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] mb-2 leading-none">{selectedPass.name}</h2>
+              <p className="text-sm text-gray-300 font-bold drop-shadow-md leading-snug">{selectedPass.description}</p>
+            </div>
             {!isOwned ? (
-              <Button onClick={() => handleBuyPass(selectedPass)} className="w-full bg-purple-500 hover:bg-purple-600 text-white font-black uppercase flex flex-col gap-1 h-auto py-2">
-                <span>Activer le Pass</span>
-                <span className="text-[10px] opacity-80">
+              <Button onClick={() => handleBuyPass(selectedPass)} className="w-[85%] sm:w-[220px] bg-purple-500 hover:bg-purple-600 text-white font-black uppercase shadow-[0_0_25px_rgba(147,51,234,0.6)] flex flex-col gap-1 h-auto py-3 shrink-0 rounded-xl">
+                <span className="text-sm">Activer le Pass Premium</span>
+                <span className="text-[11px] opacity-90 bg-black/20 px-3 py-0.5 rounded-full">
                   {selectedPass.premiumPrice?.money ? `${selectedPass.premiumPrice.money} 💰 ` : ''}
                   {selectedPass.premiumPrice?.money && selectedPass.premiumPrice?.gems ? '+ ' : ''}
                   {selectedPass.premiumPrice?.gems ? `${selectedPass.premiumPrice.gems} 💎` : ''}
-                  {!selectedPass.premiumPrice?.money && !selectedPass.premiumPrice?.gems && `${selectedPass.priceGems} 💎`}
+                  {!selectedPass.premiumPrice?.money && !selectedPass.premiumPrice?.gems && `${selectedPass.priceGems || 0} 💎`}
                 </span>
               </Button>
             ) : (
-              <div className="w-full py-3 bg-green-500/20 border border-green-500/50 rounded-xl text-green-400 font-black uppercase flex items-center justify-center gap-2">
-                <Check className="w-5 h-5" /> Pass Actif
+              <div className="w-[85%] sm:w-[250px] py-3.5 bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] rounded-xl font-black uppercase flex items-center justify-center gap-2 shrink-0 text-sm">
+                <Check className="w-5 h-5" /> Pass Premium Actif
               </div>
             )}
           </div>
@@ -287,7 +375,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
           {/* Central Line */}
           <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-white/5 -translate-x-1/2 rounded-full" />
           
-          {selectedPass.levels.map((level) => {
+          {(selectedPass.levels || []).map((level) => {
             const unlocked = userPoints >= level.pointsRequired;
             const claimedFree = profile.claimedPassRewards?.includes(`${selectedPass.id}-level-${level.level}-free`);
             const claimedPremium = profile.claimedPassRewards?.includes(`${selectedPass.id}-level-${level.level}-premium`);
@@ -297,13 +385,13 @@ export function PassPage({ profile, onBack }: PassPageProps) {
                 {/* Free Reward (Left) */}
                 <div className="flex-1 flex justify-end">
                   {level.freeReward ? (
-                    <Card className={`p-3 w-32 flex flex-col items-center text-center border transition-all ${unlocked && isOwned ? (claimedFree ? 'border-white/10 bg-black/40 opacity-50' : 'border-green-500/50 bg-green-500/10') : 'border-white/5 bg-black/40 opacity-50'}`}>
+                    <Card className={`p-3 w-32 flex flex-col items-center text-center border transition-all ${unlocked ? (claimedFree ? 'border-white/10 bg-black/40 opacity-50' : 'border-green-500/50 bg-green-500/10') : 'border-white/5 bg-black/40 opacity-50'}`}>
                       <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">Gratuit</div>
                       <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-500 font-black mb-2">
                         {level.freeReward.type === 'money' ? '$' : level.freeReward.type === 'gems' ? '💎' : '⚡'}
                       </div>
                       <div className="text-xs font-black text-white mb-2">{level.freeReward.amount}</div>
-                      {unlocked && isOwned && !claimedFree && (
+                      {unlocked && !claimedFree && (
                         <Button onClick={() => handleClaimReward(level.level, 'free')} size="sm" className="w-full h-6 text-[10px] bg-green-500 hover:bg-green-600 text-black font-black uppercase">
                           Récupérer
                         </Button>

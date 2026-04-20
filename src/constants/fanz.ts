@@ -46,10 +46,10 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
 
   if (i === 0) {
     return {
-      id: `fanz-1`,
-      name: `Bébé Fanzzy`,
+      id: `fanz-001`,
+      name: `Baby Fanzzy`,
       sport: 'soccer',
-      rarity: 'legendary',
+      rarity: 'common',
       image: imageUrl,
       video: videoUrl,
       description: `Le tout premier supporter, prêt à mettre l'ambiance !`,
@@ -67,7 +67,7 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
       skins: [
         {
           id: 'skin-bebe-gold',
-          fanzId: 'fanz-1',
+          fanzId: 'fanz-001',
           name: 'Bébé Fanzzy Gold',
           imageUrl: 'https://thebestfan.online/img/public/fanz/imageFanz001Skin001.png',
           price: { gems: 500 },
@@ -76,13 +76,13 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
       emotes: [
         {
           id: 'emote-bebe-cry',
-          fanzId: 'fanz-1',
+          fanzId: 'fanz-001',
           name: 'Pleure',
           imageUrl: 'https://thebestfan.online/img/public/fanz/emoteFanz001Cry.png',
         },
         {
           id: 'emote-bebe-laugh',
-          fanzId: 'fanz-1',
+          fanzId: 'fanz-001',
           name: 'Rigole',
           imageUrl: 'https://thebestfan.online/img/public/fanz/emoteFanz001Laugh.png',
         }
@@ -91,7 +91,7 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
     };
   }
   return {
-    id: `fanz-${i + 1}`,
+    id: `fanz-${paddedId}`,
     name: `Fanz #${i + 1}`,
     sport: 'soccer',
     rarity: i < 60 ? 'common' : i < 85 ? 'rare' : i < 95 ? 'epic' : 'legendary',

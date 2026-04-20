@@ -3,6 +3,7 @@ import { UserProfile } from '../types';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 import { Search, Plus, Shield, ChevronLeft } from 'lucide-react';
+import { getImageUrl } from '../lib/utils';
 import { footballApi } from '../services/footballApi';
 import { Button, Card } from './Layout';
 import { useAlert } from '../context/AlertContext';
@@ -20,71 +21,62 @@ export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isAdding, setIsAdding] = useState<string | null>(null);
   const { showAlert } = useAlert();
 
   useEffect(() => {
     const fetchTeams = async () => {
       setLoading(true);
       try {
+        const favoriteTeams = profile.favoriteTeams || [];
         const teamData = await Promise.all(
-          profile.favoriteTeams.map(async (teamIdOrName) => {
-            const teamDoc = await getDoc(doc(db, 'teams', teamIdOrName));
+          favoriteTeams.map(async (teamIdOrName) => {
+            const teamIdStr = teamIdOrName.toString();
+            const teamDoc = await getDoc(doc(db, 'teams', teamIdStr));
+            
             if (teamDoc.exists()) {
               const data = teamDoc.data();
-              if (!data.logo) {
-                // Try to find logo via API if missing
-                try {
-                  const results = await footballApi.searchTeams(data.name || teamIdOrName);
-                  if (results && results.length > 0) {
-                    const newLogo = results[0].team.logo;
-                    // Update the database so we don't have to fetch it again
-                    await updateDoc(doc(db, 'teams', teamIdOrName), { logo: newLogo });
-                    return { id: teamDoc.id, ...data, logo: newLogo };
-                  }
-                } catch (e) {
-                  console.error("Failed to fetch logo fallback", e);
-                }
+              if (data.logo && data.name) {
+                return { id: teamDoc.id, ...data };
               }
-              return { id: teamDoc.id, ...data };
+              // Found doc but missing data - try fallback below
             }
             
-            // If team not in DB, try to fetch from API
+            // Try fallback API fetch
             try {
-              const results = await footballApi.searchTeams(teamIdOrName);
-              if (results && results.length > 0) {
-                const teamData = results[0].team;
-                const newTeamId = teamData.id.toString();
-                
-                // If the old ID was a name (not a number), we should migrate it
-                if (isNaN(Number(teamIdOrName))) {
-                  // Replace the old name with the new ID in the user's favoriteTeams
-                  const updatedFavoriteTeams = profile.favoriteTeams.map(t => t === teamIdOrName ? newTeamId : t);
-                  await updateDoc(doc(db, 'users', profile.uid), { favoriteTeams: updatedFavoriteTeams });
-                  
-                  // Make sure the team exists in the teams collection
-                  const newTeamRef = doc(db, 'teams', newTeamId);
-                  const newTeamDoc = await getDoc(newTeamRef);
-                  if (!newTeamDoc.exists()) {
-                    await setDoc(newTeamRef, {
-                      name: teamData.name,
-                      logo: teamData.logo,
-                      userCount: 1,
-                      averageFerveur: 10,
-                      ferveurEarned: 0,
-                      totalScoreGiven: 0,
-                      matchesPlayed: 0,
-                      leagueIds: []
-                    });
-                  }
-                }
-                
-                return { id: newTeamId, name: teamData.name, logo: teamData.logo };
+              let teamApiData = null;
+              
+              if (!isNaN(Number(teamIdStr))) {
+                const res = await footballApi.getTeamInfo(Number(teamIdStr));
+                if (res && res.team) teamApiData = res.team;
+              } else {
+                const results = await footballApi.searchTeams(teamIdStr);
+                const matching = results?.find((r: any) => r.team.name.toLowerCase() === teamIdStr.toLowerCase());
+                if (matching) teamApiData = matching.team;
+              }
+
+              if (teamApiData) {
+                // Update DB with missing info if we found it
+                const teamRef = doc(db, 'teams', teamApiData.id.toString());
+                const updates = {
+                  name: teamApiData.name,
+                  logo: teamApiData.logo,
+                  updatedAt: new Date().toISOString()
+                };
+                await setDoc(teamRef, updates, { merge: true });
+                return { id: teamApiData.id.toString(), ...updates };
               }
             } catch (e) {
-              console.error("Failed to fetch team fallback", e);
+              console.error(`Failed to fetch team data for ${teamIdStr}:`, e);
             }
 
-            return { id: teamIdOrName, name: teamIdOrName, logo: '' };
+            // Ultimate fallback: display what we have
+            const existingName = teamDoc.exists() ? teamDoc.data().name : null;
+            return { 
+              id: teamIdStr, 
+              name: existingName || teamIdStr, 
+              logo: teamDoc.exists() ? teamDoc.data().logo : '' 
+            };
           })
         );
         setTeams(teamData);
@@ -120,34 +112,41 @@ export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
   }, [searchQuery]);
 
   const handleAddTeam = async (team: any) => {
-    if (profile.favoriteTeams.length >= profile.teamSlots) {
-      showAlert({ type: 'error', title: 'Vous avez atteint la limite d\'équipes favorites.' });
+    const favoriteTeams = profile.favoriteTeams || [];
+    if (favoriteTeams.length >= (profile.teamSlots || 1)) {
+      showAlert({ type: 'error', title: 'Limite atteinte', subtitle: 'Plus d\'emplacements disponibles.' });
       return;
     }
 
     const teamId = team.team.id.toString();
-    if (profile.favoriteTeams.includes(teamId) || profile.favoriteTeams.includes(team.team.name)) {
-      showAlert({ type: 'error', title: 'Cette équipe est déjà dans vos favoris.' });
+    if (favoriteTeams.map(t => t.toString()).includes(teamId)) {
+      showAlert({ type: 'error', title: 'Déjà ajouté', subtitle: 'Cette équipe est déjà dans vos favoris.' });
       return;
     }
 
+    setIsAdding(teamId);
     try {
       const teamRef = doc(db, 'teams', teamId);
       const teamDoc = await getDoc(teamRef);
       
+      const teamPayload = {
+        name: team.team.name,
+        logo: team.team.logo,
+        updatedAt: new Date().toISOString()
+      };
+
       if (!teamDoc.exists()) {
-        // Fetch leagues for this team
+        // Fetch leagues for this team to enrich data
         let leagueIds: number[] = [];
         try {
           const leaguesData = await footballApi.getLeaguesByTeam(Number(teamId));
           leagueIds = leaguesData.map((l: any) => l.league.id);
         } catch (e) {
-          console.error("Failed to fetch leagues for team", e);
+          console.error("Failed to fetch leagues for team enrichment", e);
         }
 
         await setDoc(teamRef, {
-          name: team.team.name,
-          logo: team.team.logo,
+          ...teamPayload,
           userCount: 1,
           averageFerveur: 10,
           ferveurEarned: 0,
@@ -156,21 +155,26 @@ export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
           leagueIds: leagueIds
         });
       } else {
+        // If doc exists but lacked name/logo (due to some error), heal it
         await updateDoc(teamRef, {
+          ...teamPayload,
           userCount: increment(1)
         });
       }
 
       const userRef = doc(db, 'users', profile.uid);
       await updateDoc(userRef, {
-        favoriteTeams: [...profile.favoriteTeams, teamId]
+        favoriteTeams: [...favoriteTeams, teamId]
       });
       
       setSearchQuery('');
       setSearchResults([]);
-      showAlert({ type: 'success', title: 'Équipe ajoutée aux favoris !' });
+      showAlert({ type: 'success', title: 'Équipe ajoutée !', subtitle: `${team.team.name} a rejoint vos favoris.` });
     } catch (error) {
+      console.error("Error adding favorite team:", error);
       handleFirestoreError(error, OperationType.UPDATE, 'users');
+    } finally {
+      setIsAdding(null);
     }
   };
 
@@ -196,7 +200,7 @@ export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
   const emptySlots = Math.max(0, profile.teamSlots - profile.favoriteTeams.length);
 
   return (
-    <div className="flex flex-col h-full bg-black">
+    <div className="flex flex-col h-full bg-transparent">
       <div className="flex items-center justify-between px-4">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
           Équipes Favorites
@@ -221,7 +225,7 @@ export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
               <div key={idx} className="bg-black/40 border border-white/10 rounded-xl p-3 flex items-center gap-3">
                 <div className="w-12 h-12 shrink-0 bg-white/5 rounded-lg border border-white/10 flex items-center justify-center p-2">
                   {team.logo ? (
-                    <img src={team.logo} alt={team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                    <img src={getImageUrl(team.logo, 100)} alt={team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                   ) : (
                     <Shield className="w-6 h-6 text-gray-500" />
                   )}
@@ -287,7 +291,7 @@ export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 shrink-0 bg-white/5 rounded-lg p-1.5 flex items-center justify-center">
-                      <img src={result.team.logo} alt={result.team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      <img src={getImageUrl(result.team.logo, 100)} alt={result.team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                     </div>
                     <div className="min-w-0">
                       <h4 className="font-bold text-white text-sm truncate">{result.team.name}</h4>
@@ -296,9 +300,10 @@ export function FavoriteTeamsPage({ profile, onBack }: FavoriteTeamsPageProps) {
                   </div>
                   <Button 
                     onClick={() => handleAddTeam(result)}
-                    className="shrink-0 ml-2 bg-orange-500 hover:bg-orange-600 text-black font-black uppercase text-[10px] px-3 py-1.5 h-auto"
+                    disabled={isAdding === result.team.id.toString()}
+                    className="shrink-0 ml-2 bg-orange-500 hover:bg-orange-600 text-black font-black uppercase text-[10px] px-3 py-1.5 h-auto disabled:opacity-50"
                   >
-                    Ajouter
+                    {isAdding === result.team.id.toString() ? '...' : 'Ajouter'}
                   </Button>
                 </div>
               ))}

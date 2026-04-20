@@ -5,9 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function getImageUrl(path: string | null, width: number = 800) {
-  if (!path) return '';
+export function getImageUrl(path: string | null | undefined, width: number = 800): string | undefined {
+  if (!path) return undefined;
   
+  if (path.startsWith('/api/image-proxy')) {
+    return path;
+  }
+  
+  // Automatically proxy football API logos to avoid CORS and caching issues
+  if (path.includes('api-sports.io') || path.includes('media.api-sports.io') || path.includes('api-football.com')) {
+    return `/api/image-proxy?url=${encodeURIComponent(path)}&w=${width > 120 ? 120 : width}`;
+  }
+
   let finalPath = path;
 
   // Handle gs:// URLs (Legacy database records)

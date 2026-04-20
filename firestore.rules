@@ -89,10 +89,17 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-         (request.auth.token.email == "gael.manigley@gmail.com") ||
-         (request.auth.token.email == "michel@gmail.com")); // Default admin
+        (
+         request.auth.uid == "mxn6qCS8MeYdVn7a6iiYS0Cak3H2" || 
+         (request.auth.token != null && "email" in request.auth.token && (
+            request.auth.token.email == "gael.manigley@gmail.com" ||
+            request.auth.token.email == "michel@gmail.com" ||
+            request.auth.token.email == "elisa@gmail.com" ||
+            request.auth.token.email == "caro@gmail.com"
+         )) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("role", "") == "admin")
+        ); 
     }
 
     function isValidEmail(email) {
@@ -284,7 +291,8 @@ service cloud.firestore {
       allow read: if isAuthenticated(); // Allow reading other users for duels/leaderboards
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'client' || isAdmin());
       allow update: if isAuthenticated() && (
-        ((isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin())) ||
+        isAdmin() ||
+        (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) ||
         isFriendRequestUpdate() || 
         isFriendUpdate()
       );
@@ -293,7 +301,7 @@ service cloud.firestore {
     match /fanz/{fanzId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isOwner(request.resource.data.ownerUid) && isValidFanz(request.resource.data);
-      allow update: if isAuthenticated() && (isOwner(resource.data.ownerUid) || isAdmin()) && isValidFanz(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || (isOwner(resource.data.ownerUid) && isValidFanz(request.resource.data)));
       allow delete: if isAdmin();
     }
 
@@ -337,12 +345,14 @@ service cloud.firestore {
 
     match /match_scores/{scoreId} {
       allow read: if isAuthenticated();
+      // Temporary: allow authenticated users to write match scores directly from frontend
       allow write: if isAuthenticated();
     }
 
     match /active_duels/{duelId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      // Allowing authenticated users since they need to update duel states but consider shifting to server logic 
+      allow write: if isAuthenticated(); // Temporary to avoid breaking active duels
     }
 
     match /matches/{matchId} {
@@ -352,7 +362,7 @@ service cloud.firestore {
 
     match /teams/{teamId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
+      allow write: if isAuthenticated();
       
       match /seasons/{season}/{allPaths=**} {
         allow read: if isAuthenticated();
@@ -367,17 +377,19 @@ service cloud.firestore {
 
     match /leagues/{leagueId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
       
       match /seasons/{season}/{allPaths=**} {
         allow read: if isAuthenticated();
+        // Caching needs write permissions for any user that fetches this first
         allow write: if isAuthenticated();
       }
     }
 
     match /api_teams/{teamId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      // Users fetching API data cache it to this collection
+      allow write: if isAuthenticated();
     }
 
     match /missions/{missionId} {

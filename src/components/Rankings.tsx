@@ -168,20 +168,54 @@ export function Rankings({ onBack }: RankingsProps) {
         } else {
           const collectionName = activeTab === 'teams' ? 'ranking_teams' : 'ranking_users';
           
-          // Use server-side filtering and sorting to minimize reads and processing
-          const q = query(
-            collection(db, collectionName),
-            where('season', '==', season.toString()),
-            where('leagueId', '==', leagueId.toString()),
-            orderBy(metric === 'popularity' ? 'averageScore' : metric, 'desc'),
-            limit(50)
-          );
+          let snapshot;
+          try {
+            // Attempt optimized query (requires composite index)
+            const q = query(
+              collection(db, collectionName),
+              where('season', '==', season.toString()),
+              where('leagueId', '==', leagueId.toString()),
+              orderBy(metric === 'popularity' ? 'averageScore' : metric, 'desc'),
+              limit(50)
+            );
+            snapshot = await getDocs(q);
+          } catch (e: any) {
+            console.warn("Optimized query failed (likely missing index), falling back to in-memory sort", e);
+            // Fallback: Filter by season and league, then sort in memory
+            // This is more resilient when indexes aren't yet created
+            const fallbackQ = query(
+              collection(db, collectionName),
+              where('season', '==', season.toString()),
+              where('leagueId', '==', leagueId.toString())
+            );
+            const fallbackSnap = await getDocs(fallbackQ);
+            
+            // Sort in memory
+            const sortedDocs = [...fallbackSnap.docs].sort((a, b) => {
+              const valA = a.data()[metric === 'popularity' ? 'averageScore' : metric] || 0;
+              const valB = b.data()[metric === 'popularity' ? 'averageScore' : metric] || 0;
+              return valB - valA;
+            }).slice(0, 50);
+            
+            snapshot = { docs: sortedDocs };
+          }
 
-          const snapshot = await getDocs(q);
-          console.log(`Fetched ${snapshot.size} documents from ${collectionName}`);
+          console.log(`Fetched ${snapshot.docs.length} documents from ${collectionName} for season ${season} and league ${leagueId}`);
 
+          if (snapshot.docs.length === 0) {
+            console.warn(`[Rankings] No data found in ${collectionName} for filters:`, { season, leagueId, metric });
+          }
+
+          // Pre-fetch all teams to avoid sequential getDoc in loop
+          if (activeTab === 'teams') {
+            const teamIds = snapshot.docs.map(d => d.data().teamId?.toString()).filter(Boolean);
+            if (teamIds.length > 0) {
+              // We could chunk and fetch, but for now we skip to keep it simple and just add logging
+              console.log(`[Rankings] Processing ${teamIds.length} team ranking entries`);
+            }
+          }
           for (const docSnap of snapshot.docs) {
-            const data = docSnap.data();
+            const data = docSnap.data() as any;
             
             let name = 'Inconnu';
             let imageUrl = '';

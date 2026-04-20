@@ -127,8 +127,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
         const cardsSnapshot = await getDocs(collection(db, 'cards'));
         const cardsData = cardsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DuelCard));
-        const initialCards = cardsData.length > 0 ? cardsData : BASE_CARDS;
-        setAllCards(initialCards);
+        setAllCards(cardsData);
 
         const actionsSnapshot = await getDocs(collection(db, 'life_actions'));
         const actionsData = actionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction));
@@ -153,13 +152,17 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   }, [fanzId]);
 
   const ferveurPath = React.useMemo(() => {
+    // Priority 1: Specific template configuration (most updated by admin)
+    if (template?.ferveurPath && template.ferveurPath.length > 0) return template.ferveurPath;
+    // Priority 2: Fanz instance specific path
+    if (fanz?.ferveurPath && fanz.ferveurPath.length > 0) return fanz.ferveurPath;
+    // Priority 3: Fallback generating from global config
     if (fanzFervorConfig) {
-      // Use the max points from the config, or a high default
       const maxPoints = fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000;
       return generateFervorPath(maxPoints, fanzFervorConfig);
     }
-    return template?.ferveurPath || [];
-  }, [fanzFervorConfig, template]);
+    return [];
+  }, [template?.ferveurPath, fanz?.ferveurPath, fanzFervorConfig]);
 
   const maxFerveurPoints = ferveurPath.length > 0 ? ferveurPath[ferveurPath.length - 1].pointsRequired : 1000;
 
@@ -432,6 +435,25 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     }
   };
 
+  const generateProgressHeight = () => {
+    if (ferveurPath.length === 0) return 0;
+    const pts = fanz?.ferveurPoints || 0;
+    const lastStep = ferveurPath[ferveurPath.length - 1];
+    if (pts >= lastStep.pointsRequired) return 100;
+    
+    for (let i = 0; i < ferveurPath.length; i++) {
+        const step = ferveurPath[i];
+        if (pts < step.pointsRequired) {
+            const prevPoints = i === 0 ? 0 : ferveurPath[i-1].pointsRequired;
+            const segmentProgress = (pts - prevPoints) / (step.pointsRequired - prevPoints);
+            const heightPerSegment = 100 / ferveurPath.length;
+            // Add a little offset to center the progress at the node
+            return Math.min(100, Math.max(0, (i * heightPerSegment) + (segmentProgress * heightPerSegment)));
+        }
+    }
+    return 0;
+  };
+
   return (
     <div className="flex flex-col pb-20">
       {/* Hero Section (4:3 Aspect Ratio) */}
@@ -481,55 +503,55 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         )}
 
         {/* Superimposed Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 z-20">
-          <div className="flex items-center gap-3">
+        <div className="absolute bottom-0 left-0 right-0 p-6 z-20 flex items-end justify-between">
+          <div className="flex-1">
             <h1 
               onClick={() => setActiveTab('stats')}
-              className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg cursor-pointer hover:text-orange-500 transition-colors"
+              className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg cursor-pointer hover:text-orange-500 transition-colors"
             >
               {equippedSkinData?.name || fanz.name}
             </h1>
-            <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center border border-white/20 shadow-lg shrink-0">
-              <span className="text-lg font-black italic text-white">{fanz.rank ?? 0}</span>
-            </div>
-          </div>
 
-          {activeAction && (
-            <div className="flex items-center gap-2 mt-1">
-              <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-              <p className="text-sm font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
-                {activeAction.name}
+            {activeAction && (
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                <p className="text-sm font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
+                  {activeAction.name}
+                </p>
+              </div>
+            )}
+
+            {!activeAction && (
+              <p className="text-[10px] sm:text-xs font-medium text-gray-300 mt-1 max-w-[80%] line-clamp-2">
+                {template.description}
               </p>
-            </div>
-          )}
+            )}
 
-          {!activeAction && (
-            <p className="text-xs font-medium text-gray-300 mt-1 max-w-[80%] line-clamp-2">
-              {template.description}
-            </p>
-          )}
-
-          {!activeAction && (() => {
-            const nextLevelPoints = ferveurPath.find(l => l.level === fanz.ferveurLevel + 1)?.pointsRequired || 1000;
-            return (
-              <div 
-                onClick={() => setActiveTab('ferveur')}
-                className="mt-3 w-full max-w-[250px] cursor-pointer group/ferveur"
-              >
-                <div className="h-5 bg-black/60 rounded-full border border-white/10 relative overflow-hidden group-hover/ferveur:border-orange-500/50 transition-colors">
-                  <div 
-                    className="h-full bg-orange-600 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, (fanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[10px] font-black text-white drop-shadow-md">
-                      {fanz.ferveurPoints} / {nextLevelPoints}
-                    </span>
+            {!activeAction && (() => {
+              const nextLevelPoints = ferveurPath.find(l => l.level === fanz.ferveurLevel + 1)?.pointsRequired || 1000;
+              return (
+                <div 
+                  onClick={() => setActiveTab('ferveur')}
+                  className="mt-3 w-full max-w-[200px] cursor-pointer group/ferveur"
+                >
+                  <div className="h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden group-hover/ferveur:border-orange-500/50 transition-colors">
+                    <div 
+                      className="h-full bg-orange-600 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, (fanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[10px] font-black text-white drop-shadow-md">
+                        {fanz.ferveurPoints} / {nextLevelPoints}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
+          </div>
+          <div className="w-10 h-10 bg-black rounded-full flex flex-col items-center justify-center border-2 border-white/10 shadow-xl shrink-0 mb-1 backdrop-blur-md">
+            <span className="text-base font-black italic text-white leading-none">{fanz.rank ?? 0}</span>
+          </div>
         </div>
       </div>
 
@@ -583,7 +605,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-tight">
                               {label}
                             </div>
-                            <div className="text-xl font-black leading-tight">Niv. {level}</div>
+                            <div className="text-lg sm:text-xl font-black leading-tight">Niv. {level}</div>
                           </div>
                         </div>
                         
@@ -685,7 +707,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           </div>
                           {!nextStep.isIntermediate && (
                             <div className="text-sm text-gray-300 font-medium">
-                              Palier {nextStep.level}
+                              Palier {nextStep.displayLevel || nextStep.level}
                             </div>
                           )}
                         </div>
@@ -693,7 +715,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <div className="text-sm font-black italic uppercase text-green-400">
-                              +{nextStep.reward?.amount} {nextStep.reward?.type === 'money' ? '$' : nextStep.reward?.type}
+                              {['money', 'gems', 'boost', 'energy', 'xp'].includes(nextStep.reward?.type || '') ? `+${nextStep.reward?.amount} ${nextStep.reward?.type === 'money' ? '$' : nextStep.reward?.type}` : nextStep.reward?.type === 'skin' ? 'Skin' : nextStep.reward?.type === 'emote' ? 'Emote' : nextStep.reward?.type === 'card' ? 'Carte' : nextStep.reward?.type === 'action' ? 'Action' : nextStep.reward?.type}
                             </div>
                           </div>
                           <div className="w-12 h-12 rounded-full bg-black/50 border border-white/10 flex items-center justify-center shadow-inner">
@@ -711,31 +733,56 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   );
                 })()}
 
-                {/* Progress Bar */}
-                <div className="px-2">
-                  <div className="relative h-12 bg-black/60 rounded-2xl border border-white/10 overflow-hidden shadow-2xl backdrop-blur-sm">
-                    {/* Progress Fill */}
+                {/* Progress Tracker (Neon) */}
+                <div className="px-2 relative cursor-pointer group" onClick={() => {
+                  const nextStep = ferveurPath.find(l => (fanz.ferveurPoints || 0) < l.pointsRequired);
+                  if (nextStep) {
+                    const el = document.getElementById(`fanz-ferveur-node-${nextStep.pointsRequired}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  } else if (ferveurPath.length > 0) {
+                    const el = document.getElementById(`fanz-ferveur-node-${ferveurPath[ferveurPath.length - 1].pointsRequired}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}>
+                  <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors rounded-xl -m-2 opacity-0 group-hover:opacity-100 pointer-events-none" />
+                  <div className="flex justify-between items-end mb-2 relative z-10">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest group-hover:text-gray-300 transition-colors">Ma progression</h3>
+                    <span className="text-sm font-black text-orange-400 group-hover:text-orange-300 transition-colors">{(fanz.ferveurPoints || 0).toLocaleString()} <span className="text-xs text-orange-500/50">/ {maxFerveurPoints.toLocaleString()} PTS</span></span>
+                  </div>
+                  <div className="h-4 w-full bg-gray-900/80 rounded-full overflow-hidden border border-gray-800 relative z-10">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, ((fanz.ferveurPoints || 0) / maxFerveurPoints) * 100)}%` }}
+                      animate={{ width: `${Math.min(100, Math.max(0, ((fanz.ferveurPoints || 0) / maxFerveurPoints) * 100))}%` }}
                       transition={{ duration: 1.5, ease: "easeOut" }}
-                      className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-orange-600 via-orange-500 to-yellow-500"
-                    >
-                      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay" />
-                    </motion.div>
-                    {/* Text Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-black italic uppercase tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                        {(fanz.ferveurPoints || 0).toLocaleString()} / {maxFerveurPoints.toLocaleString()} PTS
-                      </span>
-                    </div>
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-700 via-orange-500 to-yellow-500 shadow-[0_0_15px_rgba(249,115,22,0.6)] rounded-full"
+                    />
+                    {/* Pattern overlay on progress */}
+                    <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] pointer-events-none" />
                   </div>
                 </div>
 
                 {/* Vertical Path */}
                 <div className="relative mt-8 px-4">
-                  {/* Central Line */}
-                  <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 via-orange-500/30 to-transparent -translate-x-1/2 rounded-full" />
+                  {/* Progress Bar Container */}
+                  <div 
+                    className="absolute left-1/2 top-0 bottom-0 w-3 bg-gray-900 border-x border-white/10 -translate-x-1/2 rounded-full overflow-hidden cursor-pointer shadow-inner"
+                    onClick={() => {
+                       const nextStep = ferveurPath.find(l => (fanz.ferveurPoints || 0) < l.pointsRequired);
+                       if (nextStep) {
+                          const el = document.getElementById(`fanz-ferveur-node-${nextStep.pointsRequired}`);
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                       }
+                    }}
+                    title="Cliquez pour aller à votre progression"
+                  >
+                    {/* Active Neon Progress Line */}
+                    <div 
+                      className="w-full bg-gradient-to-b from-orange-400 to-orange-600 shadow-[0_0_20px_rgba(249,115,22,1)] rounded-full transition-all duration-1000" 
+                      style={{ 
+                        height: `${generateProgressHeight()}%` 
+                      }}
+                    />
+                  </div>
 
                   <div className="space-y-24 relative">
                     {ferveurPath.length > 0 ? (
@@ -754,11 +801,12 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             viewport={{ once: true, margin: "-50px" }}
                             transition={{ duration: 0.5, delay: idx * 0.05 }}
                             key={idx} 
+                            id={`fanz-ferveur-node-${step.pointsRequired}`}
                             className="relative flex items-center justify-center"
                           >
                             {/* Milestone Node */}
                             <div className={`relative z-10 rounded-2xl flex items-center justify-center border-2 transition-all duration-500 ${
-                              step.isIntermediate ? 'w-12 h-12 rotate-45' : 'w-20 h-20'
+                              step.isIntermediate ? 'w-12 h-12 rotate-45 overflow-hidden' : 'w-20 h-20 overflow-hidden'
                             } ${
                               isClaimed 
                                 ? 'bg-green-900/40 border-green-500 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.2)]' 
@@ -768,34 +816,84 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                     ? 'bg-gray-900 border-orange-500/50 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)] animate-pulse'
                                     : 'bg-[#111] border-white/10 text-gray-600'
                             }`}>
-                              <div className={step.isIntermediate ? '-rotate-45' : ''}>
-                                {isClaimed ? (
-                                  <Check className={step.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
-                                ) : step.reward?.type === 'money' ? (
-                                  <img src={LOGOS.money} alt="Money" className={`${step.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
-                                ) : step.reward?.type === 'gems' ? (
-                                  <img src={LOGOS.gems} alt="Gems" className={`${step.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
-                                ) : (
-                                  <Trophy className={step.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
-                                )}
+                              <div className={step.isIntermediate ? '-rotate-45 block w-full h-full' : 'w-full h-full'}>
+                                {(() => {
+                                  if (isClaimed) return <div className="w-full h-full flex items-center justify-center"><Check className={step.isIntermediate ? "w-6 h-6" : "w-10 h-10"} /></div>;
+                                  if (step.reward?.type === 'money') return <div className="w-full h-full flex items-center justify-center"><img src={LOGOS.money} alt="Money" className={`${step.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} /></div>;
+                                  if (step.reward?.type === 'gems') return <div className="w-full h-full flex items-center justify-center"><img src={LOGOS.gems} alt="Gems" className={`${step.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} /></div>;
+                                  
+                                  if (step.reward?.type === 'skin' && step.reward?.skinId) {
+                                    const skin = template?.skins?.find(s => s.id === step.reward?.skinId);
+                                    if (skin) {
+                                      return (
+                                        <div className="w-full h-full rounded-[inherit] overflow-hidden">
+                                          <OptimizedMedia 
+                                            type={skin.videoUrl ? 'video' : 'image'} 
+                                            src={skin.videoUrl || skin.imageUrl || null} 
+                                            poster={skin.imageUrl} 
+                                            className="w-full h-full object-cover scale-[1.2]" 
+                                            autoPlay
+                                            loop
+                                          />
+                                        </div>
+                                      )
+                                    }
+                                  } else if (step.reward?.type === 'emote' && step.reward?.emoteId) {
+                                    const emote = template?.emotes?.find(e => e.id === step.reward?.emoteId);
+                                    if (emote) {
+                                      return (
+                                        <div className="w-full h-full rounded-[inherit] overflow-hidden p-1 flex items-center justify-center">
+                                          <OptimizedMedia 
+                                            type={emote.videoUrl ? 'video' : 'image'} 
+                                            src={emote.videoUrl || emote.imageUrl || null} 
+                                            poster={emote.imageUrl} 
+                                            className="w-full h-full object-contain" 
+                                            autoPlay
+                                            loop
+                                          />
+                                        </div>
+                                      )
+                                    }
+                                  } else if (step.reward?.type === 'card' && step.reward?.cardId) {
+                                    const card = allCards.find(c => c.id === step.reward?.cardId);
+                                    if (card?.imageUrl) {
+                                      return (
+                                        <div className="w-full h-full rounded-[inherit] overflow-hidden p-1">
+                                          <img src={card.imageUrl} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                                        </div>
+                                      );
+                                    }
+                                  } else if (step.reward?.type === 'action' && step.reward?.actionId) {
+                                    const action = lifeActions.find(a => a.id === step.reward?.actionId);
+                                    if (action?.image) {
+                                      return (
+                                        <div className="w-full h-full rounded-[inherit] overflow-hidden p-1">
+                                          <img src={action.image} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                                        </div>
+                                      );
+                                    }
+                                  }
+                                  
+                                  return <div className="w-full h-full flex items-center justify-center"><Trophy className={step.isIntermediate ? "w-6 h-6" : "w-10 h-10"} /></div>;
+                                })()}
                               </div>
 
                               {/* Points Label */}
-                              <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap ${isLeft ? (step.isIntermediate ? 'left-16 text-left' : 'left-24 text-left') : (step.isIntermediate ? 'right-16 text-right' : 'right-24 text-right')}`}>
-                                <div className={`text-lg font-black italic uppercase tracking-tighter drop-shadow-md ${isUnlocked ? 'text-orange-400' : 'text-gray-500'}`}>
+                              <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap ${isLeft ? (step.isIntermediate ? 'left-10 sm:left-16 text-left' : 'left-14 sm:left-24 text-left') : (step.isIntermediate ? 'right-10 sm:right-16 text-right' : 'right-14 sm:right-24 text-right')}`}>
+                                <div className={`text-sm sm:text-lg font-black italic uppercase tracking-tighter drop-shadow-md ${isUnlocked ? 'text-orange-400' : 'text-gray-500'}`}>
                                   {step.pointsRequired.toLocaleString()} PTS
                                 </div>
                                 {!step.isIntermediate && (
-                                  <div className="text-xs font-black uppercase tracking-widest text-gray-400 bg-black/50 px-2 py-0.5 rounded-full inline-block mt-1 border border-white/5">
-                                    Palier {step.level || idx + 1}
+                                  <div className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 bg-black/50 px-2 py-0.5 rounded-full inline-block mt-1 border border-white/5">
+                                    Palier {step.displayLevel || step.level || idx + 1}
                                   </div>
                                 )}
                               </div>
                             </div>
 
                             {/* Reward Box */}
-                            <div className={`absolute top-1/2 -translate-y-1/2 ${step.isIntermediate ? 'w-[140px]' : 'w-[180px]'} ${isLeft ? (step.isIntermediate ? 'right-[calc(50%+45px)]' : 'right-[calc(50%+55px)]') : (step.isIntermediate ? 'left-[calc(50%+45px)]' : 'left-[calc(50%+55px)]')}`}>
-                              <div className={`p-4 rounded-2xl border backdrop-blur-sm transition-all duration-500 ${
+                            <div className={`absolute top-1/2 -translate-y-1/2 ${step.isIntermediate ? 'w-[100px] sm:w-[140px]' : 'w-[120px] sm:w-[180px]'} ${isLeft ? (step.isIntermediate ? 'right-[calc(50%+25px)] sm:right-[calc(50%+45px)]' : 'right-[calc(50%+35px)] sm:right-[calc(50%+55px)]') : (step.isIntermediate ? 'left-[calc(50%+25px)] sm:left-[calc(50%+45px)]' : 'left-[calc(50%+35px)] sm:left-[calc(50%+55px)]')}`}>
+                              <div className={`p-2 sm:p-4 rounded-xl sm:rounded-2xl border backdrop-blur-sm transition-all duration-500 ${
                                 isClaimed 
                                   ? 'bg-black/40 border-green-500/20 opacity-60' 
                                   : isUnlocked 
@@ -805,13 +903,13 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       : 'bg-black/40 border-white/5 opacity-50'
                               }`}>
                                 <div className="text-center">
-                                  <div className={`text-lg font-black italic uppercase tracking-tighter mb-3 drop-shadow-md ${isUnlocked && !isClaimed ? 'text-green-400' : 'text-gray-400'}`}>
-                                    +{step.reward?.amount} {step.reward?.type === 'money' ? '$' : step.reward?.type}
+                                  <div className={`text-sm sm:text-lg font-black italic uppercase tracking-tighter sm:mb-3 mb-1.5 drop-shadow-md ${isUnlocked && !isClaimed ? 'text-green-400' : 'text-gray-400'}`}>
+                                    {['money', 'gems', 'boost', 'energy', 'xp'].includes(step.reward?.type || '') ? `+${step.reward?.amount} ${step.reward?.type === 'money' ? '$' : step.reward?.type}` : step.reward?.type === 'skin' ? 'Skin' : step.reward?.type === 'emote' ? 'Emote' : step.reward?.type === 'card' ? 'Carte' : step.reward?.type === 'action' ? 'Action' : step.reward?.type}
                                   </div>
                                   {isUnlocked && !isClaimed ? (
                                     <Button 
                                       size="sm" 
-                                      className="w-full h-7 text-[10px] bg-orange-500 hover:bg-orange-600 font-black italic uppercase tracking-tighter"
+                                      className="w-full h-8 sm:h-10 text-xs sm:text-sm bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-black italic uppercase tracking-widest shadow-lg shadow-orange-500/25 border border-orange-400/50 px-1 sm:px-3"
                                       onClick={async () => {
                                         if (claimingReward) return;
                                         
@@ -960,8 +1058,9 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       Réclamer
                                     </Button>
                                   ) : (
-                                    <div className="text-[10px] font-black uppercase tracking-tighter text-gray-500">
-                                      {isClaimed ? 'OK' : 'Bloqué'}
+                                    <div className={`text-[9px] sm:text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1 sm:gap-1.5 ${isClaimed ? 'text-green-500/50' : 'text-gray-600'}`}>
+                                      {isClaimed ? <Check className="w-3 h-3 sm:w-4 sm:h-4" /> : <Lock className="w-3 h-3 sm:w-4 sm:h-4" />}
+                                      {isClaimed ? 'RÉCUPÉRÉ' : 'BLOQUÉ'}
                                     </div>
                                   )}
                                 </div>
@@ -1120,18 +1219,47 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       {!claimedChoice && <Trophy className="w-8 h-8" />}
                                     </div>
                                   ) : (
-                                    <div className="flex gap-2 items-center justify-center">
+                                    <div className="flex gap-2 items-center justify-center relative w-full h-full overflow-hidden">
                                       {customReward ? (
                                         customReward.type === 'money' ? <img src={LOGOS.money} alt="Money" className="w-8 h-8 object-contain" /> :
                                         customReward.type === 'gems' ? <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 object-contain" /> :
                                         customReward.type === 'boost' ? <img src={LOGOS.boost} alt="Boost" className="w-8 h-8 object-contain" /> :
                                         customReward.type === 'energy' ? <img src={LOGOS.energy} alt="Energy" className="w-8 h-8 object-contain" /> :
                                         customReward.type === 'xp' ? <img src={LOGOS.level} alt="XP" className="w-8 h-8 object-contain" /> :
-                                        customReward.type === 'card' ? <Layers className="w-8 h-8" /> :
-                                        customReward.type === 'skin' ? <Shield className="w-8 h-8" /> :
-                                        customReward.type === 'emote' ? <Smile className="w-8 h-8" /> :
-                                        customReward.type === 'action' ? <Activity className="w-8 h-8" /> :
-                                        customReward.type === 'team_slot' ? <div className="font-black">SLOT</div> :
+                                        customReward.type === 'card' ? (
+                                          customReward.cardId ? (
+                                            <div className="w-16 h-16 rounded-[inherit] overflow-hidden p-1 absolute">
+                                              <img src={allCards.find(c => c.id === customReward.cardId)?.imageUrl} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                                            </div>
+                                          ) : <Layers className="w-8 h-8" />
+                                        ) : customReward.type === 'skin' ? (
+                                          customReward.skinId ? (() => {
+                                            const skin = allSkins.find(s => s.id === customReward.skinId);
+                                            return skin ? (
+                                              <div className="absolute inset-0 z-0 opacity-50">
+                                                <OptimizedMedia type={skin.videoUrl ? 'video' : 'image'} src={skin.videoUrl || skin.imageUrl || null} poster={skin.imageUrl} className="w-full h-full object-cover" autoPlay loop muted />
+                                              </div>
+                                            ) : <Shield className="w-8 h-8" />;
+                                          })() : <Shield className="w-8 h-8" />
+                                        ) : customReward.type === 'emote' ? (
+                                          customReward.emoteId ? (() => {
+                                            const emote = allEmotes.find(e => e.id === customReward.emoteId);
+                                            return emote ? (
+                                              <div className="absolute inset-0 z-0 opacity-30 flex items-center justify-center pointer-events-none p-2">
+                                                <OptimizedMedia type={emote.videoUrl ? 'video' : 'image'} src={emote.videoUrl || emote.imageUrl || null} poster={emote.imageUrl} className="w-full h-full object-contain" autoPlay loop muted />
+                                              </div>
+                                            ) : <Smile className="w-8 h-8" />;
+                                          })() : <Smile className="w-8 h-8" />
+                                        ) : customReward.type === 'action' ? (
+                                          customReward.actionId ? (() => {
+                                            const action = lifeActions.find(a => a.id === customReward.actionId);
+                                            return action?.image ? (
+                                              <div className="w-16 h-16 rounded-[inherit] overflow-hidden p-1 absolute">
+                                                <img src={action.image} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                                              </div>
+                                            ) : <Activity className="w-8 h-8" />;
+                                          })() : <Activity className="w-8 h-8" />
+                                        ) : customReward.type === 'team_slot' ? <div className="font-black">SLOT</div> :
                                         <><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /><Activity className="w-5 h-5" /></>
                                       ) : <><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /><Activity className="w-5 h-5" /></>}
                                     </div>
@@ -1331,7 +1459,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         return true;
                       });
 
-                      const isUnlocked = userProfile.cards?.includes(card.id) || card.id.startsWith('base_') || metRequirements;
+                      const isUnlocked = userProfile.cards?.includes(card.id) || metRequirements;
                       const isEquipped = fanz.equippedCards?.includes(card.id);
                       const typeStyle = cardTypeStyles[card.type] || cardTypeStyles.neutral;
                       
@@ -1408,7 +1536,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                 <>
                                   <p className="text-[6px] text-gray-300 leading-tight line-clamp-2 italic">{card.description}</p>
                                   <div className="space-y-0.5 mt-auto">
-                                    {card.effects.map((effect, idx) => (
+                                    {(card.effects || []).map((effect, idx) => (
                                       <div key={idx} className="text-[5px] font-bold text-gray-400 uppercase flex justify-between">
                                         <span>{effectLabels[effect.type] || effect.type}</span>
                                         <span className={typeStyle.text}>{effect.value ? `+${effect.value}` : ''}{effect.duration ? ` (${effect.duration}s)` : ''}</span>
@@ -1459,7 +1587,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   )}
                 </Card>
 
-                {template.skins.map((skin, idx) => {
+                {(template.skins || []).map((skin, idx) => {
                   const isUnlocked = fanz.unlockedSkins?.includes(skin.id) || userProfile?.skins?.includes(skin.id);
                   const isEquipped = fanz.equippedSkin === skin.id;
                   const canAfford = !isUnlocked && userProfile && (
@@ -1539,7 +1667,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
             {activeTab === 'emotes' && (
               <div className="grid grid-cols-2 gap-3">
-                {template.emotes.map((emote, idx) => {
+                {(template.emotes || []).map((emote, idx) => {
                   const isUnlocked = fanz.unlockedEmotes?.includes(emote.id) || userProfile?.emotes?.includes(emote.id);
                   const canAfford = !isUnlocked && emote.price && userProfile && (
                     (!emote.price.money || (userProfile.money || 0) >= emote.price.money) &&

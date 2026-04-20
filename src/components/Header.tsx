@@ -36,6 +36,12 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
   const [maxFerveur, setMaxFerveur] = useState(100000);
 
   useEffect(() => {
+    if (profile.photoURL) {
+      setAvatarUrl(profile.photoURL);
+    }
+  }, [profile.photoURL]);
+
+  useEffect(() => {
     const fetchMaxFerveur = async () => {
       try {
         const configDoc = await getDoc(doc(db, 'global_configs', 'user_fervor'));
@@ -164,7 +170,7 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
     <>
       <header className={cn(
         "left-0 right-0 z-50 p-4 flex items-start justify-between",
-        absolute ? "absolute top-0 bg-gradient-to-b from-black/80 to-transparent" : "sticky top-0 bg-[#0a0a0a] backdrop-blur-xl"
+        variant === 'home' || absolute ? "absolute top-0 bg-gradient-to-b from-black/80 to-transparent" : "sticky top-0 bg-transparent"
       )}>
         {/* Left: Avatar & Level OR Back Button */}
         {variant === 'subpage' ? (
@@ -179,13 +185,13 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
             <div className="relative">
               <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 overflow-hidden">
                 {avatarUrl ? (
-                  <img src={getImageUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" />
+                  <img src={getImageUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   <UserIcon className="w-6 h-6 text-white" />
                 )}
               </div>
               <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic flex items-center gap-1">
-                <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" />
+                <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" referrerPolicy="no-referrer" />
                 {profile.level}
               </div>
             </div>
@@ -199,22 +205,22 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
             onClick={() => onTransactionsClick && onTransactionsClick()}
           >
             <div className="flex items-center gap-1 sm:gap-1.5">
-              <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+              <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
               <span className="text-[10px] sm:text-xs font-bold">{profile.money}</span>
             </div>
             <div className="w-px h-3 sm:h-4 bg-white/20" />
             <div className="flex items-center gap-1 sm:gap-1.5">
-              <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+              <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
               <span className="text-[10px] sm:text-xs font-bold">{profile.gems}</span>
             </div>
             <div className="w-px h-3 sm:h-4 bg-white/20" />
             <div className="flex items-center gap-1 sm:gap-1.5">
-              <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+              <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
               <span className="text-[10px] sm:text-xs font-bold">{profile.boostPoints}</span>
             </div>
             <div className="w-px h-3 sm:h-4 bg-white/20" />
             <div className="flex items-center gap-1 sm:gap-1.5 group relative">
-              <img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+              <img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
               <span className="text-[10px] sm:text-xs font-bold">{profile.energy}</span>
               {timeUntilRefill && (
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 text-[8px] sm:text-[10px] font-mono text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded-full border border-orange-500/30">
@@ -257,7 +263,7 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
                 e.stopPropagation();
                 onMenuClick?.();
               }} 
-              className="flex flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg"
+              className="flex md:hidden flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg"
             >
               <Menu className="w-6 h-6 text-white" />
               <span className="text-[9px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500 leading-none">Menu</span>

@@ -47,6 +47,7 @@ export interface UserProfile {
   passId?: string;
   purchasedPasses?: string[];
   passPoints: number;
+  passProgress?: Record<string, number>;
   isPassPremium: boolean;
   claimedPassRewards: string[]; // "level-X-free" or "level-X-premium"
   claimedFervorRewards?: string[];
@@ -163,6 +164,7 @@ export interface FanzTemplate {
   specialCards: string[];
   skins: FanzSkin[];
   emotes: FanzEmote[];
+  ferveurConfig?: GlobalFervorConfig;
   ferveurPath?: FerveurLevel[];
   rankRewards?: Record<string, RankReward>;
   rankCosts?: Record<string, { money?: number; boostPoints?: number; gems?: number; energy?: number }>;
@@ -196,6 +198,7 @@ export interface Fanz {
   equippedSkin?: string;
   unlockedEmotes: string[];
   unlockedActions?: string[];
+  ferveurPath?: FerveurLevel[];
   lifeActionProgress?: Record<string, { level: number; xp: number }>;
   cardProgress?: Record<string, { level: number; xp: number }>;
   claimedChoices?: Record<string, any>;
@@ -308,6 +311,8 @@ export interface Pass {
   };
   skinRewardId?: string;
   skinReward?: FanzSkin;
+  conditionType?: 'global' | 'country' | 'team' | 'league' | 'season';
+  conditionValue?: string;
 }
 
 export interface WeeklyStreakConfig {

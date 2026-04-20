@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { UserProfile, Fanz, FanzTemplate, LifeAction, GlobalFervorConfig } from '../types';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, getDoc, doc, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDoc, doc, getDocs, limit, setDoc } from 'firebase/firestore';
 import { getImageUrl } from '../lib/utils';
 // ... (rest of imports)
 
@@ -54,6 +54,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
+  const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
   const [fanzFervorConfig, setFanzFervorConfig] = useState<GlobalFervorConfig | undefined>(undefined);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -84,6 +85,51 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
     };
     fetchConfig();
   }, []);
+
+  // Fetch Favorite Teams Details
+  useEffect(() => {
+    if (!profile.favoriteTeams || profile.favoriteTeams.length === 0) {
+      setFavoriteTeamsInfo([]);
+      return;
+    }
+
+    const fetchFavoriteTeams = async () => {
+      try {
+        const teams = await Promise.all(
+          profile.favoriteTeams!.map(async (id) => {
+            const teamIdStr = id.toString();
+            // Check Firestore cache first
+            try {
+              const teamDoc = await getDoc(doc(db, 'api_teams', teamIdStr));
+              if (teamDoc.exists()) {
+                return teamDoc.data();
+              }
+            } catch (err) {
+              console.error(`Error checking api_teams for ${teamIdStr}`, err);
+            }
+
+            // Fallback to API
+            try {
+              const res = await footballApi.getTeamInfo(Number(id));
+              if (res && res.team) {
+                // Background cache
+                setDoc(doc(db, 'api_teams', teamIdStr), res.team, { merge: true }).catch(() => {});
+                return res.team;
+              }
+            } catch (apiErr) {
+              console.error(`Failed to fetch team ${id} from API`, apiErr);
+            }
+            return { id: Number(id), name: 'Équipe ' + id, logo: '' };
+          })
+        );
+        setFavoriteTeamsInfo(teams.filter(Boolean));
+      } catch (err) {
+        console.error("Error fetching favorite teams info", err);
+      }
+    };
+
+    fetchFavoriteTeams();
+  }, [profile.favoriteTeams]);
 
   useEffect(() => {
     if (!profile.uid) return;
@@ -181,6 +227,8 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   }, [allFanz, profile.activeFanzId, profile.activeAction?.fanzId, profile.activeAction?.actionId, lifeActions]);
 
   useEffect(() => {
+    let unsubs: (() => void)[] = [];
+
     // Fetch some live matches
     const fetchMatches = async () => {
       try {
@@ -188,31 +236,42 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
         // Show all live matches
         setLiveMatches(liveFixtures);
         
-        // Fetch scores for these matches
+        // Fetch scores for these matches via onSnapshot
         if (liveFixtures.length > 0) {
           const matchIds = liveFixtures.map((m: any) => m.fixture.id.toString());
-          const scoresMap: Record<string, { scoreA: number, scoreB: number }> = {};
           
           // Chunk matchIds into arrays of 10
           const chunkSize = 10;
           for (let i = 0; i < matchIds.length; i += chunkSize) {
             const chunk = matchIds.slice(i, i + chunkSize);
-            const scoresQuery = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
-            const scoresSnapshot = await getDocs(scoresQuery);
+            const q = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
             
-            scoresSnapshot.forEach(doc => {
-              const data = doc.data();
-              if (data.matchId) {
-                if (!scoresMap[data.matchId]) {
-                  scoresMap[data.matchId] = { scoreA: 0, scoreB: 0 };
-                }
-                scoresMap[data.matchId].scoreA += data.scoreA || 0;
-                scoresMap[data.matchId].scoreB += data.scoreB || 0;
+            const unsub = onSnapshot(q, (snapshot) => {
+              if (!snapshot.empty) {
+                console.log(`[Home] Received ${snapshot.size} scores for chunk starting with ${chunk[0]}`);
               }
+              setMatchScores(prev => {
+                const newMap = { ...prev };
+                // Reset/Init scores for the current chunk matches to avoid accumulation bugs on snapshot updates
+                chunk.forEach(id => {
+                  newMap[id] = { scoreA: 0, scoreB: 0 };
+                });
+                
+                snapshot.forEach(doc => {
+                  const data = doc.data();
+                  const mIdStr = data.matchId?.toString();
+                  if (mIdStr && chunk.includes(mIdStr)) {
+                    newMap[mIdStr].scoreA += Number(data.scoreA || 0);
+                    newMap[mIdStr].scoreB += Number(data.scoreB || 0);
+                  }
+                });
+                return newMap;
+              });
+            }, (err) => {
+              console.error("Error listening to scores on Home", err);
             });
+            unsubs.push(unsub);
           }
-          
-          setMatchScores(scoresMap);
         }
       } catch (error) {
         console.error("Error fetching matches", error);
@@ -239,15 +298,20 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
           const duelsData = await res.json();
           setActiveDuels(duelsData);
         }
-      } catch (err) {
-        console.error("Failed to fetch active duels", err);
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Failed to fetch active duels", err);
+        }
       }
     };
 
     fetchActiveDuels();
     const interval = setInterval(fetchActiveDuels, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      unsubs.forEach(un => un());
+      clearInterval(interval);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -255,7 +319,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
   };
 
   return (
-    <div className="h-full w-full bg-transparent relative overflow-hidden flex flex-col font-sans text-white">
+    <div className="h-full w-full max-w-3xl mx-auto bg-transparent relative overflow-hidden flex flex-col font-sans text-white border-x border-white/5 shadow-2xl">
       
       {/* HEADER */}
       <Header 
@@ -266,6 +330,28 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
         onFervorClick={() => onNavigate('fervor-path')}
         absolute
       />
+
+      {/* Favorite Teams Row */}
+      {favoriteTeamsInfo.length > 0 && (
+        <div className="absolute top-[84px] left-0 right-0 z-40 px-4 overflow-x-auto no-scrollbar py-2">
+          <div className="flex items-center gap-3">
+            {favoriteTeamsInfo.map((team) => (
+              <div 
+                key={team.id} 
+                className="flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full pl-1 pr-3 py-1 border border-white/10 shrink-0 cursor-pointer hover:bg-black/60 transition-colors"
+                onClick={() => onNavigate('favorite-teams')}
+              >
+                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center p-0.5 sm:p-1">
+                  <img src={getImageUrl(team.logo)} alt={team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-black uppercase tracking-tight text-white/90 truncate max-w-[80px]">
+                  {team.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Waiting Duels Alert */}
       {waitingDuelsCount > 0 && (
@@ -318,55 +404,57 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
           {/* Superimposed FANZ Rank (Top Right) - REMOVED AS PER REQUEST */}
 
           {/* Superimposed FANZ Name (Bottom) */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/50 to-transparent">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg">
-                {activeFanz?.name || 'Mon FANZ'}
-              </h1>
-              {activeFanz && (
-                <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center border border-white/20 shadow-lg shrink-0">
-                  <span className="text-sm font-black italic text-white">{activeFanz.rank ?? 0}</span>
+          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/50 to-transparent flex items-end justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg">
+                  {activeFanz?.name || 'Mon FANZ'}
+                </h1>
+              </div>
+
+              {currentActiveAction && (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                  <p className="text-xs font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
+                    {currentActiveAction.name}
+                  </p>
                 </div>
               )}
-            </div>
 
-            {currentActiveAction && (
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                <p className="text-xs font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
-                  {currentActiveAction.name}
+              {fanzTemplate && (
+                <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mt-1">
+                  {fanzTemplate.rarity}
                 </p>
-              </div>
-            )}
+              )}
 
-            {fanzTemplate && (
-              <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mt-1">
-                {fanzTemplate.rarity}
-              </p>
-            )}
-
-            {!currentActiveAction && activeFanz && (() => {
-              const ferveurPath = fanzFervorConfig 
-                ? generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000, fanzFervorConfig)
-                : fanzTemplate?.ferveurPath || [];
-              const nextLevelPoints = ferveurPath.find(l => l.level === activeFanz.ferveurLevel + 1)?.pointsRequired || 1000;
-              
-              return (
-                <div className="mt-2 w-full max-w-[200px]">
-                  <div className="h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
-                    <div 
-                      className="h-full bg-orange-500 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, (activeFanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-[10px] font-black text-white drop-shadow-md">
-                        {activeFanz.ferveurPoints} / {nextLevelPoints}
-                      </span>
+              {!currentActiveAction && activeFanz && (() => {
+                const ferveurPath = fanzFervorConfig 
+                  ? generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000, fanzFervorConfig)
+                  : fanzTemplate?.ferveurPath || [];
+                const nextLevelPoints = ferveurPath.find(l => l.level === activeFanz.ferveurLevel + 1)?.pointsRequired || 1000;
+                
+                return (
+                  <div className="mt-2 w-full max-w-[200px]">
+                    <div className="h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
+                      <div 
+                        className="h-full bg-orange-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, (activeFanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[10px] font-black text-white drop-shadow-md">
+                          {activeFanz.ferveurPoints} / {nextLevelPoints}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
+            </div>
+            {activeFanz && (
+              <div className="w-10 h-10 bg-black rounded-full flex flex-col items-center justify-center border-2 border-white/10 shadow-xl shrink-0 mb-1 backdrop-blur-md">
+                <span className="text-base font-black italic text-white leading-none">{activeFanz.rank ?? 0}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -436,6 +524,20 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
             </div>
           )}
 
+          <div className="px-[30px] mb-6">
+            <a 
+              href="https://buymeacoffee.com/fanz.sports" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-full relative group overflow-hidden rounded-2xl flex items-center justify-center p-0.5"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 rounded-2xl animate-spin-slow opacity-70 group-hover:opacity-100 transition-opacity" style={{ animationDuration: '3s' }} />
+              <div className="relative w-full bg-[#111] backdrop-blur-md px-4 py-3 rounded-2xl flex items-center justify-center gap-3 transition-transform duration-300 group-hover:scale-[0.98]">
+                <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a ball&emoji=⚽&slug=fanz.sports&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a ball" className="h-10" />
+              </div>
+            </a>
+          </div>
+
           <div className="relative w-full pb-4">
             {/* Left Scroll Button */}
             <button 
@@ -464,11 +566,11 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                     {/* Header: Country & League */}
                     <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">
                       <div className="flex items-center gap-1.5">
-                        {match.league?.flag && <img src={match.league.flag} alt="" className="w-4 h-3 object-cover rounded-sm" />}
+                        {match.league?.flag && <img src={getImageUrl(match.league.flag, 40)} alt="" className="w-4 h-3 object-cover rounded-sm" referrerPolicy="no-referrer" />}
                         <span>{match.league?.country}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {match.league?.logo && <img src={match.league.logo} alt="" className="w-4 h-4 object-contain" />}
+                        {match.league?.logo && <img src={getImageUrl(match.league.logo, 40)} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />}
                         <span>{match.league?.name}</span>
                       </div>
                     </div>
@@ -478,7 +580,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                       {/* Home Team */}
                       <div className="flex flex-col items-center gap-2 flex-1">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center">
-                          <img src={match.teams.home.logo} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
+                          <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
                         </div>
                         <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight h-8 flex items-center">{match.teams.home.name}</span>
                         <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
@@ -502,7 +604,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onJoinDue
                       {/* Away Team */}
                       <div className="flex flex-col items-center gap-2 flex-1">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 bg-transparent flex items-center justify-center">
-                          <img src={match.teams.away.logo} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
+                          <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" referrerPolicy="no-referrer" />
                         </div>
                         <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight h-8 flex items-center">{match.teams.away.name}</span>
                         <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">

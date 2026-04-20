@@ -45,32 +45,10 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
         data = data.filter((f: any) => ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short));
       }
       setFixtures(data || []);
-
-      // Fetch match scores for live matches
-      if (data && data.length > 0) {
-        const matchIds = data.map((f: any) => f.fixture.id.toString());
-        
-        if (matchIds.length > 0) {
-          const scoresMap: Record<string, { scoreA: number, scoreB: number }> = {};
-          const chunkSize = 10;
-          for (let i = 0; i < matchIds.length; i += chunkSize) {
-            const chunk = matchIds.slice(i, i + chunkSize);
-            const scoresQuery = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
-            const scoresSnapshot = await getDocs(scoresQuery);
-            scoresSnapshot.forEach(doc => {
-              const d = doc.data();
-              if (d.matchId) {
-                if (!scoresMap[d.matchId]) scoresMap[d.matchId] = { scoreA: 0, scoreB: 0 };
-                scoresMap[d.matchId].scoreA += d.scoreA || 0;
-                scoresMap[d.matchId].scoreB += d.scoreB || 0;
-              }
-            });
-          }
-          setMatchScores(scoresMap);
-        }
+    } catch (err: any) {
+      if (err?.message !== 'Failed to fetch') {
+        console.error('Failed to fetch fixtures', err);
       }
-    } catch (err) {
-      console.error('Failed to fetch fixtures', err);
     } finally {
       setLoading(false);
     }
@@ -85,6 +63,47 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
     }
     return () => clearInterval(interval);
   }, [selectedDate, statusFilter]);
+
+  useEffect(() => {
+    if (fixtures.length === 0) return;
+    
+    const matchIds = fixtures.map((f: any) => f.fixture.id.toString());
+    const unsubs: (() => void)[] = [];
+    const chunkSize = 10;
+    
+    for (let i = 0; i < matchIds.length; i += chunkSize) {
+      const chunk = matchIds.slice(i, i + chunkSize);
+      const q = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
+      
+      const unsub = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          console.log(`[MatchesPage] Received ${snapshot.size} scores for chunk starting with ${chunk[0]}`);
+        }
+        setMatchScores(prev => {
+          const newMap = { ...prev };
+          // Reset chunk IDs to avoid double accumulation
+          chunk.forEach(id => {
+            newMap[id] = { scoreA: 0, scoreB: 0 };
+          });
+          
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const mIdStr = data.matchId?.toString();
+            if (mIdStr && chunk.includes(mIdStr)) {
+              newMap[mIdStr].scoreA += Number(data.scoreA || 0);
+              newMap[mIdStr].scoreB += Number(data.scoreB || 0);
+            }
+          });
+          return newMap;
+        });
+      }, (err) => {
+        console.error('Error listening to scores on MatchesPage', err);
+      });
+      unsubs.push(unsub);
+    }
+    
+    return () => unsubs.forEach(un => un());
+  }, [fixtures]);
 
   const filteredFixtures = useMemo(() => {
     return fixtures.filter(f => {
@@ -113,8 +132,10 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
           const duelsData = await res.json();
           setActiveDuels(duelsData);
         }
-      } catch (err) {
-        console.error("Failed to fetch active duels", err);
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Failed to fetch active duels", err);
+        }
       }
     };
 

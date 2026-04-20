@@ -203,7 +203,7 @@ export const FANZ_AVATARS = ALL_FANZ.map(f => ({
 }));
 
 export const SKIN_AVATARS = ALL_FANZ.flatMap(f => 
-  f.skins.map(skin => ({
+  (f.skins || []).map(skin => ({
     id: `avatar-skin-${skin.id}`,
     url: skin.imageUrl,
     label: `${f.name} - ${skin.name}`

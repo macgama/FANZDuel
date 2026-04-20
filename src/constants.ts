@@ -23,7 +23,7 @@ export const INITIAL_USER_DATA = {
   ferveurPoints: 0,
   level: 1,
   teamSlots: 2,
-  cards: ['base_1', 'base_2', 'base_3', 'base_4', 'base_5', 'base_6', 'base_7', 'base_8'],
+  cards: [] as string[],
   language: 'fr',
   passPoints: 0,
   isPassPremium: false,

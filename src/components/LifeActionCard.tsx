@@ -9,6 +9,7 @@ import { db } from '../firebase';
 import { doc, updateDoc, deleteField } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { useAlert, Reward } from '../context/AlertContext';
+import { progressMission } from '../services/missionService';
 
 interface LifeActionCardProps {
   action: LifeAction;
@@ -160,6 +161,8 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       if (gainGems > 0) await logTransaction(userProfile.uid, 'gems', gainGems, `Fin action: ${action.name}`);
       if (gainBoost > 0) await logTransaction(userProfile.uid, 'boost', gainBoost, `Fin action: ${action.name}`);
 
+      await progressMission(userProfile, 'life_action', 1);
+
       // Update Fanz
       const newActionXp = actionProgress.xp + 10; // Fixed XP per action for leveling up the action itself
       let newActionLevel = actionProgress.level;
@@ -246,6 +249,8 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       if (gainMoney > 0) await logTransaction(userProfile.uid, 'money', gainMoney, `Fin action: ${action.name}`);
       if (gainGems > 0) await logTransaction(userProfile.uid, 'gems', gainGems, `Fin action: ${action.name}`);
       if (gainBoost > 0) await logTransaction(userProfile.uid, 'boost', gainBoost, `Fin action: ${action.name}`);
+
+      await progressMission(userProfile, 'life_action', 1);
 
       // Update Fanz
       const newActionXp = actionProgress.xp + 10; // Fixed XP per action for leveling up the action itself

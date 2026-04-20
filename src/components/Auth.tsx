@@ -7,7 +7,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
 import { INITIAL_USER_DATA } from '../constants';
@@ -139,8 +139,25 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
 
       const teamPath = `teams/${teamId}`;
       let ferveurBonus = 0;
-      let initialCards: string[] = [...INITIAL_USER_DATA.cards];
+      let initialCards: string[] = [];
       let isFirstFan = false;
+
+      try {
+        const cardsSnap = await getDocs(collection(db, 'cards'));
+        const dbCards = cardsSnap.docs
+          .map(d => ({ id: d.id, data: d.data() as any }))
+          .filter(c => {
+            const isCommon = c.data.rarity === 'common';
+            const fanzIds = c.data.fanzIds || [];
+            const isValidFanz = fanzIds.length === 0 || fanzIds.includes('fanz-001');
+            return isCommon && isValidFanz && !c.id.startsWith('base_');
+          })
+          .map(c => c.id);
+        initialCards = Array.from(new Set([...INITIAL_USER_DATA.cards, ...dbCards]));
+      } catch (err) {
+        console.error("Error fetching initial cards", err);
+        initialCards = [...INITIAL_USER_DATA.cards];
+      }
 
       try {
         const teamRef = doc(db, teamPath);
@@ -175,7 +192,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           activeFanzId: fanzId,
           photoURL: 'https://thebestfan.online/img/public/fanz/imageFanz001Skin000.png',
           lastEnergyRefill: new Date().toISOString(),
-          role: ((user.email || email) === 'gael.manigley@gmail.com' || (user.email || email) === 'michel@gmail.com') ? 'admin' : 'client',
+          role: ((user.email || email) === 'gael.manigley@gmail.com' || (user.email || email) === 'michel@gmail.com' || (user.email || email) === 'elisa@gmail.com' || (user.email || email) === 'caro@gmail.com') ? 'admin' : 'client',
         });
 
         await logTransaction(user.uid, 'money', INITIAL_USER_DATA.money, 'Cadeau de Bienvenue');
@@ -190,9 +207,9 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
       try {
         await setDoc(doc(db, fanzPath), {
           id: fanzId,
-          templateId: 'fanz-1',
+          templateId: 'fanz-001',
           ownerUid: user.uid,
-          name: `Bébé Fanzzy`,
+          name: `Baby Fanzzy`,
           sport: 'soccer',
           imageUrl: 'https://thebestfan.online/img/public/fanz/imageFanz001Skin000.png',
           videoUrl: 'https://thebestfan.online/img/public/fanz/videoFanz001Skin000.mp4',

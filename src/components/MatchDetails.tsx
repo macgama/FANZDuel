@@ -21,8 +21,9 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserProfile } from '../types';
 import { DuelManager } from './Duel';
+import { getImageUrl } from '../lib/utils';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 
 interface MatchDetailsProps {
   fixtureId: number;
@@ -86,8 +87,10 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           // filter out duels where the user is already a participant
           setActiveDuels(data.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)));
         }
-      } catch (err) {
-        console.error('Failed to fetch active duels', err);
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error('Failed to fetch active duels', err);
+        }
       }
     };
     fetchActiveDuels();
@@ -119,36 +122,53 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   }, [fixtureId]);
 
   useEffect(() => {
-    const fetchScores = async () => {
-      if (selectedDuelType !== null) return; // Don't fetch while in duel
-      try {
-        const q = query(collection(db, 'match_scores'), where('matchId', '==', fixtureId.toString()));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          let totalA = 0;
-          let totalB = 0;
-          const history: any[] = [];
-          querySnapshot.forEach(doc => {
-            const data = doc.data();
-            totalA += data.scoreA || 0;
-            totalB += data.scoreB || 0;
-            history.push({ id: doc.id, ...data });
-          });
-          setMatchScore({
-            scoreA: totalA,
-            scoreB: totalB
-          });
-          setDuelHistory(history.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
-        } else {
-          setMatchScore(null);
-          setDuelHistory([]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch match scores', err);
+    const mId = fixtureId?.toString();
+    if (!mId) return;
+    
+    console.log(`[MatchDetails] Initializing score listener for matchId: ${mId}`);
+    const q = query(collection(db, 'match_scores'), where('matchId', '==', mId));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      console.log(`[MatchDetails] Snapshot received for match ${mId}. Empty: ${querySnapshot.empty}, Count: ${querySnapshot.size}`);
+      
+      if (!querySnapshot.empty) {
+        let totalA = 0;
+        let totalB = 0;
+        const history: any[] = [];
+        
+        querySnapshot.forEach(doc => {
+          const data = doc.data();
+          const sA = Number(data.scoreA || 0);
+          const sB = Number(data.scoreB || 0);
+          console.log(`[MatchDetails] -> Doc ${doc.id}: ${sA}-${sB} (${data.matchId})`);
+          totalA += sA;
+          totalB += sB;
+          history.push({ id: doc.id, ...data });
+        });
+        
+        console.log(`[MatchDetails] Total aggregated for ${mId}: A=${totalA}, B=${totalB}`);
+        setMatchScore({
+          scoreA: totalA,
+          scoreB: totalB
+        });
+        
+        const sortedHistory = history.sort((a, b) => {
+          const timeA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+          const timeB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+          return timeB - timeA;
+        });
+        setDuelHistory(sortedHistory);
+      } else {
+        console.log(`[MatchDetails] Query returned empty for match ${mId}`);
+        setMatchScore({ scoreA: 0, scoreB: 0 });
+        setDuelHistory([]);
       }
-    };
-    fetchScores();
-  }, [fixtureId, selectedDuelType]);
+    }, (err) => {
+      console.error(`[MatchDetails] Snapshot error for match ${mId}:`, err);
+    });
+
+    return () => unsubscribe();
+  }, [fixtureId]);
 
   if (loading) {
     return (
@@ -200,6 +220,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         isLiveMatch={isLive}
         isPrivate={isPrivateDuel}
         onNavigateToFanz={onFanzClick}
+        duelLeagueId={details.league.id.toString()}
       />
     );
   }
@@ -215,11 +236,11 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         {/* Top row: Country & League */}
         <div className="flex justify-between items-center mb-2 text-[8px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider">
           <div className="flex items-center gap-1 min-w-0">
-            {details.league.flag && <img src={details.league.flag} alt="" className="w-3 h-2.5 sm:w-4 sm:h-3 object-cover rounded-xs flex-shrink-0" />}
+            {details.league.flag && <img src={getImageUrl(details.league.flag, 40)} alt="" className="w-3 h-2.5 sm:w-4 sm:h-3 object-cover rounded-xs flex-shrink-0" />}
             <span className="truncate">{details.league.country}</span>
           </div>
           <div className="flex items-center gap-1 text-right cursor-pointer hover:text-orange-500 transition-colors min-w-0" onClick={() => onLeagueClick(details.league.id, details.league.season)}>
-            {details.league.logo && <img src={details.league.logo} alt="" className="w-3 h-3 sm:w-4 sm:h-4 object-contain flex-shrink-0" />}
+            {details.league.logo && <img src={getImageUrl(details.league.logo, 40)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 object-contain flex-shrink-0" />}
             <span className="truncate">{details.league.name} - {details.league.round}</span>
           </div>
         </div>
@@ -229,7 +250,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           {/* Home Team */}
           <div className="flex-1 flex flex-col items-center gap-1.5 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.home.id, details.league.season)}>
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform">
-              <img src={details.teams.home.logo} alt="" className="w-full h-full object-contain" />
+              <img src={getImageUrl(details.teams.home.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
             <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-xs text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full leading-tight">
               {details.teams.home.name}
@@ -259,7 +280,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           {/* Away Team */}
           <div className="flex-1 flex flex-col items-center gap-1.5 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.away.id, details.league.season)}>
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform">
-              <img src={details.teams.away.logo} alt="" className="w-full h-full object-contain" />
+              <img src={getImageUrl(details.teams.away.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
             <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-xs text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full leading-tight">
               {details.teams.away.name}
@@ -645,7 +666,7 @@ function LineupsTab({ lineups }: { lineups: any[] }) {
         <div key={idx} className="space-y-4">
           <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
             <div className="flex items-center gap-2">
-              <img src={lineup.team.logo} alt="" className="w-6 h-6 object-contain" />
+              <img src={getImageUrl(lineup.team.logo, 40)} alt="" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
               <h3 className="font-black italic uppercase text-xs tracking-wider">{lineup.team.name}</h3>
             </div>
             <span className="text-[10px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">

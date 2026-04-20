@@ -13,12 +13,12 @@ interface RewardSelectorProps {
 }
 
 export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange, fanzTemplates, lifeActions, duelCards, theme = 'dark', isFanzContext, currentFanzId }) => {
-  const allSkins = fanzTemplates.flatMap(t => t.skins.map(s => ({ ...s, templateName: t.name })));
-  const allEmotes = fanzTemplates.flatMap(t => t.emotes.map(e => ({ ...e, templateName: t.name })));
+  const allSkins = fanzTemplates.flatMap(t => (t.skins || []).map(s => ({ ...s, templateName: t.name })));
+  const allEmotes = fanzTemplates.flatMap(t => (t.emotes || []).map(e => ({ ...e, templateName: t.name })));
 
   const inputClass = theme === 'dark' 
-    ? "p-1 bg-gray-800 rounded border border-gray-700 text-xs text-white"
-    : "p-2 bg-white rounded border border-gray-200 text-sm text-gray-900";
+    ? "p-1 min-w-0 bg-gray-800 rounded border border-gray-700 text-xs text-white"
+    : "p-2 min-w-0 bg-white rounded border border-gray-200 text-sm text-gray-900";
 
   const availableCards = isFanzContext && currentFanzId
     ? duelCards.filter(c => {
@@ -39,7 +39,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
             if (type === 'team_slot') newReward.amount = 1;
             onChange(newReward);
           }}
-          className={`flex-1 ${inputClass}`}
+          className={`flex-1 w-0 truncate ${inputClass}`}
         >
           <option value="money">Argent ($)</option>
           <option value="gems">Gemmes</option>
@@ -70,7 +70,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
         <select
           value={reward.statName || ''}
           onChange={e => onChange({ ...reward, statName: e.target.value as any })}
-          className={`w-full ${inputClass}`}
+          className={`w-full truncate ${inputClass}`}
         >
           <option value="">Sélectionner une compétence...</option>
           <option value="force">Force</option>
@@ -88,7 +88,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
         <select
           value={reward.fanzId || ''}
           onChange={e => onChange({ ...reward, fanzId: e.target.value })}
-          className={`w-full ${inputClass}`}
+          className={`w-full truncate ${inputClass}`}
         >
           <option value="">Sélectionner un FANZ...</option>
           {fanzTemplates.map(f => (
@@ -101,7 +101,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
         <select
           value={reward.skinId || ''}
           onChange={e => onChange({ ...reward, skinId: e.target.value })}
-          className={`w-full ${inputClass}`}
+          className={`w-full truncate ${inputClass}`}
         >
           <option value="">Sélectionner un skin...</option>
           {allSkins.map((s, idx) => (
@@ -114,7 +114,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
         <select
           value={reward.emoteId || ''}
           onChange={e => onChange({ ...reward, emoteId: e.target.value })}
-          className={`w-full ${inputClass}`}
+          className={`w-full truncate ${inputClass}`}
         >
           <option value="">Sélectionner une emote...</option>
           {allEmotes.map((e, idx) => (
@@ -127,7 +127,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
         <select
           value={reward.cardId || ''}
           onChange={e => onChange({ ...reward, cardId: e.target.value })}
-          className={`w-full ${inputClass}`}
+          className={`w-full truncate ${inputClass}`}
         >
           <option value="">Sélectionner une carte...</option>
           {availableCards.map(c => (
@@ -140,7 +140,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
         <select
           value={reward.actionId || ''}
           onChange={e => onChange({ ...reward, actionId: e.target.value })}
-          className={`w-full ${inputClass}`}
+          className={`w-full truncate ${inputClass}`}
         >
           <option value="">Sélectionner une action...</option>
           {lifeActions.map(a => (

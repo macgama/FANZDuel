@@ -27,8 +27,10 @@ async function fetchApi(url: string) {
       throw new Error(`API Data Error: ${errorMsg}`);
     }
     return data;
-  } catch (error) {
-    console.error(`Fetch error for ${url}:`, error);
+  } catch (error: any) {
+    if (error?.message !== 'Failed to fetch') {
+      console.error(`Fetch error for ${url}:`, error);
+    }
     throw error;
   }
 }

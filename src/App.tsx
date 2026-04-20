@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot, query, collection, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, query, collection, where, writeBatch } from 'firebase/firestore';
 import { Layout, Card, Button } from './components/Layout';
 import { cn } from './lib/utils';
 import { Auth } from './components/Auth';
@@ -102,8 +102,10 @@ function AppContent() {
         } else if (retries > 0) {
           setTimeout(() => fetchWaitingDuels(retries - 1), 2000);
         }
-      } catch (err) {
-        console.error("Failed to fetch waiting duels", err);
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Failed to fetch waiting duels", err);
+        }
         if (retries > 0) {
           setTimeout(() => fetchWaitingDuels(retries - 1), 2000);
         }
@@ -159,7 +161,7 @@ function AppContent() {
   const renderFooter = () => {
     if (isDuelActive || view === 'admin') return null;
     return (
-      <footer className="shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <footer className="md:hidden shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <button onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'matches' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Activity className="w-6 h-6 sm:w-7 sm:h-7" />
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Live</span>
@@ -218,7 +220,7 @@ function AppContent() {
             }
 
             // Check for admin role
-            if ((currentUser.email === 'gael.manigley@gmail.com' || currentUser.email === 'michel@gmail.com') && data.role !== 'admin') {
+            if ((currentUser.email === 'gael.manigley@gmail.com') && data.role !== 'admin') {
               updatedData.role = 'admin';
               needsUpdate = true;
             }
@@ -350,12 +352,57 @@ function AppContent() {
   }
 
   return (
-    <Layout isMobileOnly={view !== 'admin'}>
+    <Layout containerClassName="md:flex-row">
       <GlobalSocketListener onDuelStarting={(duelId, duelData) => {
         setCurrentDuel(duelData);
         setView('duel');
       }} />
-      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
+
+      {profile && !isDuelActive && view !== 'admin' && view !== ('duel' as any) && (
+        <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
+          <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start">
+            <img src="/img/logo2.png" alt="TBFO" className="w-8 h-8 rounded-lg outline outline-1 outline-white/10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <span className="hidden lg:block font-black italic text-xl uppercase tracking-widest text-white">TBFO</span>
+          </div>
+          <div className="flex flex-col gap-1 p-2 lg:p-4 flex-1 overflow-y-auto no-scrollbar">
+             <SidebarButton icon={<HomeIcon />} label="Accueil" active={view==='home'} onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton icon={<Star />} label="Mes Fans" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton 
+                icon={<div className="relative"><Swords />
+                  {waitingDuelsCount > 0 && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-black text-white">{waitingDuelsCount}</div>
+                  )}
+                </div>} 
+                label="Duels" active={view==='waiting-room'} onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             
+             <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                 <h4 className="hidden lg:block text-[10px] font-black uppercase text-gray-500 px-4 mb-1 tracking-widest">Fonctions</h4>
+                 <SidebarButton icon={<Layers />} label="Arsenal" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Briefcase />} label="Fanlife" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Target />} label="Missions" active={view==='missions'} onClick={() => { setView('missions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Calendar />} label="Série" active={false} onClick={() => { setShowStreakModal(true); }} />
+                 <SidebarButton icon={<Sparkles />} label="Pass" active={view==='pass'} onClick={() => { setView('pass'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             </div>
+
+             <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                 <h4 className="hidden lg:block text-[10px] font-black uppercase text-gray-500 px-4 mb-1 tracking-widest">Connect</h4>
+                 <SidebarButton icon={<Users />} label="Social" active={view==='social'} onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Activity />} label="Matchs" active={view==='matches'} onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Globe />} label="Compétitions" active={view==='competitions'} onClick={() => { setView('competitions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<BarChart2 />} label="Stats" active={view==='rankings'} onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Wallet />} label="Banque" active={view==='transactions'} onClick={() => { setView('transactions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Settings />} label="Admin" active={view===('admin' as any)} onClick={() => { setView('admin' as any); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             </div>
+
+             <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1">
+                <SidebarButton icon={<Store />} label="Boutique" active={view==='shop'} onClick={() => { setView('shop'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                <SidebarButton icon={<LogOut />} label="Quitter" active={false} onClick={() => signOut(auth)} isDanger />
+             </div>
+          </div>
+        </aside>
+      )}
+
+      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 bg-black/40">
         {view === 'home' ? (
           <Home 
             profile={profile} 
@@ -412,6 +459,7 @@ function AppContent() {
               (!selectedFanzId && !selectedMatchId && !selectedLeague && !selectedTeam && !['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-[30px]", 
               (selectedFanzId || selectedMatchId || selectedLeague || selectedTeam || ['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-0"
             )}>
+              <div className="w-full max-w-3xl mx-auto h-full lg:border-x border-white/5 shadow-2xl relative">
               {selectedTeam ? (
                 <TeamDetails 
                   teamId={selectedTeam.id} 
@@ -465,6 +513,11 @@ function AppContent() {
                       setView('matches');
                     });
                   }}
+                  onMatchClick={(matchId) => {
+                    setSelectedMatchId(matchId);
+                    setSelectedMatchTab('summary');
+                    setView('matches');
+                  }}
                 />
               ) : view === 'admin' ? (
                 <AdminZone />
@@ -512,6 +565,7 @@ function AppContent() {
               ) : view === 'pass' ? (
                 <PassPage profile={profile} onBack={() => setView('home')} />
               ) : null}
+              </div>
             </div>
           </>
         )}
@@ -581,6 +635,8 @@ function AppContent() {
               <MenuButton icon={<Wallet />} label="Banque" onClick={() => { setView('transactions'); setIsMenuOpen(false); }} />
               <MenuButton icon={<BarChart2 />} label="Stats" onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
 
+
+
               {/* Extra items not in the image but needed */}
               <MenuButton icon={<Activity />} label="Matchs" onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
               <MenuButton icon={<Globe />} label="Compétitions" onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
@@ -626,6 +682,26 @@ function AppContent() {
 
     {renderFooter()}
     </Layout>
+  );
+}
+
+function SidebarButton({ active, onClick, icon, label, isDanger = false }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; isDanger?: boolean }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-2 lg:gap-4 p-3 lg:px-4 lg:py-3 rounded-xl transition-all font-black uppercase italic tracking-wider text-[10px] lg:text-sm w-full group",
+        active 
+          ? "bg-orange-600 text-white shadow-lg shadow-orange-600/20"
+          : isDanger ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" : "text-gray-400 hover:text-white hover:bg-white/5"
+      )}
+    >
+      <div className={cn("w-6 h-6 flex items-center justify-center transition-transform", active ? "scale-110" : "group-hover:scale-110")}>
+        {icon}
+      </div>
+      <span className="truncate">{label}</span>
+      {active && <div className="absolute right-0 w-1 h-8 bg-white rounded-l-full hidden lg:block" />}
+    </button>
   );
 }
 

@@ -79,7 +79,7 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
   };
 
   return (
-    <div className="min-h-full bg-[#0a0a0a] text-white pb-20">
+    <div className="min-h-full bg-transparent text-white pb-20">
       <div className="flex items-center justify-between px-4">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
           Wallet

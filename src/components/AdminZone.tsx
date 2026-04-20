@@ -61,13 +61,35 @@ export function AdminZone() {
     } else if (activeTab === 'fanz') {
       fetchFanzTemplates();
       fetchUserFervorConfig();
+      if (lifeActions.length === 0) fetchLifeActions();
+      if (duelCards.length === 0) fetchDuelCards();
     } else if (activeTab === 'users') {
       // Only fetch the current sub-tab's data to avoid massive reads
       if (activeUserSubTab === 'profiles') fetchUsers();
-      if (activeUserSubTab === 'missions') fetchMissions();
-      if (activeUserSubTab === 'passes') fetchPasses();
-      if (activeUserSubTab === 'fervor') fetchUserFervorConfig();
-      if (activeUserSubTab === 'streak') fetchStreakCycles();
+      if (activeUserSubTab === 'missions') {
+        fetchMissions();
+        if (fanzTemplates.length === 0) fetchFanzTemplates();
+        if (lifeActions.length === 0) fetchLifeActions();
+        if (duelCards.length === 0) fetchDuelCards();
+      }
+      if (activeUserSubTab === 'passes') {
+        fetchPasses();
+        if (fanzTemplates.length === 0) fetchFanzTemplates();
+        if (lifeActions.length === 0) fetchLifeActions();
+        if (duelCards.length === 0) fetchDuelCards();
+      }
+      if (activeUserSubTab === 'fervor') {
+        fetchUserFervorConfig();
+        if (fanzTemplates.length === 0) fetchFanzTemplates();
+        if (lifeActions.length === 0) fetchLifeActions();
+        if (duelCards.length === 0) fetchDuelCards();
+      }
+      if (activeUserSubTab === 'streak') {
+        fetchStreakCycles();
+        if (fanzTemplates.length === 0) fetchFanzTemplates();
+        if (lifeActions.length === 0) fetchLifeActions();
+        if (duelCards.length === 0) fetchDuelCards();
+      }
     } else if (activeTab === 'duelConfig') {
       fetchDuelConfig();
     }
@@ -329,12 +351,12 @@ export function AdminZone() {
     try {
       setStatus({ type: 'info', message: 'Génération du Pass World Cup 2026...' });
       
-      // 1. Fetch Fanz-1 (Bébé Fanzzy)
-      const fanzRef = doc(db, 'fanz_templates', 'fanz-1');
+      // 1. Fetch Fanz-1 (Baby Fanzzy)
+      const fanzRef = doc(db, 'fanz_templates', 'fanz-001');
       const fanzSnap = await getDoc(fanzRef);
       
       if (!fanzSnap.exists()) {
-        setStatus({ type: 'error', message: 'Le Fanz Bébé Fanzzy (fanz-1) n\'existe pas.' });
+        setStatus({ type: 'error', message: 'Le Fanz Baby Fanzzy (fanz-001) n\'existe pas.' });
         return;
       }
       
@@ -349,7 +371,7 @@ export function AdminZone() {
         if (!existingSkins.find(s => s.id === skinId)) {
           newSkins.push({
             id: skinId,
-            fanzId: 'fanz-1',
+            fanzId: 'fanz-001',
             name: `Skin WC26 - Équipe ${i}`,
             imageUrl: `https://thebestfan.online/img/public/fanz/wc26/equipe${i}.png`,
             price: {} // Exclusive to pass
@@ -886,6 +908,19 @@ export function AdminZone() {
     setLoading(true);
     try {
       const fanzRef = doc(db, 'fanz_templates', editingFanz.id);
+      
+      // Generate the Ferveur path based on specific config if it exists
+      if (editingFanz.ferveurConfig && editingFanz.ferveurConfig.ranges && editingFanz.ferveurConfig.ranges.length > 0) {
+        const lastRange = editingFanz.ferveurConfig.ranges[editingFanz.ferveurConfig.ranges.length - 1];
+        editingFanz.ferveurPath = generateFervorPath(lastRange.max || 150000, editingFanz.ferveurConfig);
+      } else if (!editingFanz.ferveurPath || editingFanz.ferveurPath.length === 0) {
+        // Fallback to global if both are missing
+        if (fanzFervorConfig) {
+          const defaultPath = generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 150000, fanzFervorConfig);
+          editingFanz.ferveurPath = defaultPath;
+        }
+      }
+
       // Remove undefined values which Firestore rejects
       const sanitizedFanz = JSON.parse(JSON.stringify(editingFanz));
       await setDoc(fanzRef, sanitizedFanz);
@@ -931,16 +966,28 @@ export function AdminZone() {
     try {
       const defaultPath = generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 150000, fanzFervorConfig);
 
-      let count = 0;
+      let templatesUpdated = 0;
+      let instancesUpdated = 0;
+      let usersUpdated = 0;
       
       // Update fanz_templates
       const templatesSnapshot = await getDocs(collection(db, 'fanz_templates'));
       let batch = writeBatch(db);
       let opsCount = 0;
       
+      const templatePathsMap: Record<string, FerveurLevel[]> = {};
+      
       for (const docSnap of templatesSnapshot.docs) {
-        batch.update(docSnap.ref, { ferveurPath: defaultPath });
-        count++;
+        const tData = docSnap.data() as FanzTemplate;
+        let specificPath = defaultPath;
+        if (tData.ferveurConfig && tData.ferveurConfig.ranges && tData.ferveurConfig.ranges.length > 0) {
+           const max = tData.ferveurConfig.ranges[tData.ferveurConfig.ranges.length - 1].max || 150000;
+           specificPath = generateFervorPath(max, tData.ferveurConfig);
+        }
+        templatePathsMap[docSnap.id] = specificPath;
+
+        batch.update(docSnap.ref, { ferveurPath: specificPath });
+        templatesUpdated++;
         opsCount++;
         if (opsCount >= 400) {
           await batch.commit();
@@ -954,9 +1001,10 @@ export function AdminZone() {
       for (const docSnap of fanzSnapshot.docs) {
         const data = docSnap.data();
         const pts = data.ferveurPoints || 0;
+        const assignedPath = templatePathsMap[data.templateId] || defaultPath;
         
         let newLevel = 1;
-        const majorLevels = defaultPath.filter(l => !l.isIntermediate).sort((a, b) => a.pointsRequired - b.pointsRequired);
+        const majorLevels = assignedPath.filter(l => !l.isIntermediate).sort((a, b) => a.pointsRequired - b.pointsRequired);
         for (const ml of majorLevels) {
           if (pts >= ml.pointsRequired) {
             newLevel = ml.level;
@@ -964,10 +1012,10 @@ export function AdminZone() {
         }
 
         batch.update(docSnap.ref, { 
-          ferveurPath: defaultPath,
+          ferveurPath: assignedPath,
           ferveurLevel: newLevel
         });
-        count++;
+        instancesUpdated++;
         opsCount++;
         if (opsCount >= 400) {
           await batch.commit();
@@ -980,58 +1028,16 @@ export function AdminZone() {
         await batch.commit();
       }
 
-      // Update global configs
-      const userFervorRef = doc(db, 'global_configs', 'user_fervor');
-      const fanzFervorRef = doc(db, 'global_configs', 'fanz_fervor');
-      
-      const defaultUserConfig = {
-        id: 'user_fervor',
-        ranges: [
-          { level: 1, min: 0, max: 99999, step: 5000, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 50 } },
-          { level: 2, min: 100000, max: 499999, step: 10000, levelReward: { type: 'gems', amount: 100 }, intermediateReward: { type: 'money', amount: 100 } },
-          { level: 3, min: 500000, max: 999999, step: 25000, levelReward: { type: 'boost', amount: 5 }, intermediateReward: { type: 'money', amount: 200 } },
-          { level: 4, min: 1000000, max: 1999999, step: 50000, levelReward: { type: 'gems', amount: 500 }, intermediateReward: { type: 'money', amount: 500 } },
-          { level: 5, min: 2000000, max: 2999999, step: 50000, levelReward: { type: 'money', amount: 10000 }, intermediateReward: { type: 'gems', amount: 10 } },
-          { level: 6, min: 3000000, max: 3999999, step: 100000, levelReward: { type: 'boost', amount: 10 }, intermediateReward: { type: 'money', amount: 1000 } },
-          { level: 7, min: 4000000, max: 4999999, step: 100000, levelReward: { type: 'gems', amount: 1000 }, intermediateReward: { type: 'money', amount: 1000 } },
-          { level: 8, min: 5000000, max: 5999999, step: 100000, levelReward: { type: 'money', amount: 50000 }, intermediateReward: { type: 'gems', amount: 20 } },
-          { level: 9, min: 6000000, max: 6999999, step: 200000, levelReward: { type: 'boost', amount: 20 }, intermediateReward: { type: 'money', amount: 2000 } },
-          { level: 10, min: 7000000, max: 7999999, step: 200000, levelReward: { type: 'gems', amount: 2000 }, intermediateReward: { type: 'money', amount: 2000 } },
-          { level: 11, min: 8000000, max: 8999999, step: 200000, levelReward: { type: 'money', amount: 100000 }, intermediateReward: { type: 'gems', amount: 50 } },
-          { level: 12, min: 9000000, max: 9999999, step: 250000, levelReward: { type: 'boost', amount: 50 }, intermediateReward: { type: 'money', amount: 5000 } },
-          { level: 13, min: 10000000, max: 11999999, step: 250000, levelReward: { type: 'gems', amount: 5000 }, intermediateReward: { type: 'money', amount: 5000 } },
-          { level: 14, min: 12000000, max: 14999999, step: 500000, levelReward: { type: 'money', amount: 500000 }, intermediateReward: { type: 'gems', amount: 100 } },
-          { level: 15, min: 15000000, max: 15000000, step: 1000000, levelReward: { type: 'boost', amount: 100 }, intermediateReward: { type: 'money', amount: 10000 } },
-        ]
-      };
-
-      const defaultFanzConfig = {
-        id: 'fanz_fervor',
-        ranges: [
-          { level: 1, min: 0, max: 4999, step: 1000, levelReward: { type: 'gems', amount: 50 }, intermediateReward: { type: 'money', amount: 100 } },
-          { level: 2, min: 5000, max: 14999, step: 1000, levelReward: { type: 'money', amount: 1000 }, intermediateReward: { type: 'money', amount: 100 } },
-          { level: 3, min: 15000, max: 29999, step: 1000, levelReward: { type: 'gems', amount: 100 }, intermediateReward: { type: 'money', amount: 100 } },
-          { level: 4, min: 30000, max: 49999, step: 2500, levelReward: { type: 'boost', amount: 5 }, intermediateReward: { type: 'money', amount: 200 } },
-          { level: 5, min: 50000, max: 74999, step: 2500, levelReward: { type: 'money', amount: 5000 }, intermediateReward: { type: 'gems', amount: 10 } },
-          { level: 6, min: 75000, max: 99999, step: 5000, levelReward: { type: 'gems', amount: 500 }, intermediateReward: { type: 'money', amount: 500 } },
-          { level: 7, min: 100000, max: 119999, step: 5000, levelReward: { type: 'boost', amount: 10 }, intermediateReward: { type: 'money', amount: 500 } },
-          { level: 8, min: 120000, max: 134999, step: 5000, levelReward: { type: 'money', amount: 10000 }, intermediateReward: { type: 'gems', amount: 20 } },
-          { level: 9, min: 135000, max: 149999, step: 5000, levelReward: { type: 'gems', amount: 1000 }, intermediateReward: { type: 'money', amount: 1000 } },
-          { level: 10, min: 150000, max: 150000, step: 10000, levelReward: { type: 'gems', amount: 2000 }, intermediateReward: { type: 'money', amount: 2000 } },
-        ]
-      };
-
-      await setDoc(userFervorRef, defaultUserConfig);
-      await setDoc(fanzFervorRef, defaultFanzConfig);
-
       // Update users level
+      batch = writeBatch(db);
+      opsCount = 0;
       const usersSnapshot = await getDocs(collection(db, 'users'));
       for (const docSnap of usersSnapshot.docs) {
         const data = docSnap.data();
         const pts = data.ferveurPoints || 0;
         
         let newLevel = 1;
-        for (const range of defaultUserConfig.ranges) {
+        for (const range of (userFervorConfig?.ranges || [])) {
           if (pts >= range.min) {
             newLevel = range.level;
           }
@@ -1041,7 +1047,7 @@ export function AdminZone() {
         batch.update(docSnap.ref, { 
           level: newLevel
         });
-        count++;
+        usersUpdated++;
         opsCount++;
         if (opsCount >= 400) {
           await batch.commit();
@@ -1054,13 +1060,13 @@ export function AdminZone() {
         await batch.commit();
       }
 
-      setStatus({ type: 'success', message: `${count} chemins de ferveur mis à jour et configs globales réinitialisées !` });
+      setStatus({ type: 'success', message: `${templatesUpdated} modèles, ${instancesUpdated} items et ${usersUpdated} joueurs mis à jour !` });
       fetchFanzTemplates();
       fetchUserFervorConfig();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fixing ferveur paths", err);
-      handleFirestoreError(err, OperationType.WRITE, 'fanz_templates');
-      setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
+      // Suppress handleFirestoreError throwing to show message in UI
+      setStatus({ type: 'error', message: `Erreur lors de la mise à jour: ${err.message}` });
     } finally {
       setLoading(false);
     }
@@ -1069,21 +1075,6 @@ export function AdminZone() {
   const handleCreateNewFanz = () => {
     const newId = `fanz-${Date.now()}`;
     
-    const defaultPath: FerveurLevel[] = [];
-    for (let pts = 25; pts <= 1000; pts += 25) {
-      if (pts === 250) {
-        defaultPath.push({ level: 2, pointsRequired: 250, reward: { type: 'money' as const, amount: 100 } });
-      } else if (pts === 500) {
-        defaultPath.push({ level: 3, pointsRequired: 500, reward: { type: 'money' as const, amount: 100 } });
-      } else if (pts === 750) {
-        defaultPath.push({ level: 4, pointsRequired: 750, reward: { type: 'money' as const, amount: 100 } });
-      } else if (pts === 1000) {
-        defaultPath.push({ level: 5, pointsRequired: 1000, reward: { type: 'money' as const, amount: 100 } });
-      } else {
-        defaultPath.push({ isIntermediate: true, pointsRequired: pts, reward: { type: 'money' as const, amount: 25 } });
-      }
-    }
-
     setEditingFanz({
       id: newId,
       name: 'Nouveau FANZ',
@@ -1099,7 +1090,7 @@ export function AdminZone() {
       specialCards: [],
       skins: [],
       emotes: [],
-      ferveurPath: defaultPath,
+      ferveurConfig: undefined, // Will default to global when saved
       rankRewards: {}
     });
   };
@@ -1778,7 +1769,7 @@ export function AdminZone() {
                     <div className="space-y-4">
                       <h5 className="font-bold text-gray-300">Récompenses (7 Jours)</h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {editingCycle.days.map((config, idx) => (
+                        {(editingCycle.days || []).map((config, idx) => (
                           <div key={config.day} className="p-4 bg-gray-900/50 rounded-xl border border-gray-800 space-y-3">
                             <div className="flex justify-between items-center">
                               <span className="font-black text-orange-500">JOUR {config.day}</span>
@@ -1788,7 +1779,7 @@ export function AdminZone() {
                               <RewardSelector
                                 reward={config.reward}
                                 onChange={reward => {
-                                  const newDays = [...editingCycle.days];
+                                  const newDays = [...(editingCycle.days || [])];
                                   newDays[idx] = { ...config, reward };
                                   setEditingCycle({ ...editingCycle, days: newDays });
                                 }}
@@ -2031,10 +2022,38 @@ export function AdminZone() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Condition du Pass</label>
+                        <select
+                          value={editingPass.conditionType || 'global'}
+                          onChange={e => setEditingPass({...editingPass, conditionType: e.target.value as any})}
+                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700"
+                        >
+                          <option value="global">Général (tous les duels)</option>
+                          <option value="country">Lié à un Pays</option>
+                          <option value="team">Lié à une Équipe</option>
+                          <option value="league">Lié à une Compétition</option>
+                          <option value="season">Lié à une Saison</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Valeur de la condition (ID / Nom)</label>
+                        <input
+                          type="text"
+                          value={editingPass.conditionValue || ''}
+                          onChange={e => setEditingPass({...editingPass, conditionValue: e.target.value})}
+                          placeholder={editingPass.conditionType === 'team' ? 'ID equipe (ex: 85)' : 'Valeur...'}
+                          disabled={!editingPass.conditionType || editingPass.conditionType === 'global'}
+                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 disabled:opacity-50"
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-4">
                       <h4 className="font-bold text-sm border-b border-gray-800 pb-2 text-white">Niveaux & Récompenses</h4>
                       <div className="space-y-4">
-                        {editingPass.levels.map((lvl, idx) => (
+                        {(editingPass.levels || []).map((lvl, idx) => (
                           <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end p-3 bg-gray-900/50 rounded-lg border border-gray-800">
                             <div className="space-y-1">
                               <label className="text-[10px] font-bold text-gray-500">NIVEAU {lvl.level}</label>
@@ -2042,7 +2061,7 @@ export function AdminZone() {
                                 type="number"
                                 value={lvl.pointsRequired}
                                 onChange={e => {
-                                  const newLevels = [...editingPass.levels];
+                                  const newLevels = [...(editingPass.levels || [])];
                                   newLevels[idx] = { ...lvl, pointsRequired: Number(e.target.value) };
                                   setEditingPass({ ...editingPass, levels: newLevels });
                                 }}
@@ -2077,8 +2096,9 @@ export function AdminZone() {
                                 duelCards={duelCards}
                               />
                             </div>
-                            <Button type="button" variant="outline" size="sm" className="text-red-400 border-red-900 hover:bg-red-900/30" onClick={() => {
-                              const newLevels = editingPass.levels.filter((_, i) => i !== idx);
+                            <Button type="button" variant="outline" size="sm" className="text-red-400 border-red-900 hover:bg-red-900/30 hover:text-white" onClick={() => {
+                              let newLevels = (editingPass.levels || []).filter((_, i) => i !== idx);
+                              newLevels = newLevels.map((l, i) => ({ ...l, level: i + 1 }));
                               setEditingPass({ ...editingPass, levels: newLevels });
                             }}>
                               <Trash2 className="w-4 h-4" />
@@ -2086,12 +2106,15 @@ export function AdminZone() {
                           </div>
                         ))}
                         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => {
-                          const nextLevel = editingPass.levels.length + 1;
-                          const lastPoints = editingPass.levels[editingPass.levels.length - 1]?.pointsRequired || 0;
+                          let nextLevelNum = 1;
+                          if ((editingPass.levels || []).length > 0) {
+                            nextLevelNum = Math.max(...(editingPass.levels || []).map(l => l.level)) + 1;
+                          }
+                          const lastPoints = (editingPass.levels || [])[(editingPass.levels || []).length - 1]?.pointsRequired || 0;
                           setEditingPass({
                             ...editingPass,
-                            levels: [...editingPass.levels, {
-                              level: nextLevel,
+                            levels: [...(editingPass.levels || []), {
+                              level: nextLevelNum,
                               pointsRequired: lastPoints + 100,
                               freeReward: { type: 'money', amount: 50 },
                               premiumReward: { type: 'gems', amount: 20 }
@@ -2550,9 +2573,9 @@ export function AdminZone() {
                     <label className="text-sm font-medium text-gray-500">ID du Fanz (Optionnel)</label>
                     <input
                       type="text"
-                      value={editingCard.fanzIds?.join(', ') || ''}
-                      onChange={e => setEditingCard({...editingCard, fanzIds: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
-                      placeholder="Ex: fanz-1, fanz-2 (Laissez vide pour tous)"
+                      value={(editingCard.fanzIds || []).join(', ')}
+                      onChange={e => setEditingCard({...editingCard, fanzIds: e.target.value ? e.target.value.split(',').map(s => s.trim()).filter(Boolean) : []})}
+                      placeholder="Ex: fanz-001, fanz-002 (Laissez vide pour tous)"
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                     />
                   </div>
@@ -2560,8 +2583,8 @@ export function AdminZone() {
                     <label className="text-sm font-medium text-gray-500">Fanz Bloqués (Optionnel)</label>
                     <input
                       type="text"
-                      value={editingCard.blockedFanzIds?.join(', ') || ''}
-                      onChange={e => setEditingCard({...editingCard, blockedFanzIds: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
+                      value={(editingCard.blockedFanzIds || []).join(', ')}
+                      onChange={e => setEditingCard({...editingCard, blockedFanzIds: e.target.value ? e.target.value.split(',').map(s => s.trim()).filter(Boolean) : []})}
                       placeholder="Ex: fanz-3, fanz-4 (Laissez vide pour aucun)"
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                     />
@@ -2644,19 +2667,19 @@ export function AdminZone() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h4 className="font-bold">Effets</h4>
-                    <Button type="button" size="sm" onClick={() => setEditingCard({...editingCard, effects: [...editingCard.effects, { type: 'push_rope', value: 5 }]})}>
+                    <Button type="button" size="sm" onClick={() => setEditingCard({...editingCard, effects: [...(editingCard.effects || []), { type: 'push_rope', value: 5 }]})}>
                       Ajouter Effet
                     </Button>
                   </div>
                   <div className="grid grid-cols-1 gap-3">
-                    {editingCard.effects.map((effect, idx) => (
+                    {(editingCard.effects || []).map((effect, idx) => (
                       <div key={idx} className="flex gap-3 items-end p-3 bg-gray-50 rounded-lg">
                         <div className="flex-1 space-y-1">
                           <label className="text-[10px] font-bold uppercase text-gray-400">Type</label>
                           <select
                             value={effect.type}
                             onChange={e => {
-                              const newEffects = [...editingCard.effects];
+                              const newEffects = [...(editingCard.effects || [])];
                               newEffects[idx] = { ...effect, type: e.target.value as any };
                               setEditingCard({...editingCard, effects: newEffects});
                             }}
@@ -2691,7 +2714,7 @@ export function AdminZone() {
                             type="number"
                             value={effect.value || 0}
                             onChange={e => {
-                              const newEffects = [...editingCard.effects];
+                              const newEffects = [...(editingCard.effects || [])];
                               newEffects[idx] = { ...effect, value: Number(e.target.value) };
                               setEditingCard({...editingCard, effects: newEffects});
                             }}
@@ -2704,7 +2727,7 @@ export function AdminZone() {
                             type="number"
                             value={effect.duration || 0}
                             onChange={e => {
-                              const newEffects = [...editingCard.effects];
+                              const newEffects = [...(editingCard.effects || [])];
                               newEffects[idx] = { ...effect, duration: Number(e.target.value) };
                               setEditingCard({...editingCard, effects: newEffects});
                             }}
@@ -2712,7 +2735,7 @@ export function AdminZone() {
                           />
                         </div>
                         <Button type="button" variant="outline" size="sm" className="text-red-500" onClick={() => {
-                          const newEffects = editingCard.effects.filter((_, i) => i !== idx);
+                          const newEffects = (editingCard.effects || []).filter((_, i) => i !== idx);
                           setEditingCard({...editingCard, effects: newEffects});
                         }}>
                           <Trash2 className="w-4 h-4" />
@@ -2834,7 +2857,7 @@ export function AdminZone() {
                       type="text"
                       value={editingAction.fanzTemplateId || ''}
                       onChange={e => setEditingAction({...editingAction, fanzTemplateId: e.target.value})}
-                      placeholder="Ex: fanz-1 (Laissez vide pour tous)"
+                      placeholder="Ex: fanz-001 (Laissez vide pour tous)"
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                     />
                   </div>
@@ -3232,94 +3255,144 @@ export function AdminZone() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h4 className="font-bold flex items-center gap-2">
-                      <img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> Chemin de la Ferveur (Spécifique à ce FANZ)
+                       <img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> Chemin de la Ferveur (Spécifique à ce FANZ)
                     </h4>
-                    <div className="flex gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => setEditingFanz({
-                        ...editingFanz,
-                        ferveurPath: [...(editingFanz.ferveurPath || []), { 
-                          id: `inter-${Date.now()}`,
-                          isIntermediate: true,
-                          pointsRequired: 0,
-                          reward: { type: 'money', amount: 100 }
-                        } as FerveurLevel].sort((a, b) => a.pointsRequired - b.pointsRequired)
-                      })}>
-                        Ajouter Gain Intermédiaire
-                      </Button>
+                    {!editingFanz.ferveurConfig && (
                       <Button type="button" size="sm" onClick={() => {
-                        const currentLevels = (editingFanz.ferveurPath || []).filter(p => !p.isIntermediate);
-                        const nextLevel = currentLevels.length + 1;
                         setEditingFanz({
-                          ...editingFanz,
-                          ferveurPath: [...(editingFanz.ferveurPath || []), { 
-                            level: nextLevel, 
-                            pointsRequired: nextLevel * 100,
-                            reward: { type: 'money', amount: 100 }
-                          } as FerveurLevel].sort((a, b) => a.pointsRequired - b.pointsRequired)
+                          ...editingFanz, 
+                          ferveurConfig: fanzFervorConfig ? JSON.parse(JSON.stringify(fanzFervorConfig)) : { id: 'fervor-1', ranges: [] }
                         });
                       }}>
-                        Ajouter Palier
+                        Personnaliser à partir du Global
                       </Button>
-                    </div>
+                    )}
+                    {editingFanz.ferveurConfig && (
+                      <div className="flex gap-2">
+                         <Button type="button" size="sm" onClick={() => {
+                            const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
+                            newRanges.push({ 
+                              level: newRanges.length + 1, min: 0, max: 0, step: 1000, 
+                              levelReward: { type: 'money', amount: 100 }, 
+                              intermediateReward: { type: 'money', amount: 50 } 
+                            });
+                            setEditingFanz({...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig, ranges: newRanges }});
+                         }}>
+                            Ajouter Niveau
+                         </Button>
+                         <Button type="button" size="sm" variant="outline" className="text-red-500" onClick={() => {
+                            setEditingFanz({...editingFanz, ferveurConfig: undefined});
+                         }}>
+                            Réinitialiser (Utiliser le Global)
+                         </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    {(editingFanz.ferveurPath || []).map((path, idx) => (
-                      <div key={path.id || idx} className={`flex gap-3 items-end p-3 rounded-lg border ${path.isIntermediate ? 'bg-gray-100 border-gray-200' : 'bg-blue-50 border-blue-100'}`}>
-                        <div className="w-24 space-y-1">
-                          <label className="text-[10px] font-bold uppercase text-gray-400">Niv.</label>
-                          <div className={`w-full p-2 rounded text-sm font-bold ${path.isIntermediate ? 'bg-gray-200 text-gray-500' : 'bg-blue-100 text-blue-600'}`}>
-                            {path.isIntermediate ? 'INTER' : path.level}
+                  
+                  {!editingFanz.ferveurConfig ? (
+                    <div className="p-4 bg-gray-900/50 rounded-xl border border-gray-800 text-center text-sm text-gray-500 italic">
+                      Ce FANZ utilise la configuration de ferveur par défaut. Cliquez sur "Personnaliser à partir du Global" pour modifier les paliers spécifiquement pour ce FANZ.
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {(editingFanz.ferveurConfig.ranges || []).map((range, idx) => (
+                        <div key={idx} className="p-4 rounded-xl border bg-gray-800/50 border-orange-900/30 space-y-4 relative">
+                          <button 
+                            onClick={() => {
+                              const newRanges = (editingFanz.ferveurConfig?.ranges || []).filter((_, i) => i !== idx);
+                              newRanges.forEach((r, i) => r.level = i + 1);
+                              setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
+                            }}
+                            className="absolute top-2 right-2 text-red-500 hover:text-red-400"
+                            type="button"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-black text-orange-400 uppercase italic">
+                              NIVEAU {range.level}
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-gray-500">Min</label>
+                              <input
+                                type="number"
+                                value={range.min}
+                                onChange={(e) => {
+                                  const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
+                                  newRanges[idx] = { ...range, min: Number(e.target.value) };
+                                  setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
+                                }}
+                                className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-gray-500">Max</label>
+                              <input
+                                type="number"
+                                value={range.max}
+                                onChange={(e) => {
+                                  const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
+                                  newRanges[idx] = { ...range, max: Number(e.target.value) };
+                                  setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
+                                }}
+                                className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-gray-500">Pas</label>
+                              <input
+                                type="number"
+                                value={range.step}
+                                onChange={(e) => {
+                                  const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
+                                  newRanges[idx] = { ...range, step: Number(e.target.value) };
+                                  setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
+                                }}
+                                className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 mt-4">
+                            <label className="text-[10px] font-bold uppercase text-gray-500">Récompense de Niveau</label>
+                            <RewardSelector
+                              reward={range.levelReward}
+                              onChange={(reward) => {
+                                const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
+                                newRanges[idx] = { ...range, levelReward: reward };
+                                setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
+                              }}
+                              fanzTemplates={fanzTemplates}
+                              lifeActions={lifeActions}
+                              duelCards={duelCards}
+                              isFanzContext={true}
+                              currentFanzId={editingFanz.id}
+                            />
+                          </div>
+
+                          <div className="space-y-2 mt-4 pt-4 border-t border-gray-700">
+                            <label className="text-[10px] font-bold uppercase text-gray-500">Gain Intermédiaire</label>
+                            <RewardSelector
+                              reward={range.intermediateReward}
+                              onChange={(reward) => {
+                                const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
+                                newRanges[idx] = { ...range, intermediateReward: reward };
+                                setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
+                              }}
+                              fanzTemplates={fanzTemplates}
+                              lifeActions={lifeActions}
+                              duelCards={duelCards}
+                              isFanzContext={true}
+                              currentFanzId={editingFanz.id}
+                            />
                           </div>
                         </div>
-                        <div className="flex-1 space-y-1">
-                          <label className="text-[10px] font-bold uppercase text-gray-400">Points Requis</label>
-                          <input
-                            type="number"
-                            value={path.pointsRequired}
-                            onChange={e => {
-                              const newPath = [...(editingFanz.ferveurPath || [])];
-                              newPath[idx] = { ...path, pointsRequired: Number(e.target.value) };
-                              newPath.sort((a, b) => a.pointsRequired - b.pointsRequired);
-                              setEditingFanz({...editingFanz, ferveurPath: newPath});
-                            }}
-                            className="w-full p-2 bg-white text-gray-900 rounded border-none text-sm"
-                            min="1"
-                          />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <label className="text-[10px] font-bold uppercase text-gray-400">Récompense Type</label>
-                          <RewardSelector
-                            reward={path.reward}
-                            onChange={reward => {
-                              const newPath = [...(editingFanz.ferveurPath || [])];
-                              newPath[idx] = { ...path, reward };
-                              setEditingFanz({...editingFanz, ferveurPath: newPath});
-                            }}
-                            fanzTemplates={fanzTemplates}
-                            lifeActions={lifeActions}
-                            duelCards={duelCards}
-                            theme="light"
-                            isFanzContext={true}
-                            currentFanzId={editingFanz.id}
-                          />
-                        </div>
-                        <Button type="button" variant="outline" size="sm" className="text-red-500" onClick={() => {
-                          let newPath = (editingFanz.ferveurPath || []).filter((_, i) => i !== idx);
-                          // Renumber regular levels
-                          let currentLevel = 1;
-                          newPath = newPath.map(p => {
-                            if (!p.isIntermediate) {
-                              return { ...p, level: currentLevel++ };
-                            }
-                            return p;
-                          });
-                          setEditingFanz({...editingFanz, ferveurPath: newPath});
-                        }}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end mt-4">
@@ -3342,12 +3415,13 @@ export function AdminZone() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(editingFanz.skins || []).map((skin, sIdx) => (
-                      <div key={sIdx} className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-200 relative">
-                        <div className="absolute top-2 right-2 flex gap-2">
+                      <div key={sIdx} className="p-4 bg-gray-900/50 rounded-xl space-y-3 border border-gray-800 relative group">
+                        <div className="absolute top-2 right-2 flex gap-2 z-10">
                           <Button 
                             type="button" 
                             variant="outline" 
                             size="sm" 
+                            className="text-white border-white/20 hover:bg-white/10"
                             onClick={() => {
                               const newSkins = [...editingFanz.skins, { ...skin, id: `skin-${Date.now()}`, name: `${skin.name} (Copie)` }];
                               setEditingFanz({...editingFanz, skins: newSkins});
@@ -3359,7 +3433,7 @@ export function AdminZone() {
                             type="button" 
                             variant="outline" 
                             size="sm" 
-                            className="text-red-500"
+                            className="text-red-500 hover:text-white hover:bg-red-500 border-red-500/50"
                             onClick={() => {
                               const newSkins = editingFanz.skins.filter((_, i) => i !== sIdx);
                               setEditingFanz({...editingFanz, skins: newSkins});
@@ -3368,7 +3442,7 @@ export function AdminZone() {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 pt-6">
+                        <div className="grid grid-cols-2 gap-3 pt-8 relative z-0">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-gray-400">Nom</label>
                             <input
@@ -3379,7 +3453,7 @@ export function AdminZone() {
                                 newSkins[sIdx] = { ...skin, name: e.target.value };
                                 setEditingFanz({...editingFanz, skins: newSkins});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                           <div className="space-y-1">
@@ -3392,7 +3466,7 @@ export function AdminZone() {
                                 newSkins[sIdx] = { ...skin, id: e.target.value };
                                 setEditingFanz({...editingFanz, skins: newSkins});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                         </div>
@@ -3407,7 +3481,7 @@ export function AdminZone() {
                                 newSkins[sIdx] = { ...skin, imageUrl: e.target.value };
                                 setEditingFanz({...editingFanz, skins: newSkins});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                           <div className="space-y-1">
@@ -3421,7 +3495,7 @@ export function AdminZone() {
                                   newSkins[sIdx] = { ...skin, videoUrl: e.target.value };
                                   setEditingFanz({...editingFanz, skins: newSkins});
                                 }}
-                                className="flex-1 p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                                className="flex-1 w-0 truncate p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                               />
                               {skin.videoUrl && (
                                 <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden flex-shrink-0">
@@ -3447,7 +3521,7 @@ export function AdminZone() {
                                 newSkins[sIdx] = { ...skin, price: { ...skin.price, money: Number(e.target.value) } };
                                 setEditingFanz({...editingFanz, skins: newSkins});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                           <div className="space-y-1">
@@ -3460,7 +3534,7 @@ export function AdminZone() {
                                 newSkins[sIdx] = { ...skin, price: { ...skin.price, gems: Number(e.target.value) } };
                                 setEditingFanz({...editingFanz, skins: newSkins});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                           <div className="space-y-1">
@@ -3473,7 +3547,7 @@ export function AdminZone() {
                                 newSkins[sIdx] = { ...skin, price: { ...skin.price, boostPoints: Number(e.target.value) } };
                                 setEditingFanz({...editingFanz, skins: newSkins});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                         </div>
@@ -3502,12 +3576,13 @@ export function AdminZone() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(editingFanz.emotes || []).map((emote, eIdx) => (
-                      <div key={eIdx} className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-200 relative">
+                      <div key={eIdx} className="p-4 bg-gray-900/50 rounded-xl space-y-3 border border-gray-800 relative">
                         <div className="absolute top-2 right-2 flex gap-2">
                           <Button 
                             type="button" 
                             variant="outline" 
                             size="sm" 
+                            className="text-white border-white/20 hover:bg-white/10"
                             onClick={() => {
                               const newEmotes = [...editingFanz.emotes, { ...emote, id: `emote-${Date.now()}`, name: `${emote.name} (Copie)` }];
                               setEditingFanz({...editingFanz, emotes: newEmotes});
@@ -3519,10 +3594,10 @@ export function AdminZone() {
                             type="button" 
                             variant="outline" 
                             size="sm" 
-                            className="text-red-500"
+                            className="text-red-500 hover:bg-red-500 hover:text-white border-red-500/50"
                             onClick={() => {
-                              const newEmotes = editingFanz.emotes.filter((_, i) => i !== eIdx);
-                              setEditingFanz({...editingFanz, emotes: newEmotes});
+                               const newEmotes = editingFanz.emotes.filter((_, i) => i !== eIdx);
+                               setEditingFanz({...editingFanz, emotes: newEmotes});
                             }}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -3539,7 +3614,7 @@ export function AdminZone() {
                                 newEmotes[eIdx] = { ...emote, name: e.target.value };
                                 setEditingFanz({...editingFanz, emotes: newEmotes});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                           <div className="space-y-1">
@@ -3552,7 +3627,7 @@ export function AdminZone() {
                                 newEmotes[eIdx] = { ...emote, id: e.target.value };
                                 setEditingFanz({...editingFanz, emotes: newEmotes});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                         </div>
@@ -3568,7 +3643,7 @@ export function AdminZone() {
                                   newEmotes[eIdx] = { ...emote, imageUrl: e.target.value };
                                   setEditingFanz({...editingFanz, emotes: newEmotes});
                                 }}
-                                className="flex-1 p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                                className="w-0 flex-1 p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                                 placeholder="gs://... ou https://..."
                               />
                               {emote.imageUrl && (
@@ -3589,7 +3664,7 @@ export function AdminZone() {
                                   newEmotes[eIdx] = { ...emote, videoUrl: e.target.value };
                                   setEditingFanz({...editingFanz, emotes: newEmotes});
                                 }}
-                                className="flex-1 p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                                className="w-0 flex-1 p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                                 placeholder="gs://... ou https://..."
                               />
                               {emote.videoUrl && (
@@ -3616,7 +3691,7 @@ export function AdminZone() {
                                 newEmotes[eIdx] = { ...emote, price: { ...(emote.price || {}), money: Number(e.target.value) } };
                                 setEditingFanz({...editingFanz, emotes: newEmotes});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                           <div className="space-y-1">
@@ -3629,7 +3704,7 @@ export function AdminZone() {
                                 newEmotes[eIdx] = { ...emote, price: { ...(emote.price || {}), gems: Number(e.target.value) } };
                                 setEditingFanz({...editingFanz, emotes: newEmotes});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                           <div className="space-y-1">
@@ -3642,7 +3717,7 @@ export function AdminZone() {
                                 newEmotes[eIdx] = { ...emote, price: { ...(emote.price || {}), boostPoints: Number(e.target.value) } };
                                 setEditingFanz({...editingFanz, emotes: newEmotes});
                               }}
-                              className="w-full p-2 bg-white text-gray-900 rounded border border-gray-200 text-xs"
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
                         </div>
@@ -3665,22 +3740,22 @@ export function AdminZone() {
                     {Array.from({ length: 10 }).map((_, rIdx) => {
                       const rankNum = rIdx + 1;
                       const slotId = `rank-${rankNum}`;
-                      const reward = editingFanz.rankRewards?.[slotId] || { id: slotId, type: 'choice' };
+                      const reward = editingFanz.rankRewards?.[slotId] || { id: slotId, type: 'money', amount: 0 };
                       const cost = editingFanz.rankCosts?.[slotId] || { money: rankNum * 1000, boostPoints: rankNum * 50 };
                       
                       return (
-                        <div key={rankNum} className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-200">
+                        <div key={rankNum} className="p-4 bg-gray-900/50 rounded-xl space-y-3 border border-gray-800">
                           <div className="flex justify-between items-center">
-                            <div className="font-black italic uppercase text-sm text-gray-500">Rang {rankNum}</div>
+                            <div className="font-black italic uppercase text-sm text-gray-400">Rang {rankNum}</div>
                             <Trophy className="w-4 h-4 text-orange-500" />
                           </div>
                           
                           {rankNum > 1 && (
-                            <div className="space-y-2 pb-3 border-b border-gray-200">
-                              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Coût pour débloquer</div>
+                            <div className="space-y-2 pb-3 border-b border-gray-800">
+                              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Coût pour débloquer</div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
-                                  <label className="text-[10px] text-gray-500 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-3 h-3" /> Argent</label>
+                                  <label className="text-[10px] text-gray-400 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-3 h-3" /> Argent</label>
                                   <input 
                                     type="number" 
                                     value={cost.money ?? ''}
@@ -3689,11 +3764,11 @@ export function AdminZone() {
                                       newCosts[slotId] = { ...cost, money: e.target.value === '' ? undefined : Number(e.target.value) };
                                       setEditingFanz({...editingFanz, rankCosts: newCosts});
                                     }}
-                                    className="w-full p-1.5 text-sm bg-white border border-gray-300 rounded"
+                                    className="w-full p-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white"
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] text-gray-500 flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-3 h-3" /> Boost</label>
+                                  <label className="text-[10px] text-gray-400 flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-3 h-3" /> Boost</label>
                                   <input 
                                     type="number" 
                                     value={cost.boostPoints ?? ''}
@@ -3702,7 +3777,7 @@ export function AdminZone() {
                                       newCosts[slotId] = { ...cost, boostPoints: e.target.value === '' ? undefined : Number(e.target.value) };
                                       setEditingFanz({...editingFanz, rankCosts: newCosts});
                                     }}
-                                    className="w-full p-1.5 text-sm bg-white border border-gray-300 rounded"
+                                    className="w-full p-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white"
                                   />
                                 </div>
                               </div>

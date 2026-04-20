@@ -16,7 +16,7 @@ export function Layout({ children, className, containerClassName, isMobileOnly =
     >
       <div className={cn(
         "w-full h-[100dvh] relative flex flex-col overflow-hidden bg-grid-pattern",
-        isMobileOnly ? "w-full lg:max-w-[450px] shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0a0a0a] lg:border-x border-white/5" : "max-w-7xl mx-auto shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0a0a0a] sm:border-x border-white/5",
+        isMobileOnly ? "w-full lg:max-w-[450px] shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0a0a0a] lg:border-x border-white/5" : "w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#0a0a0a] border-white/5",
         containerClassName
       )}>
         {children}

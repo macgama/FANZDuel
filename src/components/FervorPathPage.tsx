@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserProfile, GlobalFervorConfig, FerveurLevel } from '../types';
+import { UserProfile, GlobalFervorConfig, FerveurLevel, Card as DuelCard, LifeAction } from '../types';
 import { Card, Button } from './Layout';
 import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
-import { ArrowLeft, Lock, Check, Gift, Star, Zap, Flame, Trophy, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Lock, Check, Gift, Star, Zap, Flame, Trophy, ChevronRight, Layers, Shield, Smile, Activity } from 'lucide-react';
 import { getImageUrl, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { LOGOS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { useReward } from '../context/RewardContext';
 import { generateFervorPath } from '../utils/fervorPath';
+import { OptimizedMedia } from './OptimizedMedia';
 
 interface FervorPathPageProps {
   profile: UserProfile;
@@ -23,18 +24,28 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
   const { showReward } = useReward();
 
   const [fanzTemplates, setFanzTemplates] = useState<any[]>([]);
+  const [cards, setCards] = useState<DuelCard[]>([]);
+  const [actions, setActions] = useState<LifeAction[]>([]);
   const [globalConfig, setGlobalConfig] = useState<GlobalFervorConfig | undefined>(undefined);
 
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const fanzSnapshot = await getDocs(collection(db, 'fanz_templates'));
-        const fanzData = fanzSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const [fanzSnap, configSnap, cardsSnap, actionsSnap] = await Promise.all([
+          getDocs(collection(db, 'fanz_templates')),
+          getDoc(doc(db, 'global_configs', 'user_fervor')),
+          getDocs(collection(db, 'cards')),
+          getDocs(collection(db, 'life_actions'))
+        ]);
+        
+        const fanzData = fanzSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setFanzTemplates(fanzData.filter(f => (f as any).isActive !== false));
+        
+        setCards(cardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as DuelCard[]);
+        setActions(actionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as LifeAction[]);
 
-        const configDoc = await getDoc(doc(db, 'global_configs', 'user_fervor'));
-        if (configDoc.exists()) {
-          const data = configDoc.data() as GlobalFervorConfig;
+        if (configSnap.exists()) {
+          const data = configSnap.data() as GlobalFervorConfig;
           if (!data.ranges || data.ranges.length === 0) {
             setGlobalConfig({
               id: 'user_fervor',
@@ -128,10 +139,10 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
         title: `Palier ${level.level} atteint !`,
         type: level.reward.type as any,
         amount: level.reward.amount,
-        card: level.reward.cardId,
-        skin: level.reward.skinId,
-        emote: level.reward.emoteId,
-        action: level.reward.actionId
+        card: cards.find(c => c.id === level.reward?.cardId),
+        skin: fanzTemplates.flatMap(t => t.skins?.map((s: any) => ({ ...s, templateName: t.name })) || []).find(s => s.id === level.reward?.skinId),
+        emote: fanzTemplates.flatMap(t => t.emotes?.map((e: any) => ({ ...e, templateName: t.name })) || []).find(e => e.id === level.reward?.emoteId),
+        action: actions.find(a => a.id === level.reward?.actionId)
       });
     } catch (err) {
       console.error("Error claiming reward", err);
@@ -147,6 +158,9 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
     ? globalConfig.ranges[globalConfig.ranges.length - 1].max
     : (activeFanzCount > 0 ? activeFanzCount * 1000 : 100000);
   const levels = useMemo(() => generateFervorPath(maxPoints, globalConfig), [maxPoints, globalConfig]);
+
+  const allSkins = useMemo(() => fanzTemplates.flatMap(t => t.skins?.map((s: any) => ({ ...s, templateName: t.name })) || []), [fanzTemplates]);
+  const allEmotes = useMemo(() => fanzTemplates.flatMap(t => t.emotes?.map((e: any) => ({ ...e, templateName: t.name })) || []), [fanzTemplates]);
 
   if (loading) {
     return (
@@ -164,10 +178,66 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
   const nextLevel = levels.find(l => currentPoints < l.pointsRequired);
   const nextMajorLevel = majorLevels.find(l => currentPoints < l.pointsRequired);
 
+  const generateProgressHeight = () => {
+    if (levels.length === 0) return 0;
+    const pts = currentPoints;
+    const lastStep = levels[levels.length - 1];
+    if (pts >= lastStep.pointsRequired) return 100;
+    
+    for (let i = 0; i < levels.length; i++) {
+        const step = levels[i];
+        if (pts < step.pointsRequired) {
+            const prevPoints = i === 0 ? 0 : levels[i-1].pointsRequired;
+            const segmentProgress = (pts - prevPoints) / (step.pointsRequired - prevPoints);
+            const heightPerSegment = 100 / levels.length;
+            return Math.min(100, Math.max(0, (i * heightPerSegment) + (segmentProgress * heightPerSegment)));
+        }
+    }
+    return 0;
+  };
+
   return (
-    <div className="flex flex-col bg-[#050505] relative min-h-full">
-      {/* Hero Background */}
-      <div className="absolute top-0 left-0 right-0 h-[400px] bg-gradient-to-b from-orange-900/40 via-orange-900/10 to-transparent pointer-events-none" />
+    <div className="flex flex-col bg-transparent relative min-h-full">
+      {/* Hero Background with Fanz Assets */}
+      <div className="absolute top-0 left-0 right-0 h-[400px] overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/20 via-[#050505]/60 to-[#050505] z-10" />
+        <div className="absolute inset-0 bg-orange-900/10 mix-blend-screen z-10" />
+        
+        {/* Background Images from Fanz Templates (Skins & Emotes) */}
+        {fanzTemplates.length > 0 && Array.from({ length: 8 }).map((_, i) => {
+          // Flatten all skins and emotes from all active templates
+          const allAssets = fanzTemplates.flatMap(t => [
+            ...(t.skins || []).map((s: any) => s.imageUrl),
+            ...(t.emotes || []).map((e: any) => e.imageUrl),
+            t.image
+          ]).filter(Boolean);
+
+          if (allAssets.length === 0) return null;
+
+          // Pseudo-random selection and positioning based on index
+          const assetUrl = allAssets[i % allAssets.length];
+          const left = `${(i * 37) % 90}%`;
+          const top = `${(i * 23) % 60}%`;
+          const size = 60 + ((i * 17) % 80);
+          const rotation = -30 + ((i * 29) % 60);
+
+          return (
+            <img 
+              key={`bg-asset-${i}`}
+              src={assetUrl}
+              alt=""
+              className="absolute opacity-10 blur-[2px] transition-all object-cover rounded-xl"
+              style={{
+                left,
+                top,
+                width: `${size}px`,
+                height: `${size}px`,
+                transform: `rotate(${rotation}deg)`,
+              }}
+            />
+          );
+        })}
+      </div>
       
       <div className="flex flex-col gap-6 pb-20 pt-6 relative z-10">
         
@@ -211,14 +281,32 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <div className="text-sm font-black italic uppercase text-green-400">
-                    +{nextLevel.reward?.amount} {nextLevel.reward?.type === 'money' ? '$' : nextLevel.reward?.type}
+                    {['money', 'gems', 'boost', 'energy', 'xp'].includes(nextLevel.reward?.type || '') ? `+${nextLevel.reward?.amount} ${nextLevel.reward?.type === 'money' ? '$' : nextLevel.reward?.type}` : nextLevel.reward?.type === 'skin' ? 'Skin' : nextLevel.reward?.type === 'emote' ? 'Emote' : nextLevel.reward?.type === 'card' ? 'Carte' : nextLevel.reward?.type === 'action' ? 'Action' : nextLevel.reward?.type}
                   </div>
                 </div>
-                <div className="w-12 h-12 rounded-full bg-black/50 border border-white/10 flex items-center justify-center shadow-inner">
+                <div className="w-12 h-12 rounded-full bg-black/50 border border-white/10 flex items-center justify-center shadow-inner overflow-hidden">
                   {nextLevel.reward?.type === 'money' ? (
                     <img src={LOGOS.money} alt="Money" className="w-8 h-8 object-contain" />
                   ) : nextLevel.reward?.type === 'gems' ? (
                     <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 object-contain" />
+                  ) : nextLevel.reward?.type === 'skin' && nextLevel.reward?.skinId ? (
+                    <OptimizedMedia 
+                      type={allSkins.find(s => s.id === nextLevel.reward!.skinId)?.videoUrl ? 'video' : 'image'} 
+                      src={allSkins.find(s => s.id === nextLevel.reward!.skinId)?.videoUrl || allSkins.find(s => s.id === nextLevel.reward!.skinId)?.imageUrl || null} 
+                      poster={allSkins.find(s => s.id === nextLevel.reward!.skinId)?.imageUrl} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : nextLevel.reward?.type === 'emote' && nextLevel.reward?.emoteId ? (
+                    <OptimizedMedia 
+                      type={allEmotes.find(e => e.id === nextLevel.reward!.emoteId)?.videoUrl ? 'video' : 'image'} 
+                      src={allEmotes.find(e => e.id === nextLevel.reward!.emoteId)?.videoUrl || allEmotes.find(e => e.id === nextLevel.reward!.emoteId)?.imageUrl || null} 
+                      poster={allEmotes.find(e => e.id === nextLevel.reward!.emoteId)?.imageUrl} 
+                      className="w-full h-full object-contain p-1" 
+                    />
+                  ) : nextLevel.reward?.type === 'card' && nextLevel.reward?.cardId ? (
+                    <img src={getImageUrl(cards.find(c => c.id === nextLevel.reward!.cardId)?.imageUrl)} className="w-full h-full object-cover" />
+                  ) : nextLevel.reward?.type === 'action' && nextLevel.reward?.actionId ? (
+                    <img src={getImageUrl(actions.find(a => a.id === nextLevel.reward!.actionId)?.image)} className="w-full h-full object-cover" />
                   ) : (
                     <Gift className="w-6 h-6 text-orange-400" />
                   )}
@@ -228,24 +316,30 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
           </motion.div>
         )}
 
-        {/* Progress Bar */}
-        <div className="px-6">
-          <div className="relative h-12 bg-black/60 rounded-2xl border border-white/10 overflow-hidden shadow-2xl backdrop-blur-sm">
-            {/* Progress Fill */}
+        {/* Progress Tracker (Neon) */}
+        <div className="px-6 relative cursor-pointer group" onClick={() => {
+          if (nextLevel) {
+            const el = document.getElementById(`ferveur-node-${nextLevel.level}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else if (levels.length > 0) {
+            const el = document.getElementById(`ferveur-node-${levels[levels.length - 1].level}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }}>
+          <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors rounded-xl -m-2 opacity-0 group-hover:opacity-100 pointer-events-none" />
+          <div className="flex justify-between items-end mb-2 relative z-10">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest group-hover:text-gray-300 transition-colors">Ma progression</h3>
+            <span className="text-sm font-black text-orange-400 group-hover:text-orange-300 transition-colors">{currentPoints.toLocaleString()} <span className="text-xs text-orange-500/50">/ {maxPoints.toLocaleString()} PTS</span></span>
+          </div>
+          <div className="h-4 w-full bg-gray-900/80 rounded-full overflow-hidden border border-gray-800 relative z-10">
             <motion.div 
               initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, (currentPoints / maxPoints) * 100)}%` }}
+              animate={{ width: `${Math.min(100, Math.max(0, (currentPoints / maxPoints) * 100))}%` }}
               transition={{ duration: 1.5, ease: "easeOut" }}
-              className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-orange-600 via-orange-500 to-yellow-500"
-            >
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay" />
-            </motion.div>
-            {/* Text Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-sm font-black italic uppercase tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                {currentPoints.toLocaleString()} / {maxPoints.toLocaleString()} PTS
-              </span>
-            </div>
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-700 via-orange-500 to-yellow-500 shadow-[0_0_15px_rgba(249,115,22,0.6)] rounded-full"
+            />
+            {/* Pattern overlay on progress */}
+            <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] pointer-events-none" />
           </div>
         </div>
 
@@ -283,8 +377,26 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
 
         {/* Vertical Path */}
         <div className="relative mt-8 px-4">
-          {/* Central Line */}
-          <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 via-orange-500/30 to-transparent -translate-x-1/2 rounded-full" />
+          {/* Progress Bar Container */}
+          <div 
+            className="absolute left-1/2 top-0 bottom-0 w-3 bg-gray-900 border-x border-white/10 -translate-x-1/2 rounded-full overflow-hidden cursor-pointer shadow-inner"
+            onClick={() => {
+               const nextStep = levels.find(l => currentPoints < l.pointsRequired);
+               if (nextStep) {
+                  const el = document.getElementById(`ferveur-node-${nextStep.level}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+               }
+            }}
+            title="Cliquez pour aller à votre progression"
+          >
+            {/* Active Neon Progress Line */}
+            <div 
+              className="w-full bg-gradient-to-b from-orange-400 to-orange-600 shadow-[0_0_20px_rgba(249,115,22,1)] rounded-full transition-all duration-1000" 
+              style={{ 
+                height: `${generateProgressHeight()}%` 
+              }}
+            />
+          </div>
 
           <div className="space-y-24 relative">
             {levels.map((level, idx) => {
@@ -316,25 +428,63 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                           ? 'bg-gray-900 border-orange-500/50 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)] animate-pulse'
                           : 'bg-[#111] border-white/10 text-gray-600'
                   }`}>
-                    <div className={level.isIntermediate ? '-rotate-45' : ''}>
+                    <div className={level.isIntermediate ? '-rotate-45 block w-full h-full' : 'w-full h-full'}>
                       {isClaimed ? (
-                        <Check className={level.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Check className={level.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
+                        </div>
                       ) : level.reward?.type === 'money' ? (
-                        <img src={LOGOS.money} alt="Money" className={`${level.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <img src={LOGOS.money} alt="Money" className={`${level.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
+                        </div>
                       ) : level.reward?.type === 'gems' ? (
-                        <img src={LOGOS.gems} alt="Gems" className={`${level.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <img src={LOGOS.gems} alt="Gems" className={`${level.isIntermediate ? "w-6 h-6" : "w-12 h-12"} object-contain drop-shadow-lg`} />
+                        </div>
+                      ) : level.reward?.type === 'skin' && level.reward?.skinId ? (
+                        <div className="w-full h-full rounded-[inherit] overflow-hidden">
+                          <OptimizedMedia 
+                            type={allSkins.find(s => s.id === level.reward!.skinId)?.videoUrl ? 'video' : 'image'} 
+                            src={allSkins.find(s => s.id === level.reward!.skinId)?.videoUrl || allSkins.find(s => s.id === level.reward!.skinId)?.imageUrl || null} 
+                            poster={allSkins.find(s => s.id === level.reward!.skinId)?.imageUrl} 
+                            className="w-full h-full object-cover scale-[1.2]" 
+                            autoPlay
+                            loop
+                          />
+                        </div>
+                      ) : level.reward?.type === 'emote' && level.reward?.emoteId ? (
+                        <div className="w-full h-full rounded-[inherit] overflow-hidden p-1 flex items-center justify-center">
+                          <OptimizedMedia 
+                            type={allEmotes.find(e => e.id === level.reward!.emoteId)?.videoUrl ? 'video' : 'image'} 
+                            src={allEmotes.find(e => e.id === level.reward!.emoteId)?.videoUrl || allEmotes.find(e => e.id === level.reward!.emoteId)?.imageUrl || null} 
+                            poster={allEmotes.find(e => e.id === level.reward!.emoteId)?.imageUrl} 
+                            className="w-full h-full object-contain" 
+                            autoPlay
+                            loop
+                          />
+                        </div>
+                      ) : level.reward?.type === 'card' && level.reward?.cardId ? (
+                        <div className="w-full h-full rounded-[inherit] overflow-hidden p-1">
+                          <img src={getImageUrl(cards.find(c => c.id === level.reward!.cardId)?.imageUrl)} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                        </div>
+                      ) : level.reward?.type === 'action' && level.reward?.actionId ? (
+                        <div className="w-full h-full rounded-[inherit] overflow-hidden p-1">
+                          <img src={getImageUrl(actions.find(a => a.id === level.reward!.actionId)?.image)} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                        </div>
                       ) : (
-                        <Trophy className={level.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Trophy className={level.isIntermediate ? "w-6 h-6" : "w-10 h-10"} />
+                        </div>
                       )}
                     </div>
 
                     {/* Points Label */}
-                    <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap ${isLeft ? (level.isIntermediate ? 'left-16 text-left' : 'left-24 text-left') : (level.isIntermediate ? 'right-16 text-right' : 'right-24 text-right')}`}>
-                      <div className={`text-lg font-black italic uppercase tracking-tighter drop-shadow-md ${isUnlocked ? 'text-orange-400' : 'text-gray-500'}`}>
+                    <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap ${isLeft ? (level.isIntermediate ? 'left-10 sm:left-16 text-left' : 'left-14 sm:left-24 text-left') : (level.isIntermediate ? 'right-10 sm:right-16 text-right' : 'right-14 sm:right-24 text-right')}`}>
+                      <div className={`text-sm sm:text-lg font-black italic uppercase tracking-tighter drop-shadow-md ${isUnlocked ? 'text-orange-400' : 'text-gray-500'}`}>
                         {level.pointsRequired.toLocaleString()} PTS
                       </div>
                       {!level.isIntermediate && (
-                        <div className="text-xs font-black uppercase tracking-widest text-gray-400 bg-black/50 px-2 py-0.5 rounded-full inline-block mt-1 border border-white/5">
+                        <div className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 bg-black/50 px-2 py-0.5 rounded-full inline-block mt-1 border border-white/5">
                           Palier {level.displayLevel}
                         </div>
                       )}
@@ -342,8 +492,8 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                   </div>
 
                   {/* Reward Box */}
-                  <div className={`absolute top-1/2 -translate-y-1/2 ${level.isIntermediate ? 'w-[140px]' : 'w-[180px]'} ${isLeft ? (level.isIntermediate ? 'right-[calc(50%+45px)]' : 'right-[calc(50%+55px)]') : (level.isIntermediate ? 'left-[calc(50%+45px)]' : 'left-[calc(50%+55px)]')}`}>
-                    <div className={`p-4 rounded-2xl border backdrop-blur-sm transition-all duration-500 ${
+                  <div className={`absolute top-1/2 -translate-y-1/2 ${level.isIntermediate ? 'w-[100px] sm:w-[140px]' : 'w-[120px] sm:w-[180px]'} ${isLeft ? (level.isIntermediate ? 'right-[calc(50%+25px)] sm:right-[calc(50%+45px)]' : 'right-[calc(50%+35px)] sm:right-[calc(50%+55px)]') : (level.isIntermediate ? 'left-[calc(50%+25px)] sm:left-[calc(50%+45px)]' : 'left-[calc(50%+35px)] sm:left-[calc(50%+55px)]')}`}>
+                    <div className={`p-2 sm:p-4 rounded-xl sm:rounded-2xl border backdrop-blur-sm transition-all duration-500 ${
                       isClaimed 
                         ? 'bg-black/40 border-green-500/20 opacity-60' 
                         : isUnlocked 
@@ -353,21 +503,21 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                             : 'bg-black/40 border-white/5 opacity-50'
                     }`}>
                       <div className="text-center">
-                        <div className={`text-lg font-black italic uppercase tracking-tighter mb-3 drop-shadow-md ${isUnlocked && !isClaimed ? 'text-green-400' : 'text-gray-400'}`}>
-                          +{level.reward?.amount} {level.reward?.type === 'money' ? '$' : level.reward?.type}
+                        <div className={`text-sm sm:text-lg font-black italic uppercase tracking-tighter sm:mb-3 mb-1.5 drop-shadow-md ${isUnlocked && !isClaimed ? 'text-green-400' : 'text-gray-400'}`}>
+                          {['money', 'gems', 'boost', 'energy', 'xp'].includes(level.reward?.type || '') ? `+${level.reward?.amount} ${level.reward?.type === 'money' ? '$' : level.reward?.type}` : level.reward?.type === 'skin' ? 'Skin' : level.reward?.type === 'emote' ? 'Emote' : level.reward?.type === 'card' ? 'Carte' : level.reward?.type === 'action' ? 'Action' : level.reward?.type}
                         </div>
                         {isUnlocked && !isClaimed ? (
                           <Button 
                             size="sm" 
-                            className="w-full h-10 text-sm bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-black italic uppercase tracking-widest shadow-lg shadow-orange-500/25 border border-orange-400/50"
+                            className="w-full h-8 sm:h-10 text-xs sm:text-sm bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-black italic uppercase tracking-widest shadow-lg shadow-orange-500/25 border border-orange-400/50 px-1 sm:px-3"
                             onClick={() => handleClaimReward(level)}
                             disabled={claiming === slotId}
                           >
                             {claiming === slotId ? '...' : 'Récupérer'}
                           </Button>
                         ) : (
-                          <div className={`text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5 ${isClaimed ? 'text-green-500/50' : 'text-gray-600'}`}>
-                            {isClaimed ? <Check className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                          <div className={`text-[9px] sm:text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1 sm:gap-1.5 ${isClaimed ? 'text-green-500/50' : 'text-gray-600'}`}>
+                            {isClaimed ? <Check className="w-3 h-3 sm:w-4 sm:h-4" /> : <Lock className="w-3 h-3 sm:w-4 sm:h-4" />}
                             {isClaimed ? 'RÉCUPÉRÉ' : 'BLOQUÉ'}
                           </div>
                         )}

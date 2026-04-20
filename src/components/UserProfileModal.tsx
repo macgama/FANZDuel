@@ -151,8 +151,8 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
           <div className="overflow-y-auto flex-1 pr-1 custom-scrollbar">
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {(avatarTab === 'flags' ? FLAG_AVATARS : 
-                 avatarTab === 'fanz' ? FANZ_AVATARS.filter(f => ownedTemplateIds.includes(f.id.replace('avatar-', '')) || profile.role === 'admin') : 
-                 SKIN_AVATARS.filter(s => ownedSkinIds.includes(s.id.replace('avatar-skin-', '')) || profile.role === 'admin')).map(avatar => (
+                 avatarTab === 'fanz' ? FANZ_AVATARS.filter(f => ownedTemplateIds.includes(f.id.replace('avatar-', ''))) : 
+                 SKIN_AVATARS.filter(s => ownedSkinIds.includes(s.id.replace('avatar-skin-', '')))).map(avatar => (
                 <button
                   key={avatar.id}
                   onClick={() => {

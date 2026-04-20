@@ -42,6 +42,9 @@ async function startServer() {
   function finishDuel(duelId: string, winner: string) {
     const duel = duels[duelId];
     if (!duel) return;
+    
+    console.log(`[Server] Finishing duel ${duelId} (Match: ${duel.matchId}, Type: ${duel.type}, Winner: ${winner})`);
+    
     duel.status = 'finished';
     
     const teamAActions = (duel.clickCounts.A || 0) + (duel.cardCounts.A || 0);
@@ -74,6 +77,8 @@ async function startServer() {
         scoreB += (100 - sum);
       }
     }
+
+    console.log(`[Server] Final results for ${duelId}: A=${scoreA}, B=${scoreB}`);
 
     const details = {
       teamAActions,
@@ -389,8 +394,10 @@ async function startServer() {
   });
 
   app.get("/api/duels/:matchId", (req, res) => {
-    const matchId = parseInt(req.params.matchId, 10);
-    const activeDuels = Object.values(duels).filter(d => d.matchId === matchId && d.status === 'waiting' && !d.isPrivate);
+    const matchIdStr = req.params.matchId;
+    const activeDuels = Object.values(duels).filter(d => 
+      d.matchId?.toString() === matchIdStr && d.status === 'waiting' && !d.isPrivate
+    );
     res.json(activeDuels);
   });
 
@@ -445,8 +452,15 @@ async function startServer() {
       res.set('Cache-Control', 'public, max-age=31536000, immutable'); // Cache for 1 year
       res.send(optimized);
     } catch (e: any) {
-      console.error("[Image Proxy Error]", e.message);
-      // If it fails, redirect to original or send an error
+      const urlParam = req.query.url as string;
+      if (e.response && e.response.status === 404) {
+        // Silently handle 404s without polluting the console
+        // console.warn(`[Image Proxy Error] 404 Not Found: ${urlParam}`);
+      } else {
+        console.error(`[Image Proxy Error] ${e.message} - URL: ${urlParam}`);
+      }
+
+      // If it fails, redirect to original image to let the browser handle the 404
       if (typeof req.query.url === 'string') {
         res.redirect(req.query.url);
       } else {

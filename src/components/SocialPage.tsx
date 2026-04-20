@@ -207,7 +207,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0a]">
+    <div className="flex flex-col h-full bg-transparent">
       <div className="flex items-center justify-between px-4">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
           Social

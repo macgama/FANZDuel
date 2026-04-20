@@ -4,6 +4,7 @@ import { Card, Button } from './Layout';
 import { UserProfile, FanzTemplate, Card as DuelCard } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, getImageUrl } from '../lib/utils';
+import { OptimizedMedia } from './OptimizedMedia';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 
@@ -85,6 +86,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             currency: f.price?.gems ? 'gems' : 'money',
             fullPrice: f.price,
             image: getImageUrl(f.image),
+            video: f.video,
             template: f
           }));
         
@@ -106,7 +108,8 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                   price: skin.price.gems ? skin.price.gems : skin.price.money,
                   currency: skin.price.gems ? 'gems' : 'money',
                   fullPrice: skin.price,
-                  image: skin.imageUrl ? getImageUrl(skin.imageUrl) : '👕'
+                  image: skin.imageUrl ? getImageUrl(skin.imageUrl) : '👕',
+                  video: skin.videoUrl
                 });
               }
             });
@@ -125,7 +128,8 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                   price: emote.price.gems ? emote.price.gems : emote.price.money,
                   currency: emote.price.gems ? 'gems' : 'money',
                   fullPrice: emote.price,
-                  icon: emote.imageUrl ? getImageUrl(emote.imageUrl) : '😀'
+                  icon: emote.imageUrl ? getImageUrl(emote.imageUrl) : '😀',
+                  video: emote.videoUrl
                 });
               }
             });
@@ -148,6 +152,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             currency: c.price?.gems ? 'gems' : 'money',
             fullPrice: c.price,
             image: c.imageUrl ? getImageUrl(c.imageUrl) : '🃏',
+            video: c.videoUrl,
             duration: `Coût: ${c.energyCost} Énergie`
           }));
 
@@ -166,25 +171,41 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
     fetchShopItems();
   }, [profile.uid, profile.skins, profile.emotes, profile.cards]);
 
-  const handlePurchase = async (currencyToUse: 'money' | 'gems') => {
+  const handlePurchase = async (currencyToUse: 'money' | 'gems' | 'both') => {
     if (!selectedItem) return;
     
-    const cost = selectedItem.fullPrice?.[currencyToUse] || selectedItem.price;
-    if (cost <= 0) return;
+    let costMoney = 0;
+    let costGems = 0;
 
-    if ((profile[currencyToUse] || 0) < cost) {
-      setError(`Vous n'avez pas assez de ${currencyToUse === 'money' ? 'dollars' : 'gemmes'}.`);
+    if (currencyToUse === 'both') {
+      costMoney = selectedItem.fullPrice?.money || 0;
+      costGems = selectedItem.fullPrice?.gems || 0;
+    } else {
+      const singleCost = selectedItem.fullPrice?.[currencyToUse] || selectedItem.price;
+      if (currencyToUse === 'money') costMoney = singleCost;
+      if (currencyToUse === 'gems') costGems = singleCost;
+    }
+
+    if (costMoney > 0 && (profile.money || 0) < costMoney) {
+      setError(`Vous n'avez pas assez de dollars.`);
       return;
     }
+    if (costGems > 0 && (profile.gems || 0) < costGems) {
+      setError(`Vous n'avez pas assez de gemmes.`);
+      return;
+    }
+
+    if (costMoney <= 0 && costGems <= 0) return;
 
     setPurchasing(true);
     setError(null);
 
     try {
       const userRef = doc(db, 'users', profile.uid);
-      const updates: any = {
-        [currencyToUse]: (profile[currencyToUse] || 0) - cost
-      };
+      const updates: any = {};
+      
+      if (costMoney > 0) updates.money = (profile.money || 0) - costMoney;
+      if (costGems > 0) updates.gems = (profile.gems || 0) - costGems;
 
       if (selectedItem.type === 'fanz') {
         const newFanzId = `fanz-${Date.now()}`;
@@ -241,22 +262,16 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
       if (hasMoney && hasGems) {
         return (
-          <div className="flex gap-2 w-full mt-3">
-            <Button 
-              onClick={() => setSelectedItem(item)}
-              className="flex-1 font-black uppercase text-[10px] bg-green-500 hover:bg-green-600 text-white px-1">
-              <span className="flex items-center justify-center gap-1">
-                {item.fullPrice.money} <span>$</span>
-              </span>
-            </Button>
-            <Button 
-              onClick={() => setSelectedItem(item)}
-              className="flex-1 font-black uppercase text-[10px] bg-blue-500 hover:bg-blue-600 text-white px-1">
-              <span className="flex items-center justify-center gap-1">
-                {item.fullPrice.gems} <Gem className="w-3 h-3" />
-              </span>
-            </Button>
-          </div>
+          <Button 
+            onClick={() => setSelectedItem(item)}
+            className="w-full font-black uppercase text-[10px] bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white mt-3 px-1"
+          >
+            <span className="flex items-center justify-center gap-1.5 flex-wrap">
+              <span className="flex items-center gap-0.5">{item.fullPrice.money} <span>$</span></span>
+              <span>+</span>
+              <span className="flex items-center gap-0.5">{item.fullPrice.gems} <Gem className="w-3 h-3" /></span>
+            </span>
+          </Button>
         );
       }
     }
@@ -290,17 +305,19 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           "relative overflow-hidden border p-4 flex flex-col items-center text-center h-full",
           `bg-gradient-to-b ${rarityColor} shadow-lg`
         )}>
-          <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-[8px] font-black uppercase px-2 py-1 rounded-full text-white/80 z-10">
-            {rarityLabel}
-          </div>
-          
-          <div className="w-full aspect-square mb-3 rounded-lg overflow-hidden relative">
+          <div className="w-full aspect-square mb-3 rounded-lg overflow-hidden relative shadow-inner shadow-white/10">
+            <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-[8px] font-black uppercase px-2 py-1 rounded-full text-white/80 z-20 shadow-md">
+              {rarityLabel}
+            </div>
+            
             <div className="absolute inset-0 bg-black/20 mix-blend-overlay z-0"></div>
-            {type === 'fanz' && <img src={item.image} alt={item.name} className="w-full h-full object-cover relative z-10" />}
-            {type === 'skin' && (item.image.startsWith('http') ? <img src={item.image} alt={item.name} className="w-full h-full object-cover relative z-10" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.image}</div>)}
-            {type === 'emote' && (item.icon.startsWith('http') ? <img src={item.icon} alt={item.name} className="w-full h-full object-cover relative z-10" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.icon}</div>)}
+            {type === 'fanz' && (
+              <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.image || null} poster={item.image} className="w-full h-full object-cover relative z-10 scale-110" />
+            )}
+            {type === 'skin' && (item.image?.startsWith('http') || item.image?.startsWith('/') || item.video ? <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.image || null} poster={item.image} className="w-full h-full object-cover relative z-10 scale-110" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.image}</div>)}
+            {type === 'emote' && (item.icon?.startsWith('http') || item.icon?.startsWith('/') || item.video ? <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.icon || null} poster={item.icon} className="w-full h-full object-contain p-2 relative z-10" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.icon}</div>)}
             {type === 'boost' && <div className="w-full h-full flex items-center justify-center relative z-10">{item.icon}</div>}
-            {type === 'card' && (item.image.startsWith('http') ? <img src={item.image} alt={item.name} className="w-full h-full object-cover relative z-10" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.image}</div>)}
+            {type === 'card' && (item.image?.startsWith('http') || item.image?.startsWith('/') || item.video ? <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.image || null} poster={item.image} className="w-full h-full object-cover relative z-10 scale-110" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.image}</div>)}
           </div>
 
           <div className="w-full flex flex-col flex-1 justify-end">
@@ -315,7 +332,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0a]">
+    <div className="flex flex-col h-full bg-transparent">
       <div className="flex items-center justify-between px-4">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
           Boutique
@@ -540,24 +557,40 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
               )}
 
               <div className="flex flex-col gap-3">
-                {selectedItem.fullPrice?.money > 0 && (
+                {selectedItem.fullPrice?.money > 0 && selectedItem.fullPrice?.gems > 0 ? (
                   <Button
-                    onClick={() => handlePurchase('money')}
-                    disabled={purchasing || (profile.money || 0) < selectedItem.fullPrice.money}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase"
+                    onClick={() => handlePurchase('both')}
+                    disabled={purchasing || (profile.money || 0) < selectedItem.fullPrice.money || (profile.gems || 0) < selectedItem.fullPrice.gems}
+                    className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-black uppercase flex items-center justify-center gap-1.5"
                   >
-                    {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.fullPrice.money} $`}
+                    {purchasing ? 'Achat en cours...' : (
+                      <>
+                        Acheter pour {selectedItem.fullPrice.money} $ + {selectedItem.fullPrice.gems} <Gem className="w-4 h-4 ml-0.5" />
+                      </>
+                    )}
                   </Button>
-                )}
-                
-                {selectedItem.fullPrice?.gems > 0 && (
-                  <Button
-                    onClick={() => handlePurchase('gems')}
-                    disabled={purchasing || (profile.gems || 0) < selectedItem.fullPrice.gems}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black uppercase"
-                  >
-                    {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.fullPrice.gems} Gemmes`}
-                  </Button>
+                ) : (
+                  <>
+                    {selectedItem.fullPrice?.money > 0 && (
+                      <Button
+                        onClick={() => handlePurchase('money')}
+                        disabled={purchasing || (profile.money || 0) < selectedItem.fullPrice.money}
+                        className="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase"
+                      >
+                        {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.fullPrice.money} $`}
+                      </Button>
+                    )}
+                    
+                    {selectedItem.fullPrice?.gems > 0 && (
+                      <Button
+                        onClick={() => handlePurchase('gems')}
+                        disabled={purchasing || (profile.gems || 0) < selectedItem.fullPrice.gems}
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black uppercase"
+                      >
+                        {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.fullPrice.gems} Gemmes`}
+                      </Button>
+                    )}
+                  </>
                 )}
 
                 {/* Fallback if fullPrice is not structured properly but price/currency exist */}
