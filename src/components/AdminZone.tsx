@@ -3572,6 +3572,40 @@ export function AdminZone() {
                             />
                           </div>
                         </div>
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-800 mt-2 relative z-0">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase text-gray-400">Catégorie</label>
+                            <select
+                              value={skin.category || 'base'}
+                              onChange={e => {
+                                const newSkins = [...editingFanz.skins];
+                                newSkins[sIdx] = { ...skin, category: e.target.value as 'base' | 'event' };
+                                setEditingFanz({...editingFanz, skins: newSkins});
+                              }}
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
+                            >
+                              <option value="base">Permanent (Base)</option>
+                              <option value="event">Événementiel (Event)</option>
+                            </select>
+                          </div>
+                          {(skin.category === 'event') && (
+                            <div className="space-y-1 flex flex-col justify-end">
+                              <label className="flex items-center gap-2 cursor-pointer h-8 mt-4">
+                                <input
+                                  type="checkbox"
+                                  checked={skin.isActive !== false}
+                                  onChange={e => {
+                                    const newSkins = [...editingFanz.skins];
+                                    newSkins[sIdx] = { ...skin, isActive: e.target.checked };
+                                    setEditingFanz({...editingFanz, skins: newSkins});
+                                  }}
+                                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 bg-gray-800 border-gray-700"
+                                />
+                                <span className="text-xs font-bold uppercase text-gray-300">Skin Actif</span>
+                              </label>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -3741,6 +3775,40 @@ export function AdminZone() {
                               className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
                             />
                           </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-800 mt-2 relative z-0">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase text-gray-400">Catégorie</label>
+                            <select
+                              value={emote.category || 'base'}
+                              onChange={e => {
+                                const newEmotes = [...editingFanz.emotes];
+                                newEmotes[eIdx] = { ...emote, category: e.target.value as 'base' | 'event' };
+                                setEditingFanz({...editingFanz, emotes: newEmotes});
+                              }}
+                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
+                            >
+                              <option value="base">Permanent (Base)</option>
+                              <option value="event">Événementiel (Event)</option>
+                            </select>
+                          </div>
+                          {(emote.category === 'event') && (
+                            <div className="space-y-1 flex flex-col justify-end">
+                              <label className="flex items-center gap-2 cursor-pointer h-8 mt-4">
+                                <input
+                                  type="checkbox"
+                                  checked={emote.isActive !== false}
+                                  onChange={e => {
+                                    const newEmotes = [...editingFanz.emotes];
+                                    newEmotes[eIdx] = { ...emote, isActive: e.target.checked };
+                                    setEditingFanz({...editingFanz, emotes: newEmotes});
+                                  }}
+                                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 bg-gray-800 border-gray-700"
+                                />
+                                <span className="text-xs font-bold uppercase text-gray-300">Emote Actif</span>
+                              </label>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

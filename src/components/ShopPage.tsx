@@ -96,12 +96,13 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         fanzData.forEach(fanz => {
           if (fanz.skins) {
             fanz.skins.forEach(skin => {
-              if (skin.price && (skin.price.money || skin.price.gems) && !(profile.skins || []).includes(skin.id)) {
+              if (skin.price && (skin.price.money || skin.price.gems) && !(profile.skins || []).includes(skin.id) && (skin.category !== 'event' || skin.isActive !== false)) {
                 skinsForSale.push({
                   id: `${fanz.id}-${skin.id}`,
                   originalId: skin.id,
                   type: 'skin',
                   name: skin.name,
+                  category: skin.category,
                   fanz: fanz.name,
                   fanzId: fanz.id,
                   rarity: 'epic', // Default rarity for skins if not specified
@@ -116,12 +117,13 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           }
           if (fanz.emotes) {
             fanz.emotes.forEach(emote => {
-              if (emote.price && (emote.price.money || emote.price.gems) && !(profile.emotes || []).includes(emote.id)) {
+              if (emote.price && (emote.price.money || emote.price.gems) && !(profile.emotes || []).includes(emote.id) && (emote.category !== 'event' || emote.isActive !== false)) {
                 emotesForSale.push({
                   id: `${fanz.id}-${emote.id}`,
                   originalId: emote.id,
                   type: 'emote',
                   name: emote.name,
+                  category: emote.category,
                   fanz: fanz.name,
                   fanzId: fanz.id,
                   rarity: 'rare', // Default rarity for emotes
@@ -306,6 +308,11 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           `bg-gradient-to-b ${rarityColor} shadow-lg`
         )}>
           <div className="w-full aspect-square mb-3 rounded-lg overflow-hidden relative shadow-inner shadow-white/10">
+            {item.category === 'event' && (
+              <div className="absolute top-2 left-2 backdrop-blur-sm bg-fuchsia-600 border border-fuchsia-400 font-black uppercase text-[8px] tracking-widest px-1.5 py-0.5 rounded-sm text-white z-20 shadow-[0_0_10px_rgba(192,38,211,0.5)]">
+                Événement
+              </div>
+            )}
             <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-[8px] font-black uppercase px-2 py-1 rounded-full text-white/80 z-20 shadow-md">
               {rarityLabel}
             </div>

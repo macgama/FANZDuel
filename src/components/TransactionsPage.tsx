@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ResourceTransaction, UserProfile, Fanz } from '../types';
-import { ArrowLeft, ArrowDownRight, ArrowUpRight, Filter } from 'lucide-react';
+import { ArrowLeft, ArrowDownRight, ArrowUpRight, Filter, Flame } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { LOGOS } from '../constants';
@@ -60,8 +60,8 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
       case 'gems': return <img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" />;
       case 'boost': return <img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" />;
       case 'energy': return <img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" />;
-      case 'ferveur_general': return <img src={LOGOS.ferveur} alt="Ferveur" className="w-4 h-4 object-contain" />;
-      case 'ferveur_fanz': return <img src={LOGOS.ferveur} alt="Ferveur FANZ" className="w-4 h-4 object-contain" />;
+      case 'ferveur_general': return <Flame className="w-4 h-4 text-orange-500" />;
+      case 'ferveur_fanz': return <Flame className="w-4 h-4 text-orange-500" />;
       default: return null;
     }
   };

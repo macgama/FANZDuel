@@ -1207,19 +1207,21 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   }
                 }
 
-                // Team Rankings (Side A)
-                if (globalTeamAId) {
-                  await updateRanking('ranking_teams', 'teamId', globalTeamAId, s, 'global', Number(scoreA));
+                // Team Rankings (Home Team) - Maps to globalScoreA instead of scoreA if it wasn't SideA
+                if (teamAId || teamA) {
+                  const safeTeamAId = teamAId || teamA;
+                  await updateRanking('ranking_teams', 'teamId', safeTeamAId as string, s, 'global', Number(globalScoreA));
                   if (leagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', globalTeamAId, s, leagueId, Number(scoreA));
+                    await updateRanking('ranking_teams', 'teamId', safeTeamAId as string, s, leagueId, Number(globalScoreA));
                   }
                 }
 
-                // Team Rankings (Side B)
-                if (globalTeamBId) {
-                  await updateRanking('ranking_teams', 'teamId', globalTeamBId, s, 'global', Number(scoreB));
+                // Team Rankings (Away Team) - Maps to globalScoreB
+                if (teamBId || teamB) {
+                  const safeTeamBId = teamBId || teamB;
+                  await updateRanking('ranking_teams', 'teamId', safeTeamBId as string, s, 'global', Number(globalScoreB));
                   if (leagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', globalTeamBId, s, leagueId, Number(scoreB));
+                    await updateRanking('ranking_teams', 'teamId', safeTeamBId as string, s, leagueId, Number(globalScoreB));
                   }
                 }
               }

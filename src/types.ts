@@ -106,6 +106,8 @@ export interface FanzSkin {
     gems?: number;
     boostPoints?: number;
   };
+  category?: 'base' | 'event';
+  isActive?: boolean;
 }
 
 export interface FanzEmote {
@@ -119,6 +121,8 @@ export interface FanzEmote {
     gems?: number;
     boostPoints?: number;
   };
+  category?: 'base' | 'event';
+  isActive?: boolean;
 }
 
 export interface FerveurLevel {

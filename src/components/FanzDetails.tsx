@@ -1587,7 +1587,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   )}
                 </Card>
 
-                {(template.skins || []).map((skin, idx) => {
+                {(template.skins || []).filter(skin => fanz.unlockedSkins?.includes(skin.id) || userProfile?.skins?.includes(skin.id) || skin.category !== 'event' || skin.isActive !== false).map((skin, idx) => {
                   const isUnlocked = fanz.unlockedSkins?.includes(skin.id) || userProfile?.skins?.includes(skin.id);
                   const isEquipped = fanz.equippedSkin === skin.id;
                   const canAfford = !isUnlocked && userProfile && (
@@ -1602,6 +1602,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       onClick={() => isUnlocked ? handleEquipSkin(skin.id) : setPurchaseConfirm({ type: 'skin', item: skin })}
                       className={`relative overflow-hidden cursor-pointer transition-all hover:scale-105 p-0 ${isEquipped ? 'ring-2 ring-orange-500 bg-orange-500/10' : 'bg-gray-800/50'}`}
                     >
+                      {skin.category === 'event' && (
+                        <div className="absolute top-2 left-2 z-20 backdrop-blur-sm bg-fuchsia-600 border border-fuchsia-400 font-black uppercase text-[7px] tracking-widest px-1.5 py-0.5 rounded-sm text-white shadow-[0_0_10px_rgba(192,38,211,0.5)]">
+                          Événement
+                        </div>
+                      )}
                       {!isUnlocked && (
                         <>
                           <div className={`absolute top-2 right-2 z-20 backdrop-blur-sm p-1.5 rounded-lg ${canAfford ? 'bg-green-500/80' : 'bg-black/60'}`}>
@@ -1667,7 +1672,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
             {activeTab === 'emotes' && (
               <div className="grid grid-cols-2 gap-3">
-                {(template.emotes || []).map((emote, idx) => {
+                {(template.emotes || []).filter(emote => fanz.unlockedEmotes?.includes(emote.id) || userProfile?.emotes?.includes(emote.id) || emote.category !== 'event' || emote.isActive !== false).map((emote, idx) => {
                   const isUnlocked = fanz.unlockedEmotes?.includes(emote.id) || userProfile?.emotes?.includes(emote.id);
                   const canAfford = !isUnlocked && emote.price && userProfile && (
                     (!emote.price.money || (userProfile.money || 0) >= emote.price.money) &&
@@ -1681,6 +1686,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       onClick={() => !isUnlocked && emote.price && setPurchaseConfirm({ type: 'emote', item: emote })}
                       className={`relative transition-all overflow-hidden p-0 ${!isUnlocked ? 'cursor-pointer hover:scale-105' : ''}`}
                     >
+                      {emote.category === 'event' && (
+                        <div className="absolute top-2 left-2 z-20 backdrop-blur-sm bg-fuchsia-600 border border-fuchsia-400 font-black uppercase text-[7px] tracking-widest px-1.5 py-0.5 rounded-sm text-white shadow-[0_0_10px_rgba(192,38,211,0.5)]">
+                          Événement
+                        </div>
+                      )}
                       {!isUnlocked && (
                         <>
                           <div className={`absolute top-2 right-2 z-20 backdrop-blur-sm p-1 rounded-lg ${canAfford ? 'bg-green-500/80' : 'bg-black/60'}`}>
