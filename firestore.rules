@@ -279,18 +279,16 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated(); // Allow reading other users for duels/leaderboards
-      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'client' || isAdmin());
+      allow create: if isAuthenticated() && isOwner(userId);
       allow update: if isAuthenticated() && (
-        ((isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin())) ||
-        isFriendRequestUpdate() || 
-        isFriendUpdate()
+        isOwner(userId) || isAdmin() || isFriendRequestUpdate() || isFriendUpdate()
       );
     }
 
     match /fanz/{fanzId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(request.resource.data.ownerUid) && isValidFanz(request.resource.data);
-      allow update: if isAuthenticated() && (isOwner(resource.data.ownerUid) || isAdmin()) && isValidFanz(request.resource.data);
+      allow create: if isAuthenticated() && isOwner(request.resource.data.ownerUid);
+      allow update: if isAuthenticated() && (isOwner(resource.data.ownerUid) || isAdmin());
       allow delete: if isAdmin();
     }
 

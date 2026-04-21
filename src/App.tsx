@@ -267,7 +267,15 @@ function AppContent() {
             }
 
             if (needsUpdate) {
-              await setDoc(docRef, updatedData, { merge: true });
+              try {
+                await setDoc(docRef, updatedData, { merge: true });
+                // We set the profile here so they log in regardless of network timing
+                setProfile(updatedData);
+              } catch (e: any) {
+                console.error("Failed to update user profile on snapshot:", e);
+                // Still log them in!
+                setProfile(updatedData);
+              }
             } else {
               setProfile(updatedData);
             }
