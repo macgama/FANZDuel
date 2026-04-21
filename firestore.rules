@@ -89,12 +89,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (request.auth.token.email == "gael.manigley@gmail.com" ||
-        request.auth.token.email == "michel@gmail.com" ||
-        request.auth.token.email == "elisa@gmail.com" ||
-        request.auth.token.email == "caro@gmail.com" ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin")); 
+        (request.auth.token.email == "gael.manigley@gmail.com"); 
     }
 
     function isValidEmail(email) {
@@ -423,7 +418,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
     }
-    
+
     match /duel_locks/{lockId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();

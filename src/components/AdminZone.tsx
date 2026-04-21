@@ -18,6 +18,7 @@ export function AdminZone() {
   const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
   const [confirmRecalculate, setConfirmRecalculate] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   
   // Duel Config state
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
@@ -1556,6 +1557,50 @@ export function AdminZone() {
     }
   };
 
+  const handleResetAllRankings = async () => {
+    setLoading(true);
+    setStatus({ type: 'info', message: 'Suppression globale en cours...' });
+    try {
+      const deleteCollection = async (collectionName: string) => {
+        let count = 0;
+        try {
+          const querySnapshot = await getDocs(collection(db, collectionName));
+          if (!querySnapshot.empty) {
+            const batch = writeBatch(db);
+            querySnapshot.forEach((docSnap) => {
+              batch.delete(docSnap.ref);
+              count++;
+            });
+            await batch.commit();
+          }
+        } catch(e) {
+          console.warn(`Could not delete ${collectionName}`, e);
+        }
+        return count;
+      };
+
+      const deletedScores = await deleteCollection('match_scores');
+      const deletedTeams = await deleteCollection('ranking_teams');
+      const deletedUsers = await deleteCollection('ranking_users');
+      // On conserve fixture_results si l'historique doit rester, ou on le supprime si c'est vraiment du fully blank
+      // The user wants to reset match_score, ranking_teams, and ranking_users
+      // If we also delete fixture_results, they won't be able to just "recalculate" without playing new matches.
+      // We will also clear duels and active_duels.
+      const deletedActiveDuels = await deleteCollection('active_duels');
+      const deletedDuels = await deleteCollection('duels');
+
+      setStatus({ 
+        type: 'success', 
+        message: `Remise à zéro OK ! ${deletedScores} match_scores, ${deletedTeams} ranking_teams, ${deletedUsers} ranking_users, ${deletedActiveDuels} active_duels supprimés.`
+      });
+    } catch (e: any) {
+      console.error(e);
+      setStatus({ type: 'error', message: e.message || 'Erreur lors de la remise à zéro.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredLeagues = leagues
     .filter(l => l.league.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.country.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => a.country.name.localeCompare(b.country.name));
@@ -1567,23 +1612,42 @@ export function AdminZone() {
           <Database className="w-8 h-8 text-blue-500" />
           Zone Admin
         </h1>
-        <Button 
-          onClick={() => {
-            if (!confirmRecalculate) {
-              setConfirmRecalculate(true);
-              setTimeout(() => setConfirmRecalculate(false), 3000);
-            } else {
-              setConfirmRecalculate(false);
-              handleRecalculateRankings();
-            }
-          }} 
-          variant={confirmRecalculate ? "destructive" : "secondary"} 
-          className="flex items-center gap-2" 
-          disabled={loading}
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          {confirmRecalculate ? "Confirmer le recalcul ?" : "Recalculer Classements"}
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button 
+            onClick={() => {
+              if (!confirmReset) {
+                setConfirmReset(true);
+                setTimeout(() => setConfirmReset(false), 3000);
+              } else {
+                setConfirmReset(false);
+                handleResetAllRankings();
+              }
+            }} 
+            variant={confirmReset ? "destructive" : "outline"} 
+            className={`flex items-center gap-2 ${!confirmReset && "text-red-500 border-red-500 hover:bg-red-50"}`}
+            disabled={loading}
+          >
+            {confirmReset ? "Confirmer la suppression ?" : "Effacer Classements & Duels"}
+          </Button>
+
+          <Button 
+            onClick={() => {
+              if (!confirmRecalculate) {
+                setConfirmRecalculate(true);
+                setTimeout(() => setConfirmRecalculate(false), 3000);
+              } else {
+                setConfirmRecalculate(false);
+                handleRecalculateRankings();
+              }
+            }} 
+            variant={confirmRecalculate ? "destructive" : "secondary"} 
+            className="flex items-center gap-2" 
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            {confirmRecalculate ? "Confirmer le recalcul ?" : "Recalculer Classements"}
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-4 border-b border-gray-200">

@@ -1,11 +1,11 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, setDoc, initializeFirestore } from 'firebase/firestore';
+import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { readFileSync } from 'fs';
 
 const firebaseConfig = JSON.parse(readFileSync('./firebase-applet-config.json', 'utf8'));
 const app = initializeApp(firebaseConfig);
 
-const db = initializeFirestore(app, {}, firebaseConfig.firestoreDatabaseId);
+const db = getFirestore(app); // Default DB
 
 async function test() {
   try {
