@@ -669,8 +669,6 @@ function RankingList({ title, data, statLabel, statKey, icon, onTeamClick, selec
   );
 }
 
-import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
-
 function TeamsTab({ teams, onTeamClick, selectedSeason, standings }: { teams: any[]; onTeamClick: (id: number, season: number) => void; selectedSeason: number; standings?: any[] }) {
   // If there are groups in standings, we can structure it. Otherwise simple list.
   const isGroupStage = standings && standings.length > 1 && standings[0].group;

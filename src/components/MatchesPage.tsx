@@ -97,8 +97,12 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
           });
           return newMap;
         });
-      }, (err) => {
-        console.error('Error listening to scores on MatchesPage', err);
+      }, (err: any) => {
+        if (err?.code === 'permission-denied' || err?.message?.includes('Missing or insufficient permissions')) {
+          console.warn("[MatchesPage] Scores listener permission denied, usually due to active sign-out.");
+        } else {
+          console.error("Error listening to scores on MatchesPage:", err);
+        }
       });
       unsubs.push(unsub);
     }

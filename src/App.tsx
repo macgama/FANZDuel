@@ -26,7 +26,7 @@ import { LeaderboardPage } from './components/LeaderboardPage';
 import { Rankings } from './components/Rankings';
 import { PassPage } from './components/PassPage';
 import { MissionsPage } from './components/MissionsPage';
-import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon, AlertCircle, LayoutGrid, Layers, Briefcase, Search, Calendar, Sparkles, Wallet, BarChart2 } from 'lucide-react';
+import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon, AlertCircle, LayoutGrid, Layers, Briefcase, Search, Calendar, Sparkles, Wallet, BarChart2, PieChart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
 
@@ -39,17 +39,20 @@ import { Home } from './components/Home';
 import { ShopPage } from './components/ShopPage';
 
 import { TransactionsPage } from './components/TransactionsPage';
+import { StatsPage } from './components/StatsPage';
+import { Preloader } from './components/Preloader';
 
 export default function App() {
   return <AppContent />;
 }
 
-type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings';
+type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings' | 'stats';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [currentDuel, setCurrentDuel] = useState<any>(null);
   const [view, _setView] = useState<ViewType>('home');
   const viewHistory = React.useRef<ViewType[]>(['home']);
@@ -362,6 +365,15 @@ function AppContent() {
     );
   }
 
+  if (!assetsLoaded && profile) {
+    return (
+      <Preloader 
+        uid={user.uid} 
+        onComplete={() => setAssetsLoaded(true)} 
+      />
+    );
+  }
+
   return (
     <Layout containerClassName="md:flex-row">
       <GlobalSocketListener onDuelStarting={(duelId, duelData) => {
@@ -401,6 +413,7 @@ function AppContent() {
                  <SidebarButton icon={<Activity />} label="Matchs" active={view==='matches'} onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Globe />} label="Compétitions" active={view==='competitions'} onClick={() => { setView('competitions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<BarChart2 />} label="Rank" active={view==='rankings'} onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<PieChart />} label="Profil" active={view==='stats'} onClick={() => { setView('stats'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Wallet />} label="Banque" active={view==='transactions'} onClick={() => { setView('transactions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Settings />} label="Admin" active={view===('admin' as any)} onClick={() => { setView('admin' as any); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              </div>
@@ -599,6 +612,8 @@ function AppContent() {
                 <MissionsPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'pass' ? (
                 <PassPage profile={profile} onBack={() => setView('home')} />
+              ) : view === 'stats' ? (
+                <StatsPage profile={profile} onBack={() => setView('home')} />
               ) : null}
               </div>
             </div>
@@ -667,6 +682,7 @@ function AppContent() {
               <MenuButton icon={<Calendar />} label="Série" onClick={() => { setShowStreakModal(true); setIsMenuOpen(false); }} />
               
               <MenuButton icon={<Sparkles />} label="Pass" onClick={() => { setView('pass'); setIsMenuOpen(false); }} />
+              <MenuButton icon={<PieChart />} label="Profil" onClick={() => { setView('stats'); setIsMenuOpen(false); }} />
               <MenuButton icon={<Wallet />} label="Banque" onClick={() => { setView('transactions'); setIsMenuOpen(false); }} />
               <MenuButton icon={<BarChart2 />} label="Rank" onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
 

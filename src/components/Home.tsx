@@ -301,8 +301,12 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                 });
                 return newMap;
               });
-            }, (err) => {
-              console.error("Error listening to scores on Home", err);
+            }, (err: any) => {
+              if (err?.code === 'permission-denied' || err?.message?.includes('Missing or insufficient permissions')) {
+                console.warn("[Home] Scores listener permission denied, usually due to active sign-out.");
+              } else {
+                console.error("Error listening to scores on Home:", err);
+              }
             });
             unsubs.push(unsub);
           }
