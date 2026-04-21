@@ -317,7 +317,7 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
                   selectedSeason={selectedSeason}
                 />
               )}
-              {activeTab === 'teams' && <TeamsTab teams={teams} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />}
+              {activeTab === 'teams' && <TeamsTab teams={teams} onTeamClick={onTeamClick} selectedSeason={selectedSeason} standings={standings} />}
               {activeTab === 'stats' && <StatsTab standings={standings} leagueId={leagueId} selectedSeason={selectedSeason} />}
             </motion.div>
           </AnimatePresence>
@@ -360,7 +360,7 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
       {Object.entries(groupedStandings).map(([groupName, groupData]: [string, any]) => (
         <Card key={groupName} className="overflow-x-auto p-0 border border-white/10 bg-black/40">
           <div className="bg-white/5 px-4 py-2 border-b border-white/5">
-            <h3 className="text-xs font-black uppercase text-center text-gray-300 tracking-widest">{groupName}</h3>
+            <h3 className="text-xs font-black uppercase text-center text-gray-300 tracking-widest">{translateCountryName(groupName)}</h3>
           </div>
           <table className="w-full text-left border-collapse">
             <thead>
@@ -384,7 +384,7 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <img src={s.team.logo} alt="" className="w-5 h-5 object-contain" />
-                      <span className="font-bold text-xs truncate max-w-[120px] text-gray-200 group-hover:text-white transition-colors">{s.team.name}</span>
+                      <span className="font-bold text-xs truncate max-w-[120px] text-gray-200 group-hover:text-white transition-colors">{translateCountryName(s.team.name)}</span>
                     </div>
                   </td>
                   <td className="px-2 py-2 text-center text-[11px] font-bold text-gray-400">{s.all.played}</td>
@@ -509,7 +509,7 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: { f
                       <div className="flex items-center gap-2">
                         <img src={f.teams.home.logo} alt="" className="w-4 h-4 object-contain group-hover/team:scale-110 transition-transform" />
                         <span className={`text-[11px] font-bold ${f.teams.home.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors truncate max-w-[120px]`}>
-                          {f.teams.home.name}
+                          {translateCountryName(f.teams.home.name)}
                         </span>
                       </div>
                       <span className="font-black text-sm">{f.goals.home ?? '-'}</span>
@@ -518,7 +518,7 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: { f
                       <div className="flex items-center gap-2">
                         <img src={f.teams.away.logo} alt="" className="w-4 h-4 object-contain group-hover/team:scale-110 transition-transform" />
                         <span className={`text-[11px] font-bold ${f.teams.away.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors truncate max-w-[120px]`}>
-                          {f.teams.away.name}
+                          {translateCountryName(f.teams.away.name)}
                         </span>
                       </div>
                       <span className="font-black text-sm">{f.goals.away ?? '-'}</span>
@@ -586,7 +586,7 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
                         <div className={`flex justify-between items-center px-1 rounded py-0.5 group/team ${f.teams.home.winner ? 'bg-orange-500/10' : ''}`} onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.home.id, selectedSeason); }}>
                           <div className="flex items-center gap-1.5 overflow-hidden">
                             <img src={f.teams.home.logo} alt="" className="w-3.5 h-3.5 object-contain group-hover/team:scale-110 transition-transform" />
-                            <span className={`text-[10px] font-bold truncate group-hover/team:text-orange-500 transition-colors ${f.teams.home.winner ? 'text-white' : 'text-gray-300'}`}>{f.teams.home.name}</span>
+                            <span className={`text-[10px] font-bold truncate group-hover/team:text-orange-500 transition-colors ${f.teams.home.winner ? 'text-white' : 'text-gray-300'}`}>{translateCountryName(f.teams.home.name)}</span>
                           </div>
                           <span className={`text-xs font-black ${f.teams.home.winner ? 'text-orange-500' : 'text-gray-400'}`}>
                             {isFinished ? f.goals.home : '-'}
@@ -596,7 +596,7 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
                         <div className={`flex justify-between items-center px-1 rounded py-0.5 group/team ${f.teams.away.winner ? 'bg-orange-500/10' : ''}`} onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.away.id, selectedSeason); }}>
                           <div className="flex items-center gap-1.5 overflow-hidden">
                             <img src={f.teams.away.logo} alt="" className="w-3.5 h-3.5 object-contain group-hover/team:scale-110 transition-transform" />
-                            <span className={`text-[10px] font-bold truncate group-hover/team:text-orange-500 transition-colors ${f.teams.away.winner ? 'text-white' : 'text-gray-300'}`}>{f.teams.away.name}</span>
+                            <span className={`text-[10px] font-bold truncate group-hover/team:text-orange-500 transition-colors ${f.teams.away.winner ? 'text-white' : 'text-gray-300'}`}>{translateCountryName(f.teams.away.name)}</span>
                           </div>
                           <span className={`text-xs font-black ${f.teams.away.winner ? 'text-orange-500' : 'text-gray-400'}`}>
                             {isFinished ? f.goals.away : '-'}
@@ -669,25 +669,87 @@ function RankingList({ title, data, statLabel, statKey, icon, onTeamClick, selec
   );
 }
 
-function TeamsTab({ teams, onTeamClick, selectedSeason }: { teams: any[]; onTeamClick: (id: number, season: number) => void; selectedSeason: number }) {
+import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
+
+function TeamsTab({ teams, onTeamClick, selectedSeason, standings }: { teams: any[]; onTeamClick: (id: number, season: number) => void; selectedSeason: number; standings?: any[] }) {
+  // If there are groups in standings, we can structure it. Otherwise simple list.
+  const isGroupStage = standings && standings.length > 1 && standings[0].group;
+  
+  if (isGroupStage) {
+    const groupedTeams: Record<string, any[]> = {};
+    standings.forEach(group => {
+      const groupName = group.group || 'Group';
+      groupedTeams[groupName] = [];
+      group.standings.forEach((teamEntry: any) => {
+        const teamObj = teams.find(t => t.team.id === teamEntry.team.id);
+        if (teamObj) {
+           groupedTeams[groupName].push(teamObj);
+        }
+      });
+    });
+
+    return (
+      <div className="space-y-6">
+        {Object.entries(groupedTeams).map(([groupName, groupTeams]) => (
+          <div key={groupName}>
+            <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">{translateCountryName(groupName)}</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {groupTeams.map((t) => (
+                <Card key={t.team.id} onClick={() => onTeamClick(t.team.id, selectedSeason)} className="flex flex-col items-center gap-2 p-3 hover:border-orange-500/50 transition-all group cursor-pointer relative">
+                  {t.team.country && (
+                    <div className="absolute top-2 right-2 flex items-center justify-center">
+                        <span className="text-[8px] font-bold text-gray-500 uppercase">{translateCountryName(t.team.country)}</span>
+                    </div>
+                  )}
+                  <div className="w-12 h-12 bg-white/5 rounded-xl p-2 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
+                    <img src={t.team.logo} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+                  </div>
+                  <div className="text-center w-full">
+                    <h3 className="font-black italic uppercase text-[10px] tracking-widest group-hover:text-orange-500 transition-colors leading-tight truncate px-1">{translateCountryName(t.team.name)}</h3>
+                    <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5 truncate px-1">{t.venue.city}</p>
+                  </div>
+                  <div className="w-full pt-2 border-t border-white/5 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                      <MapPin className="w-2.5 h-2.5 shrink-0" />
+                      <span className="text-[8px] font-bold uppercase truncate">{t.venue.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                      <Users className="w-2.5 h-2.5 shrink-0" />
+                      <span className="text-[8px] font-bold uppercase">{t.venue.capacity?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
       {teams.map((t) => (
-        <Card key={t.team.id} onClick={() => onTeamClick(t.team.id, selectedSeason)} className="flex flex-col items-center gap-2 p-3 hover:border-orange-500/50 transition-all group cursor-pointer">
+        <Card key={t.team.id} onClick={() => onTeamClick(t.team.id, selectedSeason)} className="flex flex-col items-center gap-2 p-3 hover:border-orange-500/50 transition-all group cursor-pointer relative">
+          {t.team.country && (
+            <div className="absolute top-2 right-2 flex items-center justify-center">
+                <span className="text-[8px] font-bold text-gray-500 uppercase">{translateCountryName(t.team.country)}</span>
+            </div>
+          )}
           <div className="w-12 h-12 bg-white/5 rounded-xl p-2 flex items-center justify-center group-hover:bg-orange-500/10 transition-colors">
             <img src={t.team.logo} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
           </div>
-          <div className="text-center">
-            <h3 className="font-black italic uppercase text-[10px] tracking-widest group-hover:text-orange-500 transition-colors leading-tight">{t.team.name}</h3>
-            <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5">{t.venue.city}</p>
+          <div className="text-center w-full">
+            <h3 className="font-black italic uppercase text-[10px] tracking-widest group-hover:text-orange-500 transition-colors leading-tight truncate px-1">{translateCountryName(t.team.name)}</h3>
+            <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5 truncate px-1">{t.venue.city}</p>
           </div>
           <div className="w-full pt-2 border-t border-white/5 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-gray-500">
-              <MapPin className="w-2.5 h-2.5" />
+              <MapPin className="w-2.5 h-2.5 shrink-0" />
               <span className="text-[8px] font-bold uppercase truncate">{t.venue.name}</span>
             </div>
             <div className="flex items-center gap-1.5 text-gray-500">
-              <Users className="w-2.5 h-2.5" />
+              <Users className="w-2.5 h-2.5 shrink-0" />
               <span className="text-[8px] font-bold uppercase">{t.venue.capacity?.toLocaleString()}</span>
             </div>
           </div>
@@ -901,7 +963,7 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
   );
 }
 
-function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams }: { leagueId: number, selectedSeason: number, onTeamClick: (id: number, season: number) => void, teams?: any[] }) {
+export function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams, highlightTeamId }: { leagueId: number, selectedSeason: number, onTeamClick: (id: number, season: number) => void, teams?: any[], highlightTeamId?: number }) {
   const [activeTab, setActiveTab] = useState<'teams' | 'users'>('teams');
   const [metric, setMetric] = useState<'averageScore' | 'totalScore'>('averageScore');
   const [loading, setLoading] = useState(true);
@@ -1085,6 +1147,7 @@ function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams }: { lea
                   }
                 }}
                 className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${activeTab === 'teams' ? 'cursor-pointer hover:border-orange-500/50 hover:bg-white/5' : ''} ${
+                  highlightTeamId && Number(entry.teamId) === highlightTeamId ? 'bg-orange-500/20 border-orange-500/50' :
                   index === 0 ? 'bg-gradient-to-r from-yellow-500/20 to-transparent border-yellow-500/30' :
                   index === 1 ? 'bg-gradient-to-r from-gray-300/10 to-transparent border-gray-400/20' :
                   index === 2 ? 'bg-gradient-to-r from-amber-700/10 to-transparent border-amber-700/20' :

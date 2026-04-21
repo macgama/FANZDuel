@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
+import React, { useState, useEffect, useMemo } from 'react';
+import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Card } from './Layout';
-import { Trophy, Users, Shield, Medal, Activity, ChevronDown } from 'lucide-react';
+import { Trophy, Users, Shield, Medal, Activity, ChevronDown, Search } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -14,10 +14,21 @@ interface RankingEntry {
   averageScore: number;
   matches: number;
   totalScore: number;
+  leagueId?: string;
+  leagueName?: string;
+  countryName?: string;
+  countryFlag?: string | null;
 }
 
 interface RankingsProps {
   onBack: () => void;
+}
+
+interface AvailableLeague {
+  id: string;
+  name: string;
+  countryName: string;
+  countryFlag: string | null;
 }
 
 export function Rankings({ onBack }: RankingsProps) {
@@ -26,11 +37,59 @@ export function Rankings({ onBack }: RankingsProps) {
   const currentYearStr = new Date().getFullYear().toString();
   const prevYearStr = (new Date().getFullYear() - 1).toString();
   const [season, setSeason] = useState<string>(currentYearStr);
+  const [countryId, setCountryId] = useState<string>('global'); // 'global' maps to 'Toutes les régions'
   const [leagueId, setLeagueId] = useState<string>('global');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [rankings, setRankings] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [availableLeagues, setAvailableLeagues] = useState<{id: string, name: string}[]>([{ id: 'global', name: 'Global (Toutes compétitions)' }]);
+  const [availableLeagues, setAvailableLeagues] = useState<AvailableLeague[]>([{ id: 'global', name: 'Global (Toutes compétitions)', countryName: 'Toutes les régions', countryFlag: null }]);
   const [availableSeasons, setAvailableSeasons] = useState<string[]>([currentYearStr, prevYearStr]);
+
+  const uniqueCountries = useMemo(() => {
+    let countries = Array.from(new Set(availableLeagues.filter(l => l.countryName !== 'Toutes les régions').map(l => l.countryName)));
+    if (metric === 'popularity') {
+       rankings.forEach(r => {
+          if (r.countryName) countries.push(r.countryName);
+       });
+    }
+    countries = Array.from(new Set(countries)).sort();
+    return ['Toutes les régions', ...countries];
+  }, [availableLeagues, metric, rankings]);
+
+  const filteredLeagues = useMemo(() => {
+     if (countryId === 'global' || countryId === 'Toutes les régions') return availableLeagues;
+     return availableLeagues.filter(l => l.countryName === countryId || l.id === 'global');
+  }, [availableLeagues, countryId]);
+
+  const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+     const newCountry = e.target.value;
+     setCountryId(newCountry);
+     
+     if (newCountry === 'global' || newCountry === 'Toutes les régions') {
+        setLeagueId('global');
+     } else {
+        const firstLeague = availableLeagues.find(l => l.countryName === newCountry);
+        if (firstLeague) {
+           setLeagueId(firstLeague.id);
+        }
+     }
+  };
+
+  const displayedRankings = useMemo(() => {
+    let result = rankings;
+    if (metric === 'popularity') {
+        if (countryId !== 'global' && countryId !== 'Toutes les régions') {
+            result = result.filter(r => r.countryName === countryId);
+        }
+        if (leagueId !== 'global') {
+            result = result.filter(r => r.leagueId === leagueId);
+        }
+    }
+    if (searchTerm) {
+        result = result.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+    return result;
+  }, [rankings, searchTerm, metric, countryId, leagueId]);
 
   // Reset metric if switching to users and popularity is selected
   useEffect(() => {
@@ -45,6 +104,7 @@ export function Rankings({ onBack }: RankingsProps) {
       try {
         const teamsSnap = await getDocs(collection(db, 'ranking_teams'));
         const usersSnap = await getDocs(collection(db, 'ranking_users'));
+        const rawTeamsSnap = await getDocs(collection(db, 'teams')); // Added to include favorite teams' leagues
 
         const seasonsSet = new Set<string>();
         const leagueIdsSet = new Set<string>();
@@ -61,6 +121,13 @@ export function Rankings({ onBack }: RankingsProps) {
           if (data.leagueId) leagueIdsSet.add(data.leagueId.toString());
         });
 
+        rawTeamsSnap.forEach(doc => {
+          const data = doc.data();
+          if (data.leagueIds && Array.isArray(data.leagueIds)) {
+             data.leagueIds.forEach((lid: any) => leagueIdsSet.add(lid.toString()));
+          }
+        });
+
         if (seasonsSet.size === 0) {
           const currentYear = new Date().getFullYear();
           seasonsSet.add(currentYear.toString());
@@ -75,10 +142,10 @@ export function Rankings({ onBack }: RankingsProps) {
         }
 
         const uniqueLeagueIds = Array.from(leagueIdsSet);
-        const leaguesList: {id: string, name: string}[] = [];
+        const leaguesList: AvailableLeague[] = [];
 
         if (uniqueLeagueIds.includes('global') || uniqueLeagueIds.length === 0) {
-          leaguesList.push({ id: 'global', name: 'Global (Toutes compétitions)' });
+          leaguesList.push({ id: 'global', name: 'Global (Toutes compétitions)', countryName: 'Toutes les régions', countryFlag: null });
         }
 
         if (uniqueLeagueIds.some(id => id !== 'global')) {
@@ -89,9 +156,14 @@ export function Rankings({ onBack }: RankingsProps) {
             if (id !== 'global') {
               const apiLeague = apiLeagues.find((l: any) => l.league.id.toString() === id);
               if (apiLeague) {
-                leaguesList.push({ id, name: apiLeague.league.name });
+                leaguesList.push({ 
+                  id, 
+                  name: apiLeague.league.name,
+                  countryName: apiLeague.country.name,
+                  countryFlag: apiLeague.country.flag
+                });
               } else {
-                leaguesList.push({ id, name: `Compétition ${id}` });
+                leaguesList.push({ id, name: `Compétition ${id}`, countryName: 'Inconnue', countryFlag: null });
               }
             }
           }
@@ -129,23 +201,26 @@ export function Rankings({ onBack }: RankingsProps) {
             }
           });
 
-          // Sort teams by count
-          const sortedTeams = Object.entries(teamCounts)
-            .sort(([, countA], [, countB]) => countB - countA)
-            .slice(0, 50);
-
           let entries: RankingEntry[] = [];
-          for (const [teamId, count] of sortedTeams) {
+          for (const [teamId, count] of Object.entries(teamCounts)) {
             if (!teamId || teamId === 'undefined' || teamId === 'null') continue;
             
             let name = 'Inconnu';
             let imageUrl = '';
+            let leagueName = '';
+            let countryName = '';
+            let countryFlag: string | null = null;
+            let foundLeagueId = '';
             
             try {
               const teamDoc = await getDoc(doc(db, 'teams', teamId));
               if (teamDoc.exists()) {
-                name = teamDoc.data().name;
-                imageUrl = teamDoc.data().logo;
+                const td = teamDoc.data();
+                name = td.name;
+                imageUrl = td.logo;
+                if (td.leagueIds && td.leagueIds.length > 0) {
+                   foundLeagueId = td.leagueIds[0].toString();
+                }
               } else if (!isNaN(Number(teamId))) {
                  try {
                    const { footballApi } = await import('../services/footballApi');
@@ -153,26 +228,64 @@ export function Rankings({ onBack }: RankingsProps) {
                    if (teamData) {
                      name = teamData.team.name;
                      imageUrl = teamData.team.logo;
+                     if (teamData.team.country) {
+                        countryName = teamData.team.country;
+                     }
                    }
                  } catch (e) {
                    console.error(`Failed to fetch team info for ${teamId} from API`, e);
                  }
               }
+
+              if (foundLeagueId && foundLeagueId !== 'global') {
+                const rowLeague = availableLeagues.find(l => l.id === foundLeagueId);
+                if (rowLeague) {
+                  leagueName = rowLeague.name;
+                  countryName = rowLeague.countryName;
+                  countryFlag = rowLeague.countryFlag;
+                }
+              } else if (foundLeagueId === 'global' || !foundLeagueId) {
+                  const td = teamDoc.exists() ? teamDoc.data() : null;
+                  if (td && td.leagueIds && td.leagueIds.length > 0) {
+                     for (const lid of td.leagueIds) {
+                       const rowLeague = availableLeagues.find(l => l.id === lid.toString());
+                       if (rowLeague && rowLeague.countryFlag) {
+                         countryName = rowLeague.countryName;
+                         countryFlag = rowLeague.countryFlag;
+                         break;
+                       }
+                     }
+                  }
+              }
+              
+              // We collect all possible countries in popularity without filtering here.
+              // We filter them out in displayedRankings instead.
             } catch (err) {
               console.error(`Failed to fetch team doc for ${teamId}`, err);
             }
             
             entries.push({
               id: teamId,
-              rank: entries.length + 1,
+              rank: 0,
               name,
               imageUrl,
               averageScore: 0,
               matches: 0,
-              totalScore: count // We use totalScore to store the count for display
+              totalScore: count,
+              leagueId: foundLeagueId,
+              leagueName,
+              countryName,
+              countryFlag
             });
           }
           
+          // Sort teams by count
+          entries.sort((a, b) => b.totalScore - a.totalScore);
+          entries = entries.slice(0, 50).map((entry, index) => ({
+            ...entry,
+            rank: index + 1
+          }));
+
           setRankings(entries);
           setLoading(false);
           
@@ -230,15 +343,24 @@ export function Rankings({ onBack }: RankingsProps) {
               
               let name = 'Inconnu';
               let imageUrl = '';
+              let leagueName = '';
+              let countryName = '';
+              let countryFlag: string | null = null;
 
               if (activeTab === 'teams') {
                 const teamId = data.teamId?.toString();
                 if (!teamId) continue;
                 
+                let foundLeagueId = data.leagueId;
+
                 const teamDoc = await getDoc(doc(db, 'teams', teamId));
                 if (teamDoc.exists()) {
-                  name = teamDoc.data().name;
-                  imageUrl = teamDoc.data().logo;
+                  const td = teamDoc.data();
+                  name = td.name;
+                  imageUrl = td.logo;
+                  if (foundLeagueId === 'global' && td.leagueIds && td.leagueIds.length > 0) {
+                     foundLeagueId = td.leagueIds[0].toString();
+                  }
                 } else if (!isNaN(Number(teamId))) {
                    try {
                      const { footballApi } = await import('../services/footballApi');
@@ -251,6 +373,29 @@ export function Rankings({ onBack }: RankingsProps) {
                      console.error(`Failed to fetch team info for ${teamId}`, e);
                    }
                 }
+
+                if (foundLeagueId && foundLeagueId !== 'global') {
+                  const rowLeague = availableLeagues.find(l => l.id === foundLeagueId.toString());
+                  if (rowLeague) {
+                    leagueName = rowLeague.name;
+                    countryName = rowLeague.countryName;
+                    countryFlag = rowLeague.countryFlag;
+                  }
+                } else if (foundLeagueId === 'global' || !foundLeagueId) {
+                  // If we don't have a specific league but we have leagueIds array, try to find country info from one of them
+                  const td = teamDoc.exists() ? teamDoc.data() : null;
+                  if (td && td.leagueIds && td.leagueIds.length > 0) {
+                     for (const lid of td.leagueIds) {
+                       const rowLeague = availableLeagues.find(l => l.id === lid.toString());
+                       if (rowLeague && rowLeague.countryFlag) {
+                         countryName = rowLeague.countryName;
+                         countryFlag = rowLeague.countryFlag;
+                         break; // Found one with country info
+                       }
+                     }
+                  }
+                }
+
               } else {
                 const userId = data.userId?.toString();
                 if (!userId) continue;
@@ -269,7 +414,10 @@ export function Rankings({ onBack }: RankingsProps) {
                 imageUrl,
                 averageScore: data.averageScore,
                 matches: data.matches,
-                totalScore: data.totalScore
+                totalScore: data.totalScore,
+                leagueName,
+                countryName,
+                countryFlag
               });
             }
 
@@ -401,6 +549,20 @@ export function Rankings({ onBack }: RankingsProps) {
           </h1>
         </div>
 
+        {/* Search */}
+        <div className="px-4">
+           <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <input 
+                type="text" 
+                placeholder={activeTab === 'teams' ? "Rechercher une équipe..." : "Rechercher un supporter..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition-colors text-[13px] sm:text-sm"
+              />
+           </div>
+        </div>
+
         {/* Filters */}
         <div className="px-4">
           <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-4">
@@ -426,9 +588,9 @@ export function Rankings({ onBack }: RankingsProps) {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
             {/* Metric Selector */}
-            <div className="relative col-span-2">
+            <div className="relative col-span-2 sm:col-span-3">
               <select
                 value={metric}
                 onChange={(e) => setMetric(e.target.value as any)}
@@ -444,27 +606,43 @@ export function Rankings({ onBack }: RankingsProps) {
             </div>
 
             {/* Season Selector */}
-            <div className="relative">
+            {metric !== 'popularity' && (
+              <div className="relative">
+                <select
+                  value={season}
+                  onChange={(e) => setSeason(e.target.value)}
+                  className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white font-bold text-[11px] sm:text-sm focus:outline-none focus:border-orange-500 transition-colors truncate pr-8"
+                >
+                  {availableSeasons.map(s => (
+                    <option key={s} value={s}>Saison {s}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            )}
+
+            {/* Country Selector */}
+            <div className={`relative ${metric === 'popularity' ? 'col-span-1' : ''}`}>
               <select
-                value={season}
-                onChange={(e) => setSeason(e.target.value)}
-                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white font-bold text-[11px] sm:text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                value={countryId}
+                onChange={handleCountryChange}
+                className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white font-bold text-[11px] sm:text-sm focus:outline-none focus:border-orange-500 transition-colors truncate pr-8"
               >
-                {availableSeasons.map(s => (
-                  <option key={s} value={s}>Saison {s}</option>
+                {uniqueCountries.map(c => (
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
 
             {/* League Selector */}
-            <div className="relative">
+            <div className={`relative ${metric === 'popularity' ? 'col-span-1' : 'col-span-2 sm:col-span-1'}`}>
               <select
                 value={leagueId}
                 onChange={(e) => setLeagueId(e.target.value)}
                 className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white font-bold text-[11px] sm:text-sm focus:outline-none focus:border-orange-500 transition-colors truncate pr-8 sm:pr-10"
               >
-                {availableLeagues.map(l => (
+                {filteredLeagues.map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
               </select>
@@ -481,14 +659,14 @@ export function Rankings({ onBack }: RankingsProps) {
           <div className="flex justify-center items-center py-12">
             <Activity className="w-8 h-8 text-orange-500 animate-spin" />
           </div>
-        ) : rankings.length === 0 ? (
+        ) : displayedRankings.length === 0 ? (
           <div className="text-center py-12 bg-white/5 rounded-2xl border border-white/10">
             <Trophy className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400 font-medium">Aucun classement disponible pour ces critères.</p>
           </div>
         ) : (
           <AnimatePresence>
-            {rankings.map((entry, index) => (
+            {displayedRankings.map((entry, index) => (
               <motion.div
                 key={entry.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -522,6 +700,12 @@ export function Rankings({ onBack }: RankingsProps) {
                   <h3 className={`font-black uppercase truncate leading-tight ${index === 0 ? 'text-yellow-400 text-[11px] sm:text-lg' : 'text-white text-[10px] sm:text-base'}`}>
                     {entry.name}
                   </h3>
+                  {activeTab === 'teams' && (entry.leagueName || entry.countryFlag) && (
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[9px] sm:text-xs text-gray-400 font-medium truncate">
+                       {entry.countryFlag && <img src={entry.countryFlag} alt={entry.countryName} className="w-3.5 h-2.5 sm:w-4 sm:h-3 object-cover rounded-[2px]" referrerPolicy="no-referrer" />}
+                       <span className="truncate">{entry.leagueName || entry.countryName}</span>
+                    </div>
+                  )}
                   {metric !== 'popularity' && (
                     <p className="text-[9px] sm:text-xs text-gray-400 font-medium truncate mt-0.5 sm:mt-0">
                       {entry.matches} match{entry.matches > 1 ? 's' : ''} joué{entry.matches > 1 ? 's' : ''}

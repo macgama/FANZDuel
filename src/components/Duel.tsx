@@ -1252,6 +1252,32 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   }
                 }
               }
+
+              // Also save the finished duel to Firestore for stats
+              try {
+                await setDoc(doc(db, 'duels', duel.id), {
+                  id: duel.id,
+                  type: duel.type,
+                  status: 'finished',
+                  matchId: Number(duel.matchId) || 0,
+                  match: {
+                    leagueId: Number(safeLeagueId) || 0,
+                    teams: [Number(safeTeamAId), Number(safeTeamBId)].filter(id => id > 0)
+                  },
+                  teamA: safeTeamAId,
+                  teamB: safeTeamBId,
+                  teams: [Number(safeTeamAId), Number(safeTeamBId)].filter(id => id > 0),
+                  participants: duel.participants.map(p => ({
+                    uid: p.uid,
+                    team: p.team,
+                    usedCards: (p as any).usedCards || 0
+                  })),
+                  scores: (duel as any).scores || { A: scoreA, B: scoreB },
+                  finishedAt: new Date().toISOString()
+                });
+              } catch (e) {
+                console.error("Failed to save finished duel stats", e);
+              }
             }
           } catch (rankingError) {
             console.error("Error updating rankings", rankingError);

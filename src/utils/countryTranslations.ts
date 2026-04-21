@@ -42,6 +42,7 @@ export const countryTranslations: Record<string, string> = {
   "Colombia": "Colombie",
   "Comoros": "Comores",
   "Congo": "Congo",
+  "Congo DR": "RDC",
   "Congo-DR": "RDC",
   "Costa Rica": "Costa Rica",
   "Costa-Rica": "Costa Rica",

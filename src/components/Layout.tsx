@@ -48,13 +48,14 @@ export function Button({
   size = 'md',
   ...props 
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { 
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
 }) {
   const variants = {
     primary: `bg-orange-600 hover:bg-orange-700 text-white`,
     secondary: `bg-white text-black hover:bg-gray-200`,
     outline: `border border-white/20 hover:border-orange-500 text-white`,
+    destructive: `bg-red-600 hover:bg-red-700 text-white`,
   };
 
   const sizes = {

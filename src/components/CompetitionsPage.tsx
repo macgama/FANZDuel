@@ -10,18 +10,26 @@ import { translateCountryName, translateLeagueName } from '../utils/countryTrans
 
 // Simple continent mapping helper
 const getContinent = (country: string): string => {
-  const mapping: Record<string, string[]> = {
-    'Europe': ['France', 'England', 'Spain', 'Germany', 'Italy', 'Portugal', 'Netherlands', 'Belgium', 'Turkey', 'Greece', 'Scotland', 'Wales', 'Ireland', 'Switzerland', 'Austria', 'Denmark', 'Norway', 'Sweden', 'Poland', 'Ukraine', 'Russia', 'Croatia', 'Serbia', 'Czech-Republic', 'Hungary', 'Romania', 'Bulgaria'],
-    'Amérique du Sud': ['Brazil', 'Argentina', 'Uruguay', 'Chile', 'Colombia', 'Ecuador', 'Peru', 'Paraguay', 'Bolivia', 'Venezuela'],
-    'Amérique du Nord': ['USA', 'Mexico', 'Canada', 'Costa-Rica', 'Jamaica', 'Panama', 'Honduras', 'El-Salvador'],
-    'Afrique': ['Egypt', 'Morocco', 'Senegal', 'Algeria', 'Tunisia', 'Nigeria', 'Cameroon', 'Ghana', 'Ivory-Coast', 'South-Africa'],
-    'Asie': ['Japan', 'South-Korea', 'Saudi-Arabia', 'Qatar', 'UAE', 'China', 'Australia', 'Iran', 'Iraq', 'Uzbekistan'],
-    'Monde': ['World']
-  };
+  const europe = ['Albania', 'Andorra', 'Armenia', 'Austria', 'Azerbaijan', 'Belarus', 'Belgium', 'Bosnia & Herzegovina', 'Bosnia and Herzegovina', 'Bulgaria', 'Croatia', 'Cyprus', 'Czech Republic', 'Czech-Republic', 'Czechia', 'Denmark', 'Estonia', 'Faroe-Islands', 'Finland', 'France', 'Georgia', 'Germany', 'Gibraltar', 'Greece', 'Hungary', 'Iceland', 'Ireland', 'Republic of Ireland', 'Israel', 'Italy', 'Kazakhstan', 'Kosovo', 'Latvia', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Malta', 'Moldova', 'Monaco', 'Montenegro', 'Netherlands', 'Northern Ireland', 'Northern-Ireland', 'Norway', 'Poland', 'Portugal', 'Romania', 'Russia', 'San Marino', 'San-Marino', 'Scotland', 'Serbia', 'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'Switzerland', 'Turkey', 'Ukraine', 'Wales', 'United Kingdom', 'England', 'Macedonia', 'North Macedonia', 'North-Macedonia'];
+  
+  const southAmerica = ['Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Ecuador', 'Paraguay', 'Peru', 'Uruguay', 'Venezuela', 'Suriname', 'Guyana'];
+  
+  const northAmerica = ['Antigua and Barbuda', 'Bahamas', 'Barbados', 'Belize', 'Canada', 'Costa Rica', 'Costa-Rica', 'Cuba', 'Dominica', 'Dominican Republic', 'Dominican-Republic', 'El Salvador', 'El-Salvador', 'Grenada', 'Guatemala', 'Haiti', 'Honduras', 'Jamaica', 'Mexico', 'Nicaragua', 'Panama', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Trinidad and Tobago', 'Trinidad-And-Tobago', 'United States', 'USA'];
+  
+  const africa = ['Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burkina-Faso', 'Burundi', 'Cabo Verde', 'Cabo-Verde', 'Cameroon', 'Central African Republic', 'Central-African-Republic', 'Chad', 'Comoros', 'Congo', 'Congo-DR', 'Djibouti', 'Egypt', 'Equatorial Guinea', 'Equatorial-Guinea', 'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon', 'Gambia', 'Ghana', 'Guinea', 'Guinea-Bissau', 'Ivory Coast', 'Ivory-Coast', "Cote d'Ivoire", 'Kenya', 'Lesotho', 'Liberia', 'Libya', 'Madagascar', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Morocco', 'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Rwanda', 'Sao Tome and Principe', 'Senegal', 'Seychelles', 'Sierra Leone', 'Sierra-Leone', 'Somalia', 'South Africa', 'South-Africa', 'South Sudan', 'Sudan', 'Tanzania', 'Togo', 'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe'];
+  
+  const asia = ['Afghanistan', 'Bahrain', 'Bangladesh', 'Bhutan', 'Brunei', 'Cambodia', 'China', 'India', 'Indonesia', 'Iran', 'Iraq', 'Japan', 'Jordan', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Lebanon', 'Malaysia', 'Maldives', 'Mongolia', 'Myanmar', 'Nepal', 'North Korea', 'North-Korea', 'Oman', 'Pakistan', 'Palestine', 'Philippines', 'Qatar', 'Saudi Arabia', 'Saudi-Arabia', 'Singapore', 'South Korea', 'South-Korea', 'Sri Lanka', 'Syria', 'Taiwan', 'Tajikistan', 'Thailand', 'Timor-Leste', 'Turkmenistan', 'United Arab Emirates', 'United-Arab-Emirates', 'Uzbekistan', 'Vietnam', 'Yemen', 'Macao', 'Hong-Kong'];
 
-  for (const [continent, countries] of Object.entries(mapping)) {
-    if (countries.includes(country)) return continent;
-  }
+  const oceania = ['Australia', 'Fiji', 'Kiribati', 'Marshall Islands', 'Micronesia', 'Nauru', 'New Zealand', 'New-Zealand', 'Palau', 'Papua New Guinea', 'Papua-New-Guinea', 'Samoa', 'Solomon Islands', 'Tonga', 'Tuvalu', 'Vanuatu', 'Tahiti', 'New-Caledonia'];
+
+  if (europe.includes(country)) return 'Europe';
+  if (southAmerica.includes(country)) return 'Amérique du Sud';
+  if (northAmerica.includes(country)) return 'Amérique du Nord';
+  if (africa.includes(country)) return 'Afrique';
+  if (asia.includes(country)) return 'Asie';
+  if (oceania.includes(country)) return 'Océanie';
+  if (country === 'World') return 'Monde';
+
   return 'Autres';
 };
 
@@ -70,7 +78,7 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
     
     leagues.forEach(l => {
       const continent = getContinent(l.country.name);
-      const country = l.country.name;
+      const country = translateCountryName(l.country.name);
       
       if (!continents[continent]) continents[continent] = {};
       if (!continents[continent][country]) {

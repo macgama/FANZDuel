@@ -27,6 +27,7 @@ import { translateCountryName, translateLeagueName } from '../utils/countryTrans
 import { collection, query, where, orderBy, limit, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
+import { TbfoRankingsTab } from './LeagueDetails';
 
 interface TeamDetailsProps {
   teamId: number;
@@ -49,6 +50,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'matches' | 'players' | 'standings' | 'stats' | 'rankings' | 'tbfo'>('matches');
+  const [currentLeagueId, setCurrentLeagueId] = useState<number | null>(null);
 
   // Fetch team info and available seasons
   useEffect(() => {
@@ -103,6 +105,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
       // If we have a league from fixtures, fetch standings and stats
       if (fixturesData.length > 0) {
         const leagueId = fixturesData[0].league.id;
+        setCurrentLeagueId(leagueId);
         const [standingsResults, statsResults] = await Promise.allSettled([
           footballDataService.getStandings(leagueId, selectedSeason, force),
           footballApi.getTeamStats(leagueId, teamId, selectedSeason)
@@ -315,7 +318,11 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               {activeTab === 'rankings' && <TeamRankingsTab players={players} />}
               {activeTab === 'players' && <PlayersTab players={players} />}
               {activeTab === 'stats' && <StatsTab stats={stats} teamId={teamId} selectedSeason={selectedSeason} />}
-              {activeTab === 'tbfo' && <TbfoRankingsTab teamId={teamId} selectedSeason={selectedSeason} />}
+              {activeTab === 'tbfo' && currentLeagueId ? (
+                <TbfoRankingsTab leagueId={currentLeagueId} selectedSeason={selectedSeason} onTeamClick={onTeamClick} highlightTeamId={teamId} />
+              ) : activeTab === 'tbfo' ? (
+                <Card className="py-10 text-center text-gray-500">Données de ligue non disponibles.</Card>
+              ) : null}
             </motion.div>
           </AnimatePresence>
         </>
@@ -620,7 +627,8 @@ function StatsTab({ stats, teamId, selectedSeason }: { stats: any, teamId: numbe
 
         const duelsQ = query(
           collection(db, 'duels'),
-          limit(100) // Dummy limitation since we don't have a specific `teamId` array index configured, real app would query appropriately
+          where('teams', 'array-contains', teamId),
+          limit(500)
         );
         let dCount = 0;
         let d1v1 = 0;
@@ -631,26 +639,19 @@ function StatsTab({ stats, teamId, selectedSeason }: { stats: any, teamId: numbe
         
         try {
            const duelsSnap = await getDocs(duelsQ);
+           dCount = duelsSnap.docs.length;
            duelsSnap.docs.forEach(doc => {
              const data = doc.data();
-             // Assuming match.teams might exist or similar
-             const isIncluded = data?.match?.teams?.includes(teamId) || 
-                                data?.creator?.teamId === teamId ||
-                                data?.opponent?.teamId === teamId;
+             if (data.type === '1v1') d1v1++;
+             else if (data.type === '2v2') d2v2++;
+             else if (data.type === '5v5') d5v5++;
+             else if (data.type === 'war_of_kops') dKop++;
+             else if (data.type === 'kop') dKop++;
              
-             if (isIncluded) {
-               dCount++;
-               if (data.type === '1v1') d1v1++;
-               else if (data.type === '2v2') d2v2++;
-               else if (data.type === '5v5') d5v5++;
-               else if (data.type === 'kop') dKop++;
-               else if (data.type === 'team') dKop++;
-               
-               if (data.participants) {
-                 data.participants.forEach((p: any) => {
-                   if (p.usedCards) totalCards += p.usedCards;
-                 });
-               }
+             if (data.participants) {
+               data.participants.forEach((p: any) => {
+                 if (p.usedCards) totalCards += p.usedCards;
+               });
              }
            });
         } catch(e) {}
@@ -777,171 +778,6 @@ function StatItem({ label, value }: { label: string; value: any }) {
     <div className="flex flex-col">
       <span className="text-[8px] font-bold text-gray-500 uppercase">{label}</span>
       <span className="text-sm font-black italic text-orange-500">{value}</span>
-    </div>
-  );
-}
-
-function TbfoRankingsTab({ teamId, selectedSeason }: { teamId: number, selectedSeason: number }) {
-  const [metric, setMetric] = useState<'averageScore' | 'totalScore'>('averageScore');
-  const [loading, setLoading] = useState(true);
-  const [rankings, setRankings] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchRankings = async () => {
-      setLoading(true);
-      try {
-        const collectionName = 'ranking_users';
-        let entries: any[] = [];
-        
-        let snapshot;
-        try {
-          const q = query(
-            collection(db, collectionName),
-            where('season', '==', selectedSeason.toString()),
-            where('teamId', '==', teamId.toString()),
-            orderBy(metric, 'desc'),
-            limit(50)
-          );
-          snapshot = await getDocs(q);
-        } catch (e) {
-          const fallbackQ = query(
-            collection(db, collectionName),
-            where('season', '==', selectedSeason.toString()),
-            where('teamId', '==', teamId.toString())
-          );
-          const fallbackSnap = await getDocs(fallbackQ);
-          const sortedDocs = [...fallbackSnap.docs].sort((a, b) => {
-            const valA = a.data()[metric] || 0;
-            const valB = b.data()[metric] || 0;
-            return valB - valA;
-          }).slice(0, 50);
-          snapshot = { docs: sortedDocs };
-        }
-
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          let name = 'Inconnu';
-          let imageUrl = '';
-
-          const uId = data.userId?.toString();
-          if (!uId) continue;
-          try {
-            const userDoc = await getDoc(doc(db, 'users', uId));
-            if (userDoc.exists()) {
-              name = userDoc.data().pseudo || 'Supporter';
-              imageUrl = userDoc.data().photoURL;
-            }
-          } catch(e) {}
-
-          entries.push({
-            id: docSnap.id,
-            name,
-            imageUrl,
-            averageScore: data.averageScore || 0,
-            matches: data.matches || 0,
-            totalScore: data.totalScore || 0,
-            rank: 0
-          });
-        }
-
-        entries = entries.map((e, index) => ({ ...e, rank: index + 1 }));
-        setRankings(entries);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRankings();
-  }, [metric, teamId, selectedSeason]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-2 p-1 bg-black/40 rounded-xl max-w-sm mx-auto">
-        <button
-          className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 bg-blue-500 text-white shadow-lg`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          Supporters
-        </button>
-      </div>
-
-      <div className="flex justify-center mb-4">
-        <div className="relative inline-block w-48">
-          <select
-            value={metric}
-            onChange={(e) => setMetric(e.target.value as any)}
-            className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white font-bold text-[10px] text-center focus:outline-none focus:border-orange-500 transition-colors"
-          >
-            <option value="averageScore">Points par match</option>
-            <option value="totalScore">Total des points</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {loading ? (
-          <div className="flex justify-center items-center py-10">
-            <Activity className="w-6 h-6 text-orange-500 animate-spin" />
-          </div>
-        ) : rankings.length === 0 ? (
-          <Card className="py-10 text-center text-gray-500">Aucun classement de supporters disponible pour cette équipe.</Card>
-        ) : (
-          <AnimatePresence>
-            {rankings.map((entry, index) => (
-              <motion.div
-                key={entry.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${
-                  index === 0 ? 'bg-gradient-to-r from-yellow-500/20 to-transparent border-yellow-500/30' :
-                  index === 1 ? 'bg-gradient-to-r from-gray-300/10 to-transparent border-gray-400/20' :
-                  index === 2 ? 'bg-gradient-to-r from-amber-700/10 to-transparent border-amber-700/20' :
-                  'bg-black/40 border-white/5'
-                }`}
-              >
-                <div className="flex items-center justify-center w-6 font-black text-xs shrink-0">
-                  {index === 0 ? <Medal className="w-5 h-5 text-yellow-400" /> :
-                   index === 1 ? <Medal className="w-4 h-4 text-gray-300" /> :
-                   index === 2 ? <Medal className="w-4 h-4 text-amber-600" /> :
-                   <span className="text-gray-500">{entry.rank}</span>}
-                </div>
-
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-white/5 shrink-0 flex items-center justify-center border border-white/10">
-                  {entry.imageUrl ? (
-                    <img src={getImageUrl(entry.imageUrl)} alt={entry.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${entry.id}`} alt={entry.name} className="w-full h-full object-cover bg-white/10" />
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h3 className={`font-bold truncate text-[11px] ${index === 0 ? 'text-yellow-400' : 'text-white'}`}>
-                    {entry.name}
-                  </h3>
-                  <p className="text-[9px] text-gray-400">
-                    {entry.matches} match{entry.matches > 1 ? 's' : ''}
-                  </p>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <div className="text-sm font-black text-white">
-                    {metric === 'averageScore' ? (
-                      <>{entry.averageScore != null ? entry.averageScore.toFixed(1) : '0.0'}</>
-                    ) : (
-                      <>{entry.totalScore || 0}</>
-                    )}
-                  </div>
-                  <div className="text-[8px] text-gray-500 font-bold uppercase">
-                    {metric === 'averageScore' ? 'pts/m' : 'pts'}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        )}
-      </div>
     </div>
   );
 }
