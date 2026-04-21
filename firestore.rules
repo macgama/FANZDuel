@@ -278,18 +278,11 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated(); // Allow reading other users for duels/leaderboards
-      allow create: if isAuthenticated() && isOwner(userId);
-      allow update: if isAuthenticated() && (
-        isOwner(userId) || isAdmin() || isFriendRequestUpdate() || isFriendUpdate()
-      );
+      allow read, write: if true;
     }
 
     match /fanz/{fanzId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(request.resource.data.ownerUid);
-      allow update: if isAuthenticated() && (isOwner(resource.data.ownerUid) || isAdmin());
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     match /fanz_templates/{templateId} {

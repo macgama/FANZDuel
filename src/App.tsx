@@ -354,7 +354,10 @@ function AppContent() {
   if (!user || (!profile && !loading)) {
     return (
       <Layout containerClassName="flex flex-col">
-        <Auth onAuthSuccess={() => {}} />
+        <Auth onAuthSuccess={() => {
+          setIsMenuOpen(false);
+          _setView('home');
+        }} />
       </Layout>
     );
   }
@@ -404,7 +407,7 @@ function AppContent() {
 
              <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1">
                 <SidebarButton icon={<Store />} label="Boutique" active={view==='shop'} onClick={() => { setView('shop'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                <SidebarButton icon={<LogOut />} label="Quitter" active={false} onClick={() => signOut(auth)} isDanger />
+                <SidebarButton icon={<LogOut />} label="Quitter" active={false} onClick={() => { setIsMenuOpen(false); _setView('home'); signOut(auth); }} isDanger />
              </div>
           </div>
         </aside>
@@ -678,7 +681,11 @@ function AppContent() {
 
           <div className="p-4 sm:p-8 mt-auto border-t border-white/10 shrink-0">
             <button 
-              onClick={() => signOut(auth)}
+              onClick={() => {
+                setIsMenuOpen(false);
+                _setView('home');
+                signOut(auth);
+              }}
               className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 rounded-xl font-bold hover:bg-red-500/20 transition-colors"
             >
               <LogOut className="w-5 h-5" />
