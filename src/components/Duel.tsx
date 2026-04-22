@@ -515,15 +515,38 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [participants, setParticipants] = useState<any[]>(duel.participants || []);
   const [currentDuelId, setCurrentDuelIdState] = useState<string>(duel.id);
   const currentDuelIdRef = useRef(duel.id);
+  const initialDuelType = useRef(duel.type).current;
   const [floatingEffects, setFloatingEffects] = useState<FloatingEffect[]>([]);
   const [matchDetails, setMatchDetails] = useState<any>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Persistence: Store/Clear current duel
+  useEffect(() => {
+    if (duel.id) {
+      localStorage.setItem('tbfo_current_duel', JSON.stringify({
+        id: duel.id,
+        type: duel.type,
+        matchId: parseInt(duel.matchId || '0')
+      }));
+    }
+  }, [duel.id, duel.type, duel.matchId]);
+
+  const clearDuelPersistence = () => {
+    console.log("[Duel] Clearing duel persistence");
+    localStorage.removeItem('tbfo_current_duel');
+  };
+
+  const onExitHandler = (status?: string) => {
+    clearDuelPersistence();
+    onExit(status);
+  };
+
   const [playedCardAnim, setPlayedCardAnim] = useState<{ card: GameCard, id: string } | null>(null);
   const [enemyPlayedCardAnim, setEnemyPlayedCardAnim] = useState<{ card: GameCard, id: string } | null>(null);
 
   const handleExitRequest = () => {
     if (status === 'finished') {
-      onExit(status);
+      onExitHandler('finished');
     } else {
       setShowExitConfirm(true);
     }
@@ -531,7 +554,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
   const confirmExit = () => {
     socket?.emit('leave-duel', { duelId: currentDuelIdRef.current, userId: user.uid });
-    onExit(status);
+    onExitHandler(status);
   };
 
   useEffect(() => {
@@ -718,25 +741,29 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setAllEmotes(emotes);
 
         // Fetch User Fanz Emotes to sync
-        const fanzQ = query(collection(db, 'fanz'), where('ownerUid', '==', user.uid));
-        const fanzSnapshots = await getDocs(fanzQ);
-        const fanzEmotes: string[] = [];
-        fanzSnapshots.forEach(doc => {
-          const data = doc.data();
-          if (data.unlockedEmotes) {
-            fanzEmotes.push(...data.unlockedEmotes);
+        if (userSnap.exists()) {
+          const userData = userSnap.data() as UserProfile;
+          
+          // Filter emotes: user global emotes + current FANZ emotes
+          let fanzEmotes: string[] = [];
+          if (fanzSnap && fanzSnap.exists()) {
+            const fanzData = fanzSnap.data() as Fanz;
+            setFanz(fanzData);
+            if (fanzData.unlockedEmotes) {
+              fanzEmotes = fanzData.unlockedEmotes;
+            }
           }
-        });
-        
-        const combinedEmotes = Array.from(new Set([
-          ...(user.emotes || []),
-          ...fanzEmotes
-        ]));
-        setUnlockedEmoteIds(combinedEmotes);
 
-        const shuffled = [...cardsToUse].sort(() => Math.random() - 0.5);
-        setDeck(shuffled);
-        setHand(shuffled.slice(0, 4));
+          const combinedEmotes = Array.from(new Set([
+            ...(userData.emotes || []),
+            ...fanzEmotes
+          ]));
+          setUnlockedEmoteIds(combinedEmotes);
+
+          const shuffled = [...cardsToUse].sort(() => Math.random() - 0.5);
+          setDeck(shuffled);
+          setHand(shuffled.slice(0, 4));
+        }
       } catch (err) {
         console.error("Error initializing duel data", err);
       }
@@ -793,7 +820,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         matchId: duel.matchId,
         team: selectedTeam === teamA ? 'A' : 'B',
         isPrivate: duel.isPrivate,
-        inviteCode: duel.inviteCode
+        inviteCode: duel.inviteCode,
+        teamAId,
+        teamBId,
+        teamA,
+        teamB,
+        leagueId: duelLeagueId,
+        season: duelSeason
       });
     };
 
@@ -1309,130 +1342,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             }
           }
 
-          // Update Rankings (Season & League)
-          try {
-            const { runTransaction } = await import('firebase/firestore');
-            
-            const seasonsToUpdate = [matchSeason];
-            if (currentYear !== matchSeason) {
-              seasonsToUpdate.push(currentYear);
-            }
-
-            const updateRanking = async (collectionName: string, entityIdField: string, entityId: string, seasonStr: string, leagueIdStr: string, scoreToAdd: number) => {
-              const safeEntityId = entityId.toString();
-              const safeSeason = seasonStr.toString();
-              const safeLeagueId = leagueIdStr.toString();
-              const safeScore = Number(scoreToAdd);
-              
-              const docId = `${safeEntityId}_${safeSeason}_${safeLeagueId}`;
-              const docRef = doc(db, collectionName, docId);
-
-              try {
-                await runTransaction(db, async (transaction) => {
-                  const docSnap = await transaction.get(docRef);
-                  let totalScore = safeScore;
-                  let matches = 1;
-
-                  if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    totalScore = Number(data.totalScore || 0) + safeScore;
-                    matches = Number(data.matches || 0) + 1;
-                  }
-
-                  const averageScore = matches > 0 ? (totalScore / matches) : 0;
-
-                  transaction.set(docRef, {
-                    [entityIdField]: safeEntityId,
-                    season: safeSeason,
-                    leagueId: safeLeagueId,
-                    totalScore,
-                    matches,
-                    averageScore,
-                    updatedAt: new Date().toISOString()
-                  }, { merge: true });
-                });
-                console.log(`[Ranking] Updated ${collectionName} for ${safeEntityId} (Season: ${safeSeason}, League: ${safeLeagueId}) with +${safeScore}`);
-              } catch (e) {
-                console.error(`[Ranking] Failed to update ${collectionName} for ${safeEntityId}`, e);
-              }
-            };
-
-            // 1. Every user updates THEIR OWN User Ranking
-            // Use myScore (which is my team's global score corresponding to scoreA or scoreB appropriately)
-            const myGlobalScore = currentMyTeam === 'A' ? Number(scoreA) : Number(scoreB);
-            
-            for (const s of seasonsToUpdate) {
-              await updateRanking('ranking_users', 'userId', user.uid, s, 'global', myGlobalScore);
-              if (safeLeagueId !== 'global') {
-                await updateRanking('ranking_users', 'userId', user.uid, s, safeLeagueId, myGlobalScore);
-              }
-            }
-
-            // 2. Only a designated writer updates the Team Rankings to avoid duplicate matches added
-            let isDesignatedWriter = false;
-            try {
-              const lockRef = doc(db, 'duel_locks', `team_rankings_${duel.id}`);
-              await runTransaction(db, async (transaction) => {
-                const lockDoc = await transaction.get(lockRef);
-                if (!lockDoc.exists()) {
-                  transaction.set(lockRef, { processedAt: new Date().toISOString(), byUser: user.uid });
-                  isDesignatedWriter = true;
-                } else {
-                  isDesignatedWriter = false;
-                }
-              });
-            } catch (lockError) {
-              console.error("[Duel] Failed to acquire lock for team ranking updates", lockError);
-            }
-
-            if (isDesignatedWriter) {
-              for (const s of seasonsToUpdate) {
-                // Team Rankings (Home Team) - Maps to globalScoreA
-                if (safeTeamAId) {
-                  await updateRanking('ranking_teams', 'teamId', safeTeamAId as string, s, 'global', Number(globalScoreA));
-                  if (safeLeagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', safeTeamAId as string, s, safeLeagueId, Number(globalScoreA));
-                  }
-                }
-
-                // Team Rankings (Away Team) - Maps to globalScoreB
-                if (safeTeamBId) {
-                  await updateRanking('ranking_teams', 'teamId', safeTeamBId as string, s, 'global', Number(globalScoreB));
-                  if (safeLeagueId !== 'global') {
-                    await updateRanking('ranking_teams', 'teamId', safeTeamBId as string, s, safeLeagueId, Number(globalScoreB));
-                  }
-                }
-              }
-
-              // Also save the finished duel to Firestore for stats
-              try {
-                await setDoc(doc(db, 'duels', duel.id), {
-                  id: duel.id,
-                  type: duel.type,
-                  status: 'finished',
-                  matchId: Number(duel.matchId) || 0,
-                  match: {
-                    leagueId: Number(safeLeagueId) || 0,
-                    teams: [Number(safeTeamAId), Number(safeTeamBId)].filter(id => id > 0)
-                  },
-                  teamA: safeTeamAId,
-                  teamB: safeTeamBId,
-                  teams: [Number(safeTeamAId), Number(safeTeamBId)].filter(id => id > 0),
-                  participants: duel.participants.map(p => ({
-                    uid: p.uid,
-                    team: p.team,
-                    usedCards: (p as any).usedCards || 0
-                  })),
-                  scores: (duel as any).scores || { A: scoreA, B: scoreB },
-                  finishedAt: new Date().toISOString()
-                });
-              } catch (e) {
-                console.error("Failed to save finished duel stats", e);
-              }
-            }
-          } catch (rankingError) {
-            console.error("Error updating rankings", rankingError);
-          }
+          // Rankings and Duel history are now securely processed server-side.
           
           ferveurGain = ferveurGainFanz;
           teamGain = ferveurGainGeneral;
@@ -2473,7 +2383,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
               <div className="flex flex-col gap-3">
                 <Button 
-                  onClick={() => onExit(status)}
+                  onClick={() => onExitHandler('finished')}
                   className="w-full py-4 text-lg"
                 >
                   {duel.matchId === 'global' ? 'Quitter' : 'Retour au match'}

@@ -3,14 +3,30 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import fs from "fs";
 import axios from "axios";
 import * as dotenv from "dotenv";
 import sharp from "sharp";
 import { BASE_CARDS } from "./src/constants/cards.ts";
+import admin from 'firebase-admin';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 dotenv.config();
 
 async function startServer() {
+  const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
+  let db: admin.firestore.Firestore | null = null;
+  
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        projectId: config.projectId,
+      });
+    }
+    db = getFirestore(config.firestoreDatabaseId || '(default)');
+  }
+
   const app = express();
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
@@ -22,18 +38,26 @@ async function startServer() {
   const PORT = 3000;
 
   // Enhanced game state for duels
-    const duels: Record<string, {
+  const duels: Record<string, {
     id: string;
     type: string;
     status: 'waiting' | 'starting' | 'active' | 'finished';
     progress: number;
     participants: any[];
     matchId?: number;
+    leagueId?: string;
+    season?: string;
+    teamAId?: string;
+    teamBId?: string;
+    teamA?: string;
+    teamB?: string;
     startTime?: number;
     timer?: NodeJS.Timeout;
     scores?: { A: number; B: number };
     clickCounts: { A: number; B: number };
     cardCounts: { A: number; B: number };
+    lastClicks: Record<string, number[]>; // For anti-clicker: maps uid to array of timestamps
+    lockedCards: Record<string, boolean>; // For server-side card verification cache/status
     botInterval?: NodeJS.Timeout;
     isPrivate?: boolean;
     inviteCode?: string;
@@ -90,12 +114,118 @@ async function startServer() {
     };
 
     io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB, details });
+
+    // Server-side database updates
+    if (db && duel.type !== 'training') {
+      (async () => {
+        try {
+          const seasonsToUpdate = [];
+          if (duel.season) seasonsToUpdate.push(duel.season);
+          const currentYear = new Date().getFullYear().toString();
+          if (currentYear !== duel.season && duel.season) {
+            seasonsToUpdate.push(currentYear);
+          }
+
+          const updateRanking = async (collectionName: string, entityIdField: string, entityId: string, seasonStr: string, leagueIdStr: string, scoreToAdd: number) => {
+            if (!entityId || !seasonStr || !leagueIdStr || !db) return;
+            const safeEntityId = entityId.toString();
+            const safeSeason = seasonStr.toString();
+            const safeLeagueId = leagueIdStr.toString();
+            
+            const docId = `${safeEntityId}_${safeSeason}_${safeLeagueId}`;
+            const docRef = db.collection(collectionName).doc(docId);
+
+            await db.runTransaction(async (transaction) => {
+              const docSnap = await transaction.get(docRef);
+              let totalScore = scoreToAdd;
+              let matches = 1;
+
+              if (docSnap.exists) {
+                const data = docSnap.data()!;
+                totalScore = Number(data.totalScore || 0) + scoreToAdd;
+                matches = Number(data.matches || 0) + 1;
+              }
+
+              const averageScore = matches > 0 ? (totalScore / matches) : 0;
+
+              transaction.set(docRef, {
+                [entityIdField]: safeEntityId,
+                season: safeSeason,
+                leagueId: safeLeagueId,
+                totalScore,
+                matches,
+                averageScore,
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
+            });
+            console.log(`[Server Ranking] Updated ${collectionName} for ${safeEntityId} with +${scoreToAdd}`);
+          };
+
+          // Update users
+          for (const p of duel.participants) {
+            if (p.uid.startsWith('bot_')) continue;
+            const userScore = p.team === 'A' ? scoreA : scoreB;
+            for (const s of seasonsToUpdate) {
+              if (!s) continue;
+              await updateRanking('ranking_users', 'userId', p.uid, s, 'global', userScore);
+              if (duel.leagueId && duel.leagueId !== 'global') {
+                await updateRanking('ranking_users', 'userId', p.uid, s, duel.leagueId, userScore);
+              }
+            }
+          }
+
+          // Update Teams (runs ONCE per duel match instead of per-client)
+          for (const s of seasonsToUpdate) {
+            if (!s) continue;
+            if (duel.teamAId) {
+              await updateRanking('ranking_teams', 'teamId', duel.teamAId, s, 'global', scoreA);
+              if (duel.leagueId && duel.leagueId !== 'global') {
+                await updateRanking('ranking_teams', 'teamId', duel.teamAId, s, duel.leagueId, scoreA);
+              }
+            }
+            if (duel.teamBId) {
+              await updateRanking('ranking_teams', 'teamId', duel.teamBId, s, 'global', scoreB);
+              if (duel.leagueId && duel.leagueId !== 'global') {
+                await updateRanking('ranking_teams', 'teamId', duel.teamBId, s, duel.leagueId, scoreB);
+              }
+            }
+          }
+
+          // Write finished duel to database
+          const simplifiedParticipants = duel.participants.map(p => ({
+            uid: p.uid,
+            team: p.team,
+            pseudo: p.pseudo || 'Bot',
+            fanzId: p.fanz?.id || null
+          }));
+          
+          await db.collection('duels').doc(duel.id).set({
+            id: duel.id,
+            type: duel.type,
+            status: 'finished',
+            matchId: Number(duel.matchId) || 0,
+            teamA: duel.teamAId,
+            teamB: duel.teamBId,
+            participants: simplifiedParticipants,
+            winner,
+            scoreA,
+            scoreB,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+
+        } catch (err) {
+          console.error("[Server] Error updating db for finished duel", err);
+        }
+      })();
+    }
   }
 
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("join-duel", ({ duelId: clientDuelId, user, fanz, type, matchId, team: chosenTeam, isPrivate, inviteCode }) => {
+    socket.on("join-duel", (params: any) => {
+      const { duelId: clientDuelId, user, fanz, type, matchId, team: chosenTeam, isPrivate, inviteCode, teamAId, teamBId, teamA, teamB, leagueId, season } = params;
+      
       // Check for reconnection
       if (clientDuelId && duels[clientDuelId]) {
         const existingDuel = duels[clientDuelId];
@@ -162,9 +292,17 @@ async function startServer() {
           progress: 50,
           participants: [],
           matchId,
+          leagueId,
+          season,
+          teamAId,
+          teamBId,
+          teamA,
+          teamB,
           scores: type === 'war_of_kops' ? { A: 0, B: 0 } : undefined,
           clickCounts: { A: 0, B: 0 },
           cardCounts: { A: 0, B: 0 },
+          lastClicks: {},
+          lockedCards: {},
           isPrivate: isPrivate || false,
           inviteCode: isPrivate ? Math.random().toString(36).substring(2, 8).toUpperCase() : undefined
         };
@@ -296,6 +434,25 @@ async function startServer() {
     socket.on("click-ferveur", ({ duelId, team, multiplier }) => {
       const duel = duels[duelId];
       if (duel && duel.status === 'active') {
+        // Anti-clicker validation
+        const participant = duel.participants.find(p => p.socketId === socket.id);
+        if (participant) {
+          const uid = participant.uid;
+          const now = Date.now();
+          if (!duel.lastClicks[uid]) {
+            duel.lastClicks[uid] = [];
+          }
+          // Remove clicks older than 1 second
+          duel.lastClicks[uid] = duel.lastClicks[uid].filter(t => now - t < 1000);
+          // Allow max 12 clicks per second (human limit is around 8-10 max)
+          if (duel.lastClicks[uid].length >= 12) {
+            console.warn(`[Anti-Cheat] Player ${uid} clicking too fast in duel ${duelId}`);
+            socket.emit("duel-error", { message: "Trop de clics détectés, ralentissez !" });
+            return; // Ignore this click
+          }
+          duel.lastClicks[uid].push(now);
+        }
+
         duel.clickCounts[team]++;
         const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
         const baseDelta = 0.5;
@@ -320,6 +477,24 @@ async function startServer() {
     socket.on("play-card", ({ duelId, team, card }) => {
       const duel = duels[duelId];
       if (duel && duel.status === 'active') {
+        const participant = duel.participants.find(p => p.socketId === socket.id);
+        const uid = participant ? participant.uid : 'unknown';
+        
+        // Server-Side Card Validation
+        const baseCard = BASE_CARDS.find((c: any) => c.id === card.id);
+        if (!baseCard) {
+          console.warn(`[Anti-Cheat] Player ${uid} played invalid card: ${card.id}`);
+          return; // Ignore completely
+        }
+
+        // Validate that the provided card's fervor doesn't exceed a reasonable max (e.g. max x10 multiplier via level caps)
+        const maxFervorAllowed = Math.max(20, (baseCard.fervorValue || 0) * 10);
+        if (card.fervorValue && card.fervorValue > maxFervorAllowed) {
+          console.warn(`[Anti-Cheat] Player ${uid} used forged card value: ${card.fervorValue} for ${card.id}`);
+          socket.emit("duel-error", { message: "Action suspecte détectée sur une carte." });
+          return;
+        }
+
         duel.cardCounts[team]++;
         const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
         
@@ -330,6 +505,11 @@ async function startServer() {
 
         card.effects.forEach((effect: any) => {
           if (effect.type === 'push_rope' && effect.value && !card.fervorValue) {
+            const maxEffectAllowed = Math.max(20, (baseCard.effects?.find(e => e.type === 'push_rope')?.value || 0) * 10);
+            if (effect.value > maxEffectAllowed) {
+               console.warn(`[Anti-Cheat] Player ${uid} forged effect value: ${effect.value}`);
+               return;
+            }
             const delta = (team === "A" ? effect.value : -effect.value) / resistance;
             duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
           }
@@ -570,7 +750,8 @@ async function startServer() {
 
   app.get('/api/debug/rankings', async (req, res) => {
     try {
-      const admin = await import('firebase-admin');
+      const adminModule = await import('firebase-admin');
+      const admin = adminModule.default || adminModule;
       const { getFirestore } = await import('firebase-admin/firestore');
       
       const fs = await import('fs');

@@ -27,9 +27,20 @@ interface HeaderProps {
   onBackClick?: () => void;
   absolute?: boolean;
   variant?: 'home' | 'subpage';
+  unreadSocialCount?: number;
 }
 
-export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick, onFervorClick, onBackClick, absolute = false, variant = 'home' }: HeaderProps) {
+export function Header({ 
+  profile, 
+  onHomeClick, 
+  onMenuClick, 
+  onTransactionsClick, 
+  onFervorClick, 
+  onBackClick, 
+  absolute = false, 
+  variant = 'home',
+  unreadSocialCount = 0
+}: HeaderProps) {
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.photoURL || null);
@@ -260,10 +271,16 @@ export function Header({ profile, onHomeClick, onMenuClick, onTransactionsClick,
                 e.stopPropagation();
                 onMenuClick?.();
               }} 
-              className="flex flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg"
+              className="flex flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg relative"
             >
               <Menu className="w-6 h-6 text-white" />
               <span className="text-[9px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500 leading-none">Menu</span>
+              
+              {unreadSocialCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center bg-red-600 rounded-full text-[10px] font-bold text-white shadow-lg border-2 border-[#1a1a1a] animate-pulse">
+                  {unreadSocialCount > 9 ? '9+' : unreadSocialCount}
+                </span>
+              )}
             </button>
           )}
         </div>

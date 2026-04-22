@@ -278,11 +278,19 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated();
+      // Users can only create their own profile. For updates, we restrict to only their own data.
+      // Ideally, sensitive fields like 'money' should be updated by the server, but for now we enforce owner access.
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isAdmin();
     }
 
     match /fanz/{fanzId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow delete: if isAdmin();
     }
 
     match /fanz_templates/{templateId} {
@@ -397,12 +405,14 @@ service cloud.firestore {
 
     match /ranking_users/{rankingId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isAuthenticated();
+      // Server will handle score updates via Admin SDK
+      allow write: if isAdmin();
     }
 
     match /ranking_teams/{rankingId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isAuthenticated();
+      // Server will handle score updates via Admin SDK
+      allow write: if isAdmin();
     }
 
     match /fixture_results/{fixtureId} {

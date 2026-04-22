@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
 import { db } from '../firebase';
-import { collection, query, where, orderBy, onSnapshot, addDoc, doc, setDoc, getDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, doc, setDoc, getDoc, getDocs, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
 import { ArrowLeft, Send } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { FanzTemplate, FanzEmote } from '../types';
@@ -103,6 +103,11 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
               [friend.uid]: 0
             }
           });
+        } else {
+          // Reset unread count for current user when opening chat
+          await updateDoc(chatRef, {
+            [`unreadCount.${currentUser.uid}`]: 0
+          });
         }
 
         const q = query(
@@ -155,6 +160,7 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
       await setDoc(doc(db, 'chats', chatId), {
         lastMessage: emoteId,
         lastMessageTime: new Date().toISOString(),
+        [`unreadCount.${friend.uid}`]: increment(1)
       }, { merge: true });
       
     } catch (err) {

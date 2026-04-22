@@ -54,6 +54,23 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
           const otherUserId = data.participants.find((id: string) => id !== user.uid);
           if (!otherUserId) return null;
           
+          // Check for new unread messages to show alert
+          const currentUnread = data.unreadCount?.[user.uid] || 0;
+          
+          // Identify if this chat changed and unread count increased
+          const prevChat = chats.find(c => c.id === chatDoc.id);
+          const prevUnread = prevChat?.unreadCount?.[user.uid] || 0;
+          
+          if (currentUnread > prevUnread && (!selectedFriend || selectedFriend.uid !== otherUserId)) {
+            const userDoc = await getDoc(doc(db, 'users', otherUserId));
+            const otherUser = { uid: userDoc.id, ...userDoc.data() } as UserProfile;
+            showAlert({
+              title: 'Nouveau message !',
+              description: `${otherUser.pseudo} vous a envoyé une emote.`,
+              type: 'info'
+            });
+          }
+
           const userDoc = await getDoc(doc(db, 'users', otherUserId));
           if (!userDoc.exists()) return null;
           

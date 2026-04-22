@@ -77,11 +77,33 @@ function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [joiningDuel, setJoiningDuel] = useState<{ id: string; type: string; matchId: number } | null>(null);
   const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
+  const [unreadSocialCount, setUnreadSocialCount] = useState(0);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   const [showActiveActionModal, setShowActiveActionModal] = useState(false);
   const [activeActionDetails, setActiveActionDetails] = useState<any>(null);
   const [activeFanz, setActiveFanz] = useState<any>(null);
+
+  // Persistence: Restore duel on refresh
+  useEffect(() => {
+    if (profile && !isDuelActive) {
+      const savedDuel = localStorage.getItem('tbfo_current_duel');
+      if (savedDuel) {
+        try {
+          const duelData = JSON.parse(savedDuel);
+          console.log("[App] Restoring duel from persistence:", duelData);
+          setJoiningDuel(duelData);
+          setSelectedMatchId(duelData.matchId);
+          setSelectedMatchTab('summary');
+          setView('matches');
+          setIsDuelActive(true);
+        } catch (e) {
+          console.error("Failed to restore duel:", e);
+          localStorage.removeItem('tbfo_current_duel');
+        }
+      }
+    }
+  }, [profile, isDuelActive]);
 
   useEffect(() => {
     if (showActiveActionModal && !profile?.activeAction) {
@@ -122,6 +144,48 @@ function AppContent() {
     const interval = setInterval(fetchWaitingDuels, 15000); // Reduce frequency to 15s
     return () => clearInterval(interval);
   }, [user]);
+
+  // Social Notifications (Messages & Requests)
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // Listen for chats with unread messages
+    const chatsQ = query(collection(db, 'chats'), where('participants', 'array-contains', user.uid));
+    const unsubscribeChats = onSnapshot(chatsQ, (snapshot) => {
+      let totalUnread = 0;
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        totalUnread += (data.unreadCount?.[user.uid] || 0);
+      });
+      
+      // Also add friend requests count from profile
+      const requestsCount = profile?.friendRequests?.length || 0;
+      setUnreadSocialCount(totalUnread + requestsCount);
+    });
+
+    return () => unsubscribeChats();
+  }, [user?.uid, profile?.friendRequests?.length]);
+
+  // Persistence: Restore duel on refresh
+  useEffect(() => {
+    if (profile && !isDuelActive) {
+      const savedDuel = localStorage.getItem('tbfo_current_duel');
+      if (savedDuel) {
+        try {
+          const duelData = JSON.parse(savedDuel);
+          console.log("[App] Restoring duel from persistence:", duelData);
+          setJoiningDuel(duelData);
+          setSelectedMatchId(duelData.matchId);
+          setSelectedMatchTab('summary');
+          setView('matches');
+          setIsDuelActive(true);
+        } catch (e) {
+          console.error("Failed to restore duel:", e);
+          localStorage.removeItem('tbfo_current_duel');
+        }
+      }
+    }
+  }, [profile, isDuelActive]);
 
   const handleDuelIntent = async (callback: () => void) => {
     if (profile?.activeAction) {
@@ -497,6 +561,7 @@ function AppContent() {
                 }}
                 onTransactionsClick={() => setView('transactions')}
                 onFervorClick={() => setView('fervor-path')}
+                unreadSocialCount={unreadSocialCount}
               />
             )}
             
