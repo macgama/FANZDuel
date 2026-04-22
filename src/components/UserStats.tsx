@@ -3,27 +3,29 @@ import { UserProfile, Fanz } from '../types';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { getImageUrl } from '../lib/utils';
-import { footballApi } from '../services/footballApi';
 import { 
   Trophy, 
   Swords, 
   Flame, 
   Star, 
   Target, 
+  TrendingUp, 
   Users, 
   Shield,
+  Activity,
   History,
-  Zap,
-  ChevronLeft
+  Medal,
+  Zap
 } from 'lucide-react';
-import { Button } from './Layout';
+import { motion } from 'motion/react';
+import { footballApi } from '../services/footballApi';
 
-interface StatsPageProps {
-  profile: UserProfile;
+interface UserStatsProps {
+  user: UserProfile;
   onBack: () => void;
 }
 
-export function StatsPage({ profile, onBack }: StatsPageProps) {
+export function UserStats({ user, onBack }: UserStatsProps) {
   const [userFanz, setUserFanz] = useState<Fanz[]>([]);
   const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
   const [recentDuels, setRecentDuels] = useState<any[]>([]);
@@ -34,21 +36,29 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
       setLoading(true);
       try {
         // Fetch Fanz
-        const fanzQ = query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid));
+        const fanzQ = query(collection(db, 'fanz'), where('ownerUid', '==', user.uid));
         const fanzSnap = await getDocs(fanzQ);
         setUserFanz(fanzSnap.docs.map(d => ({ id: d.id, ...d.data() } as Fanz)));
 
-        // Fetch Recent Duels
+        // Fetch Recent Duels (from fixture_results)
+        const duelsQ = query(
+          collection(db, 'fixture_results'), 
+          where(`users.${user.uid}.score`, '!=', null), // This is a trick to filter by presence in map, but Firestore doesn't support it well.
+          // Better: query all and filter in memory if volume is small, or use a separate duel_participants collection.
+          orderBy('timestamp', 'desc'),
+          limit(10)
+        );
+        // Note: The above query might need an index. For now let's just get the latest ones.
         const duelsSnap = await getDocs(query(collection(db, 'fixture_results'), orderBy('timestamp', 'desc'), limit(20)));
         const myRecentDuels = duelsSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
-          .filter((d: any) => d.users && d.users[profile.uid]);
+          .filter((d: any) => d.users && d.users[user.uid]);
         setRecentDuels(myRecentDuels);
 
         // Fetch Favorite Teams
-        if (profile.favoriteTeams && profile.favoriteTeams.length > 0) {
+        if (user.favoriteTeams && user.favoriteTeams.length > 0) {
           const teams = await Promise.all(
-            profile.favoriteTeams.map(async (id) => {
+            user.favoriteTeams.map(async (id) => {
               try {
                 const res = await footballApi.getTeamInfo(Number(id));
                 return res?.team;
@@ -66,34 +76,16 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
     };
 
     fetchData();
-  }, [profile.uid, profile.favoriteTeams]);
+  }, [user.uid, user.favoriteTeams]);
 
-  const totalWins = profile.win_count || 0;
-  const totalDuels = profile.duel_count || 0;
+  const totalWins = user.win_count || 0;
+  const totalDuels = user.duel_count || 0;
   const winRate = totalDuels > 0 ? Math.round((totalWins / totalDuels) * 100) : 0;
   const bestFanz = [...userFanz].sort((a, b) => (b.level || 1) - (a.level || 1))[0];
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center bg-[#0a0a0a]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col bg-[#0a0a0a] text-white">
-      {/* Header */}
-      <div className="bg-[#1a1a1a]/80 backdrop-blur-md border-b border-white/10 px-4 py-4 flex items-center gap-3 sticky top-0 z-50">
-        <Button variant="outline" size="sm" onClick={onBack} className="p-0 h-8 w-8 rounded-full bg-white/5 border-white/10 text-white">
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h2 className="text-xl font-black italic uppercase tracking-wider text-white leading-none">Mes Stats</h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">Mon parcours</p>
-        </div>
-      </div>
-
+      {/* Stats Content */}
       <div className="flex-1 overflow-y-auto px-6 py-8 no-scrollbar pb-32">
         <div className="max-w-2xl mx-auto space-y-8">
           
@@ -102,15 +94,15 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
             <div className="relative z-10 flex flex-col items-center">
               <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border-4 border-white/30 flex items-center justify-center mb-4 overflow-hidden">
-                {profile.photoURL ? (
-                  <img src={profile.photoURL} alt="" className="w-full h-full object-cover" />
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <Users className="w-12 h-12 text-white" />
                 )}
               </div>
-              <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-1">{profile.displayName || 'Guerrier du KOP'}</h2>
+              <h2 className="text-3xl font-black italic uppercase tracking-tighter mb-1">{user.displayName || 'Guerrier du KOP'}</h2>
               <div className="px-4 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-black uppercase tracking-widest border border-white/20">
-                Niveau {profile.level || 1}
+                Niveau {user.level || 1}
               </div>
             </div>
 
@@ -124,7 +116,7 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
                 <div className="text-[10px] font-bold uppercase text-white/60 tracking-widest">Victoires</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-black">{profile.money || 0}</div>
+                <div className="text-2xl font-black">{user.money || 0}</div>
                 <div className="text-[10px] font-bold uppercase text-white/60 tracking-widest">Monnaie</div>
               </div>
             </div>
@@ -132,9 +124,9 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
 
           {/* Detailed Stats Grid */}
           <div className="grid grid-cols-2 gap-4">
-            <StatBox icon={<Flame className="text-orange-500" />} label="Streak" value={`${profile.streak || 0} jours`} />
-            <StatBox icon={<Star className="text-yellow-500" />} label="Ferveur" value={profile.ferveurPoints?.toLocaleString() || '0'} />
-            <StatBox icon={<Zap className="text-blue-500" />} label="Energie" value={`${profile.energy}/${profile.maxEnergy || 100}`} />
+            <StatBox icon={<Flame className="text-orange-500" />} label="Streak" value={`${user.streak || 0} jours`} />
+            <StatBox icon={<Star className="text-yellow-500" />} label="Ferveur" value={user.ferveurPoints?.toLocaleString() || '0'} />
+            <StatBox icon={<Zap className="text-blue-500" />} label="Energie" value={`${user.energy}/${user.maxEnergy || 100}`} />
             <StatBox icon={<Trophy className="text-purple-500" />} label="Rareté Max" value={bestFanz?.rarity || 'Commun'} />
           </div>
 
@@ -177,7 +169,7 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
                   <img src={getImageUrl(bestFanz.imageUrl || bestFanz.videoUrl)} alt="" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-lg font-black italic uppercase tracking-tighter text-white">{bestFanz.name}</div>
+                  <div className="text-lg font-black italic uppercase italic tracking-tighter text-white">{bestFanz.name}</div>
                   <div className="text-[10px] font-black uppercase text-yellow-500 tracking-widest mb-2">Niveau {bestFanz.level || 1} • {bestFanz.rarity}</div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     <div className="flex justify-between text-[10px] font-bold border-b border-white/5 py-1">
@@ -215,7 +207,7 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
             <div className="space-y-3">
               {recentDuels.length > 0 ? (
                 recentDuels.map((duel, idx) => {
-                  const myUser = duel.users[profile.uid];
+                  const myUser = duel.users[user.uid];
                   const isWin = duel.winnerVirtualTeam === myUser.virtualTeam;
                   const dateStr = duel.timestamp ? new Date(duel.timestamp.seconds * 1000).toLocaleDateString() : 'Récemment';
                   
@@ -226,7 +218,7 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
                           {isWin ? 'W' : 'L'}
                         </div>
                         <div>
-                          <div className="text-xs font-black uppercase truncate max-w-[150px]">{duel.teamHome.name} vs {duel.teamAway.name}</div>
+                          <div className="text-xs font-black uppercase">{duel.teamHome.name} vs {duel.teamAway.name}</div>
                           <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{dateStr} • {myUser.score} pts</div>
                         </div>
                       </div>

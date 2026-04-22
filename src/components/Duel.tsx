@@ -51,6 +51,17 @@ const DEFAULT_DUEL_CONFIG: DuelConfig = {
   }
 };
 
+const BOT_PROFILES = [
+  { pseudo: 'Fan_Alpha_92', level: 5, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot1' },
+  { pseudo: 'Goal_Digger', level: 8, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot2' },
+  { pseudo: 'Kop_Warrior', level: 12, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot3' },
+  { pseudo: 'Ultra_Fan_FR', level: 3, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot4' },
+  { pseudo: 'Stade_Master', level: 15, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot5' },
+  { pseudo: 'Foot_Addict', level: 7, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot6' },
+  { pseudo: 'Supporter_One', level: 10, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot7' },
+  { pseudo: 'Yellow_Wall_Fan', level: 20, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot8' }
+];
+
 export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz, duelLeagueId, duelSeason }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void; duelLeagueId?: string; duelSeason?: string }) {
   const { showAlert } = useAlert();
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
@@ -333,11 +344,11 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'https://thebestfan.online/img/public/background/back1v1.png', fullWidth: false },
-                  { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'https://thebestfan.online/img/public/background/back1v1.png', fullWidth: false },
-                  { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'https://thebestfan.online/img/public/background/back2v2.png', fullWidth: false },
-                  { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'https://thebestfan.online/img/public/background/back5v5.png', fullWidth: false },
-                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'https://thebestfan.online/img/public/background/backKOP.png', fullWidth: true }
+                  { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'https://thebestfan.online/logo/background1v1.png', fullWidth: false },
+                  { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'https://thebestfan.online/logo/background1v1.png', fullWidth: false },
+                  { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'https://thebestfan.online/logo/background2v2.png', fullWidth: false },
+                  { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'https://thebestfan.online/logo/background5v5.png', fullWidth: false },
+                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'https://thebestfan.online/logo/backgroundKOP.png', fullWidth: true }
                 ].filter(arena => isLiveMatch || arena.id === 'training').map(arena => {
                   const cost = duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
                   const bgUrl = getImageUrl(arena.bg);
@@ -606,6 +617,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [unlockedEmoteIds, setUnlockedEmoteIds] = useState<string[]>(user.emotes || []);
   const [showEmotes, setShowEmotes] = useState(false);
   const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, team: string, x: number | string, y: number | string}[]>([]);
+  const [botFillTimer, setBotFillTimer] = useState<number>(15); // Countdown to auto-fill bots
+  const isMaster = participants[0]?.uid === user.uid; // Only the first player manages bots
 
   // Preload card images
   useEffect(() => {
@@ -797,6 +810,144 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       if (serverInviteCode) setInviteCode(serverInviteCode);
     };
     socket.on('duel-joined', handleDuelJoined);
+
+    // Bot Auto-Fill Logic
+    let botTimerId: any;
+    if (status === 'waiting' && isMaster) {
+      botTimerId = setInterval(() => {
+        setBotFillTimer(prev => {
+          if (prev <= 1) {
+            fillWithBots();
+            return 15;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    // Bot Simulation Logic (Clicks & Cards)
+    let botSimulationInterval: any;
+    if (status === 'active' && isMaster) {
+      // Track simulated energy for bots
+      const botEnery: Record<string, number> = {};
+      
+      botSimulationInterval = setInterval(() => {
+        const bots = participants.filter(p => p.isBot);
+        const myTeam = participants.find(p => p.uid === user.uid)?.team || 'A';
+
+        bots.forEach(bot => {
+          // 1. Simulate Clicks
+          if (Math.random() > 0.3) {
+            // Use the same multiplier logic as humans for fairness
+            const botFanz = bot.fanz || fanz;
+            const rankBonus = (botFanz?.rank || 0) * 0.02;
+            const forceLevel = botFanz?.stats?.force || 1;
+            const forceBonus = 0.005 + (forceLevel * 0.001);
+            const baseExcitementMultiplier = (botFanz?.baseExcitement || 5) / 5;
+            const botMultiplier = baseExcitementMultiplier + rankBonus + forceBonus;
+
+            socket.emit('click-ferveur', { 
+              duelId: currentDuelIdRef.current, 
+              team: bot.team, 
+              userId: bot.uid, 
+              multiplier: botMultiplier 
+            });
+          }
+
+          // 2. Simulate Card Playing
+          if (bot.team !== myTeam) { // Only enemy bots play cards to avoid confusion
+            const currentEnergy = botEnery[bot.uid] || 5;
+            botEnery[bot.uid] = Math.min(10, currentEnergy + 0.2); // Regenerate energy
+
+            // Random chance to play a card if enough energy
+            if (currentEnergy >= 4 && Math.random() > 0.95 && allCards.length > 0) {
+              // Pick a card from the mirrored deck (if available) or all cards
+              const deckIds = bot.fanz?.equippedCards || fanz?.equippedCards || [];
+              const availableCards = allCards.filter(c => deckIds.includes(c.id));
+              const cardsToPickFrom = availableCards.length > 0 ? availableCards : allCards;
+              
+              const card = cardsToPickFrom[Math.floor(Math.random() * cardsToPickFrom.length)];
+              const cost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
+
+              if (currentEnergy >= cost) {
+                botEnery[bot.uid] -= cost;
+                socket.emit('play-card', { 
+                  duelId: currentDuelIdRef.current, 
+                  team: bot.team, 
+                  card,
+                  userId: bot.uid
+                });
+              }
+            }
+          }
+        });
+      }, 1500);
+    }
+
+    return () => {
+      if (botTimerId) clearInterval(botTimerId);
+      if (botSimulationInterval) clearInterval(botSimulationInterval);
+    };
+  }, [socket, status, isMaster, participants.length, allCards.length]);
+
+  const fillWithBots = () => {
+    if (!socket || !isMaster) return;
+    
+    const maxPlayers = { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1;
+    const countA = participants.filter(p => p.team === 'A').length;
+    const countB = participants.filter(p => p.team === 'B').length;
+    
+    // Copy current user fanz and deck state for bots to mirror player strength
+    const mirroredFanz = fanz ? {
+      ...fanz,
+      equippedCards: fanz.equippedCards || [],
+      stats: fanz.stats,
+      level: fanz.level,
+      rank: fanz.rank,
+      baseExcitement: fanz.baseExcitement
+    } : null;
+
+    const botsToAdd: any[] = [];
+    
+    // Fill Team A
+    for (let i = countA; i < maxPlayers; i++) {
+      const profile = BOT_PROFILES[Math.floor(Math.random() * BOT_PROFILES.length)];
+      botsToAdd.push({ 
+        ...profile, 
+        uid: `bot_A_${Math.random().toString(36).substr(2, 9)}`, 
+        team: 'A', 
+        isBot: true,
+        level: user.level, // Mirror user level
+        fanz: mirroredFanz // Mirror user fanz
+      });
+    }
+    
+    // Fill Team B
+    for (let i = countB; i < maxPlayers; i++) {
+      const profile = BOT_PROFILES[Math.floor(Math.random() * BOT_PROFILES.length)];
+      botsToAdd.push({ 
+        ...profile, 
+        uid: `bot_B_${Math.random().toString(36).substr(2, 9)}`, 
+        team: 'B', 
+        isBot: true,
+        level: user.level, // Mirror user level
+        fanz: mirroredFanz // Mirror user fanz
+      });
+    }
+    
+    botsToAdd.forEach(bot => {
+      socket.emit('join-duel', { 
+        duelId: currentDuelIdRef.current, 
+        user: { uid: bot.uid, pseudo: bot.pseudo, photoURL: bot.photoURL, level: bot.level }, 
+        team: bot.team,
+        fanz: bot.fanz,
+        isBot: true 
+      });
+    });
+  };
+
+  useEffect(() => {
+    if (!socket) return;
 
     const handleDuelUpdate = (state: { duelId?: string; progress: number; status: any; participants?: any[]; inviteCode?: string }) => {
       setProgress(state.progress);
@@ -1662,9 +1813,61 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     return () => clearInterval(interval);
   }, [isButtonMoving]);
 
+  const getArenaBackground = () => {
+    const type = duel.type;
+    switch(type) {
+      case '1v1':
+      case 'training':
+        return { 
+          video: 'https://thebestfan.online/logo/videoBackground1v1.mp4',
+          image: 'https://thebestfan.online/logo/background1v1.png'
+        };
+      case '2v2':
+        return { 
+          video: 'https://thebestfan.online/logo/videoBackground2v2.mp4',
+          image: 'https://thebestfan.online/logo/background2v2.png'
+        };
+      case '5v5':
+        return { 
+          video: 'https://thebestfan.online/logo/videoBackground5v5.mp4',
+          image: 'https://thebestfan.online/logo/background5v5.png' 
+        };
+      case 'war_of_kops':
+        return { 
+          video: 'https://thebestfan.online/logo/videoBackgroundKOP.mp4',
+          image: 'https://thebestfan.online/logo/backgroundKOP.png'
+        };
+      default:
+        return { image: 'https://thebestfan.online/logo/background1v1.png' };
+    }
+  };
+
+  const arenaBg = getArenaBackground();
+
   return (
     <div className="absolute inset-0 z-50 flex justify-center bg-[#0a0a0a]">
       <div className={`w-full lg:max-w-[450px] h-full relative flex flex-col p-4 bg-black lg:border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isEarthquake ? 'animate-bounce' : ''}`}>
+        {/* Arena Background */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          {arenaBg.video && !user.dataSaver ? (
+            <video 
+              src={arenaBg.video}
+              poster={getImageUrl(arenaBg.image)}
+              className="w-full h-full object-cover opacity-30 sm:opacity-40"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            <img 
+              src={getImageUrl(arenaBg.image)} 
+              className="w-full h-full object-cover opacity-30 sm:opacity-40" 
+              alt="" 
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+        </div>
         {/* Blur Overlay */}
         <AnimatePresence>
           {isBlurred && (
@@ -1910,10 +2113,27 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             </div>
 
             {/* Bottom Info & Invite */}
-            <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center z-20 px-4">
-              <div className="text-center mb-4">
+            <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center z-20 px-4 gap-4">
+              {isMaster && (
+                <div className="w-full max-w-xs flex flex-col gap-2">
+                  <div className="bg-orange-500/20 backdrop-blur-md p-2 rounded-lg border border-orange-500/30 text-center">
+                    <p className="text-[10px] font-black uppercase text-orange-500 italic">
+                      Remplissage automatique dans {botFillTimer}s
+                    </p>
+                  </div>
+                  <button 
+                    onClick={fillWithBots}
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase tracking-widest italic text-xs shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    Lancer avec des Bots
+                  </button>
+                </div>
+              )}
+
+              <div className="text-center mb-2">
                 <h3 className="text-xl font-black italic uppercase text-white drop-shadow-md">En attente d'adversaires...</h3>
-                <p className="text-gray-300 text-xs font-bold uppercase tracking-widest">Le duel commencera dès que le salon sera complet.</p>
+                <p className="text-gray-300 text-[10px] font-bold uppercase tracking-widest">Le duel commencera dès que le salon sera complet.</p>
               </div>
               
               {inviteCode && (

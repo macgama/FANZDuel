@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button } from './Layout';
-import { Swords, Users, Trophy, Clock, ChevronRight, Search, Filter, X } from 'lucide-react';
+import { Swords, Users, Trophy, Clock, ChevronRight, Search, Filter, X, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Duel, UserProfile } from '../types';
 import { useAlert } from '../context/AlertContext';
 import { footballApi } from '../services/footballApi';
 import { getImageUrl } from '../lib/utils';
+import { MrFanzHelp } from './MrFanzHelp';
 
 interface WaitingRoomProps {
   user: UserProfile;
@@ -23,6 +24,29 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
   const [filterType, setFilterType] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState('');
   const [matchDetailsCache, setMatchDetailsCache] = useState<Record<number, any>>({});
+
+  const handleShareDuel = async (duelId: string, duelType: string) => {
+    const inviteCode = duelId.substring(0, 8).toUpperCase();
+    const shareData = {
+      title: 'Rejoins mon duel sur TheBestFan!',
+      text: `Viens m'affronter dans un duel ${duelType.replace('_', ' ')} ! Utilise le code: ${inviteCode}`,
+      url: window.location.origin
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(inviteCode);
+        showAlert({
+          title: 'Code copié !',
+          type: 'success'
+        });
+      }
+    } catch (err) {
+      console.error('Error sharing duel', err);
+    }
+  };
 
   const handleJoinByCode = async () => {
     if (!inviteCode) return;
@@ -108,8 +132,9 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
     <div className="flex flex-col h-full bg-transparent">
       {/* Header */}
       <div className="flex items-center justify-between px-4 mt-2">
-        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center">
           Salle d'Attente
+          <MrFanzHelp contextId="waiting_room" />
         </h1>
       </div>
 
@@ -271,13 +296,21 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                         </div>
                       </div>
                     </div>
-                    <Button 
-                      onClick={() => onJoinDuel(duel.id, duel.type, duel.matchId)}
-                      disabled={isFull}
-                      className="px-6 h-10 text-[10px] font-black uppercase tracking-widest italic"
-                    >
-                      Rejoindre
-                    </Button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleShareDuel(duel.id, duel.type)}
+                        className="p-2 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <Button 
+                        onClick={() => onJoinDuel(duel.id, duel.type, duel.matchId)}
+                        disabled={isFull}
+                        className="px-6 h-10 text-[10px] font-black uppercase tracking-widest italic"
+                      >
+                        Rejoindre
+                      </Button>
+                    </div>
                   </div>
                   
                   {/* Participants Preview */}

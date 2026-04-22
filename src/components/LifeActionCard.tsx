@@ -345,7 +345,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
                 )}
               </div>
               <div className="w-full sm:w-32 bg-black/80 rounded-lg p-1 border border-white/10 shadow-lg">
-                <div className="text-[8px] text-blue-400 font-bold uppercase text-center mb-0.5 tracking-widest leading-none">XP Action</div>
+                <div className="text-[10px] text-blue-400 font-black uppercase text-center mb-0.5 tracking-widest leading-none">XP Action</div>
                 <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative" title={`${(actionProgress.xp || 0) % 50} / 50 XP`}>
                   <div 
                     className="h-full bg-blue-500 transition-all duration-300"
@@ -355,7 +355,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
               </div>
             </div>
             <div className="w-14 h-14 rounded-full border-2 border-orange-500 flex items-center justify-center bg-black/80 backdrop-blur-md shadow-[0_0_15px_rgba(249,115,22,0.3)] shrink-0">
-              <span className="font-black text-white text-xs tracking-widest">
+              <span className="font-black text-white text-[10px] tracking-widest">
                 {timeLeft !== null ? formatTime(timeLeft) : '...'}
               </span>
             </div>
@@ -364,7 +364,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
           <div>
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 mb-3 border border-white/10 text-center">
               <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Butin prévu</div>
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-3 text-[10px]">
                 {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> +{gainEnergy}</span>}
                 {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> +{gainMoney}</span>}
                 {gainGems > 0 && <span className="text-pink-400 font-black flex items-center gap-1"><img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> +{gainGems}</span>}
@@ -393,9 +393,9 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
 
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-3 mb-4 border border-white/10 text-center flex justify-center items-center gap-2">
               <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Coût :</span>
-              {costEnergy > 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}</span>}
-              {costMoney > 0 && <span className="text-yellow-400 font-black text-sm flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> {costMoney}</span>}
-              {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-sm flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> 0</span>}
+              {costEnergy > 0 && <span className="text-yellow-500 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}</span>}
+              {costMoney > 0 && <span className="text-yellow-400 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> {costMoney}</span>}
+              {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> 0</span>}
             </div>
 
             <div className="flex gap-3">
@@ -450,7 +450,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
           <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" /> NIVEAU {currentLevel}
         </div>
         <div className="w-full bg-black/80 rounded-lg p-1 border border-white/10 shadow-lg">
-          <div className="text-[8px] text-blue-400 font-bold uppercase text-center mb-0.5 tracking-widest leading-none">XP Action</div>
+          <div className="text-[10px] text-blue-400 font-black uppercase text-center mb-0.5 tracking-widest leading-none">XP Action</div>
           <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative" title="La montée de niveau augmente les récompenses (et les coûts) de 20%">
             <div 
               className="h-full bg-blue-500 transition-all duration-300"
@@ -460,10 +460,10 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
         </div>
       </div>
       <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
-        <div className="bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-yellow-500 font-black text-sm border border-white/10 flex items-center gap-2">
+        <div className="bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg text-yellow-500 font-black text-[10px] border border-white/10 flex items-center justify-center gap-2 shadow-lg">
           <img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}
         </div>
-        <div className="bg-black/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-orange-500 font-black text-sm border border-white/10 flex items-center gap-2">
+        <div className="bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg text-orange-500 font-black text-[10px] border border-white/10 flex items-center justify-center gap-2 shadow-lg">
           <Clock className="w-4 h-4" /> {action.durationMinutes >= 60 ? `${action.durationMinutes / 60}H` : `${action.durationMinutes}M`}
         </div>
       </div>
@@ -471,7 +471,7 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       <div className="relative z-10 p-4 flex flex-col justify-end mt-auto">
         <div>
           <h4 className="font-black text-white uppercase tracking-tighter text-center text-lg mb-2 drop-shadow-md">{action.name}</h4>
-          <div className="flex flex-wrap justify-center items-center gap-3 text-sm font-black mb-4 drop-shadow-md">
+          <div className="flex flex-wrap justify-center items-center gap-3 text-[10px] font-black mb-4 drop-shadow-md">
             {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> +{gainEnergy}</span>}
             {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> +{gainMoney}</span>}
             {gainGems > 0 && <span className="text-pink-400 flex items-center gap-1"><img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> +{gainGems}</span>}

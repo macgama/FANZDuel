@@ -41,12 +41,15 @@ import { ShopPage } from './components/ShopPage';
 import { TransactionsPage } from './components/TransactionsPage';
 import { StatsPage } from './components/StatsPage';
 import { Preloader } from './components/Preloader';
+import { LandingPage } from './components/LandingPage';
+import { MrFanzPage } from './components/MrFanzPage';
+import { MrFanzHelp } from './components/MrFanzHelp';
 
 export default function App() {
   return <AppContent />;
 }
 
-type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings' | 'stats';
+type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings' | 'stats' | 'mrfanz';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -356,12 +359,7 @@ function AppContent() {
 
   if (!user || (!profile && !loading)) {
     return (
-      <Layout containerClassName="flex flex-col">
-        <Auth onAuthSuccess={() => {
-          setIsMenuOpen(false);
-          _setView('home');
-        }} />
-      </Layout>
+      <LandingPage />
     );
   }
 
@@ -385,42 +383,58 @@ function AppContent() {
         <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
           <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start">
             <img src="/img/logo2.png" alt="TBFO" className="w-8 h-8 rounded-lg outline outline-1 outline-white/10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <span className="hidden lg:block font-black italic text-xl uppercase tracking-widest text-white">TBFO</span>
+            <span className="hidden lg:block font-black italic text-xl uppercase tracking-widest text-white leading-none">TheBestFan.Online</span>
           </div>
           <div className="flex flex-col gap-1 p-2 lg:p-4 flex-1 overflow-y-auto no-scrollbar">
-             <SidebarButton icon={<HomeIcon />} label="Accueil" active={view==='home'} onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton icon={<Star />} label="Mes Fans" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton icon={<HomeIcon />} label="ACCUEIL" active={view==='home'} onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton icon={<Star />} label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton icon={<Layers />} label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton icon={<PieChart />} label="MES STATS" active={view==='stats'} onClick={() => { setView('stats'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton 
                 icon={<div className="relative"><Swords />
                   {waitingDuelsCount > 0 && (
                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-black text-white">{waitingDuelsCount}</div>
                   )}
                 </div>} 
-                label="Duels" active={view==='waiting-room'} onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                label="DUELS" active={view==='waiting-room'} onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton icon={<BarChart2 />} label="RANK" active={view==='rankings'} onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton 
+               icon={<div className="relative"><Users />
+                 {profile.friendRequests && profile.friendRequests.length > 0 && (
+                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                 )}
+               </div>} 
+               label="SOCIAL" active={view==='social'} onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              
              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
-                 <h4 className="hidden lg:block text-[10px] font-black uppercase text-gray-500 px-4 mb-1 tracking-widest">Fonctions</h4>
-                 <SidebarButton icon={<Layers />} label="Équipes" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Briefcase />} label="Ferveur" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Target />} label="Missions" active={view==='missions'} onClick={() => { setView('missions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Calendar />} label="Série" active={false} onClick={() => { setShowStreakModal(true); }} />
-                 <SidebarButton icon={<Sparkles />} label="Pass" active={view==='pass'} onClick={() => { setView('pass'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Calendar />} label="SERIE HEBDO" active={false} onClick={() => { setShowStreakModal(true); }} />
+                 <SidebarButton icon={<Briefcase />} label="FERVEUR" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Target />} label="MISSIONS" active={view==='missions'} onClick={() => { setView('missions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Sparkles />} label="PASS" active={view==='pass'} onClick={() => { setView('pass'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Store />} label="BOUTIQUE" active={view==='shop'} onClick={() => { setView('shop'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton 
+                   icon={<div className="w-6 h-6 flex items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 overflow-hidden">
+                     <img src="https://thebestfan.online/img/public/mrfan/mrfan.png" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                   </div>} 
+                   label="GUIDE MRFANZ" 
+                   active={view==='mrfanz'} 
+                   onClick={() => { setView('mrfanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} 
+                 />
              </div>
 
              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
-                 <h4 className="hidden lg:block text-[10px] font-black uppercase text-gray-500 px-4 mb-1 tracking-widest">Connect</h4>
-                 <SidebarButton icon={<Users />} label="Social" active={view==='social'} onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Activity />} label="Matchs" active={view==='matches'} onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Globe />} label="Compétitions" active={view==='competitions'} onClick={() => { setView('competitions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<BarChart2 />} label="Rank" active={view==='rankings'} onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<PieChart />} label="Profil" active={view==='stats'} onClick={() => { setView('stats'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Wallet />} label="Banque" active={view==='transactions'} onClick={() => { setView('transactions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Settings />} label="Admin" active={view===('admin' as any)} onClick={() => { setView('admin' as any); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Activity />} label="MATCHS DU JOUR" active={view==='matches'} onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton icon={<Globe />} label="COMPETITIONS" active={view==='competitions'} onClick={() => { setView('competitions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              </div>
 
+             {profile.role === 'admin' && (
+               <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                   <SidebarButton icon={<Settings />} label="ADMIN" active={view===('admin' as any)} onClick={() => { setView('admin' as any); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+               </div>
+             )}
+
              <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1">
-                <SidebarButton icon={<Store />} label="Boutique" active={view==='shop'} onClick={() => { setView('shop'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                <SidebarButton icon={<LogOut />} label="Quitter" active={false} onClick={() => { setIsMenuOpen(false); _setView('home'); signOut(auth); }} isDanger />
+                <SidebarButton icon={<LogOut />} label="QUITTER" active={false} onClick={() => { setIsMenuOpen(false); _setView('home'); signOut(auth); }} isDanger />
              </div>
           </div>
         </aside>
@@ -567,6 +581,8 @@ function AppContent() {
                     setView('matches');
                   }}
                 />
+              ) : view === 'mrfanz' ? (
+                <MrFanzPage onBack={() => setView('home')} />
               ) : view === 'admin' ? (
                 <AdminZone />
               ) : view === 'matches' ? (
@@ -639,73 +655,89 @@ function AppContent() {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="absolute inset-0 z-[100] bg-[#0a0a0a] flex flex-col"
           >
-          <div className="p-6 flex items-center justify-between border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="text-orange-500">
-                <LayoutGrid className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-black uppercase tracking-wider text-white">Menu TBFO</h2>
+          <div className="p-3 shrink-0 flex items-center justify-between border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <img src="/img/logo2.png" alt="Logo" className="w-5 h-5 rounded" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <h2 className="text-sm font-black uppercase tracking-wider text-white">TheBestFan.Online</h2>
             </div>
             <button 
               onClick={() => setIsMenuOpen(false)}
-              className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10"
+              className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center border border-white/10"
             >
-              <X className="w-6 h-6 text-white" />
+              <X className="w-5 h-5 text-white" />
             </button>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
-              <MenuButton icon={<HomeIcon />} label="Accueil" onClick={() => { setView('home'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Users />} label="Mes Fans" onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
-              <MenuButton 
-                icon={
-                  <div className="relative">
-                    <Swords />
-                    {waitingDuelsCount > 0 && (
-                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-[#0a0a0a] flex items-center justify-center text-[8px] font-black text-white">
-                        {waitingDuelsCount}
-                      </div>
-                    )}
-                  </div>
-                } 
-                label="Duels" 
-                onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} 
-              />
-              
-              <MenuButton icon={<Layers />} label="Équipes" onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Briefcase />} label="Ferveur" onClick={() => { setView('fervor-path'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Store />} label="Boutique" onClick={() => { setView('shop'); setIsMenuOpen(false); }} />
-              
-              <MenuButton icon={<Search />} label="Social" onClick={() => { setView('social'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Target />} label="Missions" onClick={() => { setView('missions'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Calendar />} label="Série" onClick={() => { setShowStreakModal(true); setIsMenuOpen(false); }} />
-              
-              <MenuButton icon={<Sparkles />} label="Pass" onClick={() => { setView('pass'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<PieChart />} label="Profil" onClick={() => { setView('stats'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Wallet />} label="Banque" onClick={() => { setView('transactions'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<BarChart2 />} label="Rank" onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
+          <div className="flex-1 overflow-y-auto no-scrollbar p-1">
+            <div className="flex flex-col gap-0.5">
+               <SidebarButton icon={<HomeIcon className="w-5 h-5" />} label="ACCUEIL" active={view==='home'} onClick={() => { setView('home'); setIsMenuOpen(false); }} />
+               <SidebarButton icon={<Star className="w-5 h-5" />} label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
+               <SidebarButton icon={<Layers className="w-5 h-5" />} label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
+               <SidebarButton icon={<PieChart className="w-5 h-5" />} label="MES STATS" active={view==='stats'} onClick={() => { setView('stats'); setIsMenuOpen(false); }} />
+               <SidebarButton 
+                  icon={
+                    <div className="relative">
+                      <Swords className="w-5 h-5" />
+                      {waitingDuelsCount > 0 && (
+                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a] flex items-center justify-center text-[7px] font-black text-white">
+                          {waitingDuelsCount}
+                        </div>
+                      )}
+                    </div>
+                  } 
+                  label="DUELS" 
+                  active={view==='waiting-room'}
+                  onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} 
+               />
+               <SidebarButton icon={<BarChart2 className="w-5 h-5" />} label="RANK" active={view==='rankings'} onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
+               <SidebarButton 
+                 icon={<div className="relative"><Users className="w-5 h-5" />
+                   {profile.friendRequests && profile.friendRequests.length > 0 && (
+                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                   )}
+                 </div>} 
+                 label="SOCIAL" active={view==='social'} onClick={() => { setView('social'); setIsMenuOpen(false); }} />
+               
+               <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
+                 <SidebarButton icon={<Calendar className="w-5 h-5" />} label="SERIE HEBDO" active={false} onClick={() => { setShowStreakModal(true); setIsMenuOpen(false); }} />
+                 <SidebarButton icon={<Briefcase className="w-5 h-5" />} label="FERVEUR" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setIsMenuOpen(false); }} />
+                 <SidebarButton icon={<Target className="w-5 h-5" />} label="MISSIONS" active={view==='missions'} onClick={() => { setView('missions'); setIsMenuOpen(false); }} />
+                 <SidebarButton icon={<Sparkles className="w-5 h-5" />} label="PASS" active={view==='pass'} onClick={() => { setView('pass'); setIsMenuOpen(false); }} />
+                 <SidebarButton icon={<Store className="w-5 h-5" />} label="BOUTIQUE" active={view==='shop'} onClick={() => { setView('shop'); setIsMenuOpen(false); }} />
+                 <SidebarButton 
+                   icon={<div className="w-5 h-5 flex items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 overflow-hidden">
+                     <img src="https://thebestfan.online/img/public/mrfan/mrfan.png" className="w-4 h-4 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                   </div>} 
+                   label="GUIDE MRFANZ" 
+                   active={view==='mrfanz'} 
+                   onClick={() => { setView('mrfanz'); setIsMenuOpen(false); }} 
+                 />
+               </div>
 
+               <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
+                 <SidebarButton icon={<Activity className="w-5 h-5" />} label="MATCHS DU JOUR" active={view==='matches'} onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
+                 <SidebarButton icon={<Globe className="w-5 h-5" />} label="COMPETITIONS" active={view==='competitions'} onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
+               </div>
 
-
-              {/* Extra items not in the image but needed */}
-              <MenuButton icon={<Activity />} label="Matchs" onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Globe />} label="Compétitions" onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
-              <MenuButton icon={<Settings />} label="Admin" onClick={() => { setView('admin'); setIsMenuOpen(false); }} />
+               {profile.role === 'admin' && (
+                 <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
+                   <SidebarButton icon={<Settings className="w-5 h-5" />} label="ADMIN" active={view===('admin' as any)} onClick={() => { setView('admin' as any); setIsMenuOpen(false); }} />
+                 </div>
+               )}
             </div>
           </div>
 
-          <div className="p-4 sm:p-8 mt-auto border-t border-white/10 shrink-0">
+          <div className="p-3 mt-auto border-t border-white/10 shrink-0">
             <button 
               onClick={() => {
                 setIsMenuOpen(false);
                 _setView('home');
                 signOut(auth);
               }}
-              className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 text-red-500 rounded-xl font-bold hover:bg-red-500/20 transition-colors"
+              className="w-full flex items-center justify-center gap-2 p-2 bg-red-500/10 text-red-500 rounded-lg font-bold hover:bg-red-500/20 transition-colors text-xs uppercase"
             >
-              <LogOut className="w-5 h-5" />
-              Déconnexion
+              <LogOut className="w-4 h-4" />
+              QUITTER
             </button>
           </div>
         </motion.div>
@@ -764,12 +796,12 @@ function MenuButton({ icon, label, onClick }: { icon: React.ReactNode, label: st
   return (
     <button 
       onClick={onClick}
-      className="flex flex-col items-center justify-center gap-3 p-4 bg-[#0a0a0a] border border-white/5 rounded-2xl hover:bg-white/10 hover:border-orange-500 transition-all group aspect-square"
+      className="flex flex-col items-center justify-center gap-1.5 p-2 bg-[#1a1a1a] border border-white/5 rounded-xl hover:bg-white/10 hover:border-orange-500 transition-all group shrink-0"
     >
-      <div className="w-12 h-12 bg-orange-500/10 text-orange-500 rounded-2xl flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
+      <div className="w-8 h-8 bg-orange-500/10 text-orange-500 rounded-lg flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
         {icon}
       </div>
-      <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-center leading-tight text-white">{label}</span>
+      <span className="text-[10px] font-black uppercase tracking-tight text-center leading-none text-white truncate w-full">{label}</span>
     </button>
   );
 }

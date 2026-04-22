@@ -8,6 +8,7 @@ import { Trophy, Lock, Star, Info, Medal, Users, CheckCircle } from 'lucide-reac
 import { motion, AnimatePresence } from 'motion/react';
 import { OptimizedMedia } from './OptimizedMedia';
 import { generateFervorPath } from '../utils/fervorPath';
+import { MrFanzHelp } from './MrFanzHelp';
 
 interface FanzPageProps {
   userProfile: UserProfile;
@@ -96,8 +97,9 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
       {/* Header & Tabs */}
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-black italic uppercase tracking-tighter">
+          <h1 className="text-xl font-black italic uppercase tracking-tighter flex items-center">
             FANZ
+            <MrFanzHelp contextId="fanz" />
           </h1>
           <div className="flex flex-col gap-1.5 min-w-[140px]">
               <div className="bg-white/5 border border-white/10 rounded-lg p-1.5 flex items-center justify-center gap-3">

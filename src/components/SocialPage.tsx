@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { Card, Button } from './Layout';
-import { Users, UserPlus, Search, Check, X, Clock, Shield, MessageCircle } from 'lucide-react';
+import { Users, UserPlus, Search, Check, X, Clock, Shield, MessageCircle, Share2 } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, doc, updateDoc, arrayUnion, arrayRemove, getDoc, onSnapshot } from 'firebase/firestore';
 import { ChatView } from './ChatView';
 import { useAlert } from '../context/AlertContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { getImageUrl } from '../lib/utils';
+import { MrFanzHelp } from './MrFanzHelp';
 
 interface SocialPageProps {
   user: UserProfile;
@@ -196,6 +197,28 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
     }
   };
 
+  const handleShareInvite = async () => {
+    const shareData = {
+      title: 'Rejoins-moi sur TheBestFan!',
+      text: 'Viens défier les autres fans de foot sur TheBestFan.Online et deviens le meilleur fan!',
+      url: window.location.origin
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.origin);
+        showAlert({
+          title: 'Lien copié !',
+          type: 'success'
+        });
+      }
+    } catch (err) {
+      console.error('Error sharing', err);
+    }
+  };
+
   if (selectedFriend) {
     return (
       <ChatView 
@@ -209,9 +232,17 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
   return (
     <div className="flex flex-col h-full bg-transparent">
       <div className="flex items-center justify-between px-4">
-        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center">
           Social
+          <MrFanzHelp contextId="social" />
         </h1>
+        <button 
+          onClick={handleShareInvite}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500/20 transition-all border border-orange-500/20"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-black uppercase tracking-widest italic">Inviter</span>
+        </button>
       </div>
       {/* Tabs */}
       <div className="flex gap-1 p-4 bg-[#111111]/50 border-b border-white/5">

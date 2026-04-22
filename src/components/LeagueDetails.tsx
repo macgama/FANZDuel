@@ -357,61 +357,67 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
 
   return (
     <div className="space-y-4">
-      {Object.entries(groupedStandings).map(([groupName, groupData]: [string, any]) => (
-        <Card key={groupName} className="overflow-x-auto p-0 border border-white/10 bg-black/40">
-          <div className="bg-white/5 px-4 py-2 border-b border-white/5">
-            <h3 className="text-xs font-black uppercase text-center text-gray-300 tracking-widest">{translateCountryName(groupName)}</h3>
+      {Object.entries(groupedStandings)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([groupName, groupData]: [string, any]) => (
+        <Card key={groupName} className="overflow-x-auto p-0 border border-white/10 bg-black/40 no-scrollbar">
+          <div className="bg-white/10 px-4 py-2.5 border-b border-white/5">
+            <h3 className="text-sm font-black uppercase text-center text-orange-500 tracking-[0.2em] italic">
+              {groupName.replace(/Group /i, 'Groupe ')}
+            </h3>
           </div>
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                <th className="px-3 py-2 w-8 text-center text-orange-500">#</th>
-                <th className="px-3 py-2 text-white">Équipe</th>
-                <th className="px-2 py-2 text-center" title="Matchs Joués">MP</th>
-                <th className="px-2 py-2 text-center" title="Gagnés">W</th>
-                <th className="px-2 py-2 text-center" title="Nuls">D</th>
-                <th className="px-2 py-2 text-center" title="Perdus">L</th>
-                <th className="px-2 py-2 text-center" title="Buts Marqués : Encaissés">G</th>
-                <th className="px-2 py-2 text-center" title="Différence de buts">+/-</th>
-                <th className="px-2 py-2 text-center text-white">PTS</th>
-                <th className="px-3 py-2 text-center">FORM</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {(groupData as any[]).sort((a,b) => a.rank - b.rank).map((s) => (
-                <tr key={s.team.id} className="hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => onTeamClick(s.team.id, selectedSeason)}>
-                  <td className="px-3 py-2 text-center font-black italic text-xs text-white group-hover:text-orange-500">{s.rank}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <img src={s.team.logo} alt="" className="w-5 h-5 object-contain" />
-                      <span className="font-bold text-xs truncate max-w-[120px] text-gray-200 group-hover:text-white transition-colors">{translateCountryName(s.team.name)}</span>
-                    </div>
-                  </td>
-                  <td className="px-2 py-2 text-center text-[11px] font-bold text-gray-400">{s.all.played}</td>
-                  <td className="px-2 py-2 text-center text-[11px] font-bold text-gray-400">{s.all.win}</td>
-                  <td className="px-2 py-2 text-center text-[11px] font-bold text-gray-400">{s.all.draw}</td>
-                  <td className="px-2 py-2 text-center text-[11px] font-bold text-gray-400">{s.all.lose}</td>
-                  <td className="px-2 py-2 text-center text-[11px] font-bold text-gray-400">{s.all.goals.for}:{s.all.goals.against}</td>
-                  <td className="px-2 py-2 text-center text-[11px] font-bold text-gray-400">{s.goalsDiff}</td>
-                  <td className="px-2 py-2 text-center font-black text-xs text-orange-400">{s.points}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex justify-center gap-1">
-                      {s.form?.split('').map((f: string, i: number) => (
-                        <span 
-                          key={i} 
-                          className={`w-4 h-4 rounded text-[8px] flex items-center justify-center font-black text-white/90 ${
-                            f === 'W' ? 'bg-green-600/80' : f === 'D' ? 'bg-gray-500/80' : 'bg-red-600/80'
-                          }`}
-                        >
-                          {f}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full text-left border-collapse min-w-[600px] sm:min-w-full">
+              <thead>
+                <tr className="border-b border-white/10 text-[9px] font-black uppercase tracking-widest text-gray-400 bg-white/5">
+                  <th className="px-3 py-3 w-10 text-center text-orange-500">#</th>
+                  <th className="px-3 py-3 text-white">Équipe</th>
+                  <th className="px-2 py-3 w-10 text-center" title="Matchs Joués">MP</th>
+                  <th className="px-1 py-3 w-8 text-center" title="Gagnés">W</th>
+                  <th className="px-1 py-3 w-8 text-center" title="Nuls">D</th>
+                  <th className="px-1 py-3 w-8 text-center" title="Perdus">L</th>
+                  <th className="px-2 py-3 w-14 text-center" title="Buts Marqués : Encaissés">G</th>
+                  <th className="px-1 py-3 w-10 text-center" title="Différence de buts">+/-</th>
+                  <th className="px-2 py-3 w-12 text-center text-white">PTS</th>
+                  <th className="px-3 py-3 w-28 text-center">FORM</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {(groupData as any[]).sort((a,b) => a.rank - b.rank).map((s) => (
+                  <tr key={s.team.id} className="hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => onTeamClick(s.team.id, selectedSeason)}>
+                    <td className="px-3 py-3 text-center font-black italic text-xs text-white group-hover:text-orange-500">{s.rank}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-3">
+                        <img src={s.team.logo} alt="" className="w-6 h-6 object-contain shrink-0" referrerPolicy="no-referrer" />
+                        <span className="font-bold text-xs text-gray-200 group-hover:text-white transition-colors uppercase italic whitespace-nowrap">{translateCountryName(s.team.name)}</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 text-center text-xs font-bold text-gray-400">{s.all.played}</td>
+                    <td className="px-1 py-3 text-center text-xs font-bold text-gray-500">{s.all.win}</td>
+                    <td className="px-1 py-3 text-center text-xs font-bold text-gray-500">{s.all.draw}</td>
+                    <td className="px-1 py-3 text-center text-xs font-bold text-gray-500">{s.all.lose}</td>
+                    <td className="px-2 py-3 text-center text-[10px] font-bold text-gray-500 tabular-nums">{s.all.goals.for}:{s.all.goals.against}</td>
+                    <td className="px-1 py-3 text-center text-xs font-bold text-gray-400 tabular-nums">{s.goalsDiff > 0 ? `+${s.goalsDiff}` : s.goalsDiff}</td>
+                    <td className="px-2 py-3 text-center font-black text-sm text-orange-400">{s.points}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex justify-center gap-1">
+                        {s.form?.split('').map((f: string, i: number) => (
+                          <span 
+                            key={i} 
+                            className={`w-4 h-4 rounded text-[8px] flex items-center justify-center font-black text-white/90 shadow-sm ${
+                              f === 'W' ? 'bg-green-600/80 shadow-green-900/20' : f === 'D' ? 'bg-gray-500/80 shadow-gray-900/20' : 'bg-red-600/80 shadow-red-900/20'
+                            }`}
+                          >
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {fixtures && fixtures.filter(f => f.league.round === groupName || groupName.includes(f.league.round) || f.league.round.includes(groupName.replace(/.* - /, ''))).length > 0 && (
             <div className="bg-white/5 border-t border-white/5 p-2">

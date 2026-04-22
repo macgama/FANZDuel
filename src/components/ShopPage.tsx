@@ -5,6 +5,7 @@ import { UserProfile, FanzTemplate, Card as DuelCard } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, getImageUrl } from '../lib/utils';
 import { OptimizedMedia } from './OptimizedMedia';
+import { MrFanzHelp } from './MrFanzHelp';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 
@@ -356,8 +357,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
   return (
     <div className="flex flex-col h-full bg-transparent">
       <div className="flex items-center justify-between px-4">
-        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
+        <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center">
           Boutique
+          <MrFanzHelp contextId="shop" />
         </h1>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full">

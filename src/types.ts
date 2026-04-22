@@ -31,6 +31,11 @@ export interface UserProfile {
   ferveurPoints: number;
   matchesParticipated?: number;
   totalScoreGiven?: number;
+  matchesPlayed?: number;
+  matchesWon?: number;
+  totalScore?: number;
+  win_count?: number; // Added for compatibility
+  duel_count?: number; // Added for compatibility
   level: number;
   teamSlots: number;
   cards: string[];
@@ -200,6 +205,7 @@ export interface Fanz {
   deck: string[]; // Max 8
   unlockedSkins: string[];
   equippedSkin?: string;
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary'; // Added for compatibility
   unlockedEmotes: string[];
   unlockedActions?: string[];
   ferveurPath?: FerveurLevel[];

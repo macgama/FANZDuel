@@ -38,6 +38,7 @@ import { auth } from '../firebase';
 
 import { UserProfileModal } from './UserProfileModal';
 import { Header } from './Header';
+import { MrFanzHelp } from './MrFanzHelp';
 
 interface HomeProps {
   profile: UserProfile;
@@ -66,11 +67,12 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const worldCupScrollRef = useRef<HTMLDivElement>(null);
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = direction === 'left' ? -scrollContainerRef.current.clientWidth : scrollContainerRef.current.clientWidth;
-      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+  const scroll = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
+    if (ref.current) {
+      const scrollAmount = direction === 'left' ? -ref.current.clientWidth : ref.current.clientWidth;
+      ref.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
 
@@ -261,6 +263,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
   }, [allFanz, profile.activeFanzId, profile.activeAction?.fanzId, profile.activeAction?.actionId, lifeActions]);
 
   useEffect(() => {
+    if (!profile?.uid) return;
     let unsubs: (() => void)[] = [];
 
     // Fetch some live matches
@@ -423,8 +426,9 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
           <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/50 to-transparent flex items-end justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg">
+                <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg flex items-center">
                   {activeFanz?.name || 'Mon FANZ'}
+                  <MrFanzHelp contextId="home" />
                 </h1>
               </div>
 
@@ -522,7 +526,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
           <div className="relative w-full pb-4">
             {/* Left Scroll Button */}
             <button 
-              onClick={() => scroll('left')}
+              onClick={() => scroll(scrollContainerRef, 'left')}
               className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -779,7 +783,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
             
             {/* Right Scroll Button */}
             <button 
-              onClick={() => scroll('right')}
+              onClick={() => scroll(scrollContainerRef, 'right')}
               className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
             >
               <ChevronRight className="w-5 h-5" />
@@ -787,7 +791,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
           </div>
 
           {/* Buy me a ball after live slider / actions */}
-          <div className="px-[30px] pt-4 mb-4">
+          <div className="px-[30px] py-4">
             <a 
               href="https://buymeacoffee.com/thebestfanonline" 
               target="_blank" 
@@ -802,7 +806,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
           </div>
 
         {/* HUB COUPE DU MONDE 2026 */}
-        <div className="mb-8 pb-8 pt-4 relative">
+        <div className="py-8 relative">
           <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-700/10 pointer-events-none"></div>
           <div className="relative z-10 flex items-center justify-between px-[30px] mb-4">
             <div className="flex items-center gap-2">
@@ -819,10 +823,22 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
             )}
           </div>
           
-          <div className="relative z-10 px-4 sm:px-[30px]">
-            {worldCupStandings && worldCupStandings.length > 0 ? (
-              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {worldCupStandings.map((group: any[], index: number) => {
+          <div className="relative z-10">
+            {/* Left Scroll Button */}
+            <button 
+              onClick={() => scroll(worldCupScrollRef, 'left')}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            <div className="px-4 sm:px-[30px]">
+              {worldCupStandings && worldCupStandings.length > 0 ? (
+                <div 
+                  ref={worldCupScrollRef}
+                  className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth no-scrollbar"
+                >
+                  {worldCupStandings.map((group: any[], index: number) => {
                   const groupName = group[0]?.group || `Groupe ${String.fromCharCode(65 + index)}`;
                   return (
                     <div key={index} className="snap-center shrink-0 w-[85vw] sm:w-[320px] max-w-[340px] bg-black/40 border border-white/10 rounded-xl overflow-hidden flex flex-col">
@@ -912,18 +928,27 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
+            {/* Right Scroll Button */}
+            <button 
+              onClick={() => scroll(worldCupScrollRef, 'right')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {showProfileModal && (
-        <UserProfileModal 
-          profile={profile} 
-          onClose={() => setShowProfileModal(false)} 
-        />
-      )}
     </div>
+  </div>
+
+  {showProfileModal && (
+    <UserProfileModal 
+      profile={profile} 
+      onClose={() => setShowProfileModal(false)} 
+    />
+  )}
+</div>
   );
 }
