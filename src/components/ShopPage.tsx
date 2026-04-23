@@ -168,7 +168,8 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             fullPrice: c.price,
             image: c.imageUrl ? getImageUrl(c.imageUrl) : '🃏',
             video: c.videoUrl,
-            duration: `Coût: ${c.energyCost} Énergie`
+            duration: `Coût: ${c.energyCost} Énergie`,
+            description: c.description
           }));
 
         setFanzItems(fanzForSale);
@@ -347,6 +348,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             <h3 className="text-sm font-black italic uppercase text-white mb-1 leading-tight">{item.name}</h3>
             {item.fanz && <p className="text-[10px] text-white/70 font-bold uppercase">Pour: {item.fanz}</p>}
             {item.duration && <p className="text-[10px] text-white/70 font-bold uppercase">{item.duration}</p>}
+            {item.description && <p className="text-[9px] text-white/60 font-medium italic mt-1 line-clamp-2 leading-tight">"{item.description}"</p>}
             {renderPriceButton(item.price, item.currency, item)}
           </div>
         </Card>
@@ -569,9 +571,34 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
               </button>
 
               <div className="text-center mb-6">
-                <h3 className="text-xl font-black italic uppercase text-white mb-2">Confirmer l'achat</h3>
+                <h3 className="text-xl font-black italic uppercase text-white mb-4">Confirmer l'achat</h3>
+
+                {/* Large Preview in Modal */}
+                <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden bg-gray-800/50 border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+                    {(selectedItem.image || selectedItem.video || selectedItem.icon) && (typeof selectedItem.image === 'string' || typeof selectedItem.icon === 'string') ? (
+                      <OptimizedMedia 
+                        type={selectedItem.video ? 'video' : 'image'} 
+                        src={selectedItem.video || selectedItem.image || selectedItem.icon || null} 
+                        poster={selectedItem.image || selectedItem.icon} 
+                        className="w-full h-full object-contain" 
+                        autoPlay
+                        loop
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-6xl">
+                        {selectedItem.image || selectedItem.icon}
+                      </div>
+                    )}
+                </div>
+
                 <p className="text-sm text-gray-400">Êtes-vous sûr de vouloir acheter :</p>
-                <p className="text-lg font-bold text-orange-500 mt-1">{selectedItem.name}</p>
+                <p className="text-xl font-black italic text-orange-500 mt-1 uppercase drop-shadow-md">{selectedItem.name}</p>
+                
+                {selectedItem.description && (
+                  <p className="text-xs text-gray-300 mt-2 bg-white/5 p-2 rounded-lg border border-white/10 italic">
+                    "{selectedItem.description}"
+                  </p>
+                )}
               </div>
 
               {error && (

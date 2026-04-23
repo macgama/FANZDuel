@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { UserProfile, Fanz, FanzTemplate, LifeAction, GlobalFervorConfig } from '../types';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, getDocs, limit, setDoc } from 'firebase/firestore';
-import { getImageUrl } from '../lib/utils';
+import { getImageUrl, cn } from '../lib/utils';
 // ... (rest of imports)
 
 // Since getImageUrl handles the logic for converting gs:// to https://thebestfan.online/img/, 
@@ -68,6 +68,45 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const worldCupScrollRef = useRef<HTMLDivElement>(null);
+
+  const [hasNewPass, setHasNewPass] = useState(false);
+  const [hasClaimableStreak, setHasClaimableStreak] = useState(false);
+
+  const favoriteIds = React.useMemo(() => {
+    return profile?.favoriteTeams?.map(id => id.toString()) || [];
+  }, [profile?.favoriteTeams]);
+
+  const hasClaimableMissions = Object.values(profile.missionsProgress || {}).some(
+    (p: any) => p.isCompleted && !p.isClaimed
+  );
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        // Pass Badges
+        const qPasses = query(collection(db, 'passes'), where('isActive', '==', true));
+        const snapPasses = await getDocs(qPasses);
+        const hasNew = snapPasses.docs.some(doc => !profile.purchasedPasses?.includes(doc.id));
+        setHasNewPass(hasNew);
+
+        // Streak Badges
+        const currentDay = profile.streak || 1;
+        const isAlreadyClaimed = profile.claimedStreakDays?.includes(currentDay);
+        if (!isAlreadyClaimed) {
+          const qStreak = query(collection(db, 'weekly_streak_cycles'), where('isActive', '==', true));
+          const snapStreak = await getDocs(qStreak);
+          setHasClaimableStreak(!snapStreak.empty);
+        } else {
+          setHasClaimableStreak(false);
+        }
+      } catch (err) {
+        console.error("Error fetching badges:", err);
+      }
+    };
+    if (profile.uid) {
+      fetchBadges();
+    }
+  }, [profile.uid, profile.purchasedPasses, profile.streak, profile.claimedStreakDays]);
 
   const scroll = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
     if (ref.current) {
@@ -481,25 +520,43 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
         {/* Content Below Video (Live Matches or Life Actions) */}
         <div className="flex-1 flex flex-col justify-start py-2">
           {/* Quick Links */}
-          <div className="px-4 sm:px-8 pt-3 pb-2 grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="px-4 sm:px-8 pt-3 pb-2 grid grid-cols-4 gap-3 sm:gap-4">
             <button 
               onClick={() => onNavigate('shop')}
-              className="flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+              className="relative flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
             >
               <Store className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
               <span className="text-[10px] font-black uppercase text-center leading-tight">Shop</span>
             </button>
             <button 
               onClick={() => onNavigate('missions')}
-              className="flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+              className="relative flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
             >
+              {hasClaimableMissions && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10" />
+              )}
               <Target className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
               <span className="text-[10px] font-black uppercase text-center leading-tight">Missions</span>
             </button>
             <button 
-              onClick={() => onNavigate('pass')}
-              className="flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+              onClick={() => onOpenStreak()}
+              className="relative flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
             >
+              {hasClaimableStreak && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10" />
+              )}
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
+              <span className="text-[10px] font-black uppercase text-center leading-tight">Série</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('pass')}
+              className="relative flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+            >
+              {hasNewPass && (
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded border border-black uppercase animate-bounce shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10">
+                  New
+                </div>
+              )}
               <Ticket className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
               <span className="text-[10px] font-black uppercase text-center leading-tight">Pass</span>
             </button>
@@ -555,6 +612,9 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                   const homeEvents = match.events?.filter((e: any) => e.team.id === match.teams.home.id && (e.type === 'Goal' || e.type === 'Card')) || [];
                   const awayEvents = match.events?.filter((e: any) => e.team.id === match.teams.away.id && (e.type === 'Goal' || e.type === 'Card')) || [];
 
+                  const homeIsFav = favoriteIds.includes(match.teams.home.id.toString());
+                  const awayIsFav = favoriteIds.includes(match.teams.away.id.toString());
+
                   return (
                   <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group">
                     {/* Header: Country & League */}
@@ -589,10 +649,15 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                           }
                         }}
                       >
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform relative">
                           <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
+                          {homeIsFav && (
+                            <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
+                              <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
+                            </div>
+                          )}
                         </div>
-                        <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover:text-orange-500 transition-colors line-clamp-2 w-full px-1">{match.teams.home.name}</span>
+                        <span className={cn("font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover:text-orange-500 transition-colors line-clamp-2 w-full px-1", homeIsFav && "text-orange-500")}>{match.teams.home.name}</span>
                         <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
                           <Flame className="w-3 h-3 text-orange-500" />
                           <span className="text-[10px] sm:text-xs font-black text-orange-500">{hasScore ? scoreA : '0'}</span>
@@ -621,10 +686,15 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                           }
                         }}
                       >
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform relative">
                           <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
+                          {awayIsFav && (
+                            <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
+                              <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
+                            </div>
+                          )}
                         </div>
-                        <span className="font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover:text-blue-500 transition-colors line-clamp-2 w-full px-1">{match.teams.away.name}</span>
+                        <span className={cn("font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover:text-blue-500 transition-colors line-clamp-2 w-full px-1", awayIsFav && "text-orange-500")}>{match.teams.away.name}</span>
                         <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
                           <Flame className="w-3 h-3 text-blue-500" />
                           <span className="text-[10px] sm:text-xs font-black text-blue-500">{hasScore ? scoreB : '0'}</span>

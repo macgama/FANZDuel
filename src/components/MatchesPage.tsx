@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { footballApi } from '../services/footballApi';
 import { Card, Button } from './Layout';
-import { Search, Calendar as CalendarIcon, Activity, Clock, CheckCircle, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, Activity, Clock, CheckCircle, ChevronLeft, ChevronRight, Flame, Star } from 'lucide-react';
 import { format, addDays, subDays, isSameDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
@@ -10,8 +10,10 @@ import { MatchEvents } from './MatchEvents';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
+import { cn } from '../lib/utils';
+import { UserProfile } from '../types';
 
-export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
+export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick, profile }: { onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; profile: UserProfile | null }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +113,8 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   }, [fixtures]);
 
   const filteredFixtures = useMemo(() => {
+    const favoriteIds = profile?.favoriteTeams?.map(id => id.toString()) || [];
+    
     return fixtures.filter(f => {
       const matchesSearch = 
         f.league.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,8 +128,14 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
       if (statusFilter === 'finished') return ['FT', 'AET', 'PEN'].includes(f.fixture.status.short);
       
       return true;
+    }).sort((a, b) => {
+      const aIsFav = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
+      const bIsFav = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
+      if (aIsFav && !bIsFav) return -1;
+      if (!aIsFav && bIsFav) return 1;
+      return 0;
     });
-  }, [fixtures, searchTerm, statusFilter]);
+  }, [fixtures, searchTerm, statusFilter, profile?.favoriteTeams]);
 
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
 
@@ -264,6 +274,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
               onJoinDuel={onJoinDuel}
               onTeamClick={onTeamClick}
               onLeagueClick={onLeagueClick}
+              profile={profile}
             />
           ))}
         </div>
@@ -272,7 +283,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   );
 }
 
-function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoinDuel, onTeamClick, onLeagueClick }: { country: any; activeDuels: any[]; matchScores: any; onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void }) {
+function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoinDuel, onTeamClick, onLeagueClick, profile }: { country: any; activeDuels: any[]; matchScores: any; onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; profile: UserProfile | null }) {
   const [isOpen, setIsOpen] = useState(true);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -360,6 +371,7 @@ function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoi
                             onClick={(tab) => onMatchClick(match.fixture.id, tab)}
                             onJoinDuel={(isLive) => onJoinDuel(match.fixture.id, isLive)}
                             onTeamClick={onTeamClick}
+                            profile={profile}
                           />
                         </div>
                       ))}
@@ -390,10 +402,14 @@ function FilterButton({ active, onClick, label, color = "text-white" }: { active
   );
 }
 
-function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTeamClick }: { match: any; hasActiveDuel: boolean; matchScore?: { scoreA: number, scoreB: number }; onClick: (tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (isLive: boolean) => void; onTeamClick: (id: number, season: number) => void }) {
+function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTeamClick, profile }: { match: any; hasActiveDuel: boolean; matchScore?: { scoreA: number, scoreB: number }; onClick: (tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; profile: UserProfile | null }) {
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(match.fixture.status.short);
   const isUpcoming = ['TBD', 'NS'].includes(match.fixture.status.short);
   const isFinished = !isLive && !isUpcoming;
+  
+  const favoriteIds = profile?.favoriteTeams?.map(id => id.toString()) || [];
+  const homeIsFav = favoriteIds.includes(match.teams.home.id.toString());
+  const awayIsFav = favoriteIds.includes(match.teams.away.id.toString());
 
   // Extract scorers
   const scorers = match.events?.filter((e: any) => e.type?.toLowerCase() === 'goal') || [];
@@ -422,10 +438,17 @@ function MatchCard({ match, hasActiveDuel, matchScore, onClick, onJoinDuel, onTe
               onTeamClick(match.teams.home.id, match.league.season);
             }}
           >
-            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center relative">
               <img src={match.teams.home.logo} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
+              {homeIsFav && (
+                <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
+                  <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
+                </div>
+              )}
             </div>
-            <span className="font-black text-xs sm:text-sm text-center uppercase leading-tight w-full">{match.teams.home.name}</span>
+            <span className={cn("font-black text-xs sm:text-sm text-center uppercase leading-tight w-full", homeIsFav && "text-orange-500")}>
+              {match.teams.home.name}
+            </span>
             {(isLive || isFinished) && (
               <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
                 <Flame className="w-3 h-3 text-orange-500" />

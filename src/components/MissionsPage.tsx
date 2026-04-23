@@ -6,6 +6,7 @@ import { db } from '../firebase';
 import { collection, onSnapshot, doc, updateDoc, increment, arrayUnion, getDoc, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../firebase';
 import { useAlert } from '../context/AlertContext';
+import { useReward } from '../context/RewardContext';
 import { logTransaction } from '../services/transactionService';
 
 interface MissionsPageProps {
@@ -17,6 +18,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const { showAlert } = useAlert();
+  const { showReward } = useReward();
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'missions'), (snapshot) => {
@@ -89,7 +91,20 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
       if (mission.reward?.type === 'money' && mission.reward.amount) await logTransaction(profile.uid, 'money', mission.reward.amount, `Récompense mission: ${mission.title}`);
       if (mission.reward?.type === 'gems' && mission.reward.amount) await logTransaction(profile.uid, 'gems', mission.reward.amount, `Récompense mission: ${mission.title}`);
       
-      showAlert({ title: "Récompense récupérée !", type: "success" });
+      if (mission.reward) {
+        showReward({
+          type: mission.reward.type as any,
+          amount: mission.reward.amount,
+          title: `Mission Accomplie !`,
+          subtitle: mission.title,
+          card: mission.reward.type === 'card' && mission.reward.cardId ? { name: "Carte Débloquée" } : undefined,
+          skin: mission.reward.type === 'skin' && mission.reward.skinId ? { name: "Skin Débloqué" } : undefined,
+          emote: mission.reward.type === 'emote' && mission.reward.emoteId ? { name: "Emote Débloqué" } : undefined,
+          action: mission.reward.type === 'action' && mission.reward.actionId ? { name: "Action Débloquée" } : undefined
+        });
+      } else {
+        showAlert({ title: "Récompense récupérée !", type: "success" });
+      }
     } catch (err) {
       console.error("Error claiming mission reward", err);
       showAlert({ title: "Erreur", subtitle: "Impossible de récupérer la récompense", type: "error" });

@@ -212,46 +212,69 @@ export function Header({
             className="flex items-center gap-2 sm:gap-3 bg-black/50 backdrop-blur-md rounded-full px-3 sm:px-4 py-1.5 sm:py-2 border border-white/10 relative z-10 cursor-pointer hover:bg-white/10 transition-colors"
             onClick={() => onTransactionsClick && onTransactionsClick()}
           >
-            <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 group/money relative">
               <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
               <span className="text-[10px] sm:text-xs font-bold">{profile.money}</span>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/money:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest">Monnaie</div>
+                <div className="text-[9px] text-gray-300">Achats en boutique et améliorations</div>
+              </div>
             </div>
             <div className="w-px h-3 sm:h-4 bg-white/20" />
-            <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 group/gems relative">
               <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
               <span className="text-[10px] sm:text-xs font-bold">{profile.gems}</span>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/gems:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                <div className="text-[10px] sm:text-xs font-black text-blue-400 uppercase tracking-widest">Gemmes</div>
+                <div className="text-[9px] text-gray-300">Monnaie rare pour le contenu premium</div>
+              </div>
             </div>
             <div className="w-px h-3 sm:h-4 bg-white/20" />
-            <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 group/boost relative">
               <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
               <span className="text-[10px] sm:text-xs font-bold">{profile.boostPoints}</span>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/boost:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                <div className="text-[10px] sm:text-xs font-black text-yellow-500 uppercase tracking-widest">Points de Boost</div>
+                <div className="text-[9px] text-gray-300">Avantages temporaires lors des duels</div>
+              </div>
             </div>
             <div className="w-px h-3 sm:h-4 bg-white/20" />
-            <div className="flex items-center gap-1 sm:gap-1.5 group relative">
+            <div className="flex items-center gap-1 sm:gap-1.5 group/energy relative">
               <img src={LOGOS.energy} alt="Energy" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
               <span className="text-[10px] sm:text-xs font-bold">{profile.energy}</span>
-              {timeUntilRefill && (
-                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1 text-[8px] sm:text-[10px] font-mono text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded-full border border-orange-500/30">
-                  <Clock className="w-2 h-2 sm:w-3 sm:h-3" />
-                  {timeUntilRefill}
-                </div>
-              )}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/energy:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                <div className="text-[10px] sm:text-xs font-black text-green-400 uppercase tracking-widest">Énergie</div>
+                <div className="text-[9px] text-gray-300">Nécessaire pour affronter des adversaires</div>
+                {timeUntilRefill && (
+                  <div className="flex items-center gap-1 text-[9px] font-mono text-orange-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
+                    <Clock className="w-3 h-3" />
+                    + 1 ({timeUntilRefill})
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           
           {/* Ferveur Progress Bar */}
-          <div 
-            className="mt-1 sm:mt-2 w-32 sm:w-40 h-4 sm:h-5 bg-black/60 rounded-full border border-white/10 overflow-hidden relative cursor-pointer hover:border-white/30 transition-colors"
-            onClick={() => onFervorClick && onFervorClick()}
-          >
+          <div className="relative group/ferveur mt-1 sm:mt-2">
             <div 
-              className="absolute top-0 left-0 h-full bg-orange-500 transition-all duration-500"
-              style={{ width: `${ferveurProgressPercent}%` }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-[8px] sm:text-[10px] font-black text-white uppercase tracking-tighter">
-                {currentFerveur} / {maxFerveur}
-              </span>
+              className="w-32 sm:w-40 h-4 sm:h-5 bg-black/60 rounded-full border border-white/10 overflow-hidden relative cursor-pointer hover:border-white/30 transition-colors"
+              onClick={() => onFervorClick && onFervorClick()}
+            >
+              <div 
+                className="absolute top-0 left-0 h-full bg-orange-500 transition-all duration-500"
+                style={{ width: `${ferveurProgressPercent}%` }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[8px] sm:text-[10px] font-black text-white uppercase tracking-tighter">
+                  {currentFerveur} / {maxFerveur}
+                </span>
+              </div>
+            </div>
+            
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/ferveur:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+              <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest">Ferveur</div>
+              <div className="text-[9px] text-gray-300">Répandez votre ferveur pour progresser !</div>
             </div>
           </div>
         </div>

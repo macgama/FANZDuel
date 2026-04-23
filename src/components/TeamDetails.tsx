@@ -18,7 +18,8 @@ import {
   RefreshCw,
   Clock,
   Shield,
-  Medal
+  Medal,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -28,6 +29,7 @@ import { collection, query, where, orderBy, limit, getDocs, getDoc, doc } from '
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
 import { TbfoRankingsTab } from './LeagueDetails';
+import { UserProfile } from '../types';
 
 interface TeamDetailsProps {
   teamId: number;
@@ -36,9 +38,10 @@ interface TeamDetailsProps {
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
   onMatchClick?: (matchId: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void;
+  profile: UserProfile | null;
 }
 
-export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick, onLeagueClick, onMatchClick }: TeamDetailsProps) {
+export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick, onLeagueClick, onMatchClick, profile }: TeamDetailsProps) {
   const [team, setTeam] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState(initialSeason);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
@@ -184,9 +187,14 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
                 <img src={team.team.logo} alt="" className="w-full h-full object-contain" />
               </div>
               <div>
-                <h2 className="text-sm font-black italic uppercase tracking-tighter leading-tight text-white">
-                  {team.team.name}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-black italic uppercase tracking-tighter leading-tight text-white">
+                    {team.team.name}
+                  </h2>
+                  {profile?.favoriteTeams?.some(id => id.toString() === teamId.toString()) && (
+                    <Star className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
+                  )}
+                </div>
                 <div className="flex items-center gap-1.5">
                   <p className="text-[8px] text-gray-400 uppercase font-black tracking-widest">
                     {translateCountryName(team.team.country)} - {team.venue.city}

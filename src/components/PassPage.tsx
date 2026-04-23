@@ -5,6 +5,7 @@ import { UserProfile, Pass, FanzSkin } from '../types';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, doc, updateDoc, arrayUnion, increment, getDoc, setDoc } from 'firebase/firestore';
 import { useAlert } from '../context/AlertContext';
+import { useReward } from '../context/RewardContext';
 import { logTransaction } from '../services/transactionService';
 import { getImageUrl } from '../lib/utils';
 
@@ -19,6 +20,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
   const [loading, setLoading] = useState(true);
   const [skins, setSkins] = useState<Record<string, FanzSkin>>({});
   const { showAlert } = useAlert();
+  const { showReward } = useReward();
 
   useEffect(() => {
     const fetchPasses = async () => {
@@ -170,7 +172,15 @@ export function PassPage({ profile, onBack }: PassPageProps) {
       if (reward.type === 'money' && reward.amount) await logTransaction(profile.uid, 'money', reward.amount, `Récompense Pass Niveau ${level}`);
       if (reward.type === 'gems' && reward.amount) await logTransaction(profile.uid, 'gems', reward.amount, `Récompense Pass Niveau ${level}`);
       
-      showAlert({ title: "Récompense récupérée !", type: "success" });
+      showReward({
+        type: reward.type as any,
+        amount: reward.amount,
+        title: `Récompense Palier ${level} !`,
+        card: reward.type === 'card' && reward.cardId ? { name: "Carte Débloquée", imageUrl: "placeholder" } : undefined, // Assuming card exists if cardId
+        skin: reward.type === 'skin' && reward.skinId ? { name: "Skin Débloqué" } : undefined,
+        emote: reward.type === 'emote' && reward.emoteId ? { name: "Emote Débloqué" } : undefined,
+        action: reward.type === 'action' && reward.actionId ? { name: "Action Débloquée" } : undefined
+      });
     } catch (err) {
       console.error("Error claiming reward", err);
       showAlert({ title: "Erreur lors de la récupération", type: "error" });
@@ -371,9 +381,19 @@ export function PassPage({ profile, onBack }: PassPageProps) {
         </Card>
 
         {/* Pass Track */}
-        <div className="space-y-4 relative">
+        <div className="space-y-12 sm:space-y-16 relative mt-12">
           {/* Central Line */}
-          <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-white/5 -translate-x-1/2 rounded-full" />
+          <div className="absolute left-1/2 top-0 bottom-0 w-4 sm:w-6 bg-gray-900 border-x border-white/10 -translate-x-1/2 rounded-full overflow-hidden shadow-inner">
+             {/* Progress active bar inside tracking line */}
+             <div 
+               className="w-full bg-gradient-to-b from-purple-400 to-purple-600 shadow-[0_0_20px_rgba(168,85,247,1)] rounded-full transition-all duration-1000 relative"
+               style={{ height: `${progressPercent}%` }}
+             >
+               <div className="absolute inset-0 opacity-30 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] pointer-events-none" />
+             </div>
+             {/* Pattern for empty part */}
+             <div className="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')] pointer-events-none" />
+          </div>
           
           {(selectedPass.levels || []).map((level) => {
             const unlocked = userPoints >= level.pointsRequired;
@@ -381,73 +401,84 @@ export function PassPage({ profile, onBack }: PassPageProps) {
             const claimedPremium = profile.claimedPassRewards?.includes(`${selectedPass.id}-level-${level.level}-premium`);
             
             return (
-              <div key={level.level} className="relative flex items-center gap-4">
+              <div key={level.level} className="relative flex items-center gap-2 sm:gap-6">
                 {/* Free Reward (Left) */}
                 <div className="flex-1 flex justify-end">
                   {level.freeReward ? (
-                    <Card className={`p-3 w-32 flex flex-col items-center text-center border transition-all ${unlocked ? (claimedFree ? 'border-white/10 bg-black/40 opacity-50' : 'border-green-500/50 bg-green-500/10') : 'border-white/5 bg-black/40 opacity-50'}`}>
-                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">Gratuit</div>
-                      <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center text-green-500 font-black mb-2">
-                        {level.freeReward.type === 'money' ? '$' : level.freeReward.type === 'gems' ? '💎' : '⚡'}
+                    <Card className={`p-2 sm:p-4 w-[110px] sm:w-[160px] flex flex-col items-center text-center border transition-all duration-500 shadow-xl ${unlocked ? (claimedFree ? 'border-white/10 bg-black/60 opacity-60' : 'border-green-500/50 bg-gradient-to-br from-green-900/30 to-black/60 shadow-[0_0_20px_rgba(34,197,94,0.15)]') : 'border-white/5 bg-black/60 opacity-50'}`}>
+                      <div className="text-[10px] sm:text-xs font-black text-gray-400 uppercase mb-2">Gratuit</div>
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-500/10 rounded-xl flex items-center justify-center text-green-500 font-black mb-2 border border-green-500/20 overflow-hidden">
+                        {level.freeReward.type === 'money' ? <img src={LOGOS.money} alt="Money" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-md" /> : level.freeReward.type === 'gems' ? <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-md" /> : '⚡'}
                       </div>
-                      <div className="text-xs font-black text-white mb-2">{level.freeReward.amount}</div>
+                      <div className="text-sm sm:text-base font-black text-white mb-2">{['money', 'gems', 'boost', 'energy', 'xp'].includes(level.freeReward.type) ? `+${level.freeReward.amount}` : level.freeReward.type}</div>
                       {unlocked && !claimedFree && (
-                        <Button onClick={() => handleClaimReward(level.level, 'free')} size="sm" className="w-full h-6 text-[10px] bg-green-500 hover:bg-green-600 text-black font-black uppercase">
+                        <Button onClick={() => handleClaimReward(level.level, 'free')} size="sm" className="w-full h-8 sm:h-10 text-[10px] sm:text-xs bg-green-500 hover:bg-green-600 text-white font-black uppercase shadow-lg shadow-green-500/20 border border-green-400/50">
                           Récupérer
                         </Button>
                       )}
-                      {claimedFree && <div className="text-[10px] text-green-500 font-bold uppercase"><Check className="w-3 h-3 mx-auto" /></div>}
+                      {claimedFree && <div className="text-[10px] sm:text-xs text-green-500 font-black uppercase flex items-center gap-1 justify-center"><Check className="w-3 h-3 sm:w-4 sm:h-4" /> Récupéré</div>}
                     </Card>
-                  ) : <div className="w-32" />}
+                  ) : <div className="w-[110px] sm:w-[160px]" />}
                 </div>
 
                 {/* Level Node */}
-                <div className={`relative z-10 w-12 h-12 rounded-full flex flex-col items-center justify-center border-2 shrink-0 ${unlocked ? 'bg-purple-900 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-gray-900 border-white/10 text-gray-600'}`}>
-                  <span className="font-black italic leading-none">{level.level}</span>
-                  <span className="text-[8px] font-bold opacity-50">{level.pointsRequired} pts</span>
+                <div className={`relative z-10 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex flex-col items-center justify-center border-2 shrink-0 transition-colors duration-500 ${unlocked ? 'bg-purple-600 border-purple-300 text-white shadow-[0_0_30px_rgba(168,85,247,0.7)]' : 'bg-[#111] border-white/10 text-gray-400'}`}>
+                  <span className="font-black italic leading-none text-2xl sm:text-3xl drop-shadow-md">{level.level}</span>
+                  <span className="text-[10px] font-bold opacity-70 bg-black/30 px-2 py-0.5 rounded-full mt-1 border border-white/10">{level.pointsRequired}</span>
                 </div>
 
                 {/* Premium Reward (Right) */}
                 <div className="flex-1 flex justify-start">
                   {level.premiumReward ? (
-                    <Card className={`p-3 w-32 flex flex-col items-center text-center border transition-all ${unlocked && isOwned ? (claimedPremium ? 'border-white/10 bg-black/40 opacity-50' : 'border-purple-500/50 bg-purple-500/10') : 'border-white/5 bg-black/40 opacity-50'}`}>
-                      <div className="text-[10px] font-bold text-purple-400 uppercase mb-2 flex items-center gap-1">
+                    <Card className={`p-2 sm:p-4 w-[120px] sm:w-[180px] flex flex-col items-center text-center border transition-all duration-500 shadow-xl ${unlocked && isOwned ? (claimedPremium ? 'border-white/10 bg-black/60 opacity-60' : 'border-purple-500/50 bg-gradient-to-br from-purple-900/60 to-black/80 shadow-[0_0_25px_rgba(168,85,247,0.3)] scale-[1.02]') : 'border-white/5 bg-black/60 opacity-50'}`}>
+                      <div className="text-[10px] sm:text-xs font-black text-purple-400 uppercase mb-2 flex items-center justify-center gap-1 w-full bg-purple-500/10 rounded py-1 border border-purple-500/20">
                         <Lock className="w-3 h-3" /> Premium
                       </div>
                       
                       {level.premiumReward.type === 'skin' && level.premiumReward.skinId ? (
                         <>
-                          <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center mb-2 overflow-hidden">
+                          <div className="w-14 h-14 sm:w-20 sm:h-20 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-center justify-center mb-2 overflow-hidden shadow-inner">
                             {skins[level.premiumReward.skinId] ? (
-                              <img src={getImageUrl(skins[level.premiumReward.skinId].imageUrl)} alt="Skin" className="w-full h-full object-cover" />
+                               <OptimizedMedia 
+                                 type={skins[level.premiumReward.skinId].videoUrl ? 'video' : 'image'} 
+                                 src={skins[level.premiumReward.skinId].videoUrl || skins[level.premiumReward.skinId].imageUrl || null} 
+                                 poster={skins[level.premiumReward.skinId].imageUrl} 
+                                 className="w-full h-full object-cover scale-[1.2]" 
+                                 autoPlay
+                                 loop
+                               />
                             ) : (
-                              <span className="text-xl">👕</span>
+                               <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-lg" />
                             )}
                           </div>
-                          <div className="text-[9px] font-black text-white mb-2 leading-tight h-6 overflow-hidden">
+                          <div className="text-[10px] sm:text-xs font-black italic text-white mb-2 leading-tight h-8 sm:h-auto overflow-hidden text-ellipsis drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                             {skins[level.premiumReward.skinId]?.name || 'Skin Exclusif'}
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-500 font-black mb-2">💎</div>
-                          <div className="text-xs font-black text-white mb-2">{level.premiumReward.amount}</div>
+                          <div className="w-14 h-14 sm:w-20 sm:h-20 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-center justify-center text-blue-500 font-black mb-2 overflow-hidden shadow-inner">
+                            {level.premiumReward.type === 'money' ? <img src={LOGOS.money} alt="Money" className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-md" /> : level.premiumReward.type === 'gems' ? <img src={LOGOS.gems} alt="Gems" className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-md" /> : '💎'}
+                          </div>
+                          <div className="text-sm sm:text-base font-black italic text-white mb-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                            {['money', 'gems', 'boost', 'energy', 'xp'].includes(level.premiumReward.type) ? `+${level.premiumReward.amount}` : level.premiumReward.type}
+                          </div>
                         </>
                       )}
 
                       {unlocked && isOwned && !claimedPremium && (
-                        <Button onClick={() => handleClaimReward(level.level, 'premium')} size="sm" className="w-full h-6 text-[10px] bg-purple-500 hover:bg-purple-600 text-white font-black uppercase">
+                        <Button onClick={() => handleClaimReward(level.level, 'premium')} size="sm" className="w-full h-8 sm:h-10 text-[10px] sm:text-xs bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white font-black uppercase shadow-lg shadow-purple-500/30 border border-purple-400/50">
                           Récupérer
                         </Button>
                       )}
-                      {claimedPremium && <div className="text-[10px] text-purple-500 font-bold uppercase"><Check className="w-3 h-3 mx-auto" /></div>}
+                      {claimedPremium && <div className="text-[10px] sm:text-xs text-purple-500 font-black uppercase flex items-center justify-center gap-1"><Check className="w-3 h-3 sm:w-4 sm:h-4" /> Récupéré</div>}
                       {(!unlocked || !isOwned) && (
-                        <div className="text-[10px] text-gray-500 font-bold uppercase flex items-center gap-1">
-                          <Lock className="w-3 h-3" /> Bloqué
+                        <div className="text-[10px] sm:text-xs text-gray-500 font-black uppercase flex items-center justify-center gap-1 bg-black/50 py-1 rounded w-full border border-white/5">
+                          <Lock className="w-3 h-3 sm:w-4 sm:h-4" /> Bloqué
                         </div>
                       )}
                     </Card>
-                  ) : <div className="w-32" />}
+                  ) : <div className="w-[120px] sm:w-[180px]" />}
                 </div>
               </div>
             );

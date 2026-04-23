@@ -26,6 +26,8 @@ import { LeaderboardPage } from './components/LeaderboardPage';
 import { Rankings } from './components/Rankings';
 import { PassPage } from './components/PassPage';
 import { MissionsPage } from './components/MissionsPage';
+import { format } from 'date-fns';
+import { footballApi } from './services/footballApi';
 import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon, AlertCircle, LayoutGrid, Layers, Briefcase, Search, Calendar, Sparkles, Wallet, BarChart2, PieChart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signOut } from 'firebase/auth';
@@ -79,6 +81,37 @@ function AppContent() {
   const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
   const [unreadSocialCount, setUnreadSocialCount] = useState(0);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [hasFavoriteMatchToday, setHasFavoriteMatchToday] = useState(false);
+
+  // Check for favorite team matches today
+  useEffect(() => {
+    if (!profile?.favoriteTeams?.length) {
+      setHasFavoriteMatchToday(false);
+      return;
+    }
+
+    const checkFavoriteMatches = async () => {
+      try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const fixtures = await footballApi.getFixturesByDate(today);
+        const favoriteIds = profile.favoriteTeams.map(id => id.toString());
+        
+        const hasMatch = fixtures.some((f: any) => 
+          favoriteIds.includes(f.teams.home.id.toString()) || 
+          favoriteIds.includes(f.teams.away.id.toString())
+        );
+        
+        setHasFavoriteMatchToday(hasMatch);
+      } catch (err) {
+        console.error("Failed to check favorite matches:", err);
+      }
+    };
+
+    checkFavoriteMatches();
+    // Re-check every hour
+    const interval = setInterval(checkFavoriteMatches, 3600000);
+    return () => clearInterval(interval);
+  }, [profile?.favoriteTeams]);
 
   const [showActiveActionModal, setShowActiveActionModal] = useState(false);
   const [activeActionDetails, setActiveActionDetails] = useState<any>(null);
@@ -250,6 +283,15 @@ function AppContent() {
             )}
           </div>
           <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest mt-1 ${view === 'waiting-room' ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : 'text-orange-600'}`}>Duel</span>
+        </button>
+        <button onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'favorite-teams' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+          <div className="relative">
+            <Layers className="w-6 h-6 sm:w-7 sm:h-7" />
+            {hasFavoriteMatchToday && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+            )}
+          </div>
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Équipes</span>
         </button>
         <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'fanz' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Star className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -452,7 +494,13 @@ function AppContent() {
           <div className="flex flex-col gap-1 p-2 lg:p-4 flex-1 overflow-y-auto no-scrollbar">
              <SidebarButton icon={<HomeIcon />} label="ACCUEIL" active={view==='home'} onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton icon={<Star />} label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton icon={<Layers />} label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton 
+                icon={<div className="relative"><Layers />
+                  {hasFavoriteMatchToday && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                  )}
+                </div>} 
+                label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton icon={<PieChart />} label="MES STATS" active={view==='stats'} onClick={() => { setView('stats'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton 
                 icon={<div className="relative"><Swords />
@@ -610,6 +658,7 @@ function AppContent() {
                     setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
                     setView('matches');
                   }}
+                  profile={profile}
                 />
               ) : selectedLeague ? (
                 <LeagueDetails 
@@ -652,6 +701,7 @@ function AppContent() {
                 <AdminZone />
               ) : view === 'matches' ? (
                 <MatchesPage 
+                  profile={profile}
                   onMatchClick={(id, tab = 'summary') => {
                     setSelectedMatchId(id);
                     setSelectedMatchTab(tab);
@@ -682,7 +732,14 @@ function AppContent() {
               ) : view === 'fervor-path' ? (
                 <FervorPathPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'favorite-teams' ? (
-                <FavoriteTeamsPage profile={profile} onBack={() => setView('home')} />
+                <FavoriteTeamsPage 
+                  profile={profile} 
+                  onBack={() => setView('home')} 
+                  onTeamClick={(id, season) => {
+                    setSelectedTeam({ id, season });
+                    setView('teams');
+                  }}
+                />
               ) : view === 'leaderboard' ? (
                 <LeaderboardPage />
               ) : view === 'rankings' ? (
@@ -737,7 +794,16 @@ function AppContent() {
             <div className="flex flex-col gap-0.5">
                <SidebarButton icon={<HomeIcon className="w-5 h-5" />} label="ACCUEIL" active={view==='home'} onClick={() => { setView('home'); setIsMenuOpen(false); }} />
                <SidebarButton icon={<Star className="w-5 h-5" />} label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
-               <SidebarButton icon={<Layers className="w-5 h-5" />} label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
+               <SidebarButton 
+                  icon={
+                    <div className="relative">
+                      <Layers className="w-5 h-5" />
+                      {hasFavoriteMatchToday && (
+                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
+                      )}
+                    </div>
+                  } 
+                  label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
                <SidebarButton icon={<PieChart className="w-5 h-5" />} label="MES STATS" active={view==='stats'} onClick={() => { setView('stats'); setIsMenuOpen(false); }} />
                <SidebarButton 
                   icon={

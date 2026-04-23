@@ -60,8 +60,8 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
       case 'gems': return <img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" />;
       case 'boost': return <img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" />;
       case 'energy': return <img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" />;
-      case 'ferveur_general': return <Flame className="w-4 h-4 text-orange-500" />;
-      case 'ferveur_fanz': return <Flame className="w-4 h-4 text-orange-500" />;
+      case 'ferveur_general': return <img src={LOGOS.ferveur} alt="Ferveur" className="w-4 h-4 object-contain" />;
+      case 'ferveur_fanz': return <img src={LOGOS.ferveur} alt="Ferveur FANZ" className="w-4 h-4 object-contain" />;
       default: return null;
     }
   };
@@ -87,20 +87,26 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
       </div>
       <div className="p-4 max-w-3xl mx-auto">
         {/* Filters */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar">
-          <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
-            <Filter className="w-4 h-4 text-gray-400 ml-2" />
+        <div className="w-full pb-4">
+          <div className="flex items-center justify-between bg-white/5 p-1 sm:p-1.5 rounded-xl border border-white/10 w-full">
             {(['all', 'money', 'gems', 'boost', 'energy', 'ferveur_general', 'ferveur_fanz'] as FilterType[]).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
+                className={`flex-1 flex justify-center items-center py-2 sm:py-2 px-1 sm:px-3 rounded-lg text-xs sm:text-sm font-bold transition-colors min-h-[36px] ${
                   filter === f 
-                    ? 'bg-orange-500 text-white' 
+                    ? 'bg-orange-500 text-white shadow-sm' 
                     : 'text-gray-400 hover:text-white hover:bg-white/10'
                 }`}
+                title={f === 'all' ? 'Tout' : getResourceName(f)}
               >
-                {f === 'all' ? 'Tout' : getResourceName(f)}
+                {f === 'all' ? (
+                  <span className="text-[10px] sm:text-xs uppercase tracking-wider">Tout</span>
+                ) : (
+                  <div className="flex justify-center items-center w-5 h-5">
+                    {React.cloneElement(getResourceIcon(f) as React.ReactElement, { className: 'w-4 h-4 sm:w-5 sm:h-5 object-contain' })}
+                  </div>
+                )}
               </button>
             ))}
           </div>

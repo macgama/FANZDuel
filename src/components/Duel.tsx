@@ -344,14 +344,16 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'https://thebestfan.online/logo/background1v1.png', fullWidth: false },
-                  { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'https://thebestfan.online/logo/background1v1.png', fullWidth: false },
-                  { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'https://thebestfan.online/logo/background2v2.png', fullWidth: false },
-                  { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'https://thebestfan.online/logo/background5v5.png', fullWidth: false },
-                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'https://thebestfan.online/logo/backgroundKOP.png', fullWidth: true }
+                  { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
+                  { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
+                  { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'background2v2.png', video: 'videoBackground2v2.mp4', fullWidth: false },
+                  { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'background5v5.png', video: 'videoBackground5v5.mp4', fullWidth: false },
+                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'backgroundKOP.png', video: 'videoBackgroundKOP.mp4', fullWidth: true }
                 ].filter(arena => isLiveMatch || arena.id === 'training').map(arena => {
                   const cost = duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
-                  const bgUrl = getImageUrl(arena.bg);
+                  const baseUrl = 'https://thebestfan.online/img/public/logo/';
+                  const bgUrl = arena.bg.startsWith('http') ? arena.bg : `${baseUrl}${arena.bg}`;
+                  const videoUrl = arena.video ? (arena.video.startsWith('http') ? arena.video : `${baseUrl}${arena.video}`) : null;
                   
                   return (
                     <button
@@ -363,11 +365,25 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                         selectedArena === arena.id ? 'border-[#f97316] shadow-[0_0_15px_rgba(249,115,22,0.3)]' : 'border-transparent'
                       }`}
                     >
-                      <div 
-                        className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                        style={{ backgroundImage: `url('${bgUrl}')` }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+                      {videoUrl ? (
+                         <div className="absolute inset-0 z-0">
+                           <video 
+                             src={videoUrl} 
+                             poster={bgUrl}
+                             autoPlay 
+                             loop 
+                             muted 
+                             playsInline 
+                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-60" 
+                           />
+                         </div>
+                      ) : (
+                        <div 
+                          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110 opacity-60"
+                          style={{ backgroundImage: `url('${bgUrl}')` }}
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-opacity group-hover:opacity-60" />
                       
                       <div className="relative z-10 p-3 sm:p-4 h-full flex flex-col justify-between">
                         <div>
@@ -1725,30 +1741,31 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
   const getArenaBackground = () => {
     const type = duel.type;
+    const baseUrl = 'https://thebestfan.online/img/public/logo/';
     switch(type) {
       case '1v1':
       case 'training':
         return { 
-          video: 'https://thebestfan.online/logo/videoBackground1v1.mp4',
-          image: 'https://thebestfan.online/logo/background1v1.png'
+          video: `${baseUrl}videoBackground1v1.mp4`,
+          image: `${baseUrl}background1v1.png`
         };
       case '2v2':
         return { 
-          video: 'https://thebestfan.online/logo/videoBackground2v2.mp4',
-          image: 'https://thebestfan.online/logo/background2v2.png'
+          video: `${baseUrl}videoBackground2v2.mp4`,
+          image: `${baseUrl}background2v2.png`
         };
       case '5v5':
         return { 
-          video: 'https://thebestfan.online/logo/videoBackground5v5.mp4',
-          image: 'https://thebestfan.online/logo/background5v5.png' 
+          video: `${baseUrl}videoBackground5v5.mp4`,
+          image: `${baseUrl}background5v5.png` 
         };
       case 'war_of_kops':
         return { 
-          video: 'https://thebestfan.online/logo/videoBackgroundKOP.mp4',
-          image: 'https://thebestfan.online/logo/backgroundKOP.png'
+          video: `${baseUrl}videoBackgroundKOP.mp4`,
+          image: `${baseUrl}backgroundKOP.png`
         };
       default:
-        return { image: 'https://thebestfan.online/logo/background1v1.png' };
+        return { image: `${baseUrl}background1v1.png` };
     }
   };
 
