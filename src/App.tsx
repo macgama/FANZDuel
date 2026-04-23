@@ -62,10 +62,22 @@ function AppContent() {
   const [view, _setView] = useState<ViewType>('home');
   const viewHistory = React.useRef<ViewType[]>(['home']);
 
+  const restorationAttempted = React.useRef(false);
+
   const setView = (newView: ViewType) => {
     if (newView !== view) {
       viewHistory.current.push(newView);
       _setView(newView);
+      // Reset some states when navigating away from specific views
+      if (newView === 'home') {
+        setSelectedMatchId(null);
+        setSelectedLeague(null);
+        setSelectedTeam(null);
+        setSelectedFanzId(null);
+        setJoiningDuel(null);
+        setIsDuelActive(false);
+        localStorage.removeItem('tbfo_current_duel');
+      }
     }
   };
 
@@ -117,9 +129,37 @@ function AppContent() {
   const [activeActionDetails, setActiveActionDetails] = useState<any>(null);
   const [activeFanz, setActiveFanz] = useState<any>(null);
 
+  // Handle invite links
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const joinCode = params.get('join');
+    if (joinCode && profile && !restorationAttempted.current) {
+      // Clear the query param so it doesn't try to join again on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      const tryJoin = async () => {
+        try {
+          const response = await fetch(`/api/duels/code/${joinCode}`);
+          if (response.ok) {
+            const duel = await response.json();
+            if (duel && duel.id) {
+              setJoiningDuel({ id: duel.id, type: duel.type, matchId: duel.matchId });
+              setSelectedMatchId(duel.matchId);
+              setView('matches');
+              setIsDuelActive(true);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to auto-join from URL", err);
+        }
+      };
+      tryJoin();
+    }
+  }, [profile]);
+
   // Persistence: Restore duel on refresh
   useEffect(() => {
-    if (profile && !isDuelActive) {
+    if (profile && !isDuelActive && !restorationAttempted.current) {
       const savedDuel = localStorage.getItem('tbfo_current_duel');
       if (savedDuel) {
         try {
@@ -135,6 +175,7 @@ function AppContent() {
           localStorage.removeItem('tbfo_current_duel');
         }
       }
+      restorationAttempted.current = true;
     }
   }, [profile, isDuelActive]);
 
@@ -199,27 +240,6 @@ function AppContent() {
     return () => unsubscribeChats();
   }, [user?.uid, profile?.friendRequests?.length]);
 
-  // Persistence: Restore duel on refresh
-  useEffect(() => {
-    if (profile && !isDuelActive) {
-      const savedDuel = localStorage.getItem('tbfo_current_duel');
-      if (savedDuel) {
-        try {
-          const duelData = JSON.parse(savedDuel);
-          console.log("[App] Restoring duel from persistence:", duelData);
-          setJoiningDuel(duelData);
-          setSelectedMatchId(duelData.matchId);
-          setSelectedMatchTab('summary');
-          setView('matches');
-          setIsDuelActive(true);
-        } catch (e) {
-          console.error("Failed to restore duel:", e);
-          localStorage.removeItem('tbfo_current_duel');
-        }
-      }
-    }
-  }, [profile, isDuelActive]);
-
   const handleDuelIntent = async (callback: () => void) => {
     if (profile?.activeAction) {
       try {
@@ -262,12 +282,12 @@ function AppContent() {
   };
 
   const renderFooter = () => {
-    if (isDuelActive || view === 'admin') return null;
+    if (view === 'duel' || (isDuelActive && view === 'matches') || view === 'admin') return null;
     return (
       <footer className="md:hidden shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <button onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'matches' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <Activity className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Live</span>
+        <button onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'home' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+          <HomeIcon className="w-6 h-6 sm:w-7 sm:h-7" />
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Home</span>
         </button>
         <button onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'rankings' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -296,10 +316,6 @@ function AppContent() {
         <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'fanz' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Star className="w-6 h-6 sm:w-7 sm:h-7" />
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Fanz</span>
-        </button>
-        <button onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'social' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <Users className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Social</span>
         </button>
       </footer>
     );
@@ -439,7 +455,7 @@ function AppContent() {
 
   if (quotaExceeded) {
     return (
-      <Layout containerClassName="flex flex-col items-center justify-center p-8 text-center">
+      <Layout containerClassName="flex flex-col items-center justify-center p-8 text-center bg-[#0a0a0a]">
         <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 max-w-md">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-black uppercase italic text-white mb-4">Quota de lecture dépassé</h2>
@@ -455,37 +471,53 @@ function AppContent() {
     );
   }
 
-  if (loading) {
+  if (loading || (user && !profile)) {
     return (
-      <Layout containerClassName="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
-      </Layout>
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center p-8 fixed inset-0 z-[200]">
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-[40%] h-[40%] bg-orange-500/20 blur-[120px] rounded-full mix-blend-screen" />
+        </div>
+        <div className="flex flex-col items-center gap-6 relative z-10 w-full max-w-xs">
+          <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(249,115,22,0.15)] relative overflow-hidden">
+             <div className="absolute inset-0 bg-gradient-to-tr from-orange-500/20 to-transparent animate-pulse" />
+             <LayoutGrid className="w-10 h-10 text-orange-500 animate-[spin_4s_linear_infinite]" />
+          </div>
+          <div className="text-center w-full">
+            <h1 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2">THE BEST <span className="text-orange-500">FAN</span></h1>
+            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2 mt-4">
+              <div className="h-full bg-orange-500 w-full animate-pulse opacity-50 relative">
+                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white w-full h-full -translate-x-full animate-[shimmer_1.5s_infinite]" />
+              </div>
+            </div>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] animate-pulse">Synchronisation...</p>
+          </div>
+        </div>
+      </div>
     );
   }
 
-  if (!user || (!profile && !loading)) {
-    return (
-      <LandingPage />
-    );
-  }
-
-  if (!assetsLoaded && profile) {
-    return (
-      <Preloader 
-        uid={user.uid} 
-        onComplete={() => setAssetsLoaded(true)} 
-      />
-    );
+  if (!user) {
+    return <LandingPage />;
   }
 
   return (
-    <Layout containerClassName="md:flex-row">
-      <GlobalSocketListener onDuelStarting={(duelId, duelData) => {
-        setCurrentDuel(duelData);
-        setView('duel');
-      }} />
+    <>
+      <AnimatePresence>
+        {!assetsLoaded && profile && (
+          <Preloader 
+            uid={user.uid} 
+            onComplete={() => setAssetsLoaded(true)} 
+          />
+        )}
+      </AnimatePresence>
 
-      {profile && !isDuelActive && view !== 'admin' && view !== ('duel' as any) && (
+      <Layout containerClassName="md:flex-row">
+        <GlobalSocketListener onDuelStarting={(duelId, duelData) => {
+          setCurrentDuel(duelData);
+          setView('duel');
+        }} />
+
+      {profile && view !== 'duel' && !(isDuelActive && view === 'matches') && view !== 'admin' && (
         <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
           <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start">
             <img src="/img/logo2.png" alt="TBFO" className="w-8 h-8 rounded-lg outline outline-1 outline-white/10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
@@ -568,9 +600,9 @@ function AppContent() {
               setIsMenuOpen(true);
             }}
             onMatchClick={(id, tab = 'summary') => {
-              console.log("onMatchClick called with id:", id);
               setSelectedMatchId(id);
               setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
+              setJoiningDuel(null); // Clear joining flow if clicking a match normally
               setView('matches');
             }}
             onLeagueClick={(id, season) => {
@@ -588,10 +620,14 @@ function AppContent() {
               });
             }}
             onOpenStreak={() => setShowStreakModal(true)}
+            onFanzClick={(fanzId) => {
+              setSelectedFanzId(fanzId);
+              setView('fanz');
+            }}
           />
         ) : (
           <>
-            {profile && !isDuelActive && (
+            {profile && view !== 'duel' && (
               <Header 
                 profile={profile} 
                 variant={(view as string) === 'home' ? 'home' : 'subpage'}
@@ -900,6 +936,7 @@ function AppContent() {
 
     {renderFooter()}
     </Layout>
+    </>
   );
 }
 

@@ -49,9 +49,10 @@ interface HomeProps {
   onTeamClick?: (teamId: number, season: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
   onOpenStreak: () => void;
+  onFanzClick?: (fanzId: string) => void;
 }
 
-export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onOpenStreak }: HomeProps) {
+export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onOpenStreak, onFanzClick }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [allFanz, setAllFanz] = useState<Fanz[]>([]);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
@@ -99,8 +100,10 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
         } else {
           setHasClaimableStreak(false);
         }
-      } catch (err) {
-        console.error("Error fetching badges:", err);
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Error fetching badges:", err);
+        }
       }
     };
     if (profile.uid) {
@@ -129,8 +132,10 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
         if (fixturesInfo) {
           setWorldCupFixtures(fixturesInfo);
         }
-      } catch (err) {
-        console.error("Error fetching World Cup Data", err);
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Error fetching World Cup Data", err);
+        }
       }
     };
     fetchWorldCup();
@@ -143,8 +148,10 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
         if (configDoc.exists()) {
           setFanzFervorConfig(configDoc.data() as GlobalFervorConfig);
         }
-      } catch (err) {
-        console.error("Error fetching fanz fervor config", err);
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Error fetching fanz fervor config", err);
+        }
       }
     };
     fetchConfig();
@@ -187,8 +194,10 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
           })
         );
         setFavoriteTeamsInfo(teams.filter(Boolean));
-      } catch (err) {
-        console.error("Error fetching favorite teams info", err);
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Error fetching favorite teams info", err);
+        }
       }
     };
 
@@ -285,8 +294,10 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                 setVideoUrl(finalVideoUrl ? currentVideoUrl : null);
                 setImageUrl(currentImageUrl || null);
               }
-            } catch (error) {
-              console.error("Error fetching template", error);
+            } catch (error: any) {
+              if (error?.message !== 'Failed to fetch') {
+                console.error("Error fetching template", error);
+              }
             }
           }
         }
@@ -353,8 +364,10 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
             unsubs.push(unsub);
           }
         }
-      } catch (error) {
-        console.error("Error fetching matches", error);
+      } catch (error: any) {
+        if (error?.message !== 'Failed to fetch') {
+          console.error("Error fetching matches", error);
+        }
       }
     };
     
@@ -363,8 +376,10 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
         const snapshot = await getDocs(collection(db, 'life_actions'));
         const actionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction));
         setLifeActions(actionsData);
-      } catch (error) {
-        console.error("Error fetching life actions", error);
+      } catch (error: any) {
+        if (error?.message !== 'Failed to fetch') {
+          console.error("Error fetching life actions", error);
+        }
       }
     };
 
@@ -437,24 +452,33 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
       {/* BODY: Video Background (4:3) and Content Below */}
       <div className="flex-1 flex flex-col relative overflow-y-auto pb-6 no-scrollbar">
         {/* Video Section (4:3 Aspect Ratio) */}
-        <div className="w-full aspect-[4/3] relative shrink-0">
+        <div 
+          className="w-full aspect-[4/3] relative shrink-0 cursor-pointer group"
+          onClick={() => {
+            if (activeFanz?.id) {
+              onFanzClick?.(activeFanz.id);
+            } else {
+              onNavigate('fanz');
+            }
+          }}
+        >
           {videoUrl ? (
             <OptimizedMedia
               type="video"
               src={videoUrl}
               poster={imageUrl || ''}
               dataSaver={profile.dataSaver}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           ) : imageUrl ? (
             <OptimizedMedia
               type="image"
               src={imageUrl}
               alt={activeFanz?.name || 'Mon FANZ'}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           ) : (
-            <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+            <div className="w-full h-full bg-gray-900 flex items-center justify-center transition-transform duration-700 group-hover:scale-105">
               <p className="text-gray-500 font-bold">Aucun FANZ actif</p>
             </div>
           )}

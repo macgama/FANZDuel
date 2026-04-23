@@ -31,7 +31,12 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
 
   // Calculate scaled costs and gains based on level
   const scaleFactor = 1 + (currentLevel - 1) * 0.2; // 20% increase per level
-  const costEnergy = Math.floor((action.energyCost || 0) * scaleFactor);
+  
+  const now = new Date();
+  const isInfiniteEnergyActive = userProfile.infiniteEnergyUntil && new Date(userProfile.infiniteEnergyUntil) > now;
+  const isXpBoostActive = userProfile.boostXpUntil && new Date(userProfile.boostXpUntil) > now;
+
+  const costEnergy = isInfiniteEnergyActive ? 0 : Math.floor((action.energyCost || 0) * scaleFactor);
   const costMoney = Math.floor((action.moneyCost || 0) * scaleFactor);
   const costGems = Math.floor((action.gemsCost || 0) * scaleFactor);
   const costBoost = Math.floor((action.boostCost || 0) * scaleFactor);
@@ -172,14 +177,15 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       }
 
       const newFanzStats = { ...fanz.stats };
+      const xpMultiplier = isXpBoostActive ? 2 : 1;
       if (action.targetStat) {
-        newFanzStats[action.targetStat] += gainXp;
+        newFanzStats[action.targetStat] += gainXp * xpMultiplier;
       }
       if (action.xpGains) {
         Object.entries(action.xpGains).forEach(([stat, gain]) => {
           if (gain) {
             const statKey = stat as keyof FanzStats;
-            newFanzStats[statKey] += Math.floor(gain * scaleFactor);
+            newFanzStats[statKey] += Math.floor(gain * scaleFactor * xpMultiplier);
           }
         });
       }
@@ -200,13 +206,15 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       if (gainBoost > 0) rewards.push({ type: 'boost', amount: gainBoost, label: 'Boost' });
       
       if (action.targetStat && gainXp > 0) {
-        rewards.push({ type: 'xp', amount: gainXp, label: `XP ${action.targetStat}`, stat: action.targetStat });
+        const xpAmount = gainXp * (isXpBoostActive ? 2 : 1);
+        rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${action.targetStat}${isXpBoostActive ? ' (x2)' : ''}`, stat: action.targetStat });
       }
       
       if (action.xpGains) {
         Object.entries(action.xpGains).forEach(([stat, gain]) => {
           if (gain) {
-            rewards.push({ type: 'xp', amount: Math.floor(gain * scaleFactor), label: `XP ${stat}`, stat });
+            const xpAmount = Math.floor(gain * scaleFactor * (isXpBoostActive ? 2 : 1));
+            rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${stat}${isXpBoostActive ? ' (x2)' : ''}`, stat });
           }
         });
       }
@@ -261,14 +269,15 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       }
 
       const newFanzStats = { ...fanz.stats };
+      const xpMultiplier = isXpBoostActive ? 2 : 1;
       if (action.targetStat) {
-        newFanzStats[action.targetStat] += gainXp;
+        newFanzStats[action.targetStat] += gainXp * xpMultiplier;
       }
       if (action.xpGains) {
         Object.entries(action.xpGains).forEach(([stat, gain]) => {
           if (gain) {
             const statKey = stat as keyof FanzStats;
-            newFanzStats[statKey] += Math.floor(gain * scaleFactor);
+            newFanzStats[statKey] += Math.floor(gain * scaleFactor * xpMultiplier);
           }
         });
       }
@@ -289,13 +298,15 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       if (gainBoost > 0) rewards.push({ type: 'boost', amount: gainBoost, label: 'Boost' });
       
       if (action.targetStat && gainXp > 0) {
-        rewards.push({ type: 'xp', amount: gainXp, label: `XP ${action.targetStat}`, stat: action.targetStat });
+        const xpAmount = gainXp * (isXpBoostActive ? 2 : 1);
+        rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${action.targetStat}${isXpBoostActive ? ' (x2)' : ''}`, stat: action.targetStat });
       }
       
       if (action.xpGains) {
         Object.entries(action.xpGains).forEach(([stat, gain]) => {
           if (gain) {
-            rewards.push({ type: 'xp', amount: Math.floor(gain * scaleFactor), label: `XP ${stat}`, stat });
+            const xpAmount = Math.floor(gain * scaleFactor * (isXpBoostActive ? 2 : 1));
+            rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${stat}${isXpBoostActive ? ' (x2)' : ''}`, stat });
           }
         });
       }

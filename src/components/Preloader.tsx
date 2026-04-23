@@ -49,7 +49,18 @@ export function Preloader({ onComplete, uid }: PreloaderProps) {
         const urls = Array.from(urlsToPreload);
         
         if (urls.length === 0) {
-          if (isMounted) onComplete();
+          let p = 0;
+          const interval = setInterval(() => {
+            p += 25;
+            if (isMounted) setProgress(p);
+            if (p >= 100) {
+              clearInterval(interval);
+              if (isMounted) {
+                setStatusText("Prêt à jouer !");
+                setTimeout(() => { if (isMounted) onComplete(); }, 800);
+              }
+            }
+          }, 200);
           return;
         }
 
@@ -91,7 +102,7 @@ export function Preloader({ onComplete, uid }: PreloaderProps) {
           setStatusText("Prêt à jouer !");
           setTimeout(() => {
              if (isMounted) onComplete();
-          }, 300);
+          }, 1000); // Increased from 300 to 1000 to improve stability feel
         }
         
       } catch (e) {

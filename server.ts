@@ -63,6 +63,12 @@ async function startServer() {
     inviteCode?: string;
   }> = {};
 
+  // Helper to get a JSON-safe version of a duel (removing circular timers/intervals)
+  function getSafeDuel(duel: any) {
+    const { timer, botInterval, lastClicks, ...safeProps } = duel;
+    return safeProps;
+  }
+
   function finishDuel(duelId: string, winner: string) {
     const duel = duels[duelId];
     if (!duel) return;
@@ -365,7 +371,7 @@ async function startServer() {
       if (duel.status === 'waiting' && shouldStart) {
         duel.status = 'starting';
         const startTime = Date.now() + 5000;
-        io.to(duelId).emit("duel-starting", { startTime, duelId, duel });
+        io.to(duelId).emit("duel-starting", { startTime, duelId, duel: getSafeDuel(duel) });
         
         duel.timer = setTimeout(() => {
           duel.status = 'active';
@@ -381,21 +387,21 @@ async function startServer() {
             delete duel.botInterval;
             return;
           }
-          const botMultiplier = 1;
-          const baseDelta = 0.5;
+          const botMultiplier = 1.2; // Buffed multiplier
+          const baseDelta = 0.8; // Buffed base delta
           duel.progress = Math.min(100, Math.max(0, duel.progress - (baseDelta * botMultiplier)));
           
-          // Occasional bot card play (10% chance per tick)
-          if (Math.random() < 0.1) {
+          // Occasional bot card play (20% chance per tick)
+          if (Math.random() < 0.2) {
             const randomCard = BASE_CARDS[Math.floor(Math.random() * BASE_CARDS.length)];
             duel.cardCounts['B']++;
             
             if (randomCard.fervorValue) {
-              duel.progress = Math.max(0, duel.progress - randomCard.fervorValue);
+              duel.progress = Math.max(0, duel.progress - (randomCard.fervorValue * 1.2)); // Buffed effect
             }
             randomCard.effects.forEach((effect: any) => {
               if (effect.type === 'push_rope' && effect.value && !randomCard.fervorValue) {
-                duel.progress = Math.max(0, duel.progress - effect.value);
+                duel.progress = Math.max(0, duel.progress - (effect.value * 1.2)); // Buffed effect
               }
             });
             
@@ -563,21 +569,25 @@ async function startServer() {
 
   // API Routes
   app.get("/api/duels/all", (req, res) => {
-    const allActiveDuels = Object.values(duels).filter(d => d.status !== 'finished' && !d.isPrivate);
+    const allActiveDuels = Object.values(duels)
+      .filter(d => d.status !== 'finished' && !d.isPrivate)
+      .map(d => getSafeDuel(d));
     res.json(allActiveDuels);
   });
 
   app.get("/api/duels", (req, res) => {
-    const waitingDuels = Object.values(duels).filter(d => d.status === 'waiting' && !d.isPrivate);
+    const waitingDuels = Object.values(duels)
+      .filter(d => d.status === 'waiting' && !d.isPrivate)
+      .map(d => getSafeDuel(d));
     console.log(`[API] Fetching waiting duels. Count: ${waitingDuels.length}`);
     res.json(waitingDuels);
   });
 
   app.get("/api/duels/:matchId", (req, res) => {
     const matchIdStr = req.params.matchId;
-    const activeDuels = Object.values(duels).filter(d => 
-      d.matchId?.toString() === matchIdStr && d.status === 'waiting' && !d.isPrivate
-    );
+    const activeDuels = Object.values(duels)
+      .filter(d => d.matchId?.toString() === matchIdStr && d.status === 'waiting' && !d.isPrivate)
+      .map(d => getSafeDuel(d));
     res.json(activeDuels);
   });
 

@@ -105,7 +105,7 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
             <Card className="p-4 sm:p-6 border-white/5 bg-white/5 hover:bg-white/10 transition-colors group">
               <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-black/40 flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
-                  {React.cloneElement(section.icon as React.ReactElement, { className: 'w-4 h-4 sm:w-5 sm:h-5 ' + (section.icon as React.ReactElement).props.className })}
+                  {React.cloneElement(section.icon as React.ReactElement<any>, { className: 'w-4 h-4 sm:w-5 sm:h-5 ' + (section.icon as React.ReactElement<any>).props.className })}
                 </div>
                 <h2 className="text-base sm:text-xl font-black italic uppercase tracking-tight text-white">{section.title}</h2>
               </div>

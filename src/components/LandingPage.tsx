@@ -20,7 +20,7 @@ export function LandingPage() {
              Retour
            </Button>
         </div>
-        <Auth onAuthSuccess={() => window.location.reload()} />
+        <Auth onAuthSuccess={() => {}} />
       </div>
     );
   }

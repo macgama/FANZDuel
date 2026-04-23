@@ -258,6 +258,19 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       } else if (selectedItem.type === 'card') {
         updates.cards = arrayUnion(selectedItem.id);
         setCardItems(prev => prev.filter(i => i.id !== selectedItem.id));
+      } else if (selectedItem.type === 'boost') {
+        const now = new Date();
+        if (selectedItem.id === 'b1') { // Boost XP x2 (24h)
+          const currentUntil = profile.boostXpUntil ? new Date(profile.boostXpUntil) : now;
+          const baseDate = currentUntil > now ? currentUntil : now;
+          updates.boostXpUntil = new Date(baseDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        } else if (selectedItem.id === 'b2') { // Énergie Infinie (1h)
+          const currentUntil = profile.infiniteEnergyUntil ? new Date(profile.infiniteEnergyUntil) : now;
+          const baseDate = currentUntil > now ? currentUntil : now;
+          updates.infiniteEnergyUntil = new Date(baseDate.getTime() + 60 * 60 * 1000).toISOString();
+        } else if (selectedItem.id === 'b3') { // Bouclier Anti-Malus (3 Matchs)
+          updates.antiMalusMatches = (profile.antiMalusMatches || 0) + 3;
+        }
       }
 
       await updateDoc(userRef, updates);

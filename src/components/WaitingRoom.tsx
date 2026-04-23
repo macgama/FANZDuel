@@ -27,10 +27,10 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
 
   const handleShareDuel = async (duelId: string, duelType: string) => {
     const inviteCode = duelId.substring(0, 8).toUpperCase();
+    const shareUrl = `${window.location.origin}/?join=${inviteCode}`;
     const shareData = {
       title: 'Rejoins mon duel sur TheBestFan!',
-      text: `Viens m'affronter dans un duel ${duelType.replace('_', ' ')} ! Utilise le code: ${inviteCode}`,
-      url: window.location.origin
+      text: `Viens m'affronter dans un duel ${duelType.replace('_', ' ')} ! Utilise le code: ${inviteCode}\nLien direct: ${shareUrl}`,
     };
 
     try {
@@ -107,8 +107,10 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
       try {
         const liveFixtures = await footballApi.getLiveFixtures();
         setLiveMatches(liveFixtures || []);
-      } catch (e) {
-        console.error("Error fetching live fixtures in WaitingRoom", e);
+      } catch (e: any) {
+        if (e?.message !== 'Failed to fetch') {
+          console.error("Error fetching live fixtures in WaitingRoom", e);
+        }
       }
     };
 
@@ -323,9 +325,9 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                         }`}
                         title={`${p.pseudo} (${p.team})`}
                       >
-                        {p.photoURL || p.fanz?.imageUrl ? (
+                        {p.fanz?.equippedSkinUrl || p.fanz?.imageUrl || p.photoURL ? (
                           <img 
-                            src={p.photoURL || getImageUrl(p.fanz?.imageUrl)} 
+                            src={p.fanz?.equippedSkinUrl ? getImageUrl(p.fanz.equippedSkinUrl) : (getImageUrl(p.fanz?.imageUrl) || p.photoURL)} 
                             alt="Avatar" 
                             className="w-full h-full object-cover" 
                             referrerPolicy="no-referrer"

@@ -65,6 +65,9 @@ const BOT_PROFILES = [
 export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz, duelLeagueId, duelSeason }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void; duelLeagueId?: string; duelSeason?: string }) {
   const { showAlert } = useAlert();
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
+  
+  const isXpBoostActive = user.boostXpUntil && new Date(user.boostXpUntil) > new Date();
+  const isInfiniteEnergyActive = user.infiniteEnergyUntil && new Date(user.infiniteEnergyUntil) > new Date();
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [selectedArena, setSelectedArena] = useState<string | null>(initialDuelType && !initialDuelId ? initialDuelType : null);
@@ -190,7 +193,9 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
     }
 
     const cost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
-    if (user.money < cost.money || user.energy < cost.energy) {
+    const effectiveEnergyCost = isInfiniteEnergyActive ? 0 : cost.energy;
+    
+    if (user.money < cost.money || user.energy < effectiveEnergyCost) {
       showAlert({ type: 'error', title: 'Fonds ou énergie insuffisants !' });
       return;
     }
@@ -199,11 +204,11 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
       // Deduct costs
       await updateDoc(doc(db, 'users', user.uid), {
         money: increment(-cost.money),
-        energy: increment(-cost.energy)
+        energy: increment(-effectiveEnergyCost)
       });
 
       if (cost.money > 0) await logTransaction(user.uid, 'money', -cost.money, `Inscription duel: ${type}`);
-      if (cost.energy > 0) await logTransaction(user.uid, 'energy', -cost.energy, `Inscription duel: ${type}`);
+      if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', -effectiveEnergyCost, `Inscription duel: ${type}`);
 
       const duelId = joiningDuelId || (type === 'training' ? `training_${user.uid}_${Date.now()}` : `${type}_${matchId}_${Math.random().toString(36).substring(7)}`);
       
@@ -351,9 +356,9 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                   { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'backgroundKOP.png', video: 'videoBackgroundKOP.mp4', fullWidth: true }
                 ].filter(arena => isLiveMatch || arena.id === 'training').map(arena => {
                   const cost = duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
-                  const baseUrl = 'https://thebestfan.online/img/public/logo/';
-                  const bgUrl = arena.bg.startsWith('http') ? arena.bg : `${baseUrl}${arena.bg}`;
-                  const videoUrl = arena.video ? (arena.video.startsWith('http') ? arena.video : `${baseUrl}${arena.video}`) : null;
+                  const baseUrl = 'https://thebestfan.online/img/public/background/';
+                  const bgUrl = `${baseUrl}${arena.bg}`;
+                  const videoUrl = arena.video ? `${baseUrl}${arena.video}` : null;
                   
                   return (
                     <button
@@ -533,6 +538,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const currentDuelIdRef = useRef(duel.id);
   const initialDuelType = useRef(duel.type).current;
   const [floatingEffects, setFloatingEffects] = useState<FloatingEffect[]>([]);
+  const botEnergyRef = useRef<Record<string, number>>({});
   const [matchDetails, setMatchDetails] = useState<any>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
@@ -656,8 +662,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [unlockedEmoteIds, setUnlockedEmoteIds] = useState<string[]>(user.emotes || []);
   const [showEmotes, setShowEmotes] = useState(false);
   const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, team: string, x: number | string, y: number | string}[]>([]);
-  const [botFillTimer, setBotFillTimer] = useState<number>(15); // Countdown to auto-fill bots
-  const isMaster = participants[0]?.uid === user.uid; // Only the first player manages bots
+  const [botFillTimer, setBotFillTimer] = useState<number>(30); // Countdown to auto-fill bots
+  const isMaster = participants[0]?.uid === user.uid || duel.type === 'training'; // Only the first player manages bots (always master in training)
 
   // Preload card images
   useEffect(() => {
@@ -677,6 +683,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       let cardsToUse = [...BASE_CARDS];
       
       try {
+        const userSnap = await getDoc(doc(db, 'users', user.uid));
         // Fetch Duel Config
         const configSnap = await getDoc(doc(db, 'global_configs', 'duel_config'));
         if (configSnap.exists()) {
@@ -692,16 +699,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         if (fanzSnap.exists()) {
           const fanzData = fanzSnap.data() as Fanz;
           
-          // Load template to get image if missing
+          // Load template and skin image
           let imageUrl = fanzData.imageUrl;
-          if (!imageUrl && fanzData.templateId) {
+          let equippedSkinUrl = null;
+          if (fanzData.templateId) {
             const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
             if (tplSnap.exists()) {
-              imageUrl = (tplSnap.data() as FanzTemplate).image || null;
+              const tplData = tplSnap.data() as FanzTemplate;
+              if (!imageUrl) imageUrl = tplData.image || null;
+              
+              if (fanzData.equippedSkin) {
+                const skin = tplData.skins?.find(s => s.id === fanzData.equippedSkin);
+                if (skin) equippedSkinUrl = skin.imageUrl;
+              }
             }
           }
           
-          const finalFanz = { ...fanzData, imageUrl };
+          const finalFanz = { ...fanzData, imageUrl, equippedSkinUrl };
           setFanz(finalFanz);
           
           // Filter all available cards for this Fanz template
@@ -862,12 +876,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
     // Bot Auto-Fill Logic
     let botTimerId: any;
-    if (status === 'waiting' && isMaster) {
+    if (status === 'waiting' && isMaster && !duel.isPrivate) {
       botTimerId = setInterval(() => {
         setBotFillTimer(prev => {
           if (prev <= 1) {
             fillWithBots();
-            return 15;
+            return duelConfig?.botFillTimer || 30;
           }
           return prev - 1;
         });
@@ -877,19 +891,21 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     // Bot Simulation Logic (Clicks & Cards)
     let botSimulationInterval: any;
     if (status === 'active' && isMaster) {
-      // Track simulated energy for bots
-      const botEnery: Record<string, number> = {};
-      
       botSimulationInterval = setInterval(() => {
         const bots = participants.filter(p => p.isBot);
-        const myTeam = participants.find(p => p.uid === user.uid)?.team || 'A';
+        
+        const clickRate = (duelConfig?.botClickRatePerSec || 8) * (duel.type === 'training' ? 1.5 : 1); 
+        const cardChance = duelConfig?.botCardPlayChance ? (duelConfig.botCardPlayChance / 100) : (duel.type === 'training' ? 0.8 : 0.6);
 
         bots.forEach(bot => {
-          // 1. Simulate Clicks
-          if (Math.random() > 0.3) {
-            // Use the same multiplier logic as humans for fairness
+          // 1. Simulate Clicks (Multi-clicks based on config)
+          const numClicks = Math.floor(clickRate) + (Math.random() < (clickRate % 1) ? 1 : 0);
+          
+          for (let c = 0; c < numClicks; c++) {
+            // Use same multiplier logic as humans for fairness
             const botFanz = bot.fanz || fanz;
-            const rankBonus = (botFanz?.rank || 0) * 0.02;
+            const rankLevel = (botFanz?.rank || 0);
+            const rankBonus = rankLevel * 0.02;
             const forceLevel = botFanz?.stats?.force || 1;
             const forceBonus = 0.005 + (forceLevel * 0.001);
             const baseExcitementMultiplier = (botFanz?.baseExcitement || 5) / 5;
@@ -904,33 +920,32 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           }
 
           // 2. Simulate Card Playing
-          if (bot.team !== myTeam) { // Only enemy bots play cards to avoid confusion
-            const currentEnergy = botEnery[bot.uid] || 5;
-            botEnery[bot.uid] = Math.min(10, currentEnergy + 0.2); // Regenerate energy
+          const currentEnergy = botEnergyRef.current[bot.uid] || 5;
+          // Increase energy regen for bots significantly (0.8 or 1.2 for training)
+          botEnergyRef.current[bot.uid] = Math.min(10, currentEnergy + (duel.type === 'training' ? 1.2 : 0.8)); 
 
-            // Random chance to play a card if enough energy
-            if (currentEnergy >= 4 && Math.random() > 0.95 && allCards.length > 0) {
-              // Pick a card from the mirrored deck (if available) or all cards
-              const deckIds = bot.fanz?.equippedCards || fanz?.equippedCards || [];
-              const availableCards = allCards.filter(c => deckIds.includes(c.id));
-              const cardsToPickFrom = availableCards.length > 0 ? availableCards : allCards;
-              
-              const card = cardsToPickFrom[Math.floor(Math.random() * cardsToPickFrom.length)];
-              const cost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
+          // Random chance to play a card if enough energy
+          if (currentEnergy >= 2 && Math.random() < cardChance && allCards.length > 0) {
+            // Pick a card from the mirrored deck (if available) or all cards
+            const deckIds = bot.fanz?.equippedCards || fanz?.equippedCards || [];
+            const availableCards = allCards.filter(c => deckIds.includes(c.id));
+            const cardsToPickFrom = availableCards.length > 0 ? availableCards : allCards;
+            
+            const card = cardsToPickFrom[Math.floor(Math.random() * cardsToPickFrom.length)];
+            const cost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
 
-              if (currentEnergy >= cost) {
-                botEnery[bot.uid] -= cost;
-                socket.emit('play-card', { 
-                  duelId: currentDuelIdRef.current, 
-                  team: bot.team, 
-                  card,
-                  userId: bot.uid
-                });
-              }
+            if (currentEnergy >= cost) {
+              botEnergyRef.current[bot.uid] -= cost;
+              socket.emit('play-card', { 
+                duelId: currentDuelIdRef.current, 
+                team: bot.team, 
+                card,
+                userId: bot.uid
+              });
             }
           }
         });
-      }, 1500);
+      }, 1000);
     }
 
     return () => {
@@ -1011,6 +1026,33 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setInviteCode(state.inviteCode);
       }
     };
+
+    const joinDuel = () => {
+      // @ts-ignore
+      const currentActiveDuel: any = activeDuel;
+      // @ts-ignore
+      const idToJoin: string | null = currentActiveDuel?.id || joiningDuelId;
+      
+      if (socket && user && idToJoin) {
+        socket.emit('join-duel', {
+          duelId: idToJoin,
+          user: {
+            uid: user.uid,
+            pseudo: user.pseudo,
+            photoURL: user.photoURL,
+            level: user.level
+          }
+        });
+      }
+    };
+
+    const handleDuelJoined = ({ status, participants }: any) => {
+      setStatus(status);
+      setParticipants(participants);
+    };
+
+    socket.on('connect', joinDuel);
+    socket.on('duel-joined', handleDuelJoined);
     socket.on('duel-update', handleDuelUpdate);
 
     const handleDuelStarting = ({ startTime }: { startTime: number }) => {
@@ -1142,6 +1184,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           const isWin = winner === currentMyTeam;
           const duelType = duel.type as keyof NonNullable<DuelConfig['rewards']>;
           
+          const xpMultiplier = (userData.boostXpUntil && new Date(userData.boostXpUntil) > new Date()) ? 2 : 1;
+
           // Progress missions
           await progressMission(userData, 'duel_count', 1);
           if (isWin) {
@@ -1166,16 +1210,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           
           if (duelType === 'training') {
             // Pour l'entraînement, gain fixe de 5 points (ne dépend pas du score ni du résultat)
-            ferveurGainFanz = 5;
-            ferveurGainGeneral = 5;
+            ferveurGainFanz = 5 * xpMultiplier;
+            ferveurGainGeneral = 5 * xpMultiplier;
           } else if (isWin) {
             // L'XP gagnée est basée sur le score multiplié par le type de duel
-            ferveurGainFanz = myScore * duelMultiplier;
-            ferveurGainGeneral = myScore * duelMultiplier;
+            ferveurGainFanz = myScore * duelMultiplier * xpMultiplier;
+            ferveurGainGeneral = myScore * duelMultiplier * xpMultiplier;
           } else {
             // En cas de défaite, on gagne la moitié
-            ferveurGainFanz = Math.round((myScore / 2) * duelMultiplier);
-            ferveurGainGeneral = Math.round((myScore / 2) * duelMultiplier);
+            ferveurGainFanz = Math.round((myScore / 2) * duelMultiplier * xpMultiplier);
+            ferveurGainGeneral = Math.round((myScore / 2) * duelMultiplier * xpMultiplier);
           }
           
           // Update FANZ
@@ -1741,7 +1785,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
   const getArenaBackground = () => {
     const type = duel.type;
-    const baseUrl = 'https://thebestfan.online/img/public/logo/';
+    const baseUrl = 'https://thebestfan.online/img/public/background/';
     switch(type) {
       case '1v1':
       case 'training':
@@ -1780,7 +1824,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             <video 
               src={arenaBg.video}
               poster={getImageUrl(arenaBg.image)}
-              className="w-full h-full object-cover opacity-30 sm:opacity-40"
+              className="w-full h-full object-cover opacity-50 sm:opacity-70"
               autoPlay
               loop
               muted
@@ -1789,7 +1833,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           ) : (
             <img 
               src={getImageUrl(arenaBg.image)} 
-              className="w-full h-full object-cover opacity-30 sm:opacity-40" 
+              className="w-full h-full object-cover opacity-40 sm:opacity-50" 
               alt="" 
             />
           )}
@@ -1829,8 +1873,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             </button>
             {showEmotes && (
               <div className="absolute top-full right-0 mt-2 w-64 bg-gray-900 border border-white/10 rounded-xl p-2 grid grid-cols-4 gap-2 max-h-48 overflow-y-auto shadow-2xl z-[100]">
-                {allEmotes.filter(e => unlockedEmoteIds.includes(e.id)).length > 0 ? (
-                  allEmotes.filter(e => unlockedEmoteIds.includes(e.id)).map((emote, idx) => (
+                {allEmotes.filter(e => unlockedEmoteIds.includes(e.id) && (!e.fanzId || e.fanzId === fanz?.templateId)).length > 0 ? (
+                  allEmotes.filter(e => unlockedEmoteIds.includes(e.id) && (!e.fanzId || e.fanzId === fanz?.templateId)).map((emote, idx) => (
                     <button 
                       key={`${emote.id}-${idx}`}
                       onClick={() => {
@@ -1949,10 +1993,26 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
             {/* VS Background Split */}
             <div className="absolute inset-0 flex flex-col">
-              <div className="flex-1 bg-gradient-to-br from-blue-900/40 to-blue-900/10 relative overflow-hidden">
+              {arenaBg.video && !user.dataSaver ? (
+                <div className="absolute inset-0">
+                   <video 
+                     src={arenaBg.video}
+                     poster={getImageUrl(arenaBg.image)}
+                     className="w-full h-full object-cover opacity-80"
+                     autoPlay loop muted playsInline
+                     onContextMenu={e => e.preventDefault()}
+                   />
+                </div>
+              ) : (
+                <div className="absolute inset-0">
+                  <img src={getImageUrl(arenaBg.image)} className="w-full h-full object-cover opacity-70" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/50 z-[5]" />
+              <div className="flex-1 bg-blue-900/40 relative overflow-hidden hidden">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
               </div>
-              <div className="flex-1 bg-gradient-to-tl from-red-900/40 to-red-900/10 relative overflow-hidden">
+              <div className="flex-1 bg-red-900/40 relative overflow-hidden hidden">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
               </div>
             </div>
@@ -1976,12 +2036,35 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                         {p ? (
                           <>
                             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-0" />
+                            {p.fanz?.equippedSkinUrl ? (
+                               <img 
+                                 src={getImageUrl(p.fanz.equippedSkinUrl)} 
+                                 className="absolute inset-0 w-full h-full object-cover opacity-60 z-0" 
+                               />
+                            ) : p.fanz?.imageUrl && (
+                               <img 
+                                 src={getImageUrl(p.fanz.imageUrl)} 
+                                 className="absolute inset-0 w-full h-full object-cover opacity-40 z-0" 
+                               />
+                            )}
                             <div className="relative z-10 flex flex-col items-center w-full p-2">
-                              <img 
-                                src={p.photoURL || getImageUrl(p.fanz?.imageUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} 
-                                className="w-16 h-16 object-contain mb-1 drop-shadow-lg rounded-full" 
-                                referrerPolicy="no-referrer"
-                              />
+                              <div className="relative w-16 h-20 mb-1">
+                                <img 
+                                  src={p.fanz?.equippedSkinUrl ? getImageUrl(p.fanz.equippedSkinUrl) : (getImageUrl(p.fanz?.imageUrl) || p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`)} 
+                                  className="w-full h-full object-contain drop-shadow-lg bg-black/40 p-1 border-2 border-blue-500/30 rounded-lg" 
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`;
+                                  }}
+                                />
+                                {p.fanz?.equippedSkinUrl && p.photoURL && (
+                                  <img 
+                                    src={p.photoURL} 
+                                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-black object-cover shadow-lg"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                )}
+                              </div>
                               <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
                               <span className="text-[9px] text-blue-300 font-bold uppercase mb-1">{p.fanz?.name}</span>
                               <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded-full border border-white/10 w-full justify-center">
@@ -2012,12 +2095,35 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                         {p ? (
                           <>
                             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-0" />
+                            {p.fanz?.equippedSkinUrl ? (
+                               <img 
+                                 src={getImageUrl(p.fanz.equippedSkinUrl)} 
+                                 className="absolute inset-0 w-full h-full object-cover opacity-60 z-0" 
+                               />
+                            ) : p.fanz?.imageUrl && (
+                               <img 
+                                 src={getImageUrl(p.fanz.imageUrl)} 
+                                 className="absolute inset-0 w-full h-full object-cover opacity-40 z-0" 
+                               />
+                            )}
                             <div className="relative z-10 flex flex-col items-center w-full p-2">
-                              <img 
-                                src={p.photoURL || getImageUrl(p.fanz?.imageUrl) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} 
-                                className="w-16 h-16 object-contain mb-1 drop-shadow-lg rounded-full" 
-                                referrerPolicy="no-referrer"
-                              />
+                              <div className="relative w-16 h-20 mb-1">
+                                <img 
+                                  src={p.fanz?.equippedSkinUrl ? getImageUrl(p.fanz.equippedSkinUrl) : (getImageUrl(p.fanz?.imageUrl) || p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`)} 
+                                  className="w-full h-full object-contain drop-shadow-lg bg-black/40 p-1 border-2 border-red-500/30 rounded-lg" 
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`;
+                                  }}
+                                />
+                                {p.fanz?.equippedSkinUrl && p.photoURL && (
+                                  <img 
+                                    src={p.photoURL} 
+                                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-black object-cover shadow-lg"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                )}
+                              </div>
                               <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
                               <span className="text-[9px] text-red-300 font-bold uppercase mb-1">{p.fanz?.name}</span>
                               <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded-full border border-white/10 w-full justify-center">
@@ -2080,9 +2186,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     {navigator.share && (
                       <button 
                         onClick={() => {
+                          const shareUrl = `${window.location.origin}/?join=${inviteCode}`;
                           navigator.share({
                             title: 'Rejoins mon duel The Best Fan !',
-                            text: `Rejoins mon duel avec le code: ${inviteCode}`,
+                            text: `Rejoins mon duel avec le code: ${inviteCode}\nClique ici pour rejoindre : ${shareUrl}`,
                           }).catch(console.error);
                         }}
                         className="flex-1 text-[10px] text-white bg-orange-600 hover:bg-orange-500 py-2 rounded-lg transition-colors font-bold uppercase"

@@ -60,6 +60,9 @@ export interface UserProfile {
   friendRequests?: string[];
   activeFanzId?: string;
   dataSaver?: boolean;
+  boostXpUntil?: string; // ISO timestamp
+  infiniteEnergyUntil?: string; // ISO timestamp
+  antiMalusMatches?: number; // Number of matches remaining
 }
 
 export interface FanzStats {
@@ -378,6 +381,9 @@ export interface DuelConfig {
     '5v5': { winXp: number; loseXp: number };
     war_of_kops: { winXp: number; loseXp: number };
   };
+  botFillTimer?: number;
+  botClickRatePerSec?: number;
+  botCardPlayChance?: number;
 }
 
 export interface DuelParticipant {

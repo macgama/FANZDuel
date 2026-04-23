@@ -66,8 +66,8 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
             const otherUser = { uid: userDoc.id, ...userDoc.data() } as UserProfile;
             showAlert({
               title: 'Nouveau message !',
-              description: `${otherUser.pseudo} vous a envoyé une emote.`,
-              type: 'info'
+              subtitle: `${otherUser.pseudo} vous a envoyé une emote.`,
+              type: 'unlock'
             });
           }
 

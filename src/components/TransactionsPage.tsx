@@ -104,7 +104,7 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
                   <span className="text-[10px] sm:text-xs uppercase tracking-wider">Tout</span>
                 ) : (
                   <div className="flex justify-center items-center w-5 h-5">
-                    {React.cloneElement(getResourceIcon(f) as React.ReactElement, { className: 'w-4 h-4 sm:w-5 sm:h-5 object-contain' })}
+                    {React.cloneElement(getResourceIcon(f) as React.ReactElement<any>, { className: 'w-4 h-4 sm:w-5 sm:h-5 object-contain' })}
                   </div>
                 )}
               </button>

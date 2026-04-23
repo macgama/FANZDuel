@@ -2425,8 +2425,8 @@ export function AdminZone() {
 
           <div className="p-4 rounded-xl bg-gray-900/50 border border-gray-800 space-y-4">
             <h4 className="font-bold text-orange-500 uppercase">Paramètres Globaux</h4>
-            <div className="flex items-center gap-4">
-              <div className="flex-1 space-y-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Temps de base pour 1 pt d'excitation (secondes)</label>
                 <input
                   type="number"
@@ -2435,6 +2435,53 @@ export function AdminZone() {
                   onChange={(e) => setDuelConfig({ ...duelConfig, baseExcitementRegenTime: parseFloat(e.target.value) })}
                   className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm font-mono"
                 />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Lobby : Délai avant remplissage Bots (secondes)</label>
+                <input
+                  type="number"
+                  value={duelConfig.botFillTimer || 30}
+                  onChange={(e) => setDuelConfig({ ...duelConfig, botFillTimer: parseInt(e.target.value) })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-gray-900/50 border border-gray-800 space-y-4">
+            <h4 className="font-bold text-blue-500 uppercase">Intelligence & Comportement des Bots</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Fréquence de clic (clics par seconde)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={duelConfig.botClickRatePerSec || 1}
+                    onChange={(e) => setDuelConfig({ ...duelConfig, botClickRatePerSec: parseFloat(e.target.value) })}
+                    className="flex-1"
+                  />
+                  <span className="text-sm font-mono text-white w-12">{duelConfig.botClickRatePerSec || 1} /s</span>
+                </div>
+                <p className="text-[10px] text-gray-500 italic">Nombre moyen de clics qu'un bot effectue chaque seconde.</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Utilisation des Cartes (probabilité % par seconde)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={duelConfig.botCardPlayChance || 30}
+                    onChange={(e) => setDuelConfig({ ...duelConfig, botCardPlayChance: parseInt(e.target.value) })}
+                    className="flex-1"
+                  />
+                  <span className="text-sm font-mono text-white w-12">{duelConfig.botCardPlayChance || 30}%</span>
+                </div>
+                <p className="text-[10px] text-gray-500 italic">Probabilité cumulée par seconde qu'un bot joue une carte s'il a assez d'énergie.</p>
               </div>
             </div>
           </div>

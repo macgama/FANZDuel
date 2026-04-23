@@ -8,6 +8,8 @@ import { useAlert } from '../context/AlertContext';
 import { useReward } from '../context/RewardContext';
 import { logTransaction } from '../services/transactionService';
 import { getImageUrl } from '../lib/utils';
+import { LOGOS } from '../constants';
+import { OptimizedMedia } from './OptimizedMedia';
 
 interface PassPageProps {
   profile: UserProfile;
