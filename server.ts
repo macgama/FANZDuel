@@ -196,8 +196,9 @@ async function startServer() {
             console.log(`[Server Ranking] Updated ${collectionName} for ${safeEntityId} with +${scoreToAdd}`);
           };
 
+          const allParticipants = duel.type === 'war_of_kops' && duel.historicalParticipants ? Object.values(duel.historicalParticipants) : duel.participants;
           // Update users
-          for (const p of duel.participants) {
+          for (const p of allParticipants as any[]) {
             if (p.uid.startsWith('bot_')) continue;
             const userScore = p.team === 'A' ? scoreA : scoreB;
             for (const s of uniqueSeasons) {
@@ -257,7 +258,7 @@ async function startServer() {
           }
 
           // Write finished duel to database
-          const simplifiedParticipants = duel.participants.map(p => ({
+          const simplifiedParticipants = allParticipants.map((p: any) => ({
             uid: p.uid,
             team: p.team,
             pseudo: p.pseudo || 'Bot',
@@ -356,6 +357,7 @@ async function startServer() {
           status: type === 'training' ? 'active' : 'waiting',
           progress: 50,
           participants: [],
+          historicalParticipants: {},
           matchId,
           leagueId,
           season,
@@ -399,6 +401,7 @@ async function startServer() {
         }
         
         duel.participants.push({ ...user, fanz, team, socketId: socket.id });
+        duel.historicalParticipants[user.uid] = { ...user, fanz, team };
       }
 
       const participant = duel.participants.find(p => p.uid === user.uid);
@@ -506,24 +509,36 @@ async function startServer() {
 
     socket.on("leave-duel", async ({ duelId, userId }) => {
       const duel = duels[duelId];
-      if (duel && duel.status === 'waiting') {
-        const isParticipant = duel.participants.some(p => p.uid === userId);
-        if (isParticipant) {
+      if (duel) {
+        if (duel.status === 'waiting') {
+          const isParticipant = duel.participants.some(p => p.uid === userId);
+          if (isParticipant) {
+            duel.participants = duel.participants.filter(p => p.uid !== userId);
+            socket.leave(duelId);
+            await refundParticipants(duel.type, [userId]);
+            
+            io.to(duelId).emit("duel-update", { 
+              duelId: duel.id, 
+              progress: duel.progress, 
+              status: duel.status, 
+              participants: duel.participants 
+            });
+            
+            if (duel.participants.length === 0) {
+               if (duel.timer) clearTimeout(duel.timer);
+               delete duels[duelId];
+            }
+          }
+        } else if (duel.status === 'active' && duel.type === 'war_of_kops') {
+          // Can safely leave war of kops without breaking it
           duel.participants = duel.participants.filter(p => p.uid !== userId);
           socket.leave(duelId);
-          await refundParticipants(duel.type, [userId]);
-          
           io.to(duelId).emit("duel-update", { 
             duelId: duel.id, 
             progress: duel.progress, 
             status: duel.status, 
             participants: duel.participants 
           });
-          
-          if (duel.participants.length === 0) {
-             if (duel.timer) clearTimeout(duel.timer);
-             delete duels[duelId];
-          }
         }
       }
     });

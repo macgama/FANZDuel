@@ -2507,10 +2507,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 Êtes-vous sûr de vouloir quitter ?
               </h3>
               
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
-                <p className="text-sm text-red-400 text-center font-medium">
+              <div className={`border rounded-xl p-4 mb-6 ${duel.type === 'war_of_kops' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                <p className={`text-sm text-center font-medium ${duel.type === 'war_of_kops' ? 'text-blue-400' : 'text-red-400'}`}>
                   {duel.type === 'training' 
                     ? "Vous perdrez l'énergie et l'argent dépensé pour cet entraînement."
+                    : duel.type === 'war_of_kops'
+                    ? "Vous pouvez quitter la Guerre des KOPs pour faire autre chose ! Les points donnés à votre équipe sont sauvegardés. Vous recevrez de la Ferveur à la fin du match en fonction du résultat."
                     : "Vous perdrez l'énergie, l'argent et perdrez le match par forfait. Le résultat n'est pas pris en compte."}
                 </p>
               </div>
