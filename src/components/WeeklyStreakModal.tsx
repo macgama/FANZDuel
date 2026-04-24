@@ -236,7 +236,7 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
               Aucune récompense configurée pour le moment.
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-8">
+            <div className="flex flex-wrap justify-center gap-3 mb-8">
               {configs.map((config) => {
                 const isPast = config.day < currentDay;
                 const isCurrent = config.day === currentDay;
@@ -246,7 +246,7 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
                 return (
                   <div 
                     key={config.day}
-                    className={`relative flex flex-col items-center p-3 rounded-xl border transition-all ${
+                    className={`w-[calc(33.333%-8px)] sm:w-[calc(25%-9px)] relative flex flex-col items-center p-3 rounded-xl border transition-all ${
                       isCurrent 
                         ? 'bg-orange-500/10 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.2)]' 
                         : claimed || isPast

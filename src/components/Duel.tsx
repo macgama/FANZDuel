@@ -83,10 +83,9 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
     if (joiningDuelId) {
       const fetchDuelData = async () => {
         try {
-          const res = await fetch(`/api/duels`);
+          const res = await fetch(`/api/duels/id/${joiningDuelId}`);
           if (res.ok) {
-            const allDuels = await res.json();
-            const duel = allDuels.find((d: any) => d.id === joiningDuelId);
+            const duel = await res.json();
             if (duel) {
               // Check if user is already a participant
               const existingParticipant = duel.participants.find((p: any) => p.uid === user.uid);
@@ -218,8 +217,8 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
         type,
         status: 'waiting',
         matchId,
-        teamA: selectedTeam,
-        teamB: selectedTeam === teamA ? teamB : teamA,
+        teamA: teamA,
+        teamB: teamB,
         progress: 50,
         participants: [],
         createdAt: new Date().toISOString(),
@@ -370,24 +369,10 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                         selectedArena === arena.id ? 'border-[#f97316] shadow-[0_0_15px_rgba(249,115,22,0.3)]' : 'border-transparent'
                       }`}
                     >
-                      {videoUrl ? (
-                         <div className="absolute inset-0 z-0">
-                           <video 
-                             src={videoUrl} 
-                             poster={bgUrl}
-                             autoPlay 
-                             loop 
-                             muted 
-                             playsInline 
-                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-60" 
-                           />
-                         </div>
-                      ) : (
-                        <div 
-                          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110 opacity-60"
-                          style={{ backgroundImage: `url('${bgUrl}')` }}
-                        />
-                      )}
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110 opacity-60"
+                        style={{ backgroundImage: `url('${bgUrl}')` }}
+                      />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-opacity group-hover:opacity-60" />
                       
                       <div className="relative z-10 p-3 sm:p-4 h-full flex flex-col justify-between">
@@ -1820,23 +1805,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       <div className={`w-full lg:max-w-[450px] h-full relative flex flex-col p-4 bg-black lg:border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isEarthquake ? 'animate-bounce' : ''}`}>
         {/* Arena Background */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-          {arenaBg.video && !user.dataSaver ? (
-            <video 
-              src={arenaBg.video}
-              poster={getImageUrl(arenaBg.image)}
-              className="w-full h-full object-cover opacity-50 sm:opacity-70"
-              autoPlay
-              loop
-              muted
-              playsInline
-            />
-          ) : (
-            <img 
-              src={getImageUrl(arenaBg.image)} 
-              className="w-full h-full object-cover opacity-40 sm:opacity-50" 
-              alt="" 
-            />
-          )}
+          <img 
+            src={getImageUrl(arenaBg.image)} 
+            className="w-full h-full object-cover opacity-40 sm:opacity-50" 
+            alt="" 
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
         </div>
         {/* Blur Overlay */}
@@ -1993,21 +1966,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
             {/* VS Background Split */}
             <div className="absolute inset-0 flex flex-col">
-              {arenaBg.video && !user.dataSaver ? (
-                <div className="absolute inset-0">
-                   <video 
-                     src={arenaBg.video}
-                     poster={getImageUrl(arenaBg.image)}
-                     className="w-full h-full object-cover opacity-80"
-                     autoPlay loop muted playsInline
-                     onContextMenu={e => e.preventDefault()}
-                   />
-                </div>
-              ) : (
-                <div className="absolute inset-0">
-                  <img src={getImageUrl(arenaBg.image)} className="w-full h-full object-cover opacity-70" />
-                </div>
-              )}
+              <div className="absolute inset-0">
+                <img src={getImageUrl(arenaBg.image)} className="w-full h-full object-cover opacity-70" />
+              </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/50 z-[5]" />
               <div className="flex-1 bg-blue-900/40 relative overflow-hidden hidden">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>

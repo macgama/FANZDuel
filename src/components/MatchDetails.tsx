@@ -289,6 +289,13 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
             <div className="text-3xl sm:text-5xl font-black text-white tracking-tighter mb-1">
               {details.goals.home ?? 0}:{details.goals.away ?? 0}
             </div>
+            
+            {details.score?.penalty?.home != null && (
+              <div className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">
+                ({details.score.penalty.home} - {details.score.penalty.away} TAB)
+              </div>
+            )}
+            
             {isLive ? (
               <div className="px-2 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-500 font-black text-[9px] sm:text-xs">
                 {details.fixture.status.elapsed}{details.fixture.status.extra ? `+${details.fixture.status.extra}` : ''}'

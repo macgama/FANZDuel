@@ -354,7 +354,7 @@ function AppContent() {
   };
 
   const renderFooter = () => {
-    if (view === 'duel' || (isDuelActive && view === 'matches') || view === 'admin') return null;
+    if (view === 'duel' || isDuelActive || view === 'admin') return null;
     return (
       <footer className="md:hidden shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <button onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'home' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
@@ -590,7 +590,7 @@ function AppContent() {
     );
   }
 
-  if (loading || (user && !profile)) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center p-8 fixed inset-0 z-[200]">
         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
@@ -619,6 +619,14 @@ function AppContent() {
     return <LandingPage />;
   }
 
+  if (user && !profile) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col pt-4">
+        <Auth onAuthSuccess={() => {}} />
+      </div>
+    );
+  }
+
   return (
     <>
       <AnimatePresence>
@@ -633,10 +641,9 @@ function AppContent() {
       <Layout containerClassName="md:flex-row">
         <GlobalSocketListener onDuelStarting={(duelId, duelData) => {
           setCurrentDuel(duelData);
-          setView('duel');
         }} />
 
-      {profile && view !== 'duel' && !(isDuelActive && view === 'matches') && view !== 'admin' && (
+      {profile && view !== 'duel' && !isDuelActive && view !== 'admin' && (
         <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
           <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start">
             <img src="/img/logo2.png" alt="TBFO" className="w-8 h-8 rounded-lg outline outline-1 outline-white/10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
@@ -765,7 +772,7 @@ function AppContent() {
           />
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 w-full max-w-3xl mx-auto lg:border-x border-white/5 shadow-2xl bg-[#0a0a0a]">
-            {profile && view !== 'duel' && (
+            {profile && view !== 'duel' && !isDuelActive && (
               <Header 
                 profile={profile} 
                 variant={(view as string) === 'home' ? 'home' : 'subpage'}

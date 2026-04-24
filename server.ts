@@ -420,20 +420,66 @@ async function startServer() {
       }
     });
 
-    socket.on("leave-duel", ({ duelId, userId }) => {
+    const refundParticipants = async (duelType: string, uids: string[]) => {
+      if (!db || uids.length === 0) return;
+      try {
+        const configDoc = await db.collection('global_config').doc('duel_config').get();
+        let cost = { money: 0, energy: 0 };
+        if (configDoc.exists) {
+          const config = configDoc.data() as any;
+          if (config.costs && config.costs[duelType]) {
+            cost = config.costs[duelType];
+          }
+        }
+        if (cost.money > 0 || cost.energy > 0) {
+          for (const uid of uids) {
+            if (uid.startsWith('bot_')) continue;
+            await db.collection('users').doc(uid).update({
+              money: FieldValue.increment(cost.money),
+              energy: FieldValue.increment(cost.energy)
+            });
+          }
+        }
+      } catch(err) {
+        console.error("Refund error:", err);
+      }
+    };
+
+    socket.on("leave-duel", async ({ duelId, userId }) => {
       const duel = duels[duelId];
       if (duel && duel.status === 'waiting') {
-        duel.participants = duel.participants.filter(p => p.uid !== userId);
-        socket.leave(duelId);
-        io.to(duelId).emit("duel-update", { 
-          duelId: duel.id, 
-          progress: duel.progress, 
-          status: duel.status, 
-          participants: duel.participants 
-        });
-        
-        // If no participants left, we could optionally delete the duel, but the user requested "Le DUEL est toujours inscrit"
-        // So we just leave it empty.
+        const isParticipant = duel.participants.some(p => p.uid === userId);
+        if (isParticipant) {
+          duel.participants = duel.participants.filter(p => p.uid !== userId);
+          socket.leave(duelId);
+          await refundParticipants(duel.type, [userId]);
+          
+          io.to(duelId).emit("duel-update", { 
+            duelId: duel.id, 
+            progress: duel.progress, 
+            status: duel.status, 
+            participants: duel.participants 
+          });
+          
+          if (duel.participants.length === 0) {
+             if (duel.timer) clearTimeout(duel.timer);
+             delete duels[duelId];
+          }
+        }
+      }
+    });
+
+    socket.on("cancel-duel", async ({ duelId, userId }) => {
+      const duel = duels[duelId];
+      if (duel && duel.status === 'waiting') {
+        const isParticipant = duel.participants.some(p => p.uid === userId);
+        if (isParticipant) {
+          if (duel.timer) clearTimeout(duel.timer);
+          const participantsToRefund = duel.participants.map((p: any) => p.uid);
+          delete duels[duelId];
+          io.to(duelId).emit("duel-cancelled");
+          await refundParticipants(duel.type, participantsToRefund);
+        }
       }
     });
 
@@ -581,6 +627,16 @@ async function startServer() {
       .map(d => getSafeDuel(d));
     console.log(`[API] Fetching waiting duels. Count: ${waitingDuels.length}`);
     res.json(waitingDuels);
+  });
+
+  app.get("/api/duels/id/:id", (req, res) => {
+    const duelId = req.params.id;
+    const duel = duels[duelId];
+    if (duel) {
+      res.json(getSafeDuel(duel));
+    } else {
+      res.status(404).json({ error: 'Duel not found' });
+    }
   });
 
   app.get("/api/duels/:matchId", (req, res) => {

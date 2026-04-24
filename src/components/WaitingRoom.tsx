@@ -7,6 +7,7 @@ import { useAlert } from '../context/AlertContext';
 import { footballApi } from '../services/footballApi';
 import { getImageUrl } from '../lib/utils';
 import { MrFanzHelp } from './MrFanzHelp';
+import { useSocket } from '../context/SocketContext';
 
 interface WaitingRoomProps {
   user: UserProfile;
@@ -17,6 +18,7 @@ interface WaitingRoomProps {
 
 export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingRoomProps) {
   const { showAlert } = useAlert();
+  const { socket } = useSocket();
   const [duels, setDuels] = useState<any[]>([]);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,20 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
   const [filterType, setFilterType] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState('');
   const [matchDetailsCache, setMatchDetailsCache] = useState<Record<number, any>>({});
+
+  const handleLeaveOrCancelDuel = (duel: any) => {
+    if (socket) {
+      const isCreator = duel.participants[0]?.uid === user.uid;
+      if (isCreator) {
+        socket.emit('cancel-duel', { duelId: duel.id, userId: user.uid });
+        showAlert({ title: 'Duel annulé et ressources restituées', type: 'success' });
+      } else {
+        socket.emit('leave-duel', { duelId: duel.id, userId: user.uid });
+        showAlert({ title: 'Duel quitté et ressources restituées', type: 'success' });
+      }
+      setDuels(prev => prev.filter(d => d.id !== duel.id));
+    }
+  };
 
   const handleShareDuel = async (duelId: string, duelType: string) => {
     const inviteCode = duelId.substring(0, 8).toUpperCase();
@@ -234,6 +250,11 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                             </div>
                             <span className="text-sm font-black text-white">{match.goals.away ?? 0}</span>
                           </div>
+                          {match.score?.penalty?.home != null && (
+                            <div className="text-[10px] font-bold text-gray-400 text-right uppercase mt-1">
+                              ({match.score.penalty.home} - {match.score.penalty.away} TAB)
+                            </div>
+                          )}
                        </div>
                     </div>
                     <div className="ml-4 opacity-50 group-hover:opacity-100 transition-opacity">
@@ -299,9 +320,19 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      {duel.participants?.some((p: any) => p.uid === user?.uid) && (
+                        <button 
+                          onClick={() => handleLeaveOrCancelDuel(duel)}
+                          className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors border border-red-500/20"
+                          title={duel.participants[0]?.uid === user?.uid ? "Annuler le duel" : "Quitter le duel"}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleShareDuel(duel.id, duel.type)}
                         className="p-2 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20"
+                        title="Partager"
                       >
                         <Share2 className="w-4 h-4" />
                       </button>

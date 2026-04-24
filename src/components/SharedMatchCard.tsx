@@ -118,6 +118,13 @@ export function SharedMatchCard({
                 <span className="text-orange-500">:</span>
                 <span className={isLive ? 'text-orange-500' : ''}>{match.goals.away ?? 0}</span>
               </div>
+              
+              {match.score?.penalty?.home != null && (
+                <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">
+                  ({match.score.penalty.home} - {match.score.penalty.away} TAB)
+                </div>
+              )}
+              
               <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center">
                 <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase">
                   {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'` : match.fixture.status.short}
