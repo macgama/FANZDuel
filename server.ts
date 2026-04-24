@@ -697,9 +697,8 @@ async function startServer() {
 
   app.get("/api/duels", (req, res) => {
     const waitingDuels = Object.values(duels)
-      .filter(d => d.status === 'waiting' && !d.isPrivate)
+      .filter(d => !d.isPrivate && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active')))
       .map(d => getSafeDuel(d));
-    console.log(`[API] Fetching waiting duels. Count: ${waitingDuels.length}`);
     res.json(waitingDuels);
   });
 
@@ -716,14 +715,14 @@ async function startServer() {
   app.get("/api/duels/:matchId", (req, res) => {
     const matchIdStr = req.params.matchId;
     const activeDuels = Object.values(duels)
-      .filter(d => d.matchId?.toString() === matchIdStr && d.status === 'waiting' && !d.isPrivate)
+      .filter(d => d.matchId?.toString() === matchIdStr && !d.isPrivate && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active')))
       .map(d => getSafeDuel(d));
     res.json(activeDuels);
   });
 
   app.get("/api/duels/code/:code", (req, res) => {
     const code = req.params.code.toUpperCase();
-    const duel = Object.values(duels).find(d => d.inviteCode === code && d.status === 'waiting');
+    const duel = Object.values(duels).find(d => d.inviteCode === code && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active')));
     if (duel) {
       res.json({
         id: duel.id,

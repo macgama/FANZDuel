@@ -268,8 +268,8 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {filteredDuels.map((duel) => {
-              const maxPlayers = { '1v1': 2, '2v2': 4, '5v5': 10 }[duel.type as '1v1' | '2v2' | '5v5'] || '∞';
-              const isFull = duel.participants.length >= (typeof maxPlayers === 'number' ? maxPlayers : 999);
+              const maxPlayers = { '1v1': 2, '2v2': 4, '5v5': 10 }[duel.type as '1v1' | '2v2' | '5v5'];
+              const isFull = maxPlayers ? duel.participants.length >= maxPlayers : false;
               
               return (
                 <motion.div
