@@ -32,6 +32,7 @@ interface HeaderProps {
   absolute?: boolean;
   variant?: 'home' | 'subpage';
   unreadSocialCount?: number;
+  hasClaimableFervorAlert?: boolean;
 }
 
 export function Header({ 
@@ -43,7 +44,8 @@ export function Header({
   onBackClick, 
   absolute = false, 
   variant = 'home',
-  unreadSocialCount = 0
+  unreadSocialCount = 0,
+  hasClaimableFervorAlert
 }: HeaderProps) {
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>('');
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -145,20 +147,24 @@ export function Header({
   }, [profile.uid, profile.activeFanzId, profile.activeAction?.fanzId, profile.photoURL]);
 
   useEffect(() => {
-    if (profile.energy >= 100) {
+    if (profile.energy >= (profile.maxEnergy || 100)) {
       setTimeUntilRefill('');
       return;
     }
 
     const calculateTime = () => {
       const lastRefill = new Date(profile.lastEnergyRefill || new Date().toISOString());
-      const nextRefill = new Date(lastRefill.getTime() + 24 * 60 * 60 * 1000);
+      // Show time until NEXT 1 hour refill (+5 energy)
+      const nextRefill = new Date(lastRefill.getTime() + 1 * 60 * 60 * 1000);
       const now = new Date();
-      const diff = nextRefill.getTime() - now.getTime();
+      let diff = nextRefill.getTime() - now.getTime();
 
+      // If already passed, but App.tsx hasn't synced yet, show very low time or calculate next hourly window
       if (diff <= 0) {
-        setTimeUntilRefill('00:00:00');
-        return;
+        // If we missed multiple hours, show time until the next upcoming hourly slot
+        const msSinceLast = now.getTime() - lastRefill.getTime();
+        const msNext = 3600000 - (msSinceLast % 3600000);
+        diff = msNext;
       }
 
       const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -185,158 +191,166 @@ export function Header({
   return (
     <>
       <header className={cn(
-        "left-0 right-0 z-50 p-4 flex items-start justify-between shrink-0",
+        "left-0 right-0 z-50 shrink-0",
         variant === 'home' || absolute 
           ? "absolute top-0 bg-gradient-to-b from-black/80 to-transparent" 
           : "relative bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/5 shadow-lg"
       )}>
-        {/* Left: Avatar & Level OR Back Button */}
-        {variant === 'subpage' ? (
-          <button 
-            onClick={() => onBackClick?.()} 
-            className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => onHomeClick ? onHomeClick() : setShowProfileModal(true)}>
-            <div className="relative">
-              <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 overflow-hidden">
-                {avatarUrl ? (
-                  <img src={getImageUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <UserIcon className="w-6 h-6 text-white" />
-                )}
-              </div>
-              <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic flex items-center gap-1">
-                <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" referrerPolicy="no-referrer" />
-                {profile.level}
-                {isAntiMalusActive && (
-                  <div className="ml-1 flex items-center gap-0.5 text-blue-400">
-                    <Shield className="w-2.5 h-2.5 fill-blue-400/20" />
-                    <span className="text-[8px]">{profile.antiMalusMatches}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Center: Attributes & Ferveur Progress */}
-        <div className="flex flex-col items-center">
-          <div 
-            className="flex items-center gap-2 sm:gap-3 bg-black/50 backdrop-blur-md rounded-full px-3 sm:px-4 py-1.5 sm:py-2 border border-white/10 relative z-10 cursor-pointer hover:bg-white/10 transition-colors"
-            onClick={() => onTransactionsClick && onTransactionsClick()}
-          >
-            <div className="flex items-center gap-1 sm:gap-1.5 group/money relative">
-              <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
-              <span className="text-[10px] sm:text-xs font-bold">{profile.money}</span>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/money:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
-                <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest">Monnaie</div>
-                <div className="text-[9px] text-gray-300">Achats en boutique et améliorations</div>
-              </div>
-            </div>
-            <div className="w-px h-3 sm:h-4 bg-white/20" />
-            <div className="flex items-center gap-1 sm:gap-1.5 group/gems relative">
-              <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
-              <span className="text-[10px] sm:text-xs font-bold">{profile.gems}</span>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/gems:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
-                <div className="text-[10px] sm:text-xs font-black text-blue-400 uppercase tracking-widest">Gemmes</div>
-                <div className="text-[9px] text-gray-300">Monnaie rare pour le contenu premium</div>
-              </div>
-            </div>
-            <div className="w-px h-3 sm:h-4 bg-white/20" />
-            <div className="flex items-center gap-1 sm:gap-1.5 group/boost relative">
-              <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
-              <span className="text-[10px] sm:text-xs font-bold">{profile.boostPoints}</span>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/boost:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
-                <div className="text-[10px] sm:text-xs font-black text-yellow-500 uppercase tracking-widest">Points de Boost</div>
-                <div className="text-[9px] text-gray-300">Avantages temporaires lors des duels</div>
-              </div>
-            </div>
-            <div className="w-px h-3 sm:h-4 bg-white/20" />
-            <div className="flex items-center gap-1 sm:gap-1.5 group/energy relative">
-              <div className="relative">
-                <img src={LOGOS.energy} alt="Energy" className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain", isInfiniteEnergyActive && "animate-pulse")} referrerPolicy="no-referrer" />
-                {isInfiniteEnergyActive && (
-                  <Zap className="absolute -top-1 -right-1 w-2.5 h-2.5 text-yellow-400 fill-yellow-400" />
-                )}
-              </div>
-              <span className={cn("text-[10px] sm:text-xs font-bold", isInfiniteEnergyActive && "text-yellow-400")}>
-                {isInfiniteEnergyActive ? '∞' : profile.energy}
-              </span>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/energy:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
-                <div className="text-[10px] sm:text-xs font-black text-green-400 uppercase tracking-widest">
-                  {isInfiniteEnergyActive ? 'Énergie Infinie' : 'Énergie'}
-                </div>
-                {isInfiniteEnergyActive && (
-                  <div className="text-[9px] text-yellow-400 font-bold mb-1">Boost Actif !</div>
-                )}
-                <div className="text-[9px] text-gray-300">Nécessaire pour affronter des adversaires</div>
-                {timeUntilRefill && !isInfiniteEnergyActive && (
-                  <div className="flex items-center gap-1 text-[9px] font-mono text-orange-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
-                    <Clock className="w-3 h-3" />
-                    + 1 ({timeUntilRefill})
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Ferveur Progress Bar */}
-          <div className="relative group/ferveur mt-1 sm:mt-2">
-            <div 
-              className="w-32 sm:w-40 h-4 sm:h-5 bg-black/60 rounded-full border border-white/10 overflow-hidden relative cursor-pointer hover:border-white/30 transition-colors"
-              onClick={() => onFervorClick && onFervorClick()}
+        <div className="w-full max-w-3xl mx-auto flex items-start justify-between px-4 md:px-6 py-4">
+          {/* Left: Avatar & Level OR Back Button */}
+          {variant === 'subpage' ? (
+            <button 
+              onClick={() => onBackClick?.()} 
+              className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
             >
-              <div 
-                className={cn("absolute top-0 left-0 h-full transition-all duration-500", isXpBoostActive ? "bg-yellow-500" : "bg-orange-500")}
-                style={{ width: `${ferveurProgressPercent}%` }}
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[8px] sm:text-[10px] font-black text-white uppercase tracking-tighter flex items-center gap-1">
-                  {currentFerveur} / {maxFerveur}
-                  {isXpBoostActive && <Star className="w-2 h-2 text-yellow-300 fill-yellow-300 animate-pulse" />}
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => onHomeClick ? onHomeClick() : setShowProfileModal(true)}>
+              <div className="relative">
+                <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center border-2 border-orange-500 overflow-hidden">
+                  {avatarUrl ? (
+                    <img src={getImageUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <UserIcon className="w-6 h-6 text-white" />
+                  )}
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-black border border-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-black text-orange-500 italic flex items-center gap-1">
+                  <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" referrerPolicy="no-referrer" />
+                  {profile.level}
+                  {isAntiMalusActive && (
+                    <div className="ml-1 flex items-center gap-0.5 text-blue-400">
+                      <Shield className="w-2.5 h-2.5 fill-blue-400/20" />
+                      <span className="text-[8px]">{profile.antiMalusMatches}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Center: Attributes & Ferveur Progress */}
+          <div className="flex flex-col items-center">
+            <div 
+              className="flex items-center gap-2 sm:gap-3 bg-black/50 backdrop-blur-md rounded-full px-3 sm:px-4 py-1.5 sm:py-2 border border-white/10 relative z-10 cursor-pointer hover:bg-white/10 transition-colors"
+              onClick={() => onTransactionsClick && onTransactionsClick()}
+            >
+              <div className="flex items-center gap-1 sm:gap-1.5 group/money relative">
+                <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
+                <span className="text-[10px] sm:text-xs font-bold">{profile.money}</span>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/money:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                  <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest">Monnaie</div>
+                  <div className="text-[9px] text-gray-300">Achats en boutique et améliorations</div>
+                </div>
+              </div>
+              <div className="w-px h-3 sm:h-4 bg-white/20" />
+              <div className="flex items-center gap-1 sm:gap-1.5 group/gems relative">
+                <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
+                <span className="text-[10px] sm:text-xs font-bold">{profile.gems}</span>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/gems:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                  <div className="text-[10px] sm:text-xs font-black text-blue-400 uppercase tracking-widest">Gemmes</div>
+                  <div className="text-[9px] text-gray-300">Monnaie rare pour le contenu premium</div>
+                </div>
+              </div>
+              <div className="w-px h-3 sm:h-4 bg-white/20" />
+              <div className="flex items-center gap-1 sm:gap-1.5 group/boost relative">
+                <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
+                <span className="text-[10px] sm:text-xs font-bold">{profile.boostPoints}</span>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/boost:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                  <div className="text-[10px] sm:text-xs font-black text-yellow-500 uppercase tracking-widest">Points de Boost</div>
+                  <div className="text-[9px] text-gray-300">Avantages temporaires lors des duels</div>
+                </div>
+              </div>
+              <div className="w-px h-3 sm:h-4 bg-white/20" />
+              <div className="flex items-center gap-1 sm:gap-1.5 group/energy relative">
+                <div className="relative">
+                  <img src={LOGOS.energy} alt="Energy" className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain", isInfiniteEnergyActive && "animate-pulse")} referrerPolicy="no-referrer" />
+                  {isInfiniteEnergyActive && (
+                    <Zap className="absolute -top-1 -right-1 w-2.5 h-2.5 text-yellow-400 fill-yellow-400" />
+                  )}
+                </div>
+                <span className={cn("text-[10px] sm:text-xs font-bold", isInfiniteEnergyActive && "text-yellow-400")}>
+                  {isInfiniteEnergyActive ? '∞' : profile.energy}
                 </span>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/energy:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                  <div className="text-[10px] sm:text-xs font-black text-green-400 uppercase tracking-widest">
+                    {isInfiniteEnergyActive ? 'Énergie Infinie' : 'Énergie'}
+                  </div>
+                  {isInfiniteEnergyActive && (
+                    <div className="text-[9px] text-yellow-400 font-bold mb-1">Boost Actif !</div>
+                  )}
+                  <div className="text-[9px] text-gray-300">Nécessaire pour affronter des adversaires</div>
+                  {timeUntilRefill && !isInfiniteEnergyActive && (
+                    <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-orange-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        +5 ÉNERGIE DANS
+                      </div>
+                      <div className="text-white font-black">{timeUntilRefill}</div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/ferveur:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
-              <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest flex items-center gap-1">
-                Ferveur {isXpBoostActive && <span className="text-yellow-500">(XP x2 ACTIF)</span>}
+            {/* Ferveur Progress Bar */}
+            <div className="relative group/ferveur mt-1 sm:mt-2">
+              {hasClaimableFervorAlert && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a] animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10" />
+              )}
+              <div 
+                className="w-32 sm:w-40 h-4 sm:h-5 bg-black/60 rounded-full border border-white/10 overflow-hidden relative cursor-pointer hover:border-white/30 transition-colors"
+                onClick={() => onFervorClick && onFervorClick()}
+              >
+                <div 
+                  className={cn("absolute top-0 left-0 h-full transition-all duration-500", isXpBoostActive ? "bg-yellow-500" : "bg-orange-500")}
+                  style={{ width: `${ferveurProgressPercent}%` }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[8px] sm:text-[10px] font-black text-white uppercase tracking-tighter flex items-center gap-1">
+                    {currentFerveur} / {maxFerveur}
+                    {isXpBoostActive && <Star className="w-2 h-2 text-yellow-300 fill-yellow-300 animate-pulse" />}
+                  </span>
+                </div>
               </div>
-              <div className="text-[9px] text-gray-300">Répandez votre ferveur pour progresser !</div>
+              
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/ferveur:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
+                <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest flex items-center gap-1">
+                  Ferveur {isXpBoostActive && <span className="text-yellow-500">(XP x2 ACTIF)</span>}
+                </div>
+                <div className="text-[9px] text-gray-300">Répandez votre ferveur pour progresser !</div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Right: Menu Button OR Home Button */}
-        <div className="shrink-0 ml-2">
-          {variant === 'subpage' ? (
-            <button 
-              onClick={() => onHomeClick?.()} 
-              className="w-11 h-11 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
-            >
-              <HomeIcon className="w-5 h-5" />
-            </button>
-          ) : (
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                onMenuClick?.();
-              }} 
-              className="flex flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg relative"
-            >
-              <Menu className="w-6 h-6 text-white" />
-              <span className="text-[9px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500 leading-none">Menu</span>
-              
-              {unreadSocialCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center bg-red-600 rounded-full text-[10px] font-bold text-white shadow-lg border-2 border-[#1a1a1a] animate-pulse">
-                  {unreadSocialCount > 9 ? '9+' : unreadSocialCount}
-                </span>
-              )}
-            </button>
-          )}
+          {/* Right: Menu Button OR Home Button */}
+          <div className="shrink-0 ml-2">
+            {variant === 'subpage' ? (
+              <button 
+                onClick={() => onHomeClick?.()} 
+                className="w-11 h-11 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
+              >
+                <HomeIcon className="w-5 h-5" />
+              </button>
+            ) : (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMenuClick?.();
+                }} 
+                className="flex flex-col items-center justify-center w-14 h-14 bg-black/60 backdrop-blur-md rounded-full border-2 border-white/20 hover:bg-white/20 transition-all active:scale-95 shadow-lg relative"
+              >
+                <Menu className="w-6 h-6 text-white" />
+                <span className="text-[9px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500 leading-none">Menu</span>
+                
+                {unreadSocialCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center bg-red-600 rounded-full text-[10px] font-bold text-white shadow-lg border-2 border-[#1a1a1a] animate-pulse">
+                    {unreadSocialCount > 9 ? '9+' : unreadSocialCount}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </header>
 

@@ -48,14 +48,14 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
   const gainXp = Math.floor((action.xpGain || 0) * scaleFactor);
 
   const statIcons = {
-    force: <img src={LOGOS.energy} alt="Force" className="w-4 h-4 object-contain" />,
-    endurance: <Shield className="w-4 h-4 text-green-500" />,
-    mental: <Brain className="w-4 h-4 text-purple-500" />,
-    bluff: <Eye className="w-4 h-4 text-blue-500" />,
-    creativity: <Star className="w-4 h-4 text-pink-500" />,
-    social: <Users className="w-4 h-4 text-cyan-500" />,
-    intelligence: <Info className="w-4 h-4 text-indigo-500" />,
-    charisma: <Flame className="w-4 h-4 text-red-500" />
+    force: <img src="https://thebestfan.online/img/public/logo/logoForce.png" alt="Force" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+    endurance: <img src="https://thebestfan.online/img/public/logo/logoEndurance.png" alt="Endurance" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+    mental: <img src="https://thebestfan.online/img/public/logo/logoMental.png" alt="Mental" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+    bluff: <img src="https://thebestfan.online/img/public/logo/logoBluff.png" alt="Bluff" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+    creativity: <img src="https://thebestfan.online/img/public/logo/logoCreativity.png" alt="Créativité" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+    social: <img src="https://thebestfan.online/img/public/logo/logoSocial.png" alt="Social" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+    intelligence: <img src="https://thebestfan.online/img/public/logo/logoIntelligence.png" alt="Intelligence" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+    charisma: <img src="https://thebestfan.online/img/public/logo/logoCharisme.png" alt="Charisme" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
   };
 
   useEffect(() => {

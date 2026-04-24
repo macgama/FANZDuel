@@ -17,7 +17,8 @@ import {
   RefreshCw,
   Clock,
   Shield,
-  Medal
+  Medal,
+  Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -26,6 +27,9 @@ import { translateCountryName, translateLeagueName } from '../utils/countryTrans
 import { collection, query, where, orderBy, limit, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
+import { SharedMatchCard } from './SharedMatchCard';
+import { db } from '../firebase';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 
 interface LeagueDetailsProps {
   leagueId: number;
@@ -33,9 +37,10 @@ interface LeagueDetailsProps {
   onBack: () => void;
   onTeamClick: (teamId: number, season: number) => void;
   onMatchClick?: (matchId: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void;
+  profile?: any;
 }
 
-export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamClick, onMatchClick }: LeagueDetailsProps) {
+export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamClick, onMatchClick, profile }: LeagueDetailsProps) {
   const [league, setLeague] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState(initialSeason);
   const [availableSeasons, setAvailableSeasons] = useState<any[]>([]);
@@ -467,7 +472,11 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
   );
 }
 
-function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number }) {
+function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number; profile?: any }) {
+  const [selectedRound, setSelectedRound] = useState<string>('');
+  const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
+  const [activeDuels, setActiveDuels] = useState<any[]>([]);
+
   const formatRound = (round: string) => {
     const match = round.match(/\d+/);
     if (match && (round.toLowerCase().includes('round') || round.toLowerCase().includes('regular season'))) {
@@ -476,66 +485,200 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: { f
     return round;
   };
 
-  const groupedByRound = fixtures.reduce((acc: any, f: any) => {
-    const round = f.league.round;
-    if (!acc[round]) acc[round] = [];
-    acc[round].push(f);
-    return acc;
-  }, {});
+  const groupedByRound = React.useMemo(() => {
+    return fixtures.reduce((acc: any, f: any) => {
+      const round = f.league.round;
+      if (!acc[round]) acc[round] = [];
+      acc[round].push(f);
+      return acc;
+    }, {});
+  }, [fixtures]);
 
-  const rounds = Object.keys(groupedByRound).sort((a, b) => {
-    const dateA = Math.min(...groupedByRound[a].map((f: any) => new Date(f.fixture.date).getTime()));
-    const dateB = Math.min(...groupedByRound[b].map((f: any) => new Date(f.fixture.date).getTime()));
-    return dateA - dateB;
-  });
+  const rounds = React.useMemo(() => {
+    return Object.keys(groupedByRound).sort((a, b) => {
+      const dateA = Math.min(...groupedByRound[a].map((f: any) => new Date(f.fixture.date).getTime()));
+      const dateB = Math.min(...groupedByRound[b].map((f: any) => new Date(f.fixture.date).getTime()));
+      return dateA - dateB;
+    });
+  }, [groupedByRound]);
+
+  useEffect(() => {
+    if (rounds.length > 0 && !selectedRound) {
+      // Find the round with the most recent live/finished games, or the first upcoming
+      let bestRound = rounds[0];
+      
+      for (const round of rounds) {
+        const hasLiveInfo = groupedByRound[round].some((m: any) => ['1H', '2H', 'HT', 'LIVE', 'FT'].includes(m.fixture.status.short));
+        if (hasLiveInfo) {
+          bestRound = round;
+        }
+      }
+      setSelectedRound(bestRound);
+    }
+  }, [rounds, groupedByRound, selectedRound]);
+
+  const [roundEvents, setRoundEvents] = useState<Record<string, any[]>>({});
+
+  useEffect(() => {
+    if (!selectedRound) return;
+    
+    const fetchRoundEvents = async () => {
+      const currentMatches = groupedByRound[selectedRound] || [];
+      const idsToFetch = currentMatches
+        .filter((m: any) => !m.events && !roundEvents[m.fixture.id] && ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'LIVE'].includes(m.fixture.status.short))
+        .map((m: any) => m.fixture.id);
+
+      if (idsToFetch.length > 0) {
+        try {
+          // Chunk requests if needed, API allows up to 20 IDs per request for fixtures?ids=
+          const maxPerRequest = 20;
+          for (let i = 0; i < idsToFetch.length; i += maxPerRequest) {
+            const chunk = idsToFetch.slice(i, i + maxPerRequest);
+            const detailedFixtures = await footballApi.getFixturesByIds(chunk);
+            
+            const eventsMap: Record<string, any[]> = {};
+            detailedFixtures.forEach((f: any) => {
+              eventsMap[f.fixture.id] = f.events || [];
+            });
+            
+            setRoundEvents(prev => ({ ...prev, ...eventsMap }));
+          }
+        } catch (err) {
+          console.error("Failed to fetch round events", err);
+        }
+      }
+    };
+    fetchRoundEvents();
+
+    // Fetch Duels
+    const fetchActiveDuels = async () => {
+      try {
+        const res = await fetch('/api/duels/all');
+        if (res.ok) {
+          const duelsData = await res.json();
+          setActiveDuels(duelsData);
+        }
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Failed to fetch active duels", err);
+        }
+      }
+    };
+    fetchActiveDuels();
+
+    // Fetch scores for this round
+    const matchIds = groupedByRound[selectedRound]?.map((m: any) => m.fixture.id.toString()) || [];
+    if (matchIds.length === 0) return;
+
+    setMatchScores({});
+    const unsubs: (() => void)[] = [];
+    const chunkSize = 10;
+    
+    for (let i = 0; i < matchIds.length; i += chunkSize) {
+      const chunk = matchIds.slice(i, i + chunkSize);
+      const q = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
+      
+      const unsub = onSnapshot(q, (snapshot) => {
+        setMatchScores(prev => {
+          const newMap = { ...prev };
+          chunk.forEach(id => {
+            newMap[id] = { scoreA: 0, scoreB: 0 };
+          });
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const mIdStr = data.matchId?.toString();
+            if (mIdStr && chunk.includes(mIdStr)) {
+              newMap[mIdStr].scoreA += Number(data.scoreA || 0);
+              newMap[mIdStr].scoreB += Number(data.scoreB || 0);
+            }
+          });
+          return newMap;
+        });
+      });
+      unsubs.push(unsub);
+    }
+    
+    return () => {
+      unsubs.forEach(u => u());
+    };
+  }, [selectedRound]);
+
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = window.innerWidth > 768 ? 400 : window.innerWidth - 60;
+      scrollContainerRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  if (!selectedRound) return null;
 
   return (
     <div className="space-y-4">
-      {rounds.map((round) => (
-        <div key={round} className="space-y-2">
-          <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">
+      {/* Round Selector */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+        {rounds.map(round => (
+          <button
+            key={round}
+            onClick={() => setSelectedRound(round)}
+            className={`px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-black uppercase italic transition-colors ${
+              selectedRound === round 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+            }`}
+          >
             {formatRound(round)}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {groupedByRound[round].map((f: any) => (
-              <Card key={f.fixture.id} className="p-2 hover:border-orange-500/30 transition-all cursor-pointer" onClick={() => onMatchClick && onMatchClick(f.fixture.id)}>
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between items-center text-[8px] font-medium text-gray-500 uppercase tracking-wider">
-                    <span className="flex items-center gap-1 opacity-80">
-                      <Clock className="w-2 h-2" />
-                      {format(new Date(f.fixture.date), 'dd/MM HH:mm')}
-                    </span>
-                    <span className={f.fixture.status.short === 'FT' ? 'text-gray-400' : 'text-orange-500'}>
-                      {f.fixture.status.short}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex justify-between items-center cursor-pointer group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.home.id, selectedSeason); }}>
-                      <div className="flex items-center gap-2">
-                        <img src={f.teams.home.logo} alt="" className="w-4 h-4 object-contain group-hover/team:scale-110 transition-transform" />
-                        <span className={`text-[11px] font-bold ${f.teams.home.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors truncate max-w-[120px]`}>
-                          {translateCountryName(f.teams.home.name)}
-                        </span>
-                      </div>
-                      <span className="font-black text-sm">{f.goals.home ?? '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center cursor-pointer group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.away.id, selectedSeason); }}>
-                      <div className="flex items-center gap-2">
-                        <img src={f.teams.away.logo} alt="" className="w-4 h-4 object-contain group-hover/team:scale-110 transition-transform" />
-                        <span className={`text-[11px] font-bold ${f.teams.away.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors truncate max-w-[120px]`}>
-                          {translateCountryName(f.teams.away.name)}
-                        </span>
-                      </div>
-                      <span className="font-black text-sm">{f.goals.away ?? '-'}</span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
+          </button>
+        ))}
+      </div>
+
+      {/* Horizontal Matches */}
+      <div className="relative group/scroll">
+        {groupedByRound[selectedRound].length > 1 && (
+          <>
+            <button 
+              onClick={() => scroll('left')}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => scroll('right')}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
+
+        <div 
+          ref={scrollContainerRef}
+          className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
+        >
+          <div className="flex flex-nowrap gap-4 w-fit px-0.5">
+            {groupedByRound[selectedRound].map((match: any) => {
+              const matchWithEvents = {
+                ...match,
+                events: match.events || roundEvents[match.fixture.id] || []
+              };
+              
+              return (
+              <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-60px)] sm:w-[400px]">
+                <SharedMatchCard
+                  match={matchWithEvents}
+                  hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
+                  matchScore={matchScores[match.fixture.id.toString()]}
+                  onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
+                  onJoinDuel={() => {}}
+                  onTeamClick={onTeamClick}
+                  profile={profile}
+                  showLeagueHeader={false}
+                />
+              </div>
+            )})}
           </div>
         </div>
-      ))}
+      </div>
     </div>
   );
 }

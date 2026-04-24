@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot, query, collection, where, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, query, collection, where, writeBatch, getDocs } from 'firebase/firestore';
 import { Layout, Card, Button } from './components/Layout';
 import { cn } from './lib/utils';
 import { Auth } from './components/Auth';
@@ -41,6 +41,7 @@ import { Home } from './components/Home';
 import { ShopPage } from './components/ShopPage';
 
 import { TransactionsPage } from './components/TransactionsPage';
+import { generateFervorPath } from './utils/fervorPath';
 import { StatsPage } from './components/StatsPage';
 import { Preloader } from './components/Preloader';
 import { LandingPage } from './components/LandingPage';
@@ -92,6 +93,77 @@ function AppContent() {
   const [joiningDuel, setJoiningDuel] = useState<{ id: string; type: string; matchId: number } | null>(null);
   const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
   const [unreadSocialCount, setUnreadSocialCount] = useState(0);
+  const [claimableAlerts, setClaimableAlerts] = useState({ missions: false, globalFervor: false });
+
+  // Compute claimable states for sidebar dots
+  useEffect(() => {
+    if (!profile?.uid) return;
+    
+    let isMounted = true;
+    
+    const unMissions = onSnapshot(query(collection(db, 'missions'), where('isActive', '==', true)), (snap) => {
+      if (!isMounted) return;
+      const activeIds = snap.docs.map(d => d.id);
+      const hasMissionsAlert = activeIds.some(mId => {
+        const p = profile.missionsProgress?.[mId];
+        return p?.isCompleted && !p?.isClaimed;
+      });
+      setClaimableAlerts(prev => ({ ...prev, missions: hasMissionsAlert }));
+    }, () => {});
+
+    let lastGlobalConfig: any = null;
+
+    const unGlobalFervor = onSnapshot(doc(db, 'global_configs', 'fanz_fervor'), (snap) => {
+      if (!isMounted || !snap.exists()) return;
+      const config = snap.data();
+      lastGlobalConfig = config;
+      const currentPoints = profile.ferveurPoints || 0;
+      const path = generateFervorPath(currentPoints + 5000, config);
+      const hasGlobalFervorAlert = path.some(level => {
+        const slotId = `ferveur-level-${level.level}`;
+        return currentPoints >= level.pointsRequired && !profile.claimedFervorRewards?.includes(slotId);
+      });
+      setClaimableAlerts(prev => ({ ...prev, globalFervor: hasGlobalFervorAlert }));
+    }, () => {});
+    
+    const unFanz = onSnapshot(query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid)), async (snap) => {
+      if (!isMounted) return;
+      const fanzList = snap.docs.map(d => ({id: d.id, ...d.data()}));
+      
+      // Load templates to get specific mappings if needed, but we can just use generateFervorPath with either fanz config or global config
+      try {
+        const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
+        const templatesList = templatesSnap.docs.map(d => ({id: d.id, ...d.data()}));
+        
+        const hasFanzFervorAlert = fanzList.some((fanz: any) => {
+          const currentPts = fanz.ferveurPoints || 0;
+          const template = templatesList.find(t => t.id === fanz.templateId);
+          let path = [];
+          if (template?.ferveurPath && template.ferveurPath.length > 0) path = template.ferveurPath;
+          else if (fanz?.ferveurPath && fanz.ferveurPath.length > 0) path = fanz.ferveurPath;
+          else if (lastGlobalConfig) path = generateFervorPath(Math.max(150000, currentPts + 5000), lastGlobalConfig);
+          
+          return path.some((step: any) => {
+             const slotId = step.isIntermediate ? `ferveur-inter-${step.id || step.pointsRequired}` : `ferveur-level-${step.level}`;
+             return currentPts >= step.pointsRequired && !fanz.claimedRewards?.includes(slotId);
+          });
+        });
+        
+        if (isMounted) {
+          setClaimableAlerts(prev => ({ ...prev, fanzFervor: hasFanzFervorAlert }));
+        }
+      } catch (err) {
+        // Handle error silently
+      }
+    }, () => {});
+
+    return () => {
+      isMounted = false;
+      unMissions();
+      unGlobalFervor();
+      unFanz();
+    };
+  }, [profile]);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [hasFavoriteMatchToday, setHasFavoriteMatchToday] = useState(false);
 
@@ -336,14 +408,16 @@ function AppContent() {
             let needsUpdate = false;
             let updatedData = { ...data };
 
-            // Check for 24h energy refill
-            const lastRefill = new Date(data.lastEnergyRefill || new Date().toISOString());
-            const now = new Date();
-            const hoursDiff = (now.getTime() - lastRefill.getTime()) / (1000 * 60 * 60);
+            // Check for energy refill (+5 per hour, max 100)
+            const lastRefillTime = new Date(data.lastEnergyRefill || new Date().toISOString()).getTime();
+            const nowTime = new Date().getTime();
+            const msPassed = nowTime - lastRefillTime;
+            const hoursPassed = Math.floor(msPassed / (1000 * 60 * 60));
 
-            if (hoursDiff >= 24) {
-              updatedData.energy = data.maxEnergy || 100;
-              updatedData.lastEnergyRefill = now.toISOString();
+            if (hoursPassed >= 1 && data.energy < (data.maxEnergy || 100)) {
+              const energyToAdd = hoursPassed * 5;
+              updatedData.energy = Math.min(data.maxEnergy || 100, (data.energy || 0) + energyToAdd);
+              updatedData.lastEnergyRefill = new Date(lastRefillTime + hoursPassed * 3600000).toISOString();
               needsUpdate = true;
             }
 
@@ -353,10 +427,50 @@ function AppContent() {
               needsUpdate = true;
             }
 
-            // Weekly Streak Logic
+            // Date Strings
             const today = new Date().toISOString().split('T')[0];
             const lastLogin = data.lastLoginDate;
 
+            // Mission Reset Logic
+            const lastDailyReset = data.lastDailyMissionReset; // YYYY-MM-DD
+            const lastWeeklyReset = data.lastWeeklyMissionReset; // YYYY-MM-DD (Date of the Monday of that week)
+
+            // Calculate current week's Monday (ISO string YYYY-MM-DD)
+            const currentMonday = new Date();
+            const dayOfMonday = currentMonday.getDay();
+            const diffOfMonday = currentMonday.getDate() - dayOfMonday + (dayOfMonday === 0 ? -6 : 1); // adjust when day is sunday
+            const mondayDate = new Date(new Date().setDate(diffOfMonday)).toISOString().split('T')[0];
+
+            let missionsToReset: string[] = [];
+
+            if (lastDailyReset !== today) {
+              // Reset daily missions
+              const missionsSnap = await getDocs(query(collection(db, 'missions'), where('period', '==', 'daily')));
+              missionsSnap.docs.forEach(doc => missionsToReset.push(doc.id));
+              updatedData.lastDailyMissionReset = today;
+              needsUpdate = true;
+            }
+
+            if (lastWeeklyReset !== mondayDate) {
+              // Reset weekly missions
+              const missionsSnap = await getDocs(query(collection(db, 'missions'), where('period', '==', 'weekly')));
+              missionsSnap.docs.forEach(doc => missionsToReset.push(doc.id));
+              updatedData.lastWeeklyMissionReset = mondayDate;
+              needsUpdate = true;
+            }
+
+            if (missionsToReset.length > 0 && data.missionsProgress) {
+              const newProgress = { ...data.missionsProgress };
+              missionsToReset.forEach(id => {
+                if (newProgress[id]) {
+                  delete newProgress[id];
+                }
+              });
+              updatedData.missionsProgress = newProgress;
+              needsUpdate = true;
+            }
+
+            // Weekly Streak Logic
             if (!lastLogin) {
               // First time login
               updatedData.streak = 1;
@@ -431,20 +545,25 @@ function AppContent() {
     };
   }, []);
 
-  // Periodic check for energy refill
+  // Periodic check for energy refill (+5 per hour)
   useEffect(() => {
     if (!user || !profile) return;
 
     const checkEnergy = async () => {
-      const lastRefill = new Date(profile.lastEnergyRefill || new Date().toISOString());
-      const now = new Date();
-      const hoursDiff = (now.getTime() - lastRefill.getTime()) / (1000 * 60 * 60);
+      const lastRefillTime = new Date(profile.lastEnergyRefill || new Date().toISOString()).getTime();
+      const nowTime = new Date().getTime();
+      const msPassed = nowTime - lastRefillTime;
+      const hoursPassed = Math.floor(msPassed / (1000 * 60 * 60));
 
-      if (hoursDiff >= 24 && profile.energy < (profile.maxEnergy || 100)) {
+      if (hoursPassed >= 1 && profile.energy < (profile.maxEnergy || 100)) {
+        const energyToAdd = hoursPassed * 5;
+        const newEnergy = Math.min(profile.maxEnergy || 100, (profile.energy || 0) + energyToAdd);
+        const newRefillTime = new Date(lastRefillTime + hoursPassed * 3600000).toISOString();
+
         const docRef = doc(db, 'users', user.uid);
         await setDoc(docRef, {
-          energy: profile.maxEnergy || 100,
-          lastEnergyRefill: now.toISOString()
+          energy: newEnergy,
+          lastEnergyRefill: newRefillTime
         }, { merge: true });
       }
     };
@@ -521,11 +640,17 @@ function AppContent() {
         <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
           <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start">
             <img src="/img/logo2.png" alt="TBFO" className="w-8 h-8 rounded-lg outline outline-1 outline-white/10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <span className="hidden lg:block font-black italic text-xl uppercase tracking-widest text-white leading-none">TheBestFan.Online</span>
+            <span className="hidden lg:block font-black italic text-[15px] uppercase tracking-wider text-white leading-none truncate">TheBestFan.Online</span>
           </div>
           <div className="flex flex-col gap-1 p-2 lg:p-4 flex-1 overflow-y-auto no-scrollbar">
              <SidebarButton icon={<HomeIcon />} label="ACCUEIL" active={view==='home'} onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton icon={<Star />} label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton 
+               icon={<div className="relative"><Star />
+                 {claimableAlerts.fanzFervor && (
+                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                 )}
+               </div>} 
+               label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton 
                 icon={<div className="relative"><Layers />
                   {hasFavoriteMatchToday && (
@@ -552,8 +677,20 @@ function AppContent() {
              
              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
                  <SidebarButton icon={<Calendar />} label="SERIE HEBDO" active={false} onClick={() => { setShowStreakModal(true); }} />
-                 <SidebarButton icon={<Briefcase />} label="FERVEUR" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Target />} label="MISSIONS" active={view==='missions'} onClick={() => { setView('missions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton 
+                   icon={<div className="relative"><Briefcase />
+                     {claimableAlerts.globalFervor && (
+                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                     )}
+                   </div>} 
+                   label="FERVEUR" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+                 <SidebarButton 
+                   icon={<div className="relative"><Target />
+                     {claimableAlerts.missions && (
+                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                     )}
+                   </div>} 
+                   label="MISSIONS" active={view==='missions'} onClick={() => { setView('missions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Sparkles />} label="PASS" active={view==='pass'} onClick={() => { setView('pass'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton icon={<Store />} label="BOUTIQUE" active={view==='shop'} onClick={() => { setView('shop'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
                  <SidebarButton 
@@ -588,6 +725,7 @@ function AppContent() {
         {view === 'home' ? (
           <Home 
             profile={profile} 
+            claimableAlerts={claimableAlerts}
             onNavigate={(v) => {
               setView(v);
               setSelectedLeague(null);
@@ -626,7 +764,7 @@ function AppContent() {
             }}
           />
         ) : (
-          <>
+          <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 w-full max-w-3xl mx-auto lg:border-x border-white/5 shadow-2xl bg-[#0a0a0a]">
             {profile && view !== 'duel' && (
               <Header 
                 profile={profile} 
@@ -646,15 +784,16 @@ function AppContent() {
                 onTransactionsClick={() => setView('transactions')}
                 onFervorClick={() => setView('fervor-path')}
                 unreadSocialCount={unreadSocialCount}
+                hasClaimableFervorAlert={claimableAlerts.globalFervor}
               />
             )}
             
             <div className={cn(
               "flex-1 overflow-y-auto pb-6", 
-              (!selectedFanzId && !selectedMatchId && !selectedLeague && !selectedTeam && !['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-[30px]", 
+              (!selectedFanzId && !selectedMatchId && !selectedLeague && !selectedTeam && !['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-4 md:px-6 pt-4", 
               (selectedFanzId || selectedMatchId || selectedLeague || selectedTeam || ['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-0"
             )}>
-              <div className="w-full max-w-3xl mx-auto h-full lg:border-x border-white/5 shadow-2xl relative">
+              <div className="w-full h-full relative">
               {selectedMatchId ? (
                 <MatchDetails 
                   fixtureId={selectedMatchId} 
@@ -791,7 +930,7 @@ function AppContent() {
               ) : null}
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {showStreakModal && profile && (
@@ -829,7 +968,13 @@ function AppContent() {
           <div className="flex-1 overflow-y-auto no-scrollbar p-1">
             <div className="flex flex-col gap-0.5">
                <SidebarButton icon={<HomeIcon className="w-5 h-5" />} label="ACCUEIL" active={view==='home'} onClick={() => { setView('home'); setIsMenuOpen(false); }} />
-               <SidebarButton icon={<Star className="w-5 h-5" />} label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
+               <SidebarButton 
+                 icon={<div className="relative"><Star className="w-5 h-5" />
+                   {claimableAlerts.fanzFervor && (
+                     <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
+                   )}
+                 </div>} 
+                 label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
                <SidebarButton 
                   icon={
                     <div className="relative">
@@ -867,8 +1012,20 @@ function AppContent() {
                
                <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
                  <SidebarButton icon={<Calendar className="w-5 h-5" />} label="SERIE HEBDO" active={false} onClick={() => { setShowStreakModal(true); setIsMenuOpen(false); }} />
-                 <SidebarButton icon={<Briefcase className="w-5 h-5" />} label="FERVEUR" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setIsMenuOpen(false); }} />
-                 <SidebarButton icon={<Target className="w-5 h-5" />} label="MISSIONS" active={view==='missions'} onClick={() => { setView('missions'); setIsMenuOpen(false); }} />
+                 <SidebarButton 
+                   icon={<div className="relative"><Briefcase className="w-5 h-5" />
+                     {claimableAlerts.globalFervor && (
+                       <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
+                     )}
+                   </div>} 
+                   label="FERVEUR" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setIsMenuOpen(false); }} />
+                 <SidebarButton 
+                   icon={<div className="relative"><Target className="w-5 h-5" />
+                     {claimableAlerts.missions && (
+                       <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
+                     )}
+                   </div>} 
+                   label="MISSIONS" active={view==='missions'} onClick={() => { setView('missions'); setIsMenuOpen(false); }} />
                  <SidebarButton icon={<Sparkles className="w-5 h-5" />} label="PASS" active={view==='pass'} onClick={() => { setView('pass'); setIsMenuOpen(false); }} />
                  <SidebarButton icon={<Store className="w-5 h-5" />} label="BOUTIQUE" active={view==='shop'} onClick={() => { setView('shop'); setIsMenuOpen(false); }} />
                  <SidebarButton 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getImageUrl } from '../lib/utils';
+import { getImageUrl, cn } from '../lib/utils';
 import { useInView } from 'motion/react';
 
 interface OptimizedMediaProps {
@@ -58,28 +58,27 @@ export function OptimizedMedia({
         <img 
           src={finalPoster} 
           alt={alt} 
-          className={className} 
+          className={cn(className, "object-cover")} 
           loading="lazy"
           decoding="async"
         />
       );
     }
-    // If no poster, we might just render a placeholder or the video tag without autoplay
+    // If no poster is available, we MUST render the video tag without autoplay
+    // so the browser can download metadata and show the first frame.
     return (
-      <div ref={containerRef} className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full relative">
         <video
           ref={videoRef}
           src={finalSrc}
-          poster={finalPoster}
           className={className}
-          controls={controls}
-          preload="none"
-          muted={muted}
+          autoPlay={false}
+          loop={false}
+          muted={true}
+          controls={false}
           playsInline
+          preload="metadata"
         />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <span className="text-white text-xs font-bold px-2 py-1 bg-black/80 rounded">Mode Éco</span>
-        </div>
       </div>
     );
   }
@@ -91,7 +90,7 @@ export function OptimizedMedia({
           <video
             ref={videoRef}
             src={finalSrc}
-            poster={finalPoster}
+            poster={finalPoster || undefined}
             className={className}
             autoPlay={autoPlay}
             loop={loop}

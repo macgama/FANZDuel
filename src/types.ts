@@ -47,6 +47,8 @@ export interface UserProfile {
   activeAction?: ActiveAction | null;
   streak: number;
   lastLoginDate?: string;
+  lastDailyMissionReset?: string; // YYYY-MM-DD
+  lastWeeklyMissionReset?: string; // YYYY-MM-DD
   claimedStreakDays: number[]; // Days claimed in current week (1-7)
   missionsProgress?: Record<string, UserMissionProgress>;
   passId?: string;

@@ -20,6 +20,37 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
   const { showAlert } = useAlert();
   const { showReward } = useReward();
 
+  const [timeLeftDaily, setTimeLeftDaily] = useState('');
+  const [timeLeftWeekly, setTimeLeftWeekly] = useState('');
+
+  useEffect(() => {
+    const updateTimers = () => {
+      const now = new Date();
+      
+      // Daily Reset (Midnight)
+      const nextDaily = new Date();
+      nextDaily.setHours(24, 0, 0, 0);
+      const dailyDiff = nextDaily.getTime() - now.getTime();
+      const dailyHours = Math.floor(dailyDiff / (1000 * 60 * 60));
+      const dailyMinutes = Math.floor((dailyDiff % (1000 * 60 * 60)) / (1000 * 60));
+      setTimeLeftDaily(`${dailyHours}h ${dailyMinutes}m`);
+
+      // Weekly Reset (Next Monday 00:00)
+      const nextWeekly = new Date();
+      const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
+      nextWeekly.setDate(now.getDate() + daysUntilMonday);
+      nextWeekly.setHours(0, 0, 0, 0);
+      const weeklyDiff = nextWeekly.getTime() - now.getTime();
+      const weeklyDays = Math.floor(weeklyDiff / (1000 * 60 * 60 * 24));
+      const weeklyHours = Math.floor((weeklyDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      setTimeLeftWeekly(`${weeklyDays}j ${weeklyHours}h`);
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'missions'), (snapshot) => {
       const missionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Mission));
@@ -127,7 +158,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-black italic uppercase tracking-tighter text-white">Quêtes Quotidiennes</h2>
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Renouvellement dans 14h</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-right">Renouvellement dans {timeLeftDaily}</span>
           </div>
           
           <div className="space-y-3">
@@ -206,7 +237,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
         <section>
           <div className="flex items-center justify-between mb-4 mt-8">
             <h2 className="text-lg font-black italic uppercase tracking-tighter text-white">Quêtes Hebdomadaires</h2>
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Renouvellement dans 6j</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-right">Renouvellement dans {timeLeftWeekly}</span>
           </div>
           
           <div className="space-y-3">

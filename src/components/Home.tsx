@@ -13,6 +13,7 @@ import { getImageUrl, cn } from '../lib/utils';
 import { footballApi } from '../services/footballApi';
 import { MatchEvents } from './MatchEvents';
 import { LifeActionCard } from './LifeActionCard';
+import { SharedMatchCard } from './SharedMatchCard';
 import { generateFervorPath } from '../utils/fervorPath';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { 
@@ -42,6 +43,7 @@ import { MrFanzHelp } from './MrFanzHelp';
 
 interface HomeProps {
   profile: UserProfile;
+  claimableAlerts?: { missions: boolean; globalFervor: boolean; fanzFervor: boolean };
   onNavigate: (view: 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams' | 'waiting-room') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
@@ -52,7 +54,7 @@ interface HomeProps {
   onFanzClick?: (fanzId: string) => void;
 }
 
-export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onOpenStreak, onFanzClick }: HomeProps) {
+export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onOpenStreak, onFanzClick }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [allFanz, setAllFanz] = useState<Fanz[]>([]);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
@@ -76,10 +78,6 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
   const favoriteIds = React.useMemo(() => {
     return profile?.favoriteTeams?.map(id => id.toString()) || [];
   }, [profile?.favoriteTeams]);
-
-  const hasClaimableMissions = Object.values(profile.missionsProgress || {}).some(
-    (p: any) => p.isCompleted && !p.isClaimed
-  );
 
   useEffect(() => {
     const fetchBadges = async () => {
@@ -453,7 +451,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
       <div className="flex-1 flex flex-col relative overflow-y-auto pb-6 no-scrollbar">
         {/* Video Section (4:3 Aspect Ratio) */}
         <div 
-          className="w-full aspect-[4/3] relative shrink-0 cursor-pointer group"
+          className="w-full aspect-[4/3] relative shrink-0 cursor-pointer group overflow-hidden isolate [transform:translateZ(0)]"
           onClick={() => {
             if (activeFanz?.id) {
               onFanzClick?.(activeFanz.id);
@@ -466,7 +464,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
             <OptimizedMedia
               type="video"
               src={videoUrl}
-              poster={imageUrl || ''}
+              poster={imageUrl || undefined}
               dataSaver={profile.dataSaver}
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
@@ -523,8 +521,8 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
                         className="h-full bg-orange-500 rounded-full transition-all duration-500"
                         style={{ width: `${Math.min(100, (activeFanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
                       />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-[10px] font-black text-white drop-shadow-md">
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        <span className="text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                           {activeFanz.ferveurPoints} / {nextLevelPoints}
                         </span>
                       </div>
@@ -556,7 +554,7 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
               onClick={() => onNavigate('missions')}
               className="relative flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
             >
-              {hasClaimableMissions && (
+              {claimableAlerts?.missions && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10" />
               )}
               <Target className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
@@ -619,228 +617,20 @@ export function Home({ profile, onNavigate, onMenuClick, onMatchClick, onLeagueC
             >
               <div className="flex flex-nowrap gap-4 px-[30px] w-fit mx-auto">
                 {liveMatches.length > 0 ? (
-                liveMatches.map(match => {
-                  const matchId = match.fixture.id.toString();
-                  const scoreA = matchScores[matchId]?.scoreA || 0;
-                  const scoreB = matchScores[matchId]?.scoreB || 0;
-                  const totalScore = scoreA + scoreB;
-                  const hasScore = totalScore > 0;
-                  
-                  let dominanceA = 50;
-                  let dominanceB = 50;
-                  if (totalScore > 0) {
-                    dominanceA = Math.round((scoreA / totalScore) * 100);
-                    dominanceB = 100 - dominanceA;
-                  }
-
-                  const homeEvents = match.events?.filter((e: any) => e.team.id === match.teams.home.id && (e.type === 'Goal' || e.type === 'Card')) || [];
-                  const awayEvents = match.events?.filter((e: any) => e.team.id === match.teams.away.id && (e.type === 'Goal' || e.type === 'Card')) || [];
-
-                  const homeIsFav = favoriteIds.includes(match.teams.home.id.toString());
-                  const awayIsFav = favoriteIds.includes(match.teams.away.id.toString());
-
-                  return (
-                  <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px] bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group">
-                    {/* Header: Country & League */}
-                    <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {match.league?.flag && <img src={getImageUrl(match.league.flag, 40)} alt="" className="w-4 h-3 object-cover rounded-sm" referrerPolicy="no-referrer" />}
-                        <span className="truncate">{translateCountryName(match.league?.country || '')}</span>
-                      </div>
-                      <div 
-                        className="flex items-center gap-1.5 cursor-pointer hover:text-orange-500 transition-colors min-w-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onLeagueClick && match.league) {
-                            onLeagueClick(match.league.id, match.league.season || new Date().getFullYear());
-                          }
-                        }}
-                      >
-                        {match.league?.logo && <img src={getImageUrl(match.league.logo, 40)} alt="" className="w-4 h-4 object-contain shrink-0" referrerPolicy="no-referrer" />}
-                        <span className="truncate">{translateLeagueName(match.league?.name || '')}</span>
-                      </div>
-                    </div>
-
-                    {/* Teams & Score */}
-                    <div className="flex justify-between items-start mt-2">
-                      {/* Home Team */}
-                      <div 
-                        className="flex flex-col items-center gap-2 flex-1 cursor-pointer group min-w-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onTeamClick && match.teams.home) {
-                            onTeamClick(match.teams.home.id, match.league?.season || new Date().getFullYear());
-                          }
-                        }}
-                      >
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform relative">
-                          <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
-                          {homeIsFav && (
-                            <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
-                              <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
-                            </div>
-                          )}
-                        </div>
-                        <span className={cn("font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover:text-orange-500 transition-colors line-clamp-2 w-full px-1", homeIsFav && "text-orange-500")}>{match.teams.home.name}</span>
-                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
-                          <Flame className="w-3 h-3 text-orange-500" />
-                          <span className="text-[10px] sm:text-xs font-black text-orange-500">{hasScore ? scoreA : '0'}</span>
-                        </div>
-                      </div>
-
-                      {/* Score & Time */}
-                      <div className="flex flex-col items-center justify-center px-2 sm:px-3 shrink-0">
-                        <div className="text-3xl sm:text-4xl font-black tracking-tighter flex items-center gap-1">
-                          <span>{match.goals.home ?? 0}</span>
-                          <span className="text-orange-500">:</span>
-                          <span>{match.goals.away ?? 0}</span>
-                        </div>
-                        <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center">
-                          <span className="text-[10px] sm:text-xs font-black text-orange-500">{match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'` : match.fixture.status.short}</span>
-                        </div>
-                      </div>
-
-                      {/* Away Team */}
-                      <div 
-                        className="flex flex-col items-center gap-2 flex-1 cursor-pointer group min-w-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onTeamClick && match.teams.away) {
-                            onTeamClick(match.teams.away.id, match.league?.season || new Date().getFullYear());
-                          }
-                        }}
-                      >
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform relative">
-                          <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
-                          {awayIsFav && (
-                            <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
-                              <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
-                            </div>
-                          )}
-                        </div>
-                        <span className={cn("font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover:text-blue-500 transition-colors line-clamp-2 w-full px-1", awayIsFav && "text-orange-500")}>{match.teams.away.name}</span>
-                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
-                          <Flame className="w-3 h-3 text-blue-500" />
-                          <span className="text-[10px] sm:text-xs font-black text-blue-500">{hasScore ? scoreB : '0'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Match Events */}
-                    {(homeEvents.length > 0 || awayEvents.length > 0) && (
-                      <div className="flex justify-between items-start text-[9px] sm:text-[10px] text-gray-300 px-2 mt-1 min-h-[30px] max-h-[60px] overflow-y-auto no-scrollbar gap-2">
-                        <div className="flex-1 flex flex-col items-start gap-1">
-                          {homeEvents.map((e: any, idx: number) => (
-                            <div key={idx} className="flex items-center gap-1">
-                              <span className="text-gray-500 w-4">{e.time.elapsed}'</span>
-                              {e.type === 'Goal' ? <span>⚽</span> : 
-                               e.detail === 'Yellow Card' ? <div className="w-1.5 h-2.5 bg-yellow-500 rounded-[1px]" /> :
-                               <div className="w-1.5 h-2.5 bg-red-500 rounded-[1px]" />}
-                              <span className="truncate max-w-[80px]">{e.player.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex-1 flex flex-col items-end gap-1">
-                          {awayEvents.map((e: any, idx: number) => (
-                            <div key={idx} className="flex items-center gap-1 justify-end">
-                              <span className="truncate max-w-[80px] text-right">{e.player.name}</span>
-                              {e.type === 'Goal' ? <span>⚽</span> : 
-                               e.detail === 'Yellow Card' ? <div className="w-1.5 h-2.5 bg-yellow-500 rounded-[1px]" /> :
-                               <div className="w-1.5 h-2.5 bg-red-500 rounded-[1px]" />}
-                              <span className="text-gray-500 w-4 text-right">{e.time.elapsed}'</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Dominance Bar */}
-                    <div className="mt-3">
-                      {hasScore ? (
-                        <>
-                          <div className="flex justify-between items-center text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
-                            <span className="text-orange-500">{dominanceA}%</span>
-                            <span>DOMINANCE MONDIALE</span>
-                            <span className="text-blue-500">{dominanceB}%</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden flex relative">
-                            <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${dominanceA}%` }} />
-                            <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${dominanceB}%` }} />
-                            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/50 -translate-x-1/2 z-10"></div>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-center py-1">
-                          <span className="text-[8px] sm:text-[9px] font-bold text-gray-500 uppercase tracking-widest">
-                            Aucun duel n'a été joué
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Buttons */}
-                    <div className="flex gap-3 mt-4 relative">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); console.log("MATCH clicked", match.fixture.id); onMatchClick(match.fixture.id); }}
-                        className="flex-1 py-3 rounded-xl border border-white/20 bg-white/5 text-white font-black text-xs uppercase tracking-wider hover:bg-white/10 transition-colors"
-                      >
-                        MATCH
-                      </button>
-                      
-                      {(() => {
-                        const waitingDuel = activeDuels.find(d => d.matchId == match.fixture.id && d.status === 'waiting' && d.creatorId !== profile.uid);
-                        const myWaitingDuel = activeDuels.find(d => d.matchId == match.fixture.id && d.status === 'waiting' && d.creatorId === profile.uid);
-                        const activeDuel = activeDuels.find(d => d.matchId == match.fixture.id && (d.status === 'active' || d.status === 'starting'));
-
-                        if (waitingDuel) {
-                          return (
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); console.log("REJOINDRE clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
-                              className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 relative overflow-hidden"
-                            >
-                              <div className="absolute inset-0 bg-white/20 animate-pulse" />
-                              <Swords className="w-4 h-4 relative z-10" />
-                              <span className="relative z-10">REJOINDRE UN DUEL</span>
-                            </button>
-                          );
-                        }
-                        
-                        if (myWaitingDuel) {
-                          return (
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); console.log("EN ATTENTE clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
-                              className="flex-1 py-3 rounded-xl border border-orange-500/50 bg-orange-500/10 text-orange-500 font-black text-xs uppercase tracking-wider hover:bg-orange-500/20 transition-colors flex items-center justify-center gap-2"
-                            >
-                              <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                              EN ATTENTE...
-                            </button>
-                          );
-                        }
-
-                        if (activeDuel) {
-                          return (
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); console.log("CRÉER clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
-                              className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
-                            >
-                              <Activity className="w-4 h-4 text-white/70" />
-                              CRÉER UN DUEL
-                            </button>
-                          );
-                        }
-
-                        return (
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); console.log("CRÉER clicked", match.fixture.id); onJoinDuel(match.fixture.id, true); }}
-                            className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
-                          >
-                            CRÉER UN DUEL
-                          </button>
-                        );
-                      })()}
-                    </div>
+                liveMatches.map(match => (
+                  <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
+                    <SharedMatchCard
+                      match={match}
+                      hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
+                      matchScore={matchScores[match.fixture.id.toString()]}
+                      onClick={(tab) => onMatchClick(match.fixture.id, tab)}
+                      onJoinDuel={(isLive) => onJoinDuel(match.fixture.id, isLive)}
+                      onTeamClick={onTeamClick}
+                      onLeagueClick={onLeagueClick}
+                      profile={profile}
+                    />
                   </div>
-                )})
+                ))
               ) : (
                 activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id ? (
                   lifeActions

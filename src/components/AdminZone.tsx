@@ -1413,6 +1413,42 @@ export function AdminZone() {
     }
   };
 
+  const handleClearTransactions = async () => {
+    if (!window.confirm("Êtes-vous sûr de vouloir vider toutes les transactions ? Cette action est irréversible.")) return;
+    
+    setLoading(true);
+    setStatus({ type: 'info', message: 'Suppression des transactions...' });
+    try {
+      const txSnap = await getDocs(collection(db, 'transactions'));
+      let batch = writeBatch(db);
+      let count = 0;
+      let totalDeleted = 0;
+      
+      for (const docSnap of txSnap.docs) {
+        batch.delete(docSnap.ref);
+        count++;
+        totalDeleted++;
+        
+        if (count === 490) { // Keep under the 500 limit
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      
+      if (count > 0) {
+        await batch.commit();
+      }
+      
+      setStatus({ type: 'success', message: `${totalDeleted} transactions supprimées.` });
+    } catch (error) {
+      console.error("Error clearing transactions:", error);
+      setStatus({ type: 'error', message: "Erreur lors de la suppression." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRecalculateRankings = async () => {
     setLoading(true);
     setStatus({ type: 'info', message: 'Recalcul des classements en cours...' });
@@ -1628,6 +1664,16 @@ export function AdminZone() {
             disabled={loading}
           >
             {confirmReset ? "Confirmer la suppression ?" : "Effacer Classements & Duels"}
+          </Button>
+
+          <Button 
+            onClick={handleClearTransactions} 
+            variant="outline" 
+            className="flex items-center gap-2 text-red-500 border-red-500 hover:bg-red-50"
+            disabled={loading}
+          >
+            <Trash2 className="w-4 h-4" />
+            Vider Transactions
           </Button>
 
           <Button 
@@ -3071,7 +3117,7 @@ export function AdminZone() {
                     <video 
                       key={getImageUrl(card.videoUrl)}
                       src={getImageUrl(card.videoUrl)}
-                      poster={getImageUrl(card.imageUrl || '')}
+                      poster={getImageUrl(card.imageUrl) || undefined}
                       className="w-full h-full object-cover"
                       autoPlay muted loop playsInline
                     />

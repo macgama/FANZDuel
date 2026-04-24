@@ -25,27 +25,135 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
   const [clickCount, setClickCount] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [flyingTexts, setFlyingTexts] = useState<Array<{id: number, text: string, x: number, y: number, color: string, rotate: number}>>([]);
 
   if (!reward) return null;
 
-  const handleMoneyClick = () => {
+  const CRAZY_TEXTS = ["WAOUW !", "YES !", "GO GO GO !!!", "INCROYABLE !", "BIM !", "CRAZY !", "BOOM !", "OUF !", "MAGNIFIQUE !", "BINGO !", "C'EST FOU !!!", "MÉGA !"];
+  const FLYING_COLORS = ['text-yellow-400', 'text-orange-500', 'text-red-500', 'text-green-400', 'text-blue-400', 'text-purple-500', 'text-pink-500', 'text-cyan-400'];
+
+  const playSound = (type: 'click' | 'reveal' | 'crazy') => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      if (type === 'click') {
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(400 + Math.random() * 600, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(800 + Math.random() * 600, audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.1);
+
+        // Add a small little "pop"
+        const clickOsc = audioCtx.createOscillator();
+        const clickGain = audioCtx.createGain();
+        clickOsc.type = 'square';
+        clickOsc.frequency.setValueAtTime(150 + Math.random() * 100, audioCtx.currentTime);
+        clickOsc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.05);
+        clickGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        clickGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        clickOsc.connect(clickGain);
+        clickGain.connect(audioCtx.destination);
+        clickOsc.start(audioCtx.currentTime);
+        clickOsc.stop(audioCtx.currentTime + 0.05);
+
+      } else if (type === 'reveal') {
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+        oscillator.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 0.2);
+        oscillator.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
+        gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+        
+        const oscillator2 = audioCtx.createOscillator();
+        oscillator2.type = 'square';
+        oscillator2.frequency.setValueAtTime(400, audioCtx.currentTime);
+        oscillator2.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.5);
+        const gainNode2 = audioCtx.createGain();
+        gainNode2.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+        oscillator2.connect(gainNode2);
+        gainNode2.connect(audioCtx.destination);
+        
+        // Add a chord effect
+        const oscillator3 = audioCtx.createOscillator();
+        oscillator3.type = 'sine';
+        oscillator3.frequency.setValueAtTime(800, audioCtx.currentTime);
+        oscillator3.frequency.linearRampToValueAtTime(1000, audioCtx.currentTime + 0.4);
+        const gainNode3 = audioCtx.createGain();
+        gainNode3.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gainNode3.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+        oscillator3.connect(gainNode3);
+        gainNode3.connect(audioCtx.destination);
+
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 1.5);
+        oscillator2.start(audioCtx.currentTime);
+        oscillator2.stop(audioCtx.currentTime + 1.5);
+        oscillator3.start(audioCtx.currentTime);
+        oscillator3.stop(audioCtx.currentTime + 1.5);
+      }
+    } catch (e) {}
+  };
+
+  const handleRevealClick = () => {
     if (isRevealed) return;
     
+    playSound('click');
     setIsAnimating(true);
     setTimeout(() => setIsAnimating(false), 200);
+
+    const text = CRAZY_TEXTS[Math.floor(Math.random() * CRAZY_TEXTS.length)];
+    const color = FLYING_COLORS[Math.floor(Math.random() * FLYING_COLORS.length)];
+    const currentId = clickCount;
+    setFlyingTexts(prev => [...prev, {
+      id: currentId,
+      text,
+      x: 10 + Math.random() * 80,
+      y: 10 + Math.random() * 80,
+      color,
+      rotate: -40 + Math.random() * 80
+    }]);
 
     const nextCount = clickCount + 1;
     setClickCount(nextCount);
     
     if (nextCount >= 3) {
+      playSound('reveal');
       setTimeout(() => setIsRevealed(true), 200);
     }
   };
 
   const handleGlobalClick = () => {
-    if (reward.type === 'money' && isRevealed) {
+    if (isRevealed) {
       onClose();
     }
+  };
+
+  const getRewardImage = () => {
+    switch (reward.type) {
+      case 'money': return 'https://thebestfan.online/img/public/logo/imageMoney.png';
+      case 'gems': return LOGOS.gems;
+      case 'boost': return LOGOS.boost;
+      case 'energy': return LOGOS.energy;
+      case 'xp': return 'https://thebestfan.online/img/public/logo/ferveur.png';
+      case 'card': return getImageUrl(reward.card?.imageUrl || '');
+      case 'skin': return getImageUrl(reward.skin?.imageUrl || '');
+      case 'emote': return getImageUrl(reward.emote?.imageUrl || '');
+      case 'action': return getImageUrl(reward.action?.image || '');
+      default: return 'https://thebestfan.online/img/public/logo/chest.png';
+    }
+  };
+
+  const getRewardVideo = () => {
+    if (reward.type === 'money') return 'https://thebestfan.online/img/public/logo/videoMoney.mp4';
+    return null;
   };
 
   return (
@@ -61,26 +169,25 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
         )}
       >
         {/* Background Particles/Glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          {reward.type === 'money' ? (
-            isRevealed && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="w-full h-full relative"
-              >
-                <video 
-                  src="https://thebestfan.online/img/public/logo/videoMoney.mp4" 
-                  poster="https://thebestfan.online/img/public/logo/imageMoney.png"
-                  autoPlay 
-                  onEnded={() => {}} // User can close anytime after reveal
-                  muted 
-                  playsInline 
-                  className="w-full h-full object-cover opacity-80" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/60" />
-              </motion.div>
-            )
+        <div className="absolute inset-0 pointer-events-none z-0">
+          {isRevealed && getRewardVideo() ? (
+            <motion.div 
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="w-full h-full relative"
+            >
+              <video 
+                src={getRewardVideo()!} 
+                poster={getRewardImage()}
+                autoPlay 
+                onEnded={() => {}} 
+                muted 
+                playsInline 
+                className="w-full h-full object-cover" 
+              />
+              <div className="absolute inset-0 bg-black/40" />
+            </motion.div>
           ) : (
             <>
               <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/20 blur-[120px] rounded-full animate-pulse" />
@@ -89,13 +196,14 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
           )}
         </div>
 
-        {(!isRevealed || reward.type !== 'money') && (
+        {/* Close Button if revealed */}
+        {isRevealed && (
           <motion.button
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 1 }}
             onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50 border border-white/10"
+            className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50 border border-white/10 flex items-center justify-center backdrop-blur-md"
           >
             <X size={24} />
           </motion.button>
@@ -103,201 +211,233 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
 
         <div className="w-full max-w-lg h-full flex flex-col items-center justify-center text-center space-y-4 md:space-y-8 relative z-10 overflow-hidden py-10 px-4">
           
-          {(reward.type !== 'money' || isRevealed) && (
+          {!isRevealed ? (
             <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ type: "spring", damping: 15 }}
-              className="space-y-4 w-full"
+              animate={isAnimating ? { scale: [1, 1.2, 0.9, 1.1], rotate: [0, 5, -5, 0] } : { scale: [1, 1.05, 1] }}
+              transition={isAnimating ? { duration: 0.3 } : { repeat: Infinity, duration: 2, ease: "easeInOut" }}
+              onClick={(e) => { e.stopPropagation(); handleRevealClick(); }}
+              className="fixed inset-0 z-[110] flex items-center justify-center cursor-pointer overflow-hidden bg-black"
             >
-              <motion.div 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.3, type: "spring" }}
-                className="inline-flex items-center gap-2 px-4 py-1 bg-orange-500 text-white text-[10px] font-black italic uppercase tracking-widest rounded-full shadow-lg shadow-orange-500/40"
-              >
-                <Sparkles size={12} />
-                Récompense Débloquée !
-              </motion.div>
-              <h1 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white drop-shadow-2xl leading-tight">
-                {reward.title || 'Félicitations !'}
-              </h1>
-              {reward.subtitle && (
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs">{reward.subtitle}</p>
-              )}
-            </motion.div>
-          )}
-
-          <motion.div
-            initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-            className="relative flex justify-center w-full max-h-[50vh] items-center"
-          >
-            {reward.type === 'card' && reward.card && (
-              <div className="w-56 md:w-64 aspect-[3/4] rounded-3xl border-4 border-orange-500 overflow-hidden shadow-2xl shadow-orange-500/40 bg-gray-900 group relative">
-                <img src={getImageUrl(reward.card.imageUrl)} className="w-full h-full object-cover" alt={reward.card.name} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-                <div className="absolute bottom-0 inset-x-0 p-4 text-left">
-                  <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mb-1">Nouvelle Carte</p>
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{reward.card.name}</h3>
-                </div>
-              </div>
-            )}
-
-            {reward.type === 'skin' && reward.skin && (
-              <div className="w-56 md:w-64 aspect-[3/4] rounded-3xl border-4 border-blue-500 overflow-hidden shadow-2xl shadow-blue-500/40 bg-gray-900 relative">
-                {reward.skin.videoUrl ? (
-                  <OptimizedMedia
-                    type="video"
-                    src={reward.skin.videoUrl}
-                    poster={reward.skin.imageUrl}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <OptimizedMedia
-                    type="image"
-                    src={reward.skin.imageUrl}
-                    alt={reward.skin.name}
-                    className="w-full h-full object-cover"
-                  />
+              <img 
+                src={getRewardImage()} 
+                alt="Reward" 
+                className={cn(
+                  "w-full h-[120%] object-cover opacity-80 mix-blend-screen scale-110 blur-xl",
+                  reward.type === 'money' ? "filter drop-shadow-[0_15px_50px_rgba(249,115,22,0.8)] blur-none opacity-90 h-[150%] md:h-[120%]" : ""
+                )} 
+              />
+              <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-20">
+                
+                {reward.type !== 'money' && (
+                  <div className="w-48 h-48 md:w-64 md:h-64 mb-10 flex items-center justify-center">
+                    <img src="https://thebestfan.online/img/public/logo/chest.png" alt="Chest" className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(249,115,22,0.8)]" />
+                  </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-                <div className="absolute bottom-0 inset-x-0 p-4 text-left">
-                  <p className="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouveau Skin</p>
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{reward.skin.name}</h3>
-                </div>
-              </div>
-            )}
 
-            {reward.type === 'emote' && reward.emote && (
-              <div className="w-56 h-56 md:w-64 md:h-64 rounded-3xl border-4 border-purple-500 overflow-hidden shadow-2xl shadow-purple-500/40 bg-gray-900 flex items-center justify-center p-6 relative">
-                {reward.emote.videoUrl ? (
-                  <OptimizedMedia
-                    type="video"
-                    src={reward.emote.videoUrl}
-                    poster={reward.emote.imageUrl}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <OptimizedMedia
-                    type="image"
-                    src={reward.emote.imageUrl}
-                    alt={reward.emote.name}
-                    className="w-full h-full object-contain"
-                  />
-                )}
-                <div className="absolute bottom-0 inset-x-0 p-4 text-center">
-                  <p className="text-purple-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouvel Emote</p>
-                  <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">{reward.emote.name}</h3>
-                </div>
+                <motion.p 
+                  animate={isAnimating ? { scale: [1, 1.5, 1], rotate: [0, -10, 10, 0] } : {}}
+                  className="text-white font-black italic uppercase text-4xl md:text-6xl bg-orange-600/95 px-10 md:px-14 py-6 md:py-8 rounded-full shadow-[0_0_80px_rgba(249,115,22,1)] border-4 border-white"
+                >
+                  Cliquez ! ({3 - clickCount})
+                </motion.p>
               </div>
-            )}
 
-            {reward.type === 'action' && reward.action && (
-              <div className="w-56 h-56 md:w-64 md:h-64 rounded-3xl border-4 border-green-500 overflow-hidden shadow-2xl shadow-green-500/40 bg-gray-900 flex items-center justify-center p-6 relative">
-                {reward.action.videoUrl ? (
-                  <OptimizedMedia
-                    type="video"
-                    src={reward.action.videoUrl}
-                    poster={reward.action.image}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <OptimizedMedia
-                    type="image"
-                    src={reward.action.image}
-                    alt={reward.action.name}
-                    className="w-full h-full object-contain"
-                  />
-                )}
-                <div className="absolute bottom-0 inset-x-0 p-4 text-center">
-                  <p className="text-green-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouvelle Action</p>
-                  <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">{reward.action.name}</h3>
-                </div>
-              </div>
-            )}
-
-            {reward.type === 'money' && (
-              <div className="w-full flex flex-col items-center justify-center">
-                {!isRevealed ? (
+              <AnimatePresence>
+                {flyingTexts.map(t => (
                   <motion.div
-                    animate={isAnimating ? { scale: [1, 1.3, 1], rotate: [0, 10, -10, 0] } : { y: [-10, 10, -10] }}
-                    transition={isAnimating ? { duration: 0.2 } : { repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                    onClick={(e) => { e.stopPropagation(); handleMoneyClick(); }}
-                    className="w-64 h-64 md:w-80 md:h-80 cursor-pointer active:scale-95 transition-transform"
+                    key={t.id}
+                    initial={{ opacity: 0, scale: 0, x: '-50%', y: '-50%', rotate: 0 }}
+                    animate={{ opacity: 1, scale: 1.5, rotate: t.rotate, y: ['0%', '-150%'] }}
+                    exit={{ opacity: 0, scale: 2 }}
+                    transition={{ type: 'spring', damping: 10, duration: 0.8 }}
+                    className={cn("absolute pointer-events-none text-5xl md:text-8xl font-black italic tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,1)] z-50", t.color)}
+                    style={{ left: `${t.x}%`, top: `${t.y}%` }}
                   >
-                    <img 
-                      src="https://thebestfan.online/img/public/logo/imageMoney.png" 
-                      alt="Money Bag" 
-                      className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]" 
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <p className="text-white font-black italic uppercase text-lg bg-orange-500 px-4 py-1 rounded-full shadow-xl animate-pulse">
-                        Cliquez ! ({3 - clickCount})
-                      </p>
-                    </div>
+                    {t.text}
                   </motion.div>
-                ) : (
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <>
+              <motion.div
+                initial={{ y: 50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ type: "spring", damping: 15 }}
+                className="space-y-4 w-full"
+              >
+                <motion.div 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3, type: "spring" }}
+                  className="inline-flex items-center gap-2 px-4 py-1 bg-orange-500 text-white text-[10px] font-black italic uppercase tracking-widest rounded-full shadow-lg shadow-orange-500/40"
+                >
+                  <Sparkles size={12} />
+                  Récompense Débloquée !
+                </motion.div>
+                <h1 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white drop-shadow-2xl leading-tight">
+                  {reward.title || 'Félicitations !'}
+                </h1>
+                {reward.subtitle && (
+                  <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs">{reward.subtitle}</p>
+                )}
+              </motion.div>
+
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                className={cn(
+                  "relative flex justify-center w-full items-center",
+                  reward.type === 'money' ? "" : "max-h-[50vh]"
+                )}
+              >
+                {reward.type === 'card' && reward.card && (
+                  <div className="w-56 md:w-64 aspect-[3/4] rounded-3xl border-4 border-orange-500 overflow-hidden shadow-2xl shadow-orange-500/40 bg-gray-900 group relative">
+                    <img src={getImageUrl(reward.card.imageUrl)} className="w-full h-full object-cover" alt={reward.card.name} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
+                    <div className="absolute bottom-0 inset-x-0 p-4 text-left">
+                      <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mb-1">Nouvelle Carte</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{reward.card.name}</h3>
+                    </div>
+                  </div>
+                )}
+
+                {reward.type === 'skin' && reward.skin && (
+                  <div className="w-56 md:w-64 aspect-[3/4] rounded-3xl border-4 border-blue-500 overflow-hidden shadow-2xl shadow-blue-500/40 bg-gray-900 relative">
+                    {reward.skin.videoUrl ? (
+                      <OptimizedMedia
+                        type="video"
+                        src={reward.skin.videoUrl}
+                        poster={reward.skin.imageUrl}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <OptimizedMedia
+                        type="image"
+                        src={reward.skin.imageUrl}
+                        alt={reward.skin.name}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
+                    <div className="absolute bottom-0 inset-x-0 p-4 text-left">
+                      <p className="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouveau Skin</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{reward.skin.name}</h3>
+                    </div>
+                  </div>
+                )}
+
+                {reward.type === 'emote' && reward.emote && (
+                  <div className="w-56 h-56 md:w-64 md:h-64 rounded-3xl border-4 border-purple-500 overflow-hidden shadow-2xl shadow-purple-500/40 bg-gray-900 flex items-center justify-center p-6 relative">
+                    {reward.emote.videoUrl ? (
+                      <OptimizedMedia
+                        type="video"
+                        src={reward.emote.videoUrl}
+                        poster={reward.emote.imageUrl}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <OptimizedMedia
+                        type="image"
+                        src={reward.emote.imageUrl}
+                        alt={reward.emote.name}
+                        className="w-full h-full object-contain"
+                      />
+                    )}
+                    <div className="absolute bottom-0 inset-x-0 p-4 text-center">
+                      <p className="text-purple-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouvel Emote</p>
+                      <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">{reward.emote.name}</h3>
+                    </div>
+                  </div>
+                )}
+
+                {reward.type === 'action' && reward.action && (
+                  <div className="w-56 h-56 md:w-64 md:h-64 rounded-3xl border-4 border-green-500 overflow-hidden shadow-2xl shadow-green-500/40 bg-gray-900 flex items-center justify-center p-6 relative">
+                    {reward.action.videoUrl ? (
+                      <OptimizedMedia
+                        type="video"
+                        src={reward.action.videoUrl}
+                        poster={reward.action.image}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <OptimizedMedia
+                        type="image"
+                        src={reward.action.image}
+                        alt={reward.action.name}
+                        className="w-full h-full object-contain"
+                      />
+                    )}
+                    <div className="absolute bottom-0 inset-x-0 p-4 text-center">
+                      <p className="text-green-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouvelle Action</p>
+                      <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">{reward.action.name}</h3>
+                    </div>
+                  </div>
+                )}
+
+                {reward.type === 'money' && (
                   <motion.div 
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="text-center"
+                    initial={{ scale: 0.5, opacity: 0, y: 100 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    transition={{ type: "spring", damping: 15 }}
+                    className="text-center z-50"
                   >
-                    <div className="text-7xl md:text-9xl font-black italic text-white tracking-tighter drop-shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+                    <div className="text-8xl md:text-[10rem] font-black italic text-white tracking-tighter drop-shadow-[0_0_50px_rgba(249,115,22,0.8)]">
                       +{reward.amount} $
                     </div>
-                    <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] mt-4 flex items-center justify-center gap-2">
-                      <Sparkles size={14} className="text-orange-500" />
+                    <p className="text-white font-black uppercase tracking-widest text-xs md:text-base mt-6 flex items-center justify-center gap-3 bg-black/50 px-6 py-3 rounded-full border border-white/20 backdrop-blur-md">
+                      <Sparkles size={18} className="text-orange-500" />
                       Argent ajouté à votre compte
-                      <Sparkles size={14} className="text-orange-500" />
+                      <Sparkles size={18} className="text-orange-500" />
                     </p>
                   </motion.div>
                 )}
-              </div>
-            )}
 
-            {(reward.type === 'gems' || reward.type === 'boost' || reward.type === 'energy' || reward.type === 'xp') && (
-              <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-2xl shadow-orange-500/40 border-8 border-white/20">
-                <div className="text-center">
-                  <motion.div
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                  >
-                    {reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
-                    {reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
-                    {reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
-                    {reward.type === 'xp' && <Trophy size={64} className="text-white mx-auto mb-2" />}
-                  </motion.div>
-                  <div className="text-5xl md:text-6xl font-black italic text-white tracking-tighter">+{reward.amount}</div>
-                  <div className="text-xs md:text-sm font-black uppercase tracking-widest text-white/80">{reward.type}</div>
-                </div>
-              </div>
-            )}
-          </motion.div>
+                {(reward.type === 'gems' || reward.type === 'boost' || reward.type === 'energy' || reward.type === 'xp') && (
+                  <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-2xl shadow-orange-500/40 border-8 border-white/20">
+                    <div className="text-center">
+                      <motion.div
+                        animate={{ rotate: [0, 10, -10, 0] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                      >
+                        {reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+                        {reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+                        {reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+                        {reward.type === 'xp' && <Trophy size={64} className="text-white mx-auto mb-2" />}
+                      </motion.div>
+                      <div className="text-5xl md:text-6xl font-black italic text-white tracking-tighter">+{reward.amount}</div>
+                      <div className="text-xs md:text-sm font-black uppercase tracking-widest text-white/80">{reward.type}</div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1 }}
-            className="flex flex-col items-center gap-4 w-full"
-          >
-            {reward.type !== 'money' ? (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onClose(); }}
-                  className="w-full md:w-auto px-16 py-4 bg-white text-black font-black italic uppercase tracking-widest rounded-2xl hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-2xl shadow-white/10"
-                >
-                  Continuer
-                </button>
-                <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest animate-pulse">Appuyez pour fermer</p>
-              </>
-            ) : isRevealed && (
-              <p className="text-gray-400 text-xs font-black uppercase tracking-[0.2em] animate-pulse mt-8">
-                Cliquez n'importe où pour continuer
-              </p>
-            )}
-          </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1 }}
+                className="flex flex-col items-center gap-4 w-full"
+              >
+                {reward.type !== 'money' ? (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onClose(); }}
+                      className="w-full md:w-auto px-16 py-4 bg-white text-black font-black italic uppercase tracking-widest rounded-2xl hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-2xl shadow-white/10"
+                    >
+                      Continuer
+                    </button>
+                    <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest animate-pulse">Appuyez pour fermer</p>
+                  </>
+                ) : (
+                  <p className="text-gray-400 text-xs font-black uppercase tracking-[0.2em] animate-pulse mt-8">
+                    Cliquez n'importe où pour continuer
+                  </p>
+                )}
+              </motion.div>
+            </>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>

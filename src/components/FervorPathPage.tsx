@@ -449,7 +449,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                   </div>
 
                   {/* Points Label */}
-                  <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap z-20 flex flex-col ${!isLeft ? (level.isIntermediate ? 'left-[calc(50%+35px)] sm:left-[calc(50%+55px)] origin-bottom-left -rotate-[45deg] items-start' : 'left-[calc(50%+50px)] sm:left-[calc(50%+75px)] items-start text-left') : (level.isIntermediate ? 'right-[calc(50%+35px)] sm:right-[calc(50%+55px)] origin-bottom-right rotate-[45deg] items-end' : 'right-[calc(50%+50px)] sm:right-[calc(50%+75px)] items-end text-right')}`}>
+                  <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap z-40 pointer-events-none flex flex-col ${!isLeft ? (level.isIntermediate ? 'left-[calc(50%+35px)] sm:left-[calc(50%+55px)] origin-bottom-left -rotate-[45deg] items-start' : 'left-[calc(50%+50px)] sm:left-[calc(50%+75px)] items-start text-left') : (level.isIntermediate ? 'right-[calc(50%+35px)] sm:right-[calc(50%+55px)] origin-bottom-right rotate-[45deg] items-end' : 'right-[calc(50%+50px)] sm:right-[calc(50%+75px)] items-end text-right')}`}>
                     <div className={`text-lg sm:text-2xl font-black italic uppercase tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isUnlocked ? 'text-orange-400' : 'text-gray-500'}`}>
                       {level.pointsRequired.toLocaleString()} PTS
                     </div>

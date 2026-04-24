@@ -243,6 +243,16 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
     currentVideoUrl = null;
   }
 
+  const hasClaimableFerveur = React.useMemo(() => {
+    if (!isOwned || !fanz) return false;
+    const fPath = template.ferveurPath?.length ? template.ferveurPath : (fanz.ferveurPath?.length ? fanz.ferveurPath : globalFerveurPath);
+    if (!fPath) return false;
+    return fPath.some(step => {
+      const slotId = step.isIntermediate ? `ferveur-inter-${step.id || step.pointsRequired}` : `ferveur-level-${step.level}`;
+      return (fanz.ferveurPoints || 0) >= step.pointsRequired && !fanz.claimedRewards?.includes(slotId);
+    });
+  }, [isOwned, fanz, template.ferveurPath, globalFerveurPath]);
+
   return (
     <motion.div
       layout
@@ -259,6 +269,9 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
           : 'border-white/5 grayscale hover:grayscale-0 hover:border-orange-500/50'
       }`}>
         <div className="aspect-[3/4] relative">
+          {hasClaimableFerveur && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-20" />
+          )}
           {currentVideoUrl && isHovered ? (
             <OptimizedMedia
               type="video"

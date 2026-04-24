@@ -116,6 +116,13 @@ export const footballApi = {
     return data.response[0];
   },
 
+  async getFixturesByIds(fixtureIds: number[]) {
+    if (!fixtureIds || fixtureIds.length === 0) return [];
+    const idsString = fixtureIds.join('-');
+    const data = await fetchApi(`${BASE_URL}fixtures?ids=${idsString}`);
+    return data.response;
+  },
+
   async getFixtureEvents(fixtureId: number) {
     const data = await fetchApi(`${BASE_URL}fixtures/events?fixture=${fixtureId}`);
     return data.response;

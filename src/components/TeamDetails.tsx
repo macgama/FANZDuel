@@ -19,15 +19,17 @@ import {
   Clock,
   Shield,
   Medal,
-  Star
+  Star,
+  Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
-import { collection, query, where, orderBy, limit, getDocs, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
+import { SharedMatchCard } from './SharedMatchCard';
 import { TbfoRankingsTab } from './LeagueDetails';
 import { UserProfile } from '../types';
 
@@ -254,9 +256,12 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
           <Card className="relative overflow-hidden border-orange-500/20 p-0">
             <div className="h-24 w-full relative">
               <img 
-                src={team.venue.image || `https://picsum.photos/seed/${team.venue.id}/1200/400`} 
+                src={team.venue.image || "https://thebestfan.online/img/public/img/background/stade.png"} 
                 alt={team.venue.name} 
                 className="w-full h-full object-cover opacity-50"
+                onError={(e) => {
+                  e.currentTarget.src = "https://thebestfan.online/img/public/img/background/stade.png";
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
               <div className="absolute bottom-2 left-3">
@@ -321,7 +326,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} />}
+              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} profile={profile} />}
               {activeTab === 'standings' && <StandingsTab standings={standings} teamId={teamId} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />}
               {activeTab === 'rankings' && <TeamRankingsTab players={players} />}
               {activeTab === 'players' && <PlayersTab players={players} />}
@@ -411,8 +416,174 @@ function TeamRankingList({ title, data, label, valKey, icon }: { title: string; 
   );
 }
 
-function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number }) {
-  if (fixtures.length === 0) return <Card className="py-10 text-center text-gray-500">Aucun match trouvé.</Card>;
+function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number; profile?: any }) {
+  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
+  const [selectedRound, setSelectedRound] = useState<string>('');
+  const [leagueFixtures, setLeagueFixtures] = useState<any[]>([]);
+  const [loadingLeagueFixtures, setLoadingLeagueFixtures] = useState(false);
+  const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
+  const [activeDuels, setActiveDuels] = useState<any[]>([]);
+
+  // Group initial fixtures to know which leagues the team is in
+  const groupedByLeague = React.useMemo(() => {
+    return fixtures.reduce((acc: any, f: any) => {
+      const leagueId = f.league.id;
+      if (!acc[leagueId]) {
+        acc[leagueId] = {
+          id: leagueId,
+          name: f.league.name,
+          logo: f.league.logo
+        };
+      }
+      return acc;
+    }, {});
+  }, [fixtures]);
+
+  const sortedLeagues = React.useMemo(() => Object.values(groupedByLeague).sort((a: any, b: any) => a.name.localeCompare(b.name)), [groupedByLeague]);
+
+  useEffect(() => {
+    if (sortedLeagues.length > 0 && !selectedLeagueId) {
+      setSelectedLeagueId((sortedLeagues[0] as any).id);
+    }
+  }, [sortedLeagues, selectedLeagueId]);
+
+  useEffect(() => {
+    if (selectedLeagueId) {
+      setLoadingLeagueFixtures(true);
+      footballDataService.getFixtures(selectedLeagueId, selectedSeason)
+        .then(data => {
+          setLeagueFixtures(data);
+          // Set initial round based on the team's next or last match in this league, or just the first round found
+          if (data.length > 0) {
+            const teamMatches = data.filter((f: any) => f.teams.home.id === fixtures[0]?.teams?.home?.id || f.teams.away.id === fixtures[0]?.teams?.home?.id); // approximation
+            
+            // Just gather all rounds
+            const roundsSet = new Set<string>();
+            data.forEach((f: any) => roundsSet.add(f.league.round));
+            const availableRounds = Array.from(roundsSet);
+            setSelectedRound(availableRounds[0] || '');
+          }
+        })
+        .finally(() => setLoadingLeagueFixtures(false));
+    }
+  }, [selectedLeagueId, selectedSeason, fixtures]);
+
+  const groupedByRound = React.useMemo(() => {
+    return leagueFixtures.reduce((acc: any, f: any) => {
+      const round = f.league.round;
+      if (!acc[round]) acc[round] = [];
+      acc[round].push(f);
+      return acc;
+    }, {});
+  }, [leagueFixtures]);
+
+  const rounds = React.useMemo(() => {
+    return Object.keys(groupedByRound).sort((a, b) => {
+      const dateA = Math.min(...groupedByRound[a].map((f: any) => new Date(f.fixture.date).getTime()));
+      const dateB = Math.min(...groupedByRound[b].map((f: any) => new Date(f.fixture.date).getTime()));
+      return dateA - dateB;
+    });
+  }, [groupedByRound]);
+
+  useEffect(() => {
+    if (rounds.length > 0 && (!selectedRound || !rounds.includes(selectedRound))) {
+      // Find the round with the most recent live/finished games, or the first upcoming
+      let bestRound = rounds[rounds.length - 1] || rounds[0];
+      
+      for (const round of rounds) {
+        const hasLiveInfo = groupedByRound[round].some((m: any) => ['1H', '2H', 'HT', 'LIVE', 'FT'].includes(m.fixture.status.short));
+        if (hasLiveInfo) {
+          bestRound = round;
+        }
+      }
+      setSelectedRound(bestRound);
+    }
+  }, [rounds, groupedByRound, selectedRound]);
+
+  const [roundEvents, setRoundEvents] = useState<Record<string, any[]>>({});
+
+  useEffect(() => {
+    if (!selectedRound) return;
+    
+    const fetchRoundEvents = async () => {
+      const currentMatches = groupedByRound[selectedRound] || [];
+      const idsToFetch = currentMatches
+        .filter((m: any) => !m.events && !roundEvents[m.fixture.id] && ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'LIVE'].includes(m.fixture.status.short))
+        .map((m: any) => m.fixture.id);
+
+      if (idsToFetch.length > 0) {
+        try {
+          const maxPerRequest = 20;
+          for (let i = 0; i < idsToFetch.length; i += maxPerRequest) {
+            const chunk = idsToFetch.slice(i, i + maxPerRequest);
+            const detailedFixtures = await footballApi.getFixturesByIds(chunk);
+            
+            const eventsMap: Record<string, any[]> = {};
+            detailedFixtures.forEach((f: any) => {
+              eventsMap[f.fixture.id] = f.events || [];
+            });
+            
+            setRoundEvents(prev => ({ ...prev, ...eventsMap }));
+          }
+        } catch (err) {
+          console.error("Failed to fetch round events", err);
+        }
+      }
+    };
+    fetchRoundEvents();
+
+    // Fetch Duels
+    const fetchActiveDuels = async () => {
+      try {
+        const res = await fetch('/api/duels/all');
+        if (res.ok) {
+          const duelsData = await res.json();
+          setActiveDuels(duelsData);
+        }
+      } catch (err: any) {
+        if (err?.message !== 'Failed to fetch') {
+          console.error("Failed to fetch active duels", err);
+        }
+      }
+    };
+    fetchActiveDuels();
+
+    // Fetch scores for this round
+    const matchIds = groupedByRound[selectedRound]?.map((m: any) => m.fixture.id.toString()) || [];
+    if (matchIds.length === 0) return;
+
+    setMatchScores({});
+    const unsubs: (() => void)[] = [];
+    const chunkSize = 10;
+    
+    for (let i = 0; i < matchIds.length; i += chunkSize) {
+      const chunk = matchIds.slice(i, i + chunkSize);
+      const q = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
+      
+      const unsub = onSnapshot(q, (snapshot) => {
+        setMatchScores(prev => {
+          const newMap = { ...prev };
+          chunk.forEach(id => {
+            newMap[id] = { scoreA: 0, scoreB: 0 };
+          });
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const mIdStr = data.matchId?.toString();
+            if (mIdStr && chunk.includes(mIdStr)) {
+              newMap[mIdStr].scoreA += Number(data.scoreA || 0);
+              newMap[mIdStr].scoreB += Number(data.scoreB || 0);
+            }
+          });
+          return newMap;
+        });
+      });
+      unsubs.push(unsub);
+    }
+    
+    return () => {
+      unsubs.forEach(u => u());
+    };
+  }, [selectedRound, groupedByRound]);
 
   const formatRound = (round: string) => {
     const match = round.match(/\d+/);
@@ -422,108 +593,112 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
     return round;
   };
 
-  // Group by League then by Round
-  const groupedByLeague = fixtures.reduce((acc: any, f: any) => {
-    const leagueId = f.league.id;
-    if (!acc[leagueId]) {
-      acc[leagueId] = {
-        id: leagueId,
-        name: f.league.name,
-        logo: f.league.logo,
-        rounds: {}
-      };
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = window.innerWidth > 768 ? 400 : window.innerWidth - 60;
+      scrollContainerRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
     }
-    
-    const round = f.league.round;
-    if (!acc[leagueId].rounds[round]) {
-      acc[leagueId].rounds[round] = [];
-    }
-    acc[leagueId].rounds[round].push(f);
-    return acc;
-  }, {});
+  };
 
-  // Sort leagues by name
-  const sortedLeagues = Object.values(groupedByLeague).sort((a: any, b: any) => a.name.localeCompare(b.name));
+  if (fixtures.length === 0) return <Card className="py-10 text-center text-gray-500">Aucun match trouvé.</Card>;
 
   return (
-    <div className="space-y-6">
-      {sortedLeagues.map((league: any) => {
-        // Sort rounds for this league by the date of the first match in that round
-        const sortedRounds = Object.keys(league.rounds).sort((a, b) => {
-          const dateA = Math.min(...league.rounds[a].map((f: any) => new Date(f.fixture.date).getTime()));
-          const dateB = Math.min(...league.rounds[b].map((f: any) => new Date(f.fixture.date).getTime()));
-          return dateA - dateB;
-        });
-
-        return (
-          <div key={league.id} className="space-y-3">
-            <div 
-              className="flex items-center gap-2 border-b border-orange-500/20 pb-1 cursor-pointer hover:text-orange-500 transition-colors group"
-              onClick={() => onLeagueClick(league.id, selectedSeason)}
+    <div className="space-y-4">
+      {/* League menu */}
+      {sortedLeagues.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2">
+          {sortedLeagues.map((l: any) => (
+            <button
+              key={l.id}
+              onClick={() => setSelectedLeagueId(l.id)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors whitespace-nowrap min-w-0 ${
+                selectedLeagueId === l.id 
+                  ? 'bg-orange-500/10 border-orange-500 text-white' 
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+              }`}
             >
-              <img src={league.logo} alt="" className="w-6 h-6 object-contain" />
-              <h2 className="text-sm font-black italic uppercase tracking-tight group-hover:translate-x-1 transition-transform">
-                {translateLeagueName(league.name)}
-              </h2>
-            </div>
+              <img src={l.logo} alt="" className="w-5 h-5 object-contain" />
+              <span className="text-[10px] sm:text-xs font-black uppercase italic truncate">{translateLeagueName(l.name)}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
-            <div className="space-y-4 pl-2 border-l border-white/5">
-              {sortedRounds.map((round) => (
-                <div key={round} className="space-y-2">
-                  <h3 className="text-[8px] font-black italic uppercase text-gray-500 tracking-[0.2em] flex items-center gap-1.5">
-                    <span className="w-4 h-[1px] bg-white/10"></span>
-                    {formatRound(round)}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {league.rounds[round]
-                      .sort((a: any, b: any) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime())
-                      .map((f: any) => (
-                        <Card 
-                          key={f.fixture.id} 
-                          className="p-2 hover:border-orange-500/30 transition-all cursor-pointer group"
-                          onClick={() => onMatchClick && onMatchClick(f.fixture.id)}
-                        >
-                          <div className="flex flex-col gap-2">
-                            <div className="flex justify-between items-center text-[8px] font-medium text-gray-500 uppercase tracking-wider">
-                              <span className="flex items-center gap-1 opacity-80">
-                                <Clock className="w-2 h-2" />
-                                {format(new Date(f.fixture.date), 'dd/MM HH:mm')}
-                              </span>
-                              <span className={f.fixture.status.short === 'FT' ? 'text-gray-400' : 'text-orange-500'}>
-                                {f.fixture.status.short}
-                              </span>
-                            </div>
-                            
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex justify-between items-center group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.home.id, selectedSeason); }}>
-                                <div className="flex items-center gap-2">
-                                  <img src={f.teams.home.logo} alt="" className="w-4 h-4 object-contain group-hover/team:scale-110 transition-transform" />
-                                  <span className={`text-[11px] font-bold ${f.teams.home.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors truncate max-w-[120px]`}>
-                                    {f.teams.home.name}
-                                  </span>
-                                </div>
-                                <span className="font-black text-sm">{f.goals.home ?? '-'}</span>
-                              </div>
-                              <div className="flex justify-between items-center group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.away.id, selectedSeason); }}>
-                                <div className="flex items-center gap-2">
-                                  <img src={f.teams.away.logo} alt="" className="w-4 h-4 object-contain group-hover/team:scale-110 transition-transform" />
-                                  <span className={`text-[11px] font-bold ${f.teams.away.winner ? 'text-white' : 'text-gray-400'} group-hover/team:text-orange-500 transition-colors truncate max-w-[120px]`}>
-                                    {f.teams.away.name}
-                                  </span>
-                                </div>
-                                <span className="font-black text-sm">{f.goals.away ?? '-'}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+      {loadingLeagueFixtures ? (
+        <Card className="py-10 text-center text-gray-500">
+          <Activity className="w-6 h-6 animate-spin mx-auto opacity-50 mb-2" />
+          <p className="text-[10px] font-bold uppercase tracking-widest">Chargement...</p>
+        </Card>
+      ) : (
+        <>
+          {/* Round Selector */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+            {rounds.map(round => (
+              <button
+                key={round}
+                onClick={() => setSelectedRound(round)}
+                className={`px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-black uppercase italic transition-colors ${
+                  selectedRound === round 
+                    ? 'bg-orange-500 text-white' 
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                {formatRound(round)}
+              </button>
+            ))}
           </div>
-        );
-      })}
+
+          {/* Horizontal Matches */}
+          {selectedRound && groupedByRound[selectedRound] && (
+            <div className="relative group/scroll">
+              {groupedByRound[selectedRound].length > 1 && (
+                <>
+                  <button 
+                    onClick={() => scroll('left')}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => scroll('right')}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+
+              <div 
+                ref={scrollContainerRef}
+                className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
+              >
+                <div className="flex flex-nowrap gap-4 w-fit px-0.5">
+                  {groupedByRound[selectedRound].map((match: any) => {
+                    const matchWithEvents = {
+                      ...match,
+                      events: match.events || roundEvents[match.fixture.id] || []
+                    };
+                    return (
+                    <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-60px)] sm:w-[400px]">
+                      <SharedMatchCard
+                        match={matchWithEvents}
+                        hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
+                        matchScore={matchScores[match.fixture.id.toString()]}
+                        onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
+                        onJoinDuel={() => {}}
+                        onTeamClick={onTeamClick}
+                        profile={profile}
+                        showLeagueHeader={false}
+                      />
+                    </div>
+                  )})}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

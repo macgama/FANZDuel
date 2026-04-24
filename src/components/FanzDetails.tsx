@@ -165,6 +165,15 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   }, [template?.ferveurPath, fanz?.ferveurPath, fanzFervorConfig]);
 
   const maxFerveurPoints = ferveurPath.length > 0 ? ferveurPath[ferveurPath.length - 1].pointsRequired : 1000;
+  
+  const hasClaimableFerveur = React.useMemo(() => {
+    if (!fanz || !ferveurPath) return false;
+    const pts = fanz.ferveurPoints || 0;
+    return ferveurPath.some(step => {
+      const slotId = step.isIntermediate ? `ferveur-inter-${step.id || step.pointsRequired}` : `ferveur-level-${step.level}`;
+      return pts >= step.pointsRequired && !fanz.claimedRewards?.includes(slotId);
+    });
+  }, [fanz, ferveurPath]);
 
   if (loading) {
     return (
@@ -185,14 +194,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   }
 
   const statIcons = {
-    force: <img src={LOGOS.energy} alt="Force" className="w-4 h-4 object-contain" />,
-    endurance: <Shield className="w-4 h-4 text-green-500" />,
-    mental: <Brain className="w-4 h-4 text-purple-500" />,
-    bluff: <Eye className="w-4 h-4 text-blue-500" />,
-    creativity: <Star className="w-4 h-4 text-pink-500" />,
-    social: <Users className="w-4 h-4 text-cyan-500" />,
-    intelligence: <Info className="w-4 h-4 text-indigo-500" />,
-    charisma: <Flame className="w-4 h-4 text-red-500" />
+    force: <img src="https://thebestfan.online/img/public/logo/logoForce.png" alt="Force" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+    endurance: <img src="https://thebestfan.online/img/public/logo/logoEndurance.png" alt="Endurance" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+    mental: <img src="https://thebestfan.online/img/public/logo/logoMental.png" alt="Mental" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+    bluff: <img src="https://thebestfan.online/img/public/logo/logoBluff.png" alt="Bluff" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+    creativity: <img src="https://thebestfan.online/img/public/logo/logoCreativity.png" alt="Créativité" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+    social: <img src="https://thebestfan.online/img/public/logo/logoSocial.png" alt="Social" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+    intelligence: <img src="https://thebestfan.online/img/public/logo/logoIntelligence.png" alt="Intelligence" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+    charisma: <img src="https://thebestfan.online/img/public/logo/logoCharisme.png" alt="Charisme" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />
   };
 
   const cardTypeStyles = {
@@ -489,7 +498,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
           <OptimizedMedia
             type="video"
             src={currentVideoUrl}
-            poster={currentImageUrl || ''}
+            poster={currentImageUrl || undefined}
             dataSaver={userProfile.dataSaver}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
@@ -539,8 +548,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       className="h-full bg-orange-600 rounded-full transition-all duration-500"
                       style={{ width: `${Math.min(100, (fanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-[10px] font-black text-white drop-shadow-md">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                      <span className="text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                         {fanz.ferveurPoints} / {nextLevelPoints}
                       </span>
                     </div>
@@ -559,7 +568,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       <div className="flex justify-center mt-[10px] px-5">
         <div className="flex w-full gap-0.5 p-1 bg-white/5 rounded-xl border border-white/10">
           <TabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} label="Stats" icon={<Activity className="w-4 h-4" />} />
-          <TabButton active={activeTab === 'ferveur'} onClick={() => setActiveTab('ferveur')} label="Ferveur" icon={<Flame className="w-4 h-4" />} />
+          <TabButton active={activeTab === 'ferveur'} onClick={() => setActiveTab('ferveur')} label="Ferveur" icon={<Flame className="w-4 h-4" />} hasAlert={hasClaimableFerveur} />
           <TabButton active={activeTab === 'rank'} onClick={() => setActiveTab('rank')} label="Rang" icon={<Trophy className="w-4 h-4" />} />
           <TabButton active={activeTab === 'cards'} onClick={() => setActiveTab('cards')} label="Deck" icon={<Database className="w-4 h-4" />} />
           <TabButton active={activeTab === 'skins'} onClick={() => setActiveTab('skins')} label="Skins" icon={<Users className="w-4 h-4" />} />
@@ -897,7 +906,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             </div>
 
                             {/* Points Label */}
-                            <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap z-20 flex flex-col ${!isLeft ? (step.isIntermediate ? 'left-[calc(50%+35px)] sm:left-[calc(50%+55px)] origin-bottom-left -rotate-[45deg] items-start' : 'left-[calc(50%+50px)] sm:left-[calc(50%+75px)] items-start text-left') : (step.isIntermediate ? 'right-[calc(50%+35px)] sm:right-[calc(50%+55px)] origin-bottom-right rotate-[45deg] items-end' : 'right-[calc(50%+50px)] sm:right-[calc(50%+75px)] items-end text-right')}`}>
+                            <div className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap z-40 pointer-events-none flex flex-col ${!isLeft ? (step.isIntermediate ? 'left-[calc(50%+35px)] sm:left-[calc(50%+55px)] origin-bottom-left -rotate-[45deg] items-start' : 'left-[calc(50%+50px)] sm:left-[calc(50%+75px)] items-start text-left') : (step.isIntermediate ? 'right-[calc(50%+35px)] sm:right-[calc(50%+55px)] origin-bottom-right rotate-[45deg] items-end' : 'right-[calc(50%+50px)] sm:right-[calc(50%+75px)] items-end text-right')}`}>
                               <div className={`text-lg sm:text-2xl font-black italic uppercase tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isUnlocked ? 'text-orange-400' : 'text-gray-500'}`}>
                                 {step.pointsRequired.toLocaleString()} PTS
                               </div>
@@ -1424,14 +1433,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                               <OptimizedMedia
                                 type="video"
                                 src={card.videoUrl}
-                                poster={card.imageUrl || ''}
+                                poster={card.imageUrl || undefined}
                                 dataSaver={userProfile.dataSaver}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
                               <OptimizedMedia
                                 type="image"
-                                src={card.imageUrl || ''}
+                                src={card.imageUrl || undefined}
                                 alt={card.name}
                                 className="w-full h-full object-cover"
                               />
@@ -1528,14 +1537,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                               <OptimizedMedia
                                 type="video"
                                 src={card.videoUrl}
-                                poster={card.imageUrl || ''}
+                                poster={card.imageUrl || undefined}
                                 dataSaver={userProfile.dataSaver}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
                               <OptimizedMedia
                                 type="image"
-                                src={card.imageUrl || ''}
+                                src={card.imageUrl || undefined}
                                 alt={card.name}
                                 className="w-full h-full object-cover"
                               />
@@ -2373,16 +2382,19 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   );
 }
 
-function TabButton({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: React.ReactNode }) {
+function TabButton({ active, onClick, label, icon, hasAlert }: { active: boolean; onClick: () => void; label: string; icon: React.ReactNode; hasAlert?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 rounded-lg transition-all font-bold uppercase italic text-[8px] tracking-tighter whitespace-nowrap flex-1 min-w-0 ${
+      className={`relative flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 rounded-lg transition-all font-bold uppercase italic text-[8px] tracking-tighter whitespace-nowrap flex-1 min-w-0 ${
         active 
           ? 'bg-white/10 text-white' 
           : 'text-gray-500 hover:text-white hover:bg-white/5'
       }`}
     >
+      {hasAlert && (
+        <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-black animate-pulse" />
+      )}
       <div className="shrink-0">
         {icon}
       </div>
