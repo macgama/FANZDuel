@@ -16,6 +16,7 @@ dotenv.config();
 async function startServer() {
   const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
   let db: admin.firestore.Firestore | null = null;
+  let loadedCards: any[] = [...BASE_CARDS];
   
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -25,6 +26,26 @@ async function startServer() {
       });
     }
     db = getFirestore(config.firestoreDatabaseId || '(default)');
+    
+    // Live update cards from Firestore
+    db.collection('cards').onSnapshot((snap) => {
+      if (!snap.empty) {
+        const dbCards = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const mergedCards = [...BASE_CARDS];
+        dbCards.forEach(dbCard => {
+          const idx = mergedCards.findIndex(c => c.id === dbCard.id);
+          if (idx !== -1) {
+            mergedCards[idx] = dbCard;
+          } else {
+            mergedCards.push(dbCard);
+          }
+        });
+        loadedCards = mergedCards;
+        console.log(`[Server] Live-updated ${loadedCards.length} cards from database.`);
+      }
+    }, (err) => {
+      console.error("[Server] Failed to listen to cards collection:", err);
+    });
   }
 
   const app = express();
@@ -71,7 +92,7 @@ async function startServer() {
 
   function finishDuel(duelId: string, winner: string) {
     const duel = duels[duelId];
-    if (!duel) return;
+    if (!duel || duel.status === 'finished') return;
     
     console.log(`[Server] Finishing duel ${duelId} (Match: ${duel.matchId}, Type: ${duel.type}, Winner: ${winner})`);
     
@@ -126,11 +147,19 @@ async function startServer() {
       (async () => {
         try {
           const seasonsToUpdate = [];
-          if (duel.season) seasonsToUpdate.push(duel.season);
           const currentYear = new Date().getFullYear().toString();
-          if (currentYear !== duel.season && duel.season) {
+          
+          if (duel.season) {
+            seasonsToUpdate.push(duel.season);
+            if (currentYear !== duel.season) {
+              seasonsToUpdate.push(currentYear);
+            }
+          } else {
             seasonsToUpdate.push(currentYear);
           }
+          
+          // Remove potential duplicates
+          const uniqueSeasons = Array.from(new Set(seasonsToUpdate));
 
           const updateRanking = async (collectionName: string, entityIdField: string, entityId: string, seasonStr: string, leagueIdStr: string, scoreToAdd: number) => {
             if (!entityId || !seasonStr || !leagueIdStr || !db) return;
@@ -171,7 +200,7 @@ async function startServer() {
           for (const p of duel.participants) {
             if (p.uid.startsWith('bot_')) continue;
             const userScore = p.team === 'A' ? scoreA : scoreB;
-            for (const s of seasonsToUpdate) {
+            for (const s of uniqueSeasons) {
               if (!s) continue;
               await updateRanking('ranking_users', 'userId', p.uid, s, 'global', userScore);
               if (duel.leagueId && duel.leagueId !== 'global') {
@@ -181,18 +210,48 @@ async function startServer() {
           }
 
           // Update Teams (runs ONCE per duel match instead of per-client)
-          for (const s of seasonsToUpdate) {
+          for (const s of uniqueSeasons) {
             if (!s) continue;
             if (duel.teamAId) {
               await updateRanking('ranking_teams', 'teamId', duel.teamAId, s, 'global', scoreA);
               if (duel.leagueId && duel.leagueId !== 'global') {
                 await updateRanking('ranking_teams', 'teamId', duel.teamAId, s, duel.leagueId, scoreA);
               }
+              
+              // Also update the main teams collection
+              try {
+                const teamRef = db.collection('teams').doc(duel.teamAId.toString());
+                const teamSnap = await teamRef.get();
+                if (teamSnap.exists) {
+                  await teamRef.update({
+                    ferveurEarned: admin.firestore.FieldValue.increment(scoreA),
+                    totalScoreGiven: admin.firestore.FieldValue.increment(scoreA),
+                    matchesPlayed: admin.firestore.FieldValue.increment(1)
+                  });
+                }
+              } catch (e) {
+                console.error(`Error updating team A general stats:`, e);
+              }
             }
             if (duel.teamBId) {
               await updateRanking('ranking_teams', 'teamId', duel.teamBId, s, 'global', scoreB);
               if (duel.leagueId && duel.leagueId !== 'global') {
                 await updateRanking('ranking_teams', 'teamId', duel.teamBId, s, duel.leagueId, scoreB);
+              }
+
+              // Also update the main teams collection
+              try {
+                const teamRef = db.collection('teams').doc(duel.teamBId.toString());
+                const teamSnap = await teamRef.get();
+                if (teamSnap.exists) {
+                  await teamRef.update({
+                    ferveurEarned: admin.firestore.FieldValue.increment(scoreB),
+                    totalScoreGiven: admin.firestore.FieldValue.increment(scoreB),
+                    matchesPlayed: admin.firestore.FieldValue.increment(1)
+                  });
+                }
+              } catch (e) {
+                console.error(`Error updating team B general stats:`, e);
               }
             }
           }
@@ -393,7 +452,7 @@ async function startServer() {
           
           // Occasional bot card play (20% chance per tick)
           if (Math.random() < 0.2) {
-            const randomCard = BASE_CARDS[Math.floor(Math.random() * BASE_CARDS.length)];
+            const randomCard = loadedCards[Math.floor(Math.random() * loadedCards.length)];
             duel.cardCounts['B']++;
             
             if (randomCard.fervorValue) {
@@ -533,7 +592,7 @@ async function startServer() {
         const uid = participant ? participant.uid : 'unknown';
         
         // Server-Side Card Validation
-        const baseCard = BASE_CARDS.find((c: any) => c.id === card.id);
+        const baseCard = loadedCards.find((c: any) => c.id === card.id);
         if (!baseCard) {
           console.warn(`[Anti-Cheat] Player ${uid} played invalid card: ${card.id}`);
           return; // Ignore completely
@@ -557,9 +616,9 @@ async function startServer() {
 
         card.effects.forEach((effect: any) => {
           if (effect.type === 'push_rope' && effect.value && !card.fervorValue) {
-            const maxEffectAllowed = Math.max(20, (baseCard.effects?.find(e => e.type === 'push_rope')?.value || 0) * 10);
+            const maxEffectAllowed = Math.max(50, (baseCard.effects?.find((e: any) => e.type === 'push_rope')?.value || 0) * 4); // More balanced limit
             if (effect.value > maxEffectAllowed) {
-               console.warn(`[Anti-Cheat] Player ${uid} forged effect value: ${effect.value}`);
+               console.warn(`[Anti-Cheat] Player ${uid} forged effect value: ${effect.value} (max: ${maxEffectAllowed})`);
                return;
             }
             const delta = (team === "A" ? effect.value : -effect.value) / resistance;

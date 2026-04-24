@@ -678,7 +678,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
         const cardsSnap = await getDocs(collection(db, 'cards'));
         const fetchedCards = cardsSnap.docs.map(d => ({ id: d.id, ...d.data() } as GameCard));
-        const initialCards = fetchedCards;
+        
+        // Ensure we always have BASE_CARDS even if Firestore is empty
+        // Merge them avoiding duplicates by ID (Firestore version wins if ID exists in both)
+        const initialCards = [...BASE_CARDS];
+        fetchedCards.forEach(fc => {
+          const index = initialCards.findIndex(bc => bc.id === fc.id);
+          if (index !== -1) {
+            initialCards[index] = fc;
+          } else {
+            initialCards.push(fc);
+          }
+        });
         
         const fanzSnap = await getDoc(doc(db, 'fanz', fanzId));
         if (fanzSnap.exists()) {
@@ -792,12 +803,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const participantsRef = useRef<any[]>(duel.participants || []);
   const fanzRef = useRef<Fanz | null>(null);
   const duelConfigRef = useRef<DuelConfig | null>(null);
+  const handRef = useRef<GameCard[]>([]);
 
   // Update refs when state changes
   useEffect(() => { myTeamRef.current = myTeam; }, [myTeam]);
   useEffect(() => { participantsRef.current = participants; }, [participants]);
   useEffect(() => { fanzRef.current = fanz; }, [fanz]);
   useEffect(() => { duelConfigRef.current = duelConfig; }, [duelConfig]);
+  useEffect(() => { handRef.current = hand; }, [hand]);
 
   const drawCard = () => {
     setHand(prev => {
@@ -1345,48 +1358,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             }
           }
 
-          const isSideAHome = duel.teamA === teamA;
-
-          // Update Team Stats
-          const myGlobalTeamId = currentMyTeam === 'A' 
-            ? (isSideAHome ? teamAId || teamA : teamBId || teamB)
-            : (isSideAHome ? teamBId || teamB : teamAId || teamA);
-            
-          if (myGlobalTeamId) {
-            const teamRef = doc(db, 'teams', myGlobalTeamId);
-            const teamDoc = await getDoc(teamRef);
-            if (teamDoc.exists()) {
-              await updateDoc(teamRef, {
-                ferveurEarned: increment(ferveurGainGeneral),
-                totalScoreGiven: increment(myScore),
-                matchesPlayed: increment(1)
-              });
-            } else {
-              // Fetch leagues for this team
-              let leagueIds: number[] = [];
-              if (!isNaN(Number(myGlobalTeamId))) {
-                try {
-                  const { footballApi } = await import('../services/footballApi');
-                  const leaguesData = await footballApi.getLeaguesByTeam(Number(myGlobalTeamId));
-                  leagueIds = leaguesData.map((l: any) => l.league.id);
-                } catch (e) {
-                  console.error("Failed to fetch leagues for team", e);
-                }
-              }
-
-              await setDoc(teamRef, {
-                name: currentMyTeam === 'A' ? teamA : teamB,
-                logo: currentMyTeam === 'A' ? teamALogo : teamBLogo,
-                userCount: 0,
-                averageFerveur: 0,
-                ferveurEarned: ferveurGainGeneral,
-                totalScoreGiven: myScore,
-                matchesPlayed: 1,
-                leagueIds: leagueIds
-              });
-            }
-          }
-
           // Rankings and Duel history are now securely processed server-side.
           
           ferveurGain = ferveurGainFanz;
@@ -1401,7 +1372,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     socket.on('duel-finished', handleDuelFinished);
 
     const handleEnemyCardPlayed = ({ team, card }: { team: string, card: GameCard }) => {
-      const currentMyTeam = myTeamRef.current || participants.find(p => p.uid === user.uid)?.team || 'A';
+      const currentMyTeam = myTeamRef.current || participantsRef.current.find(p => p.uid === user.uid)?.team || 'A';
 
       if (team === currentMyTeam) {
         // Teammate played a card
@@ -1514,12 +1485,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     socket.on('enemy-card-played', handleEnemyCardPlayed);
 
     const handleSwapHandsRequest = ({ fromTeam, opponentHand }: { fromTeam: string, opponentHand: GameCard[] }) => {
-      const myParticipant = participants.find(p => p.uid === user.uid);
+      const myParticipant = participantsRef.current.find(p => p.uid === user.uid);
       const myTeam = myParticipant?.team || 'A';
       
       if (fromTeam !== myTeam) {
         // We are the target, we receive the opponent's hand and send ours
-        const myCurrentHand = [...hand];
+        const myCurrentHand = [...handRef.current];
         setHand(opponentHand);
         socket.emit('swap-hands-response', { duelId: currentDuelIdRef.current, team: myTeam, hand: myCurrentHand });
         addFloatingEffect('🔄 Mains Échangées!', window.innerWidth / 2, 250, 'text-blue-400 font-black');
@@ -1584,149 +1555,147 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
   const playCard = async (card: GameCard, e?: React.MouseEvent) => {
     const actualCost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
-    if (winner || excitement < actualCost || isCardLocked) return;
+    if (winner || status !== 'active' || excitement < actualCost || isCardLocked) return;
     
-    // Remove from hand
+    // Remove from hand and deduct excitement immediately
     setHand(prev => prev.filter(c => c.id !== card.id));
-    setTimeout(drawCard, 3000); // Draw new card after 3s
+    setExcitement(prev => Math.max(0, prev - actualCost));
+    setTimeout(drawCard, 3000);
 
-    setExcitement(prev => prev - actualCost);
-    
+    // Visual feedback
     setPlayedCardAnim({ card, id: Math.random().toString() });
     setTimeout(() => setPlayedCardAnim(null), 1500);
 
     const x = e ? e.clientX : window.innerWidth / 2;
     const y = e ? e.clientY - 50 : window.innerHeight / 2;
     addFloatingEffect(`Carte jouée: ${card.name}`, x, y, 'text-blue-400 font-bold');
-    
-    // XP Gain and Leveling
-    try {
-      if (fanz) {
-        const fanzRef = doc(db, 'fanz', fanzId);
-        let currentLevel = 1;
-        let currentXp = 0;
-        
-        const socialBonus = getStatEffectValue('xp_gain');
-        const xpGain = Math.round(1 * (1 + socialBonus));
 
-        const currentProgress = fanz.cardProgress?.[card.id] || { level: 1, xp: 0 };
-        currentLevel = currentProgress.level;
-        currentXp = currentProgress.xp + xpGain;
-        const xpForNextLevel = currentLevel * 10;
+    // Calculate boosted card stats immediately for use in effects and emission
+    let currentCardLevel = fanz?.cardProgress?.[card.id]?.level || 1;
+    const levelBonus = 1 + (currentCardLevel - 1) * 0.05;
+    const rawCharismaBonus = getStatEffectValue('card_power');
+    const charismaBonus = 1 + (rawCharismaBonus - 1) * 0.2;
+    const creativityBonus = getStatEffectValue('card_cost_reduction');
 
-        let newLevel = currentLevel;
-        let newXp = currentXp;
+    const boostedCard: GameCard = {
+      ...card,
+      energyCost: Math.max(1, Math.round(card.energyCost * (1 - creativityBonus))),
+      fervorValue: card.fervorValue ? Math.round(card.fervorValue * levelBonus * charismaBonus) : card.fervorValue,
+      effects: (card.effects || []).map(e => ({
+        ...e,
+        value: e.value ? Math.round(e.value * levelBonus * charismaBonus) : e.value,
+        duration: e.duration ? Math.round(e.duration * levelBonus * charismaBonus) : e.duration
+      }))
+    };
 
-        if (currentXp >= xpForNextLevel && currentLevel < 5) {
-          newLevel += 1;
-          newXp = 0;
-        }
-
-        const updatedProgress = {
-          ...fanz.cardProgress,
-          [card.id]: { level: newLevel, xp: newXp }
-        };
-
-        await updateDoc(fanzRef, {
-          cardProgress: updatedProgress
-        });
-
-        setFanz(prev => prev ? { ...prev, cardProgress: updatedProgress } : null);
-        currentLevel = newLevel;
-
-        // Apply level bonus to effects
-        const levelBonus = 1 + (currentLevel - 1) * 0.05; // 5% per level
-      const rawCharismaBonus = getStatEffectValue('card_power'); // Base is 1
-      const charismaBonus = 1 + (rawCharismaBonus - 1) * 0.2; // Scale down to 20% effectiveness
-      const creativityBonus = getStatEffectValue('card_cost_reduction'); // Base is 0
-      
-      const boostedCard = {
-        ...card,
-        energyCost: Math.max(1, Math.round(card.energyCost * (1 - creativityBonus))),
-        fervorValue: card.fervorValue ? Math.round(card.fervorValue * levelBonus * charismaBonus) : card.fervorValue,
-        effects: (card.effects || []).map(e => ({
-          ...e,
-          value: e.value ? Math.round(e.value * levelBonus * charismaBonus) : e.value,
-          duration: e.duration ? Math.round(e.duration * levelBonus * charismaBonus) : e.duration
-        }))
-      };
-
-      // Apply self-effects immediately
-      boostedCard.effects.forEach(effect => {
-        if (effect.type === 'refill_energy') {
-          setExcitement(prev => Math.min(maxExcitement, prev + (effect.value || 0)));
-          addFloatingEffect(`+${effect.value} Énergie!`, x, y - 30, 'text-yellow-400');
-        }
-        if (effect.type === 'double_points') {
-          setIsDoublePoints(true);
-          setTimeout(() => setIsDoublePoints(false), (effect.duration || 5) * 1000);
-          addFloatingEffect('Points x2!', x, y - 30, 'text-orange-400');
-        }
-        if (effect.type === 'shield') {
-          setHasShield(true);
-          addFloatingEffect('Bouclier Actif!', x, y - 30, 'text-blue-300');
-        }
-        if (effect.type === 'mirror') {
-          setHasMirror(true);
-          addFloatingEffect('Miroir Actif!', x, y - 30, 'text-purple-400');
-        }
-        if (effect.type === 'energy_regen_boost') {
-          setIsEnergyRegenBoosted(true);
-          setTimeout(() => setIsEnergyRegenBoosted(false), (effect.duration || 10) * 1000);
-          addFloatingEffect('Régénération Boostée!', x, y - 30, 'text-green-400');
-        }
-        if (effect.type === 'lucky_draw') {
-          const intelligenceBonus = getStatEffectValue('rarity_chance');
-          const legendaryCards = allCards.filter(c => c.rarity === 'legendary');
-          const epicCards = allCards.filter(c => c.rarity === 'epic');
+    // XP Gain and Leveling (Async, Non-blocking)
+    const updateStats = async () => {
+      try {
+        if (fanz) {
+          const fanzRef = doc(db, 'fanz', fanzId);
+          const currentProgress = fanz.cardProgress?.[card.id] || { level: 1, xp: 0 };
+          const socialBonus = getStatEffectValue('xp_gain');
+          const xpGain = Math.round(1 * (1 + socialBonus));
           
-          if (Math.random() < (0.1 + intelligenceBonus) && legendaryCards.length > 0) {
-            const randomLegendary = legendaryCards[Math.floor(Math.random() * legendaryCards.length)];
-            setHand(prev => {
-              const newHand = [...prev];
-              const index = Math.floor(Math.random() * newHand.length);
-              newHand[index] = { ...randomLegendary, instanceId: Math.random().toString(36).substr(2, 9) };
-              return newHand;
-            });
-            addFloatingEffect('Carte Légendaire!', x, y - 30, 'text-yellow-400');
-          } else if (epicCards.length > 0) {
-            const randomEpic = epicCards[Math.floor(Math.random() * epicCards.length)];
-            setHand(prev => {
-              const newHand = [...prev];
-              const index = Math.floor(Math.random() * newHand.length);
-              newHand[index] = { ...randomEpic, instanceId: Math.random().toString(36).substr(2, 9) };
-              return newHand;
-            });
-            addFloatingEffect('Carte Épique!', x, y - 30, 'text-purple-400');
+          let newLevel = currentProgress.level;
+          let newXp = currentProgress.xp + xpGain;
+          const xpForNextLevel = newLevel * 10;
+
+          if (newXp >= xpForNextLevel && newLevel < 5) {
+            newLevel += 1;
+            newXp = 0;
           }
-        }
-        if (effect.type === 'mimic') {
-          if (lastEnemyCard && lastEnemyCard.id !== 'mimic') {
-            addFloatingEffect(`🎭 Mimic: ${lastEnemyCard.name}`, x, y - 80, 'text-purple-400 font-bold');
-            // Play the mimicked card immediately for free (already paid mimic cost)
-            socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam, card: lastEnemyCard });
-          } else {
-            addFloatingEffect('❌ Rien à imiter', x, y - 80, 'text-gray-500');
-          }
-        }
-        if (effect.type === 'swap_hands') {
-          addFloatingEffect('🔄 Échange de Mains!', x, y - 80, 'text-blue-400 font-bold');
-          socket?.emit('swap-hands-init', { duelId: currentDuelIdRef.current, team: myTeam, hand });
-        }
-      });
 
-      const myParticipant = participants.find(p => p.uid === user.uid);
-      const myTeam = myParticipant?.team || 'A';
+          const updatedProgress = {
+            ...fanz.cardProgress,
+            [card.id]: { level: newLevel, xp: newXp }
+          };
 
-      if (boostedCard.fervorValue) {
-        addFloatingEffect(`+${boostedCard.fervorValue}% Ferveur!`, x, y - 60, 'text-yellow-400 font-black');
+          // Firestore update in background
+          updateDoc(fanzRef, { cardProgress: updatedProgress }).catch(err => 
+            console.error("Firestore card XP update failed", err)
+          );
+
+          setFanz(prev => prev ? { ...prev, cardProgress: updatedProgress } : null);
+        }
+      } catch (err) {
+        console.error("Error in card stat update logic", err);
       }
+    };
+    updateStats();
 
-      socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam, card: boostedCard });
+    const myParticipant = participants.find(p => p.uid === user.uid);
+    const myTeam = myParticipant?.team || 'A';
+
+    // Apply self-effects (on client)
+    boostedCard.effects.forEach(effect => {
+      if (effect.type === 'refill_energy') {
+        setExcitement(prev => Math.min(maxExcitement, prev + (effect.value || 0)));
+        addFloatingEffect(`+${effect.value} Énergie!`, x, y - 30, 'text-yellow-400');
       }
-    } catch (err) {
-      console.error("Error playing card and updating XP", err);
+      if (effect.type === 'double_points') {
+        setIsDoublePoints(true);
+        setTimeout(() => setIsDoublePoints(false), (effect.duration || 5) * 1000);
+        addFloatingEffect('Points x2!', x, y - 30, 'text-orange-400');
+      }
+      if (effect.type === 'shield') {
+        setHasShield(true);
+        addFloatingEffect('Bouclier Actif!', x, y - 30, 'text-blue-300');
+      }
+      if (effect.type === 'mirror') {
+        setHasMirror(true);
+        addFloatingEffect('Miroir Actif!', x, y - 30, 'text-purple-400');
+      }
+      if (effect.type === 'energy_regen_boost') {
+        setIsEnergyRegenBoosted(true);
+        setTimeout(() => setIsEnergyRegenBoosted(false), (effect.duration || 10) * 1000);
+        addFloatingEffect('Régénération Boostée!', x, y - 30, 'text-green-400');
+      }
+      if (effect.type === 'lucky_draw') {
+        const intelligenceBonus = getStatEffectValue('rarity_chance');
+        const legendaryCards = allCards.filter(c => c.rarity === 'legendary');
+        const epicCards = allCards.filter(c => c.rarity === 'epic');
+        
+        if (Math.random() < (0.1 + intelligenceBonus) && legendaryCards.length > 0) {
+          const randomLegendary = legendaryCards[Math.floor(Math.random() * legendaryCards.length)];
+          setHand(prev => {
+            const newHand = [...prev];
+            const index = Math.floor(Math.random() * newHand.length);
+            newHand[index] = { ...randomLegendary, instanceId: Math.random().toString(36).substr(2, 9) };
+            return newHand;
+          });
+          addFloatingEffect('Carte Légendaire!', x, y - 30, 'text-yellow-400');
+        } else if (epicCards.length > 0) {
+          const randomEpic = epicCards[Math.floor(Math.random() * epicCards.length)];
+          setHand(prev => {
+            const newHand = [...prev];
+            const index = Math.floor(Math.random() * newHand.length);
+            newHand[index] = { ...randomEpic, instanceId: Math.random().toString(36).substr(2, 9) };
+            return newHand;
+          });
+          addFloatingEffect('Carte Épique!', x, y - 30, 'text-purple-400');
+        }
+      }
+      if (effect.type === 'mimic') {
+        if (lastEnemyCard && lastEnemyCard.id !== 'mimic') {
+          addFloatingEffect(`🎭 Mimic: ${lastEnemyCard.name}`, x, y - 80, 'text-purple-400 font-bold');
+          socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam, card: lastEnemyCard });
+        } else {
+          addFloatingEffect('❌ Rien à imiter', x, y - 80, 'text-gray-500');
+        }
+      }
+      if (effect.type === 'swap_hands') {
+        addFloatingEffect('🔄 Échange de Mains!', x, y - 80, 'text-blue-400 font-bold');
+        socket?.emit('swap-hands-init', { duelId: currentDuelIdRef.current, team: myTeam, hand });
+      }
+    });
+
+    if (boostedCard.fervorValue) {
+      addFloatingEffect(`+${boostedCard.fervorValue}% Ferveur!`, x, y - 60, 'text-yellow-400 font-black');
     }
+
+    // Emission to server
+    socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam, card: boostedCard });
   };
 
   // Excitement regeneration
