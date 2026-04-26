@@ -135,6 +135,60 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
     });
   }, [fixtures, searchTerm, statusFilter, profile?.favoriteTeams]);
 
+  // Enrich visible matches with events
+  useEffect(() => {
+    // We use events === undefined to know it hasn't been fetched yet.
+    // If it's `null`, it means we tried and failed (or it has no events).
+    const matchesToEnrich = filteredFixtures.filter(f => f.events === undefined && ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE', 'FT', 'AET', 'PEN'].includes(f.fixture.status.short));
+    if (matchesToEnrich.length === 0) return;
+
+    let isMounted = true;
+    const fetchEnriched = async () => {
+      const chunkSize = 20;
+      // take max 40 to avoid API spam
+      const limit = Math.min(matchesToEnrich.length, 40);
+      for (let i = 0; i < limit; i += chunkSize) {
+        if (!isMounted) break;
+        const chunkIds = matchesToEnrich.slice(i, i + chunkSize).map(f => f.fixture.id);
+        
+        if (i > 0) {
+          // Strict delay to respect 10 req/min API-Football limit
+          await new Promise(r => setTimeout(r, 2000));
+        }
+        
+        try {
+          const enriched = await footballApi.getFixturesByIds(chunkIds);
+          if (isMounted) {
+            if (enriched && enriched.length > 0) {
+              setFixtures(prev => prev.map(p => {
+                if (chunkIds.includes(p.fixture.id)) {
+                  const enrichedMatch = enriched.find((e: any) => e.fixture.id === p.fixture.id);
+                  return { ...p, events: enrichedMatch?.events || [] };
+                }
+                return p;
+              }));
+            } else {
+              // Rate limited or error: stop trying for now and mark as requested
+              setFixtures(prev => prev.map(p => 
+                chunkIds.includes(p.fixture.id) ? { ...p, events: null } : p
+              ));
+              break; 
+            }
+          }
+        } catch (e) {
+          console.error('[MatchesPage] Failed to enrich chunk', e);
+          if (isMounted) {
+            setFixtures(prev => prev.map(p => 
+              chunkIds.includes(p.fixture.id) ? { ...p, events: null } : p
+            ));
+          }
+        }
+      }
+    };
+    fetchEnriched();
+    return () => { isMounted = false; };
+  }, [filteredFixtures]);
+
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
 
   useEffect(() => {
@@ -177,7 +231,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
     });
     
     return Object.values(countries)
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((a, b) => translateCountryName(a.name).localeCompare(translateCountryName(b.name)))
       .map(country => ({
         ...country,
         leagues: Object.values(country.leagues).sort((a, b) => a.league.name.localeCompare(b.league.name))
@@ -359,9 +413,9 @@ function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoi
                     ref={scrollContainerRef}
                     className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
                   >
-                    <div className="flex flex-nowrap gap-4 w-fit px-0.5">
+                    <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit">
                       {group.matches.map((match: any) => (
-                        <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-60px)] sm:w-[400px]">
+                        <div key={match.fixture.id} className={`snap-center shrink-0 ${group.matches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
                           <SharedMatchCard 
                             match={match} 
                             hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}

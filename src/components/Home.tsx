@@ -318,6 +318,12 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     const fetchMatches = async () => {
       try {
         const liveFixtures = await footballApi.getLiveFixtures();
+        // Sort live matches alphabetically by country name
+        liveFixtures.sort((a, b) => {
+          const countryA = translateCountryName(a.league.country || '');
+          const countryB = translateCountryName(b.league.country || '');
+          return countryA.localeCompare(countryB);
+        });
         // Show all live matches
         setLiveMatches(liveFixtures);
         
@@ -613,12 +619,12 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
 
             <div 
               ref={scrollContainerRef}
-              className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory scroll-px-[30px]"
+              className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
             >
-              <div className="flex flex-nowrap gap-4 px-[30px] w-fit mx-auto">
+              <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit">
                 {liveMatches.length > 0 ? (
                 liveMatches.map(match => (
-                  <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
+                  <div key={match.fixture.id} className={`snap-center shrink-0 ${liveMatches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
                     <SharedMatchCard
                       match={match}
                       hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
@@ -628,6 +634,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                       onTeamClick={onTeamClick}
                       onLeagueClick={onLeagueClick}
                       profile={profile}
+                      showLeagueHeader={true}
                     />
                   </div>
                 ))

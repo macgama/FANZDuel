@@ -771,7 +771,10 @@ function AppContent() {
             }}
           />
         ) : (
-          <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 w-full max-w-3xl mx-auto lg:border-x border-white/5 shadow-2xl bg-[#0a0a0a]">
+          <div className={cn(
+            "flex-1 flex flex-col overflow-hidden relative min-h-0 w-full shadow-2xl bg-[#0a0a0a]",
+            view !== 'admin' && "max-w-3xl mx-auto lg:border-x border-white/5"
+          )}>
             {profile && view !== 'duel' && !isDuelActive && (
               <Header 
                 profile={profile} 

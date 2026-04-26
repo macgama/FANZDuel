@@ -43,6 +43,7 @@ interface LeagueDetailsProps {
 export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamClick, onMatchClick, profile }: LeagueDetailsProps) {
   const [league, setLeague] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState(initialSeason);
+  const [actualCurrentSeason, setActualCurrentSeason] = useState<number | null>(null);
   const [availableSeasons, setAvailableSeasons] = useState<any[]>([]);
   const [standings, setStandings] = useState<any[]>([]);
   const [fixtures, setFixtures] = useState<any[]>([]);
@@ -72,12 +73,23 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
           const sorted = [...data.seasons].sort((a: any, b: any) => b.year - a.year);
           setAvailableSeasons(sorted);
           
-          // If initialSeason is just a placeholder, use the latest current season
-          if (initialSeason === footballDataService.getCurrentSeasonYear()) {
-            const current = data.seasons.find((s: any) => s.current);
-            if (current) setSelectedSeason(current.year);
-            else setSelectedSeason(sorted[0].year);
+          let actualSeasonYear = sorted[0].year;
+          const today = new Date().toISOString().split('T')[0];
+          
+          const activeByDate = data.seasons.find((s: any) => s.start <= today && s.end >= today);
+          const currentByFlag = data.seasons.find((s: any) => s.current);
+          
+          if (activeByDate) {
+            actualSeasonYear = activeByDate.year;
+          } else if (currentByFlag) {
+            actualSeasonYear = currentByFlag.year;
           }
+          
+          // Store the actual current season for the UI dropdown
+          setActualCurrentSeason(actualSeasonYear);
+
+          // Always default to the actual current season when visiting a competition
+          setSelectedSeason(actualSeasonYear);
         }
       } catch (err) {
         console.error('Failed to fetch league info', err);
@@ -231,7 +243,7 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
           >
             {availableSeasons.map((s) => (
               <option key={s.year} value={s.year} className="bg-gray-900">
-                Saison {s.year} {s.current ? '(Actuelle)' : ''}
+                Saison {s.year} {(actualCurrentSeason ? s.year === actualCurrentSeason : s.current) ? '(Actuelle)' : ''}
               </option>
             ))}
           </select>
@@ -525,7 +537,7 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
     const fetchRoundEvents = async () => {
       const currentMatches = groupedByRound[selectedRound] || [];
       const idsToFetch = currentMatches
-        .filter((m: any) => !m.events && !roundEvents[m.fixture.id] && ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'LIVE'].includes(m.fixture.status.short))
+        .filter((m: any) => m.events === undefined && !roundEvents[m.fixture.id] && ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'LIVE'].includes(m.fixture.status.short))
         .map((m: any) => m.fixture.id);
 
       if (idsToFetch.length > 0) {
@@ -534,17 +546,47 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
           const maxPerRequest = 20;
           for (let i = 0; i < idsToFetch.length; i += maxPerRequest) {
             const chunk = idsToFetch.slice(i, i + maxPerRequest);
-            const detailedFixtures = await footballApi.getFixturesByIds(chunk);
             
-            const eventsMap: Record<string, any[]> = {};
-            detailedFixtures.forEach((f: any) => {
-              eventsMap[f.fixture.id] = f.events || [];
-            });
+            if (i > 0) {
+              await new Promise(r => setTimeout(r, 1500));
+            }
             
-            setRoundEvents(prev => ({ ...prev, ...eventsMap }));
+            try {
+              const detailedFixtures = await footballApi.getFixturesByIds(chunk);
+              const eventsMap: Record<string, any[]> = {};
+              
+              if (detailedFixtures && detailedFixtures.length > 0) {
+                detailedFixtures.forEach((f: any) => {
+                  eventsMap[f.fixture.id] = f.events || [];
+                });
+                setRoundEvents(prev => ({ ...prev, ...eventsMap }));
+              } else {
+                // Rate limited or no data
+                chunk.forEach(id => {
+                  eventsMap[id] = null as any; // Mark as null/failed so we don't refetch
+                });
+                setRoundEvents(prev => ({ ...prev, ...eventsMap }));
+                break;
+              }
+            } catch (err) {
+              if (err instanceof Error && err.message === 'Failed to fetch') {
+                console.warn("Failed to fetch round events chunk (network issue)");
+              } else {
+                console.warn("Failed to fetch round events chunk", err);
+              }
+              const eventsMap: Record<string, any[]> = {};
+              chunk.forEach(id => {
+                eventsMap[id] = null as any; // Mark as failed
+              });
+              setRoundEvents(prev => ({ ...prev, ...eventsMap }));
+            }
           }
         } catch (err) {
-          console.error("Failed to fetch round events", err);
+          if (err instanceof Error && err.message === 'Failed to fetch') {
+            console.warn("Failed to fetch round events summary (network issue)");
+          } else {
+            console.warn("Failed to fetch round events summary", err);
+          }
         }
       }
     };

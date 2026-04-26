@@ -1642,7 +1642,7 @@ export function AdminZone() {
     .sort((a, b) => a.country.name.localeCompare(b.country.name));
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="p-6 w-full mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold flex items-center gap-3">
           <Database className="w-8 h-8 text-blue-500" />

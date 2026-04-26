@@ -1470,7 +1470,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       return isAllowed && !isBlocked;
                     }).map(card => {
                       const requirements = card.unlockRequirements || [];
-                      const metRequirements = requirements.length > 0 && requirements.every(req => {
+                      const hasRequirements = requirements.length > 0;
+                      const metRequirements = hasRequirements && requirements.every(req => {
                         if (req.type === 'skill' && req.skillName) {
                           const xp = fanz.stats[req.skillName] || 0;
                           const level = Math.floor(xp / 100) + 1;
@@ -1485,7 +1486,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         return true;
                       });
 
-                      const isUnlocked = userProfile.cards?.includes(card.id) || metRequirements;
+                      const isUnlocked = userProfile.cards?.includes(card.id) || metRequirements || (!hasRequirements && card.rarity === 'common');
                       const isEquipped = fanz.equippedCards?.includes(card.id);
                       const typeStyle = cardTypeStyles[card.type] || cardTypeStyles.neutral;
                       

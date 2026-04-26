@@ -81,21 +81,26 @@ export const footballDataService = {
       // Fetch from API
       const leagues = await footballApi.getLeagues();
       if (leagues && leagues.length > 0) {
-        const batch = writeBatch(db);
-        leagues.forEach((l: any) => {
-          const docRef = doc(db, path, l.league.id.toString());
-          batch.set(docRef, {
-            id: l.league.id,
-            name: l.league.name,
-            type: l.league.type,
-            logo: l.league.logo,
-            country: l.country.name,
-            countryCode: l.country.code,
-            countryFlag: l.country.flag,
-            season: l.seasons?.sort((a: any, b: any) => b.year - a.year)[0]?.year || this.getCurrentSeasonYear()
+        const chunkSize = 50;
+        for (let i = 0; i < leagues.length; i += chunkSize) {
+          const chunk = leagues.slice(i, i + chunkSize);
+          const batch = writeBatch(db);
+          chunk.forEach((l: any) => {
+            const docRef = doc(db, path, l.league.id.toString());
+            batch.set(docRef, {
+              id: l.league.id,
+              name: l.league.name,
+              type: l.league.type,
+              logo: l.league.logo,
+              country: l.country.name,
+              countryCode: l.country.code,
+              countryFlag: l.country.flag,
+              season: l.seasons?.sort((a: any, b: any) => b.year - a.year)[0]?.year || this.getCurrentSeasonYear()
+            });
           });
-        });
-        await batch.commit();
+          await batch.commit();
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
         await this.setLastUpdated(cacheKey);
       }
       return leagues;
@@ -153,12 +158,17 @@ export const footballDataService = {
 
       if (standings.length > 0) {
         // Cache in Firestore
-        const batch = writeBatch(db);
-        standings.forEach((s: any) => {
-          const docRef = doc(db, path, s.team.id.toString());
-          batch.set(docRef, { ...s, teamId: s.team.id, season });
-        });
-        await batch.commit();
+        const chunkSize = 50;
+        for (let i = 0; i < standings.length; i += chunkSize) {
+          const chunk = standings.slice(i, i + chunkSize);
+          const batch = writeBatch(db);
+          chunk.forEach((s: any) => {
+            const docRef = doc(db, path, s.team.id.toString());
+            batch.set(docRef, { ...s, teamId: s.team.id, season });
+          });
+          await batch.commit();
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
         await this.setLastUpdated(cacheKey);
       }
 
@@ -178,7 +188,7 @@ export const footballDataService = {
    */
   async getFixtures(leagueId: number, season: number, forceRefresh = false) {
     const cacheKey = `fixtures_${leagueId}_${season}`;
-    const path = `leagues/${leagueId}/seasons/${season}/fixtures`;
+    const path = `leagues/${leagueId}/seasons/${season}/slim_fixtures`;
     try {
       if (!forceRefresh) {
         const snapshot = await getDocs(collection(db, path));
@@ -192,12 +202,21 @@ export const footballDataService = {
 
       if (fixtures.length > 0) {
         // Cache in Firestore
-        const batch = writeBatch(db);
-        fixtures.forEach((f: any) => {
-          const docRef = doc(db, path, f.fixture.id.toString());
-          batch.set(docRef, { ...f, season });
-        });
-        await batch.commit();
+        // Chunk into groups of 50 to avoid Firestore payload size limit
+        const chunkSize = 50;
+        for (let i = 0; i < fixtures.length; i += chunkSize) {
+          const chunk = fixtures.slice(i, i + chunkSize);
+          const batch = writeBatch(db);
+          chunk.forEach((f: any) => {
+            const docRef = doc(db, path, f.fixture.id.toString());
+            // Strip potentially massive details when saving the full season list to avoid quota/size hits
+            // e.g., players, lineups, statistics, events
+            const { players, lineups, statistics, events, ...slimFixture } = f;
+            batch.set(docRef, { ...slimFixture, season });
+          });
+          await batch.commit();
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
         await this.setLastUpdated(cacheKey);
       }
 
@@ -230,12 +249,17 @@ export const footballDataService = {
       const teams = await footballApi.getTeams(leagueId, season);
 
       if (teams.length > 0) {
-        const batch = writeBatch(db);
-        teams.forEach((t: any) => {
-          const docRef = doc(db, path, t.team.id.toString());
-          batch.set(docRef, { ...t, season });
-        });
-        await batch.commit();
+        const chunkSize = 50;
+        for (let i = 0; i < teams.length; i += chunkSize) {
+          const chunk = teams.slice(i, i + chunkSize);
+          const batch = writeBatch(db);
+          chunk.forEach((t: any) => {
+            const docRef = doc(db, path, t.team.id.toString());
+            batch.set(docRef, { ...t, season });
+          });
+          await batch.commit();
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
         await this.setLastUpdated(cacheKey);
       }
 
@@ -268,12 +292,18 @@ export const footballDataService = {
       const fixtures = await footballApi.getFixturesByTeam(teamId, season);
 
       if (fixtures.length > 0) {
-        const batch = writeBatch(db);
-        fixtures.forEach((f: any) => {
-          const docRef = doc(db, path, f.fixture.id.toString());
-          batch.set(docRef, { ...f, season });
-        });
-        await batch.commit();
+        const chunkSize = 50;
+        for (let i = 0; i < fixtures.length; i += chunkSize) {
+          const chunk = fixtures.slice(i, i + chunkSize);
+          const batch = writeBatch(db);
+          chunk.forEach((f: any) => {
+            const docRef = doc(db, path, f.fixture.id.toString());
+            const { players, lineups, statistics, events, ...slimFixture } = f;
+            batch.set(docRef, { ...slimFixture, season });
+          });
+          await batch.commit();
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
         await this.setLastUpdated(cacheKey);
       }
 
