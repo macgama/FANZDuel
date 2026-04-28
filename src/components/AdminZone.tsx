@@ -1080,6 +1080,9 @@ export function AdminZone() {
     setEditingFanz({
       id: newId,
       name: 'Nouveau FANZ',
+      shortDescription: 'Nouvel ami du stade !',
+      longDescription: 'Un supporter passionné prêt à tout pour son équipe.',
+      battleCry: 'ALLEZ !',
       sport: 'soccer',
       rarity: 'common',
       image: '',
@@ -1090,11 +1093,22 @@ export function AdminZone() {
         creativity: 1, social: 1, intelligence: 1, charisma: 1
       },
       specialCards: [],
-      skins: [],
+      specialAttackIds: ['', '', ''],
+      lifeActionIds: {
+        force: '', endurance: '', mental: '', bluff: '',
+        creativity: '', social: '', intelligence: '', charisma: ''
+      },
+      skins: Array.from({ length: 11 }, (_, i) => ({
+        id: `${newId}-skin${String(i).padStart(3, '0')}`,
+        fanzId: newId,
+        name: i === 0 ? 'Principal (Skin000)' : `Skin Débloquable ${i}`,
+        imageUrl: '',
+        price: i === 0 ? {} : { gems: 100 }
+      })),
       emotes: [],
       ferveurConfig: undefined, // Will default to global when saved
       rankRewards: {}
-    });
+    } as any);
   };
 
   const fetchDuelCards = async () => {
@@ -3449,6 +3463,32 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Description Courte</label>
+                    <input
+                      type="text"
+                      value={editingFanz.shortDescription || ''}
+                      onChange={e => setEditingFanz({...editingFanz, shortDescription: e.target.value})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Description Longue</label>
+                    <textarea
+                      value={editingFanz.longDescription || ''}
+                      onChange={e => setEditingFanz({...editingFanz, longDescription: e.target.value})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none h-24"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Cri de Guerre</label>
+                    <input
+                      type="text"
+                      value={editingFanz.battleCry || ''}
+                      onChange={e => setEditingFanz({...editingFanz, battleCry: e.target.value})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">Rareté</label>
                     <select
                       value={editingFanz.rarity}
@@ -3581,6 +3621,69 @@ export function AdminZone() {
                           className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                           min="1"
                         />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Special Attacks Section */}
+                <div className="space-y-4 pt-4 border-t border-gray-100 flex-shrink-0">
+                  <h4 className="font-bold flex items-center gap-2">
+                    <Target className="w-5 h-5 text-red-500" /> Attaques Spéciales (Deck)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[0, 1, 2].map((idx) => (
+                      <div key={idx} className="space-y-1">
+                        <label className="text-xs font-medium text-gray-500">Attaque #{idx + 1}</label>
+                        <select
+                          value={editingFanz.specialAttackIds?.[idx] || ''}
+                          onChange={e => {
+                            const currentIds = editingFanz.specialAttackIds || ['', '', ''];
+                            const newIds = [...currentIds];
+                            // Ensure it has 3 elements
+                            while (newIds.length < 3) newIds.push('');
+                            newIds[idx] = e.target.value;
+                            setEditingFanz({ ...editingFanz, specialAttackIds: newIds });
+                          }}
+                          className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none text-xs"
+                        >
+                          <option value="">Sélectionner une carte</option>
+                          {duelCards.map(card => (
+                            <option key={card.id} value={card.id}>{card.name} ({card.rarity})</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Skill-Linked LIFE Actions Section */}
+                <div className="space-y-4 pt-4 border-t border-gray-100">
+                  <h4 className="font-bold flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-blue-500" /> Actions LIFE Liées (Compétences)
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {(['force', 'endurance', 'mental', 'bluff', 'creativity', 'social', 'intelligence', 'charisma'] as (keyof FanzStats)[]).map((stat) => (
+                      <div key={stat} className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-gray-400">{stat}</label>
+                        <select
+                          value={editingFanz.lifeActionIds?.[stat] || ''}
+                          onChange={e => {
+                            setEditingFanz({
+                              ...editingFanz,
+                              lifeActionIds: {
+                                ...(editingFanz.lifeActionIds || {}),
+                                [stat]: e.target.value
+                              }
+                            });
+                          }}
+                          className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none text-xs"
+                        >
+                          <option value="">Sélectionner une action</option>
+                          {lifeActions.map(action => (
+                            <option key={action.id} value={action.id}>{action.name}</option>
+                          ))}
+                        </select>
                       </div>
                     ))}
                   </div>

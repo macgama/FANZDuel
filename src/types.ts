@@ -172,9 +172,14 @@ export interface FanzTemplate {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   image: string;
   video?: string;
+  shortDescription?: string;
+  longDescription?: string;
+  battleCry?: string;
   description: string;
   baseExcitement?: number; // 1 to 10
   baseStats: FanzStats;
+  specialAttackIds?: string[]; // 3 special attacks (Card IDs)
+  lifeActionIds?: Record<string, string>; // Map of stat name to Action ID
   specialCards: string[];
   skins: FanzSkin[];
   emotes: FanzEmote[];
@@ -194,6 +199,11 @@ export interface Fanz {
   id: string;
   templateId: string;
   ownerUid: string;
+  shortDescription?: string;
+  longDescription?: string;
+  battleCry?: string;
+  specialAttackIds?: string[]; // 3 special attacks (Card IDs)
+  lifeActionIds?: Record<string, string>; // Map of stat name to Action ID
   name: string;
   sport: string;
   imageUrl?: string;

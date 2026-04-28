@@ -5,7 +5,7 @@ import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSn
 import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
 import { UserProfile, Fanz, ActiveAction, LifeAction, UserCard, Card as DuelCard, FanzTemplate, FanzSkin, FanzEmote, GlobalFervorConfig } from '../types';
-import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift, X } from 'lucide-react';
+import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift, X, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LOGOS } from '../constants';
 
@@ -521,6 +521,12 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
               {equippedSkinData?.name || fanz.name}
             </h1>
 
+            {template.battleCry && (
+              <p className="text-xs font-black italic uppercase tracking-wider text-orange-400 drop-shadow-md mb-1 animate-pulse">
+                "{template.battleCry}"
+              </p>
+            )}
+
             {activeAction && (
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -532,7 +538,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
             {!activeAction && (
               <p className="text-[10px] sm:text-xs font-medium text-gray-300 mt-1 max-w-[80%] line-clamp-2">
-                {template.description}
+                {template.shortDescription || template.description}
               </p>
             )}
 
@@ -597,6 +603,49 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                 </div>
               ) : (
                 <>
+                {/* Long Description and Special Attacks */}
+                <div className="space-y-4">
+                  {template.longDescription && (
+                    <Card className="p-4 bg-white/5 border-white/10">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-orange-500 mb-2 flex items-center gap-2">
+                        <Info className="w-4 h-4" /> Histoire & Détails
+                      </h4>
+                      <p className="text-sm text-gray-300 leading-relaxed italic">
+                        {template.longDescription}
+                      </p>
+                    </Card>
+                  )}
+
+                  {template.specialAttackIds && template.specialAttackIds.some(id => id) && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                        <Target className="w-4 h-4 text-red-500" /> Attaques Spéciales
+                      </h4>
+                      <div className="grid grid-cols-1 gap-2">
+                        {template.specialAttackIds.filter(id => id).map((cardId) => {
+                          const card = allCards.find(c => c.id === cardId);
+                          if (!card) return null;
+                          return (
+                            <div key={cardId} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
+                              <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center shrink-0 border border-white/10">
+                                {card.imageUrl ? (
+                                  <img src={getImageUrl(card.imageUrl)} alt="" className="w-full h-full object-cover rounded-lg" />
+                                ) : (
+                                  <Database className="w-5 h-5 text-gray-500" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-sm font-black italic uppercase text-white leading-tight">{card.name}</div>
+                                <div className="text-[10px] text-gray-500 uppercase font-bold">{card.rarity} • {card.energyCost} Excitation</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="bg-white/5 border border-white/10 text-center rounded-2xl p-4 text-xs sm:text-sm font-medium text-gray-300 shadow-inner">
                   <span className="text-white font-black uppercase tracking-widest text-[10px] sm:text-xs inline-block mb-1">Entraînez votre Fanz !</span>
                   <br />
@@ -624,6 +673,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         {lifeActions
                           .filter(action => action.fanzTemplateId === template.id || !action.fanzTemplateId)
                           .filter(action => action.id !== userProfile.activeAction?.actionId)
+                          .sort((a, b) => {
+                            // Put linked actions first
+                            const isALinked = Object.values(template.lifeActionIds || {}).includes(a.id);
+                            const isBLinked = Object.values(template.lifeActionIds || {}).includes(b.id);
+                            if (isALinked && !isBLinked) return -1;
+                            if (!isALinked && isBLinked) return 1;
+                            return 0;
+                          })
                           .map((action) => (
                           <div key={action.id} className="snap-center shrink-0 w-full">
                             <LifeActionCard 
@@ -653,8 +710,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     const currentXp = xp % 100;
                     const progress = (currentXp / 100) * 100;
 
+                    const linkedActionId = template.lifeActionIds?.[stat];
+                    const linkedAction = linkedActionId ? lifeActions.find(a => a.id === linkedActionId) : null;
+
                     return (
-                      <Card key={stat} className="p-4 flex flex-col items-center justify-center text-center gap-3">
+                      <Card key={stat} className="p-4 flex flex-col items-center justify-center text-center gap-3 relative overflow-hidden group/stat">
                         <div className="flex items-center gap-3 w-full justify-center">
                           <div className="p-2.5 bg-white/5 rounded-full">
                             {statIcons[stat as keyof typeof statIcons]}
@@ -668,6 +728,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         </div>
                         
                         <div className="w-full mt-1">
+                          {linkedAction && (
+                            <div className="flex items-center justify-center gap-1 mb-2">
+                               <Activity className="w-3 h-3 text-orange-500" />
+                               <span className="text-[9px] text-orange-400 font-bold uppercase truncate max-w-[120px] sm:max-w-[150px]" title={linkedAction.name}>
+                                 {linkedAction.name}
+                               </span>
+                            </div>
+                          )}
                           <div className="w-full h-4 bg-gray-800 rounded-full overflow-hidden relative border border-white/10">
                             <div 
                               className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all duration-500"
