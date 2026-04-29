@@ -163,6 +163,7 @@ export interface RankReward {
   actionId?: string;
   fanzId?: string;
   statName?: keyof FanzStats;
+  choices?: RankReward[];
 }
 
 export interface FanzTemplate {
@@ -251,7 +252,24 @@ export type CardEffectType =
   | 'card_lock'
   | 'swap_hands'
   | 'mimic'
-  | 'lucky_draw';
+  | 'lucky_draw'
+  | 'steal_energy'
+  | 'cleanse'
+  | 'vampirism'
+  | 'fog_of_war'
+  | 'frenzy'
+  | 'sabotage'
+  | 'immunity'
+  | 'critical_strike'
+  | 'momentum'
+  | 'overload'
+  | 'invert_rope'
+  | 'blackout'
+  | 'curse'
+  | 'blessing'
+  | 'confetti'
+  | 'golden_goal'
+  | 'hypnosis';
 
 export interface CardEffect {
   type: CardEffectType;
@@ -277,6 +295,7 @@ export interface Card {
   effects: CardEffect[];
   imageUrl?: string;
   videoUrl?: string;
+  soundUrl?: string;
   fanzIds?: string[]; // For specific cards
   blockedFanzIds?: string[]; // Blocked Fanz templates
   unlockRequirements?: CardUnlockRequirement[];

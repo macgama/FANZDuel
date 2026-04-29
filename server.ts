@@ -639,6 +639,9 @@ async function startServer() {
             const delta = (team === "A" ? effect.value : -effect.value) / resistance;
             duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
           }
+          if (effect.type === 'invert_rope') {
+            duel.progress = 100 - duel.progress;
+          }
         });
         
         if (duel.progress >= 100 || duel.progress <= 0) {

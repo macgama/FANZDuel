@@ -525,6 +525,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [floatingEffects, setFloatingEffects] = useState<FloatingEffect[]>([]);
   const botEnergyRef = useRef<Record<string, number>>({});
   const [matchDetails, setMatchDetails] = useState<any>(null);
+  const previousMatchDetailsRef = useRef<any>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // Persistence: Store/Clear current duel
@@ -579,6 +580,39 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       return () => clearInterval(interval);
     }
   }, [duel.matchId]);
+
+  // Goal alert detection
+  useEffect(() => {
+    if (!matchDetails) return;
+    
+    // First setup
+    if (!previousMatchDetailsRef.current) {
+        previousMatchDetailsRef.current = matchDetails;
+        return;
+    }
+
+    const prevHome = previousMatchDetailsRef.current?.goals?.home ?? 0;
+    const prevAway = previousMatchDetailsRef.current?.goals?.away ?? 0;
+    const currentHome = matchDetails?.goals?.home ?? 0;
+    const currentAway = matchDetails?.goals?.away ?? 0;
+
+    let scoredTeam = '';
+    if (currentHome > prevHome) {
+        scoredTeam = matchDetails.teams?.home?.name || 'DOMICILE';
+    } else if (currentAway > prevAway) {
+        scoredTeam = matchDetails.teams?.away?.name || 'EXTÉRIEUR';
+    }
+
+    if (scoredTeam) {
+        const x = window.innerWidth / 2;
+        const y = window.innerHeight / 3;
+        addFloatingEffect(`⚽ BUT POUR ${scoredTeam.toUpperCase()} !!!`, x, y, 'text-orange-500 font-black scale-150 drop-shadow-[0_0_15px_rgba(255,102,0,0.8)] z-[200]');
+        setIsRealMatchGoal(true);
+        setTimeout(() => setIsRealMatchGoal(false), 5000);
+    }
+
+    previousMatchDetailsRef.current = matchDetails;
+  }, [matchDetails]);
 
   const addFloatingEffect = (text: string, x: number, y: number, color: string = 'text-white') => {
     const id = Math.random().toString(36).substring(7);
@@ -639,8 +673,29 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [isEarthquake, setIsEarthquake] = useState(false);
   const [isFakeButtons, setIsFakeButtons] = useState(false);
   const [isCardLocked, setIsCardLocked] = useState(false);
+  const [isVampirism, setIsVampirism] = useState(false);
+  const [isFogOfWar, setIsFogOfWar] = useState(false);
+  const [isFrenzy, setIsFrenzy] = useState(false);
+  const [isSabotaged, setIsSabotaged] = useState(false);
+  const [isImmune, setIsImmune] = useState(false);
+  const [isCriticalStrike, setIsCriticalStrike] = useState(false);
+  const [isMomentum, setIsMomentum] = useState(false);
+  const [isRealMatchGoal, setIsRealMatchGoal] = useState(false);
+  const [isBlackout, setIsBlackout] = useState(false);
+  const [isFlare, setIsFlare] = useState(false);
+  const [isCursed, setIsCursed] = useState(false);
+  const [isBlessed, setIsBlessed] = useState(false);
+  const [isConfetti, setIsConfetti] = useState(false);
+  const [isGoldenGoal, setIsGoldenGoal] = useState(false);
+  const [isHypnotized, setIsHypnotized] = useState(false);
   const [lastEnemyCard, setLastEnemyCard] = useState<GameCard | null>(null);
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
+
+  const playSound = (url?: string) => {
+    if (!url) return;
+    const audio = new Audio(getImageUrl(url));
+    audio.play().catch(e => console.log('Audio play failed', e));
+  };
 
   // Emotes State
   const [allEmotes, setAllEmotes] = useState<FanzEmote[]>([]);
@@ -1378,6 +1433,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         // Teammate played a card
         setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
         setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
+        playSound(card.soundUrl);
         addFloatingEffect(`🤝 Allié: ${card.name}`, window.innerWidth / 2, 100, 'text-blue-400 font-black scale-125');
         return;
       }
@@ -1385,13 +1441,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setLastEnemyCard(card);
       setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
+      playSound(card.soundUrl);
       addFloatingEffect(`⚠️ ${card.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
       const isMalus = card.effects.some(e => 
-        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock'].includes(e.type)
+        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis'].includes(e.type)
       );
 
       if (isMalus) {
+        if (isImmune) {
+          addFloatingEffect('🛡️ Immunité Active!', window.innerWidth / 2, 150, 'text-green-300 font-black');
+          return;
+        }
         if (hasMirror) {
           setHasMirror(false);
           addFloatingEffect('✨ Miroir: Attaque renvoyée!', window.innerWidth / 2, 150, 'text-purple-400 font-black');
@@ -1479,6 +1540,38 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setTimeout(() => setIsCardLocked(false), getEffectiveDuration(effect.duration || 5, mentalResistance));
             addFloatingEffect('🔒 Cartes Bloquées!', window.innerWidth / 2, 200, 'text-red-400');
             break;
+          case 'steal_energy':
+            setExcitement(prev => Math.max(0, prev - (effect.value || 0)));
+            addFloatingEffect(`⚡ -${effect.value} Énergie Volée!`, window.innerWidth / 2, 200, 'text-red-400');
+            break;
+          case 'fog_of_war':
+            setIsFogOfWar(true);
+            setTimeout(() => setIsFogOfWar(false), getEffectiveDuration(effect.duration || 6, bluffResistance));
+            addFloatingEffect('🌫️ Brouillard de Guerre!', window.innerWidth / 2, 200, 'text-gray-500 font-black');
+            break;
+          case 'sabotage':
+            setIsSabotaged(true);
+            addFloatingEffect('💣 Sabotage Actif!', window.innerWidth / 2, 200, 'text-red-500 font-black');
+            break;
+          case 'blackout':
+            setIsBlackout(true);
+            setTimeout(() => setIsBlackout(false), getEffectiveDuration(effect.duration || 8, bluffResistance));
+            addFloatingEffect('💡 Coupure de Courant !', window.innerWidth / 2, 200, 'text-yellow-100 font-black');
+            break;
+          case 'curse':
+            setIsCursed(true);
+            addFloatingEffect('💀 Maudit! (+3 Coût)', window.innerWidth / 2, 200, 'text-purple-500 font-black');
+            break;
+          case 'confetti':
+            setIsConfetti(true);
+            setTimeout(() => setIsConfetti(false), getEffectiveDuration(effect.duration || 7, bluffResistance));
+            addFloatingEffect('🎉 Confettis!', window.innerWidth / 2, 200, 'text-pink-400 font-black');
+            break;
+          case 'hypnosis':
+            setIsHypnotized(true);
+            setTimeout(() => setIsHypnotized(false), getEffectiveDuration(effect.duration || 4, mentalResistance));
+            addFloatingEffect('🌀 Hypnotisé!', window.innerWidth / 2, 200, 'text-purple-600 font-black scale-150');
+            break;
         }
       });
     };
@@ -1535,26 +1628,68 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   // Only cards should trigger invisible button now
 
   const handleAction = (e: React.MouseEvent) => {
-    if (winner || isButtonHidden) return;
+    if (winner || isButtonHidden || isButtonFrozen) return;
     
     // Find the user's actual team
     const myParticipant = participants.find(p => p.uid === user.uid);
     const myTeam = myParticipant?.team || 'A';
     
-    console.log('Action clicked!', { duelId: currentDuelIdRef.current, team: myTeam, multiplier });
-    socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: myTeam, multiplier });
+    let currentMultiplier = multiplier;
+    if (isFlare) {
+      currentMultiplier *= 3;
+    }
+    if (isGoldenGoal) {
+      currentMultiplier *= 15;
+      setIsGoldenGoal(false);
+      addFloatingEffect('⚽ ACTION EN OR !', e.clientX, e.clientY - 40, 'text-yellow-500 font-black scale-150 drop-shadow-lg');
+    }
+    if (isCriticalStrike) {
+      currentMultiplier *= 5;
+      setIsCriticalStrike(false);
+      addFloatingEffect('💥 Coup Critique!', e.clientX, e.clientY - 20, 'text-red-500 font-black scale-150');
+    }
+
+    if (isHypnotized) {
+       currentMultiplier = -currentMultiplier; // Benefits the opponent
+       addFloatingEffect('😵 Oups!', e.clientX, e.clientY + 20, 'text-purple-600 font-black drop-shadow-md');
+    }
+
+    console.log('Action clicked!', { duelId: currentDuelIdRef.current, team: myTeam, multiplier: currentMultiplier });
+    socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: myTeam, multiplier: currentMultiplier });
     
-    const ferveurGain = (0.5 * multiplier).toFixed(1);
+    const ferveurGain = (0.5 * currentMultiplier).toFixed(1);
     addFloatingEffect(`+${ferveurGain} Ferveur`, e.clientX, e.clientY, 'text-yellow-400');
 
     if (isDoublePoints) {
-      socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: myTeam, multiplier });
-      addFloatingEffect(`+${ferveurGain} Ferveur (x2)`, e.clientX, e.clientY - 20, 'text-yellow-400');
+      socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: myTeam, multiplier: currentMultiplier });
+      addFloatingEffect(`+${ferveurGain} Ferveur (x2)`, e.clientX, e.clientY - 40, 'text-yellow-400');
+    }
+
+    if (isVampirism) {
+      socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: myTeam === 'A' ? 'B' : 'A', multiplier: -0.2 });
+      addFloatingEffect(`🩸 Vampire`, e.clientX, e.clientY + 20, 'text-red-500');
     }
   };
 
   const playCard = async (card: GameCard, e?: React.MouseEvent) => {
-    const actualCost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
+    let actualCost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
+    
+    if (isFrenzy) {
+      actualCost = 0;
+    } else {
+      if (isSabotaged) {
+        actualCost *= 2;
+        setIsSabotaged(false); // remove after one use
+      }
+      if (isCursed) {
+        actualCost += 3;
+        setIsCursed(false); // remove after one use
+      }
+      if (isBlessed) {
+        actualCost = Math.max(0, actualCost - 2);
+      }
+    }
+    
     if (winner || status !== 'active' || excitement < actualCost || isCardLocked) return;
     
     // Remove from hand and deduct excitement immediately
@@ -1565,6 +1700,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     // Visual feedback
     setPlayedCardAnim({ card, id: Math.random().toString() });
     setTimeout(() => setPlayedCardAnim(null), 1500);
+    playSound(card.soundUrl);
 
     const x = e ? e.clientX : window.innerWidth / 2;
     const y = e ? e.clientY - 50 : window.innerHeight / 2;
@@ -1629,6 +1765,58 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
     // Apply self-effects (on client)
     boostedCard.effects.forEach(effect => {
+      if (effect.type === 'cleanse') {
+        setIsBlurred(false);
+        setIsButtonHidden(false);
+        setIsButtonFrozen(false);
+        setIsButtonShrunk(false);
+        setIsButtonMoving(false);
+        setIsScoreHidden(false);
+        setIsEarthquake(false);
+        setIsFakeButtons(false);
+        setIsCardLocked(false);
+        setIsFogOfWar(false);
+        setIsSabotaged(false);
+        setIsBlackout(false);
+        setIsCursed(false);
+        setIsConfetti(false);
+        setIsHypnotized(false);
+        addFloatingEffect('✨ Purifié!', x, y - 30, 'text-yellow-400 font-black');
+      }
+      if (effect.type === 'immunity') {
+        setIsImmune(true);
+        setTimeout(() => setIsImmune(false), (effect.duration || 8) * 1000);
+        addFloatingEffect('🛡️ Immunité Actuelle!', x, y - 30, 'text-green-300 font-black');
+      }
+      if (effect.type === 'frenzy') {
+        setIsFrenzy(true);
+        setTimeout(() => setIsFrenzy(false), (effect.duration || 3) * 1000);
+        addFloatingEffect('🔥 Frénésie!', x, y - 30, 'text-red-500 font-black');
+      }
+      if (effect.type === 'critical_strike') {
+        setIsCriticalStrike(true);
+        addFloatingEffect('💥 Frappe Critique prête!', x, y - 30, 'text-orange-500 font-black');
+      }
+      if (effect.type === 'momentum') {
+        setIsMomentum(true);
+        // We'll let a useEffect handle the passive pull
+        setTimeout(() => setIsMomentum(false), (effect.duration || 5) * 1000);
+        addFloatingEffect('💨 Momentum Actif!', x, y - 30, 'text-blue-300 font-black');
+      }
+      if (effect.type === 'vampirism') {
+        setIsVampirism(true);
+        setTimeout(() => setIsVampirism(false), (effect.duration || 5) * 1000);
+        addFloatingEffect('🧛 Vampirisme Actif!', x, y - 30, 'text-purple-500 font-black');
+      }
+      if (effect.type === 'overload') {
+        setExcitement(maxExcitement);
+        addFloatingEffect('⚡ Surcharge!', x, y - 30, 'text-yellow-400 font-black');
+      }
+      if (effect.type === 'steal_energy') {
+        setExcitement(prev => Math.min(maxExcitement, prev + (effect.value || 0)));
+        addFloatingEffect(`+${effect.value} Énergie Volée!`, x, y - 30, 'text-yellow-400 font-black');
+      }
+
       if (effect.type === 'refill_energy') {
         setExcitement(prev => Math.min(maxExcitement, prev + (effect.value || 0)));
         addFloatingEffect(`+${effect.value} Énergie!`, x, y - 30, 'text-yellow-400');
@@ -1688,6 +1876,15 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         addFloatingEffect('🔄 Échange de Mains!', x, y - 80, 'text-blue-400 font-bold');
         socket?.emit('swap-hands-init', { duelId: currentDuelIdRef.current, team: myTeam, hand });
       }
+      if (effect.type === 'blessing') {
+        setIsBlessed(true);
+        setTimeout(() => setIsBlessed(false), (effect.duration || 10) * 1000);
+        addFloatingEffect('✨ Béni!', x, y - 30, 'text-yellow-200 font-black');
+      }
+      if (effect.type === 'golden_goal') {
+        setIsGoldenGoal(true);
+        addFloatingEffect('⚽ Balle de Match prête!', x, y - 30, 'text-yellow-500 font-black scale-125');
+      }
     });
 
     if (boostedCard.fervorValue) {
@@ -1722,7 +1919,27 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     return () => clearInterval(interval);
   }, [isEnergyRegenBoosted, duelConfig, fanz, status, maxExcitement]);
 
-  // Button movement effect
+  // Flare (Fumigènes) random event
+  useEffect(() => {
+    if (status !== 'active') return;
+    
+    // Check every 10 seconds if a flare should trigger (5% chance)
+    const interval = setInterval(() => {
+      if (Math.random() < 0.05 && !isFlare) {
+        setIsFlare(true);
+        const x = window.innerWidth / 2;
+        const y = window.innerHeight / 4;
+        addFloatingEffect('🔥 FUMIGÈNES ! (Ferveur x3) 🔥', x, y, 'text-red-500 font-black scale-150 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] z-[200]');
+        
+        // Remove flare after 10 seconds
+        setTimeout(() => {
+          setIsFlare(false);
+        }, 10000);
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [status, isFlare]);
   useEffect(() => {
     if (!isButtonMoving) {
       setButtonPosition({ x: 0, y: 0 });
@@ -1736,6 +1953,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     }, 400);
     return () => clearInterval(interval);
   }, [isButtonMoving]);
+
+  // Momentum passive pull effect
+  useEffect(() => {
+    if (!isMomentum || status !== 'active' || winner || !socket || !duel.id) return;
+    
+    const interval = setInterval(() => {
+      const myParticipant = participants.find(p => p.uid === user.uid);
+      const myTeam = myParticipant?.team || 'A';
+      socket.emit('click-ferveur', { duelId: duel.id, team: myTeam, multiplier: 1 });
+      
+      const x = window.innerWidth / 2 + (Math.random() * 100 - 50);
+      const y = window.innerHeight / 2 + (Math.random() * 100 - 50);
+      addFloatingEffect(`+0.5 Auto`, x, y, 'text-blue-300 text-xs font-bold font-mono');
+    }, 1000); 
+    
+    return () => clearInterval(interval);
+  }, [isMomentum, status, winner, participants, user.uid, socket, duel.id]);
 
   const getArenaBackground = () => {
     const type = duel.type;
@@ -1771,7 +2005,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
   return (
     <div className="absolute inset-0 z-50 flex justify-center bg-[#0a0a0a]">
-      <div className={`w-full lg:max-w-[450px] h-full relative flex flex-col p-4 bg-black lg:border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isEarthquake ? 'animate-bounce' : ''}`}>
+      <div className={`w-full lg:max-w-[450px] h-full relative flex flex-col p-4 bg-black lg:border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isEarthquake || isRealMatchGoal ? 'animate-bounce' : ''}`}>
         {/* Arena Background */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           <img 
@@ -1781,6 +2015,62 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
         </div>
+        {/* Goal Overlay */}
+        <AnimatePresence>
+          {isRealMatchGoal && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 pointer-events-none flex items-center justify-center bg-orange-500/20 mix-blend-overlay"
+            >
+              <div className="w-full h-full border-8 border-orange-500 animate-pulse" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Blackout Overlay */}
+        <AnimatePresence>
+          {isBlackout && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 bg-black pointer-events-none"
+            />
+          )}
+        </AnimatePresence>
+        {/* Flare Overlay */}
+        <AnimatePresence>
+          {isFlare && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-10 pointer-events-none mix-blend-overlay bg-gradient-to-t from-red-600/80 via-orange-500/20 to-transparent"
+            >
+              {/* Animated smoke effect using a CSS trick with box-shadows / pseudo elements, but simplified to a glowing orb */}
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-red-600/50 blur-[100px] rounded-full"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Fog of War Overlay */}
+        <AnimatePresence>
+          {isFogOfWar && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 bg-black/80 backdrop-blur-xl pointer-events-none flex items-center justify-center mix-blend-saturation"
+            >
+              <span className="text-white/20 font-black text-6xl tracking-widest uppercase rotate-45 mix-blend-overlay">CHAOS</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Blur Overlay */}
         <AnimatePresence>
           {isBlurred && (
@@ -2204,6 +2494,28 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           </motion.div>
         </div>
 
+        {/* Confetti Overlay */}
+        <AnimatePresence>
+          {isConfetti && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 pointer-events-none flex flex-wrap gap-2 p-4 justify-around mix-blend-screen overflow-hidden"
+            >
+              {Array.from({ length: 50 }).map((_, i) => (
+                <motion.div
+                  key={`confetti-${i}`}
+                  className={`w-3 h-3 ${['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'][Math.floor(Math.random() * 6)]}`}
+                  initial={{ y: -50, x: Math.random() * window.innerWidth, rotate: Math.random() * 360 }}
+                  animate={{ y: window.innerHeight + 50, rotate: Math.random() * 720 }}
+                  transition={{ duration: 1 + Math.random() * 2, repeat: Infinity, ease: 'linear' }}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Action Button */}
         <div className="relative mt-2">
           <motion.button 
@@ -2267,6 +2579,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           {isEnergyRegenBoosted && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500 uppercase"><img src={LOGOS.energy} alt="Energy" className="w-3 h-3 object-contain" /> Regen Boost</div>}
           {isEarthquake && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase"><Activity size={12} /> Séisme</div>}
           {isCardLocked && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase"><Lock size={12} /> Cartes Bloquées</div>}
+          {isVampirism && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-500 uppercase">🧛 Vampirisme</div>}
+          {isFrenzy && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase">🔥 Frénésie</div>}
+          {isSabotaged && <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 uppercase">💣 Saboté</div>}
+          {isImmune && <div className="flex items-center gap-1 text-[10px] font-bold text-green-400 uppercase">🛡️ Immunisé</div>}
+          {isCriticalStrike && <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase">💥 Coup Critique</div>}
+          {isMomentum && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-300 uppercase">💨 Momentum</div>}
         </div>
 
         {/* Cards Hand */}

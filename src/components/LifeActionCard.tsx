@@ -152,13 +152,17 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       const userRef = doc(db, 'users', userProfile.uid);
       const fanzRef = doc(db, 'fanz', fanz.id);
 
+      const unlockedActions = userProfile.unlockedActions || [];
+      const newUnlockedActions = unlockedActions.includes(action.id) ? unlockedActions : [...unlockedActions, action.id];
+
       // Update User
       await updateDoc(userRef, {
         energy: Math.min(100, userProfile.energy + gainEnergy),
         money: userProfile.money + gainMoney,
         gems: (userProfile.gems || 0) + gainGems,
         boostPoints: (userProfile.boostPoints || 0) + gainBoost,
-        activeAction: deleteField()
+        activeAction: deleteField(),
+        unlockedActions: newUnlockedActions
       });
 
       if (gainEnergy > 0) await logTransaction(userProfile.uid, 'energy', gainEnergy, `Fin action: ${action.name}`);
@@ -243,13 +247,17 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
       const userRef = doc(db, 'users', userProfile.uid);
       const fanzRef = doc(db, 'fanz', fanz.id);
 
+      const unlockedActions = userProfile.unlockedActions || [];
+      const newUnlockedActions = unlockedActions.includes(action.id) ? unlockedActions : [...unlockedActions, action.id];
+
       // Update User (Gems + Rewards + clear active action)
       await updateDoc(userRef, {
         gems: userProfile.gems - 1 + gainGems,
         energy: Math.min(100, userProfile.energy + gainEnergy),
         money: userProfile.money + gainMoney,
         boostPoints: (userProfile.boostPoints || 0) + gainBoost,
-        activeAction: deleteField()
+        activeAction: deleteField(),
+        unlockedActions: newUnlockedActions
       });
 
       await logTransaction(userProfile.uid, 'gems', -1, `Accélération action: ${action.name}`);

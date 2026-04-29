@@ -44,6 +44,16 @@ export function AdminZone() {
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [editingFanz, setEditingFanz] = useState<FanzTemplate | null>(null);
 
+  const effectiveFanzTemplates = React.useMemo(() => {
+    let merged = [...fanzTemplates];
+    if (editingFanz) {
+      const idx = merged.findIndex(t => t.id === editingFanz.id);
+      if (idx !== -1) merged[idx] = editingFanz as FanzTemplate;
+      else merged.push(editingFanz as FanzTemplate);
+    }
+    return merged;
+  }, [fanzTemplates, editingFanz]);
+
   // User Management state
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -736,6 +746,92 @@ export function AdminZone() {
     } catch (err) {
       console.error("Error fetching fanz templates", err);
       handleFirestoreError(err, OperationType.GET, 'fanz_templates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMigrateSkinIds = async () => {
+    setLoading(true);
+    setStatus({ type: 'info', message: 'Migration des IDs de skins/emotes en cours...' });
+    try {
+      let fanzFixed = 0;
+      let usersFixed = 0;
+
+      // 1. Fix Fanz Templates
+      const fanzSnap = await getDocs(collection(db, 'fanz_templates'));
+      for (const docSnap of fanzSnap.docs) {
+        const data = docSnap.data() as FanzTemplate;
+        const templateId = data.id || docSnap.id;
+        let changed = false;
+
+        const newSkins = (data.skins || []).map(skin => {
+          if (!skin.id.startsWith(`${templateId}_`)) {
+            changed = true;
+            return { ...skin, id: `${templateId}_${skin.id}` };
+          }
+          return skin;
+        });
+
+        const newEmotes = (data.emotes || []).map(emote => {
+          if (!emote.id.startsWith(`${templateId}_`)) {
+            changed = true;
+            return { ...emote, id: `${templateId}_${emote.id}` };
+          }
+          return emote;
+        });
+
+        if (changed) {
+          await updateDoc(doc(db, 'fanz_templates', docSnap.id), {
+            skins: newSkins,
+            emotes: newEmotes
+          });
+          fanzFixed++;
+        }
+      }
+
+      // 2. Fix Users
+      const usersSnap = await getDocs(collection(db, 'users'));
+      for (const uSnap of usersSnap.docs) {
+        const uData = uSnap.data() as UserProfile;
+        let changed = false;
+
+        const fixArray = (arr: string[] | undefined) => {
+          if (!arr) return arr;
+          const newArr: string[] = [];
+          arr.forEach(item => {
+            if (item.startsWith('skin') || item.startsWith('emote')) {
+              changed = true;
+              // Add for fanz-1 and fanz-2 to be safe since we don't know
+              newArr.push(`fanz-1_${item}`);
+              newArr.push(`fanz-2_${item}`);
+            } else {
+              newArr.push(item);
+            }
+          });
+          // Unique Array
+          return Array.from(new Set(newArr));
+        };
+
+        const newSkins = fixArray(uData.skins);
+        const newEmotes = fixArray(uData.emotes);
+
+        if (changed) {
+          await updateDoc(doc(db, 'users', uSnap.id), {
+            skins: newSkins || [],
+            emotes: newEmotes || []
+          });
+          usersFixed++; 
+        }
+      }
+
+      setStatus({ type: 'success', message: `Migration OK ! Fanz: ${fanzFixed}, Users: ${usersFixed}` });
+      fetchFanzTemplates();
+      fetchUsers();
+    } catch (err) {
+      console.error(err);
+      setStatus({ type: 'error', message: 'Erreur lors de la migration.' });
+      handleFirestoreError(err, OperationType.WRITE, 'multiple');
     } finally {
       setLoading(false);
     }
@@ -2924,6 +3020,23 @@ export function AdminZone() {
                     </div>
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">URL Son / Bruitage</label>
+                    <div className="flex gap-4">
+                      <input
+                        type="text"
+                        value={editingCard.soundUrl || ''}
+                        onChange={e => setEditingCard({...editingCard, soundUrl: e.target.value})}
+                        className="flex-1 p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                        placeholder="https://..."
+                      />
+                      {editingCard.soundUrl && (
+                        <div className="flex items-center">
+                          <audio controls src={getImageUrl(editingCard.soundUrl)} className="h-8 max-w-[200px]" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">ID du Fanz (Optionnel)</label>
                     <input
                       type="text"
@@ -3039,27 +3152,44 @@ export function AdminZone() {
                             }}
                             className="w-full p-2 bg-white text-gray-900 rounded border-none text-sm"
                           >
-                            <option value="push_rope">Pousser Corde (%)</option>
-                            <option value="drain_energy">Drainer Excitation (Adverse)</option>
-                            <option value="refill_energy">Remplir Excitation (Soi)</option>
-                            <option value="hide_button">Cacher Bouton (Adverse)</option>
-                            <option value="shrink_button">Réduire Bouton (Adverse)</option>
-                            <option value="move_button">Bouger Bouton (Adverse)</option>
-                            <option value="blur_view">Troubler Vue (Adverse)</option>
-                            <option value="hide_score">Cacher Score</option>
-                            <option value="discard_enemy_cards">Défausser Cartes (Adverse)</option>
-                            <option value="shuffle_deck">Mélanger Deck (Adverse)</option>
-                            <option value="freeze_button">Geler Bouton (Adverse)</option>
-                            <option value="double_points">Double Ferveur (Soi)</option>
-                            <option value="shield">Bouclier (Soi)</option>
-                            <option value="mirror">Miroir (Soi)</option>
-                            <option value="energy_regen_boost">Boost Regen (Soi)</option>
-                            <option value="earthquake">Séisme (Adverse)</option>
-                            <option value="fake_buttons">Boutons Fantômes (Adverse)</option>
-                            <option value="card_lock">Bloquer Cartes (Adverse)</option>
-                            <option value="swap_hands">Échanger Mains</option>
-                            <option value="mimic">Copier Dernière Carte</option>
-                            <option value="lucky_draw">Tirage Chanceux</option>
+                            <option value="push_rope">Pousser Corde (%) [Valeur]</option>
+                            <option value="drain_energy">Drainer Excitation (Adverse) [Valeur]</option>
+                            <option value="refill_energy">Remplir Excitation (Soi) [Valeur]</option>
+                            <option value="hide_button">Cacher Bouton (Adverse) [Durée]</option>
+                            <option value="shrink_button">Réduire Bouton (Adverse) [Durée]</option>
+                            <option value="move_button">Bouger Bouton (Adverse) [Durée]</option>
+                            <option value="blur_view">Troubler Vue (Adverse) [Durée]</option>
+                            <option value="hide_score">Cacher Score [Durée]</option>
+                            <option value="discard_enemy_cards">Défausser Cartes (Adverse) [Rien]</option>
+                            <option value="shuffle_deck">Mélanger Deck (Adverse) [Rien]</option>
+                            <option value="freeze_button">Geler Bouton (Adverse) [Durée]</option>
+                            <option value="double_points">Double Ferveur (Soi) [Durée]</option>
+                            <option value="shield">Bouclier (Soi) [Rien]</option>
+                            <option value="mirror">Miroir (Soi) [Rien]</option>
+                            <option value="energy_regen_boost">Boost Regen (Soi) [Durée]</option>
+                            <option value="earthquake">Séisme (Adverse) [Durée]</option>
+                            <option value="fake_buttons">Boutons Fantômes (Adverse) [Durée]</option>
+                            <option value="card_lock">Bloquer Cartes (Adverse) [Durée]</option>
+                            <option value="swap_hands">Échanger Mains [Rien]</option>
+                            <option value="mimic">Copier Dernière Carte [Rien]</option>
+                            <option value="lucky_draw">Tirage Chanceux [Rien]</option>
+                            <option value="steal_energy">Voler Excitation (Adverse) [Valeur]</option>
+                            <option value="cleanse">Purge (Soi) [Rien]</option>
+                            <option value="vampirism">Vampirisme (Soi) [Durée]</option>
+                            <option value="fog_of_war">Brouillard de Guerre (Adverse) [Durée]</option>
+                            <option value="frenzy">Frénésie (Soi) [Durée]</option>
+                            <option value="sabotage">Sabotage (Adverse) [Rien]</option>
+                            <option value="immunity">Immunité (Soi) [Durée]</option>
+                            <option value="critical_strike">Frappe Critique (Soi) [Rien]</option>
+                            <option value="momentum">Momentum (Soi) [Durée]</option>
+                            <option value="overload">Surcharge (Soi) [Rien]</option>
+                            <option value="invert_rope">Inversion Corde [Rien]</option>
+                            <option value="blackout">Coupure de Courant (Adverse) [Durée]</option>
+                            <option value="curse">Malédiction (Adverse) [Rien]</option>
+                            <option value="blessing">Bénédiction (Soi) [Durée]</option>
+                            <option value="confetti">Confettis (Adverse) [Durée]</option>
+                            <option value="golden_goal">Action en Or (Soi) [Rien]</option>
+                            <option value="hypnosis">Hypnose (Adverse) [Durée]</option>
                           </select>
                         </div>
                         <div className="w-24 space-y-1">
@@ -3424,6 +3554,9 @@ export function AdminZone() {
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Modèles FANZ</h2>
                 <div className="flex gap-3">
+                  <Button onClick={handleMigrateSkinIds} variant="outline" className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-500/10">
+                    <Database className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /> Migration IDs
+                  </Button>
                   <Button onClick={handleFixFerveurPaths} variant="outline" className="flex items-center gap-2 border-orange-500 text-orange-500 hover:bg-orange-500/10">
                     <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /> Mettre à jour Ferveur
                   </Button>
@@ -3808,7 +3941,7 @@ export function AdminZone() {
                                 newRanges[idx] = { ...range, levelReward: reward };
                                 setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
                               }}
-                              fanzTemplates={fanzTemplates}
+                              fanzTemplates={effectiveFanzTemplates}
                               lifeActions={lifeActions}
                               duelCards={duelCards}
                               isFanzContext={true}
@@ -3825,7 +3958,7 @@ export function AdminZone() {
                                 newRanges[idx] = { ...range, intermediateReward: reward };
                                 setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
                               }}
-                              fanzTemplates={fanzTemplates}
+                              fanzTemplates={effectiveFanzTemplates}
                               lifeActions={lifeActions}
                               duelCards={duelCards}
                               isFanzContext={true}
@@ -3850,7 +3983,7 @@ export function AdminZone() {
                       <Star className="w-5 h-5 text-purple-500" /> Skins du Fanz
                     </h4>
                     <Button type="button" size="sm" onClick={() => {
-                      const newSkins = [...(editingFanz.skins || []), { id: `skin-${Date.now()}`, fanzId: editingFanz.id, name: 'Nouveau Skin', imageUrl: '', videoUrl: '', price: { money: 1000 } }];
+                      const newSkins = [...(editingFanz.skins || []), { id: `${editingFanz.id}_skin-${Date.now()}`, fanzId: editingFanz.id, name: 'Nouveau Skin', imageUrl: '', videoUrl: '', price: { money: 1000 } }];
                       setEditingFanz({...editingFanz, skins: newSkins});
                     }}>
                       Ajouter Skin
@@ -4045,7 +4178,7 @@ export function AdminZone() {
                       <MessageCircle className="w-5 h-5 text-yellow-500" /> Emotes du Fanz
                     </h4>
                     <Button type="button" size="sm" onClick={() => {
-                      const newEmotes = [...(editingFanz.emotes || []), { id: `emote-${Date.now()}`, fanzId: editingFanz.id, name: 'Nouvel Emote', imageUrl: '', price: { money: 500 } }];
+                      const newEmotes = [...(editingFanz.emotes || []), { id: `${editingFanz.id}_emote-${Date.now()}`, fanzId: editingFanz.id, name: 'Nouvel Emote', imageUrl: '', price: { money: 500 } }];
                       setEditingFanz({...editingFanz, emotes: newEmotes});
                     }}>
                       Ajouter Emote
@@ -4304,7 +4437,7 @@ export function AdminZone() {
                                 newRewards[slotId] = newReward as any;
                                 setEditingFanz({...editingFanz, rankRewards: newRewards});
                               }}
-                              fanzTemplates={fanzTemplates}
+                              fanzTemplates={effectiveFanzTemplates}
                               lifeActions={lifeActions}
                               duelCards={duelCards}
                               theme="light"

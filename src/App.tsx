@@ -47,12 +47,13 @@ import { Preloader } from './components/Preloader';
 import { LandingPage } from './components/LandingPage';
 import { MrFanzPage } from './components/MrFanzPage';
 import { MrFanzHelp } from './components/MrFanzHelp';
+import { CollectionPage } from './components/CollectionPage';
 
 export default function App() {
   return <AppContent />;
 }
 
-type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings' | 'stats' | 'mrfanz';
+type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'collection' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings' | 'stats' | 'mrfanz';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -385,6 +386,10 @@ function AppContent() {
           </div>
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Équipes</span>
         </button>
+        <button onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'collection' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+          <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Collection</span>
+        </button>
         <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'fanz' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Star className="w-6 h-6 sm:w-7 sm:h-7" />
           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Fanz</span>
@@ -658,6 +663,7 @@ function AppContent() {
                  )}
                </div>} 
                label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton icon={<Trophy />} label="MA COLLECTION" active={view==='collection'} onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton 
                 icon={<div className="relative"><Layers />
                   {hasFavoriteMatchToday && (
@@ -910,6 +916,8 @@ function AppContent() {
                 />
               ) : view === 'fanz' ? (
                 <FanzPage userProfile={profile} onFanzClick={(id) => setSelectedFanzId(id)} />
+              ) : view === 'collection' ? (
+                <CollectionPage user={profile} />
               ) : view === 'transactions' ? (
                 <TransactionsPage profile={profile} onBack={() => setView('home')} />
               ) : view === 'social' ? (
@@ -985,6 +993,7 @@ function AppContent() {
                    )}
                  </div>} 
                  label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
+               <SidebarButton icon={<Trophy className="w-5 h-5" />} label="MA COLLECTION" active={view==='collection'} onClick={() => { setView('collection'); setIsMenuOpen(false); }} />
                <SidebarButton 
                   icon={
                     <div className="relative">

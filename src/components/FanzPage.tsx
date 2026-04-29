@@ -122,7 +122,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                   )}
                 >
                   <div className="text-sm font-black text-gray-400 leading-none">{totalCount - ownedCount}</div>
-                  <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">À Gagner</div>
+                  <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">À Gagner ou Acheter</div>
                 </button>
               </div>
               
@@ -198,7 +198,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b border-white/10 pb-2">
                   <Lock className="w-5 h-5 text-gray-500" />
-                  <h2 className="text-xl font-black italic uppercase tracking-wider text-gray-500">FANZ à Gagner</h2>
+                  <h2 className="text-xl font-black italic uppercase tracking-wider text-gray-500">FANZ à Gagner ou Acheter</h2>
                   <span className="text-xs font-bold px-2 py-0.5 bg-white/10 text-gray-500 rounded-full">
                     {totalCount - ownedCount}
                   </span>
@@ -326,7 +326,7 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
           {!isOwned && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity z-20">
               <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white/50" />
-              <span className="text-[8px] sm:text-[10px] font-black uppercase italic text-white/50 mt-1">À Gagner</span>
+              <span className="text-[8px] sm:text-[10px] font-black uppercase italic text-white/50 mt-1 text-center px-2">À GAGNER OU ACHETER</span>
             </div>
           )}
 

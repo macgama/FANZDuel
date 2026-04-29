@@ -63,7 +63,7 @@ export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
         intelligence: 1,
         charisma: 1,
       },
-      specialCards: ['card-bebe-1'],
+      specialCards: ['fanz-001-poussette', 'fanz-001-regurgitation', 'fanz-001-tetine'],
       skins: [
         {
           id: 'skin-bebe-gold',

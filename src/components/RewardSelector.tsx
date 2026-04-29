@@ -13,8 +13,12 @@ interface RewardSelectorProps {
 }
 
 export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange, fanzTemplates, lifeActions, duelCards, theme = 'dark', isFanzContext, currentFanzId }) => {
-  const allSkins = fanzTemplates.flatMap(t => (t.skins || []).map(s => ({ ...s, templateName: t.name })));
-  const allEmotes = fanzTemplates.flatMap(t => (t.emotes || []).map(e => ({ ...e, templateName: t.name })));
+  const filteredTemplates = isFanzContext && currentFanzId 
+    ? fanzTemplates.filter(t => t.id === currentFanzId)
+    : fanzTemplates;
+
+  const allSkins = filteredTemplates.flatMap(t => (t.skins || []).map(s => ({ ...s, templateName: t.name })));
+  const allEmotes = filteredTemplates.flatMap(t => (t.emotes || []).map(e => ({ ...e, templateName: t.name })));
 
   const inputClass = theme === 'dark' 
     ? "p-1 min-w-0 bg-gray-800 rounded border border-gray-700 text-xs text-white"
@@ -52,6 +56,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
           {!isFanzContext && <option value="action">Action LIFE</option>}
           <option value="team_slot">1 slot supplémentaire pour équipe</option>
           <option value="fanz">FANZ</option>
+          <option value="choice">Au Choix (Plusieurs options)</option>
         </select>
         
         {['money', 'gems', 'boost', 'energy', 'xp', 'team_slot'].includes(reward?.type || 'money') && (
@@ -65,6 +70,53 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
           />
         )}
       </div>
+
+      {reward?.type === 'choice' && (
+        <div className="mt-2 space-y-2 p-2 border border-gray-600 rounded bg-black/20">
+          <div className="text-xs font-bold text-gray-400">Options disponibles pour le joueur :</div>
+          {(reward.choices || []).map((choice, cIdx) => (
+            <div key={cIdx} className="flex gap-2 items-start border-l-2 border-orange-500 pl-2">
+              <div className="flex-1">
+                <RewardSelector
+                  reward={choice}
+                  onChange={newChoice => {
+                    const newChoices = [...(reward.choices || [])];
+                    newChoices[cIdx] = newChoice;
+                    onChange({ ...reward, choices: newChoices });
+                  }}
+                  fanzTemplates={fanzTemplates}
+                  lifeActions={lifeActions}
+                  duelCards={duelCards}
+                  theme={theme}
+                  isFanzContext={isFanzContext}
+                  currentFanzId={currentFanzId}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const newChoices = [...(reward.choices || [])];
+                  newChoices.splice(cIdx, 1);
+                  onChange({ ...reward, choices: newChoices });
+                }}
+                className="p-1 text-red-500 hover:bg-red-500/20 rounded"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              const newChoices = [...(reward.choices || []), { id: `choice-${Date.now()}`, type: 'money' as any, amount: 100 }];
+              onChange({ ...reward, choices: newChoices });
+            }}
+            className="w-full text-xs py-1 px-2 border border-dashed border-gray-600 rounded text-gray-400 hover:text-white hover:border-gray-400"
+          >
+            + Ajouter une option au choix
+          </button>
+        </div>
+      )}
 
       {reward?.type === 'xp' && (
         <select
