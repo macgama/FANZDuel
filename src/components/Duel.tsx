@@ -10,6 +10,7 @@ import { BASE_CARDS } from '../constants/cards';
 import { OptimizedMedia } from './OptimizedMedia';
 import { LOGOS } from '../constants';
 import { getImageUrl } from '../lib/utils';
+import { audioManager } from '../lib/audio';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
@@ -692,9 +693,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
 
   const playSound = (url?: string) => {
-    if (!url) return;
-    const audio = new Audio(getImageUrl(url));
-    audio.play().catch(e => console.log('Audio play failed', e));
+    if (url) {
+      const audio = new Audio(getImageUrl(url));
+      audio.play().catch(e => console.log('Audio play failed', e));
+    }
   };
 
   // Emotes State
@@ -1125,6 +1127,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
     const handleDuelStarted = () => {
       setStatus('active');
+      audioManager.playReady();
     };
     socket.on('duel-started', handleDuelStarted);
 
@@ -1423,6 +1426,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       }
       
       setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB, details });
+      
+      const isWinner = (winner === 'A' && myTeamRef.current === 'A') || (winner === 'B' && myTeamRef.current === 'B');
+      if (isWinner) {
+        audioManager.playVictory();
+      } else {
+        audioManager.playDefeat();
+      }
     };
     socket.on('duel-finished', handleDuelFinished);
 
@@ -1433,7 +1443,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         // Teammate played a card
         setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
         setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
-        playSound(card.soundUrl);
+        if (card.soundUrl) { playSound(card.soundUrl); } else { audioManager.playCardPlay(); }
         addFloatingEffect(`🤝 Allié: ${card.name}`, window.innerWidth / 2, 100, 'text-blue-400 font-black scale-125');
         return;
       }
@@ -1441,12 +1451,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setLastEnemyCard(card);
       setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
-      playSound(card.soundUrl);
-      addFloatingEffect(`⚠️ ${card.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
       const isMalus = card.effects.some(e => 
         ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis'].includes(e.type)
       );
+      
+      if (card.soundUrl) { playSound(card.soundUrl); } 
+      else if (isMalus) { audioManager.playDebuff(); }
+      else { audioManager.playMagic(); }
+
+      addFloatingEffect(`⚠️ ${card.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
       if (isMalus) {
         if (isImmune) {
@@ -1654,6 +1668,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
        addFloatingEffect('😵 Oups!', e.clientX, e.clientY + 20, 'text-purple-600 font-black drop-shadow-md');
     }
 
+    // Play impact sound based on action
+    if (isCriticalStrike || isGoldenGoal) {
+      audioManager.playImpact();
+    } else {
+      audioManager.playCardSelect(); // Soft pull sound
+    }
+
     console.log('Action clicked!', { duelId: currentDuelIdRef.current, team: myTeam, multiplier: currentMultiplier });
     socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: myTeam, multiplier: currentMultiplier });
     
@@ -1700,7 +1721,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     // Visual feedback
     setPlayedCardAnim({ card, id: Math.random().toString() });
     setTimeout(() => setPlayedCardAnim(null), 1500);
-    playSound(card.soundUrl);
+    if (card.soundUrl) { playSound(card.soundUrl); } else { audioManager.playCardPlay(); }
 
     const x = e ? e.clientX : window.innerWidth / 2;
     const y = e ? e.clientY - 50 : window.innerHeight / 2;
