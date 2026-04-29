@@ -146,7 +146,15 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
         // Fetch Duel Cards
         const cardsSnapshot = await getDocs(collection(db, 'cards'));
-        const cardsData = cardsSnapshot.docs.map(doc => doc.data() as DuelCard);
+        const cardsData = cardsSnapshot.docs.map(doc => {
+          const card = { id: doc.id, ...doc.data() } as any;
+          if (!card.price && ['rare', 'epic', 'legendary'].includes(card.rarity)) {
+             card.price = {
+               gems: card.rarity === 'rare' ? 30 : card.rarity === 'epic' ? 100 : 300
+             };
+          }
+          return card;
+        });
         
         const cardsForSale = cardsData
           .filter(c => c.price && (c.price.money || c.price.gems))
