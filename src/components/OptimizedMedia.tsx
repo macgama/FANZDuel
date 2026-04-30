@@ -15,6 +15,7 @@ interface OptimizedMediaProps {
   muted?: boolean;
   controls?: boolean;
   width?: number;
+  forceUnmuted?: boolean;
 }
 
 export function OptimizedMedia({
@@ -29,12 +30,14 @@ export function OptimizedMedia({
   muted,
   controls = false,
   width,
+  forceUnmuted = false,
 }: OptimizedMediaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const isInView = useInView(containerRef, { margin: "200px 0px" });
   const [hasLoaded, setHasLoaded] = useState(false);
-  const isActuallyMuted = muted !== undefined ? muted : audioManager.isMuted;
+  const [isHoveredOrClicked, setIsHoveredOrClicked] = useState(false);
+  const globalMuted = muted !== undefined ? muted : audioManager.isMuted;
 
   const finalSrc = src ? getImageUrl(src, width) : '';
   const finalPoster = poster ? getImageUrl(poster, width) : undefined;
@@ -99,14 +102,21 @@ export function OptimizedMedia({
             ref={videoRef}
             src={finalSrc}
             poster={finalPoster || undefined}
-            className={className}
+            className={cn(className, "cursor-pointer")}
             autoPlay={autoPlay}
             loop={loop}
-            muted={isActuallyMuted}
+            muted={forceUnmuted ? globalMuted : (!isHoveredOrClicked || globalMuted)}
             controls={controls}
             playsInline
             preload="metadata"
             onLoadedData={() => setHasLoaded(true)}
+            onMouseEnter={() => setIsHoveredOrClicked(true)}
+            onMouseLeave={() => setIsHoveredOrClicked(false)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsHoveredOrClicked(prev => !prev);
+            }}
           />
         ) : (
           // Render poster or placeholder when out of view to save memory

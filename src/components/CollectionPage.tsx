@@ -3,9 +3,11 @@ import { UserProfile } from '../types';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Card } from './Layout';
-import { Star, Flame, Trophy, PlayCircle } from 'lucide-react';
+import { Star, Flame, Trophy, PlayCircle, X, Maximize2 } from 'lucide-react';
 import { FanzTemplate, FanzSkin, FanzEmote, GameCard, LifeAction } from '../types';
 import { getImageUrl } from '../lib/utils';
+import { OptimizedMedia } from './OptimizedMedia';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface CollectionPageProps {
   user: UserProfile;
@@ -20,6 +22,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
   const [cards, setCards] = useState<GameCard[]>([]);
   const [actions, setActions] = useState<LifeAction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fullscreenMedia, setFullscreenMedia] = useState<{url: string, type: 'video'|'image', name: string, description?: string} | null>(null);
 
   // User's owned item caches
   const [ownedTemplates, setOwnedTemplates] = useState<Set<string>>(new Set());
@@ -108,11 +111,28 @@ export function CollectionPage({ user }: CollectionPageProps) {
           const isFanzActive = template.isActive !== false;
           return (
             <Card key={template.id} className={`p-4 relative overflow-hidden transition-all ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.2)]'}`}>
-              <div className="aspect-square rounded-lg bg-[#0a0a0a] overflow-hidden mb-3 relative">
+              <div 
+                className={`aspect-square rounded-lg bg-[#0a0a0a] overflow-hidden mb-3 relative ${owned && isFanzActive ? 'group cursor-pointer' : ''}`}
+                onClick={() => {
+                  if (owned && isFanzActive) {
+                    setFullscreenMedia({
+                      url: template.video || template.image,
+                      type: template.video ? 'video' : 'image',
+                      name: template.name
+                    });
+                  }
+                }}
+              >
                 {template.video ? (
                   <video src={getImageUrl(template.video)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
                 ) : (
                   <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover" />
+                )}
+                {/* Maximize Icon */}
+                {owned && isFanzActive && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                  </div>
                 )}
                 {!isFanzActive && (
                   <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md">
@@ -142,11 +162,28 @@ export function CollectionPage({ user }: CollectionPageProps) {
           const isSkinActive = fanzTemplates.find(t => t.id === skin.fanzId)?.isActive !== false;
           return (
             <div key={skin.id} className={`bg-gray-900 rounded-xl overflow-hidden relative ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-blue-500/50'}`}>
-              <div className="aspect-square bg-black relative">
+              <div 
+                className={`aspect-square bg-black relative ${owned && isSkinActive ? 'group cursor-pointer' : ''}`}
+                onClick={() => {
+                  if (owned && isSkinActive) {
+                    setFullscreenMedia({
+                      url: skin.videoUrl || skin.imageUrl,
+                      type: skin.videoUrl ? 'video' : 'image',
+                      name: skin.name
+                    });
+                  }
+                }}
+              >
                 {skin.videoUrl ? (
                   <video src={getImageUrl(skin.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
                 ) : (
                   <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className="w-full h-full object-cover" />
+                )}
+                {/* Maximize Icon */}
+                {owned && isSkinActive && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                  </div>
                 )}
                 {!isSkinActive && (
                   <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md z-10">
@@ -179,11 +216,28 @@ export function CollectionPage({ user }: CollectionPageProps) {
           const isEmoteActive = fanzTemplates.find(t => t.id === emote.fanzId)?.isActive !== false;
           return (
             <div key={emote.id} className={`bg-gray-900 rounded-xl overflow-hidden relative ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-purple-500/50'}`}>
-              <div className="aspect-square bg-black relative p-2">
+              <div 
+                className={`aspect-square bg-black relative p-2 ${owned && isEmoteActive ? 'group cursor-pointer' : ''}`}
+                onClick={() => {
+                  if (owned && isEmoteActive) {
+                    setFullscreenMedia({
+                      url: emote.videoUrl || emote.imageUrl,
+                      type: emote.videoUrl ? 'video' : 'image',
+                      name: emote.name
+                    });
+                  }
+                }}
+              >
                 {emote.videoUrl ? (
                   <video src={getImageUrl(emote.videoUrl)} className="w-full h-full object-contain" autoPlay muted loop playsInline />
                 ) : (
                   <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-full h-full object-contain" />
+                )}
+                {/* Maximize Icon */}
+                {owned && isEmoteActive && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                  </div>
                 )}
                 {!isEmoteActive && (
                   <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md z-10">
@@ -213,11 +267,30 @@ export function CollectionPage({ user }: CollectionPageProps) {
           const owned = (user.cards || []).includes(card.id);
           const isCardActive = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.some(fid => fanzTemplates.find(t => t.id === fid)?.isActive !== false);
           return (
-            <div key={card.id} className={`aspect-[3/4] rounded-xl overflow-hidden relative ${!owned ? 'bg-gray-900 opacity-50 grayscale hover:grayscale-0' : 'bg-gray-800 outline outline-2 outline-white/10'}`}>
+            <div 
+              key={card.id} 
+              className={`aspect-[3/4] rounded-xl overflow-hidden relative ${owned && isCardActive ? 'group cursor-pointer' : ''} ${!owned ? 'bg-gray-900 opacity-50 grayscale hover:grayscale-0' : 'bg-gray-800 outline outline-2 outline-white/10'}`}
+              onClick={() => {
+                if (owned && isCardActive) {
+                  setFullscreenMedia({
+                    url: card.videoUrl || card.imageUrl || '',
+                    type: card.videoUrl ? 'video' : 'image',
+                    name: card.name,
+                    description: card.description
+                  });
+                }
+              }}
+            >
               {card.videoUrl ? (
                  <video src={getImageUrl(card.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
               ) : (
                  <img src={getImageUrl(card.imageUrl)} alt={card.name} className="w-full h-full object-cover" />
+              )}
+              {/* Maximize Icon */}
+              {owned && isCardActive && (
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                  <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                </div>
               )}
               
               <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-black/80 text-white backdrop-blur-sm z-10">
@@ -253,7 +326,19 @@ export function CollectionPage({ user }: CollectionPageProps) {
           const owned = (user.unlockedActions || []).includes(action.id);
           const isActionActive = !action.fanzTemplateId || fanzTemplates.find(t => t.id === action.fanzTemplateId)?.isActive !== false;
           return (
-            <div key={action.id} className={`bg-gray-900 rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-green-500/50'}`}>
+            <div 
+              key={action.id} 
+              className={`bg-gray-900 rounded-xl overflow-hidden relative flex flex-col ${owned && isActionActive ? 'group cursor-pointer' : ''} ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-green-500/50'}`}
+              onClick={() => {
+                if (owned && isActionActive) {
+                  setFullscreenMedia({
+                    url: action.videoUrl || action.image || '',
+                    type: action.videoUrl ? 'video' : 'image',
+                    name: action.name
+                  });
+                }
+              }}
+            >
               <div className="h-32 bg-black relative">
                 {action.videoUrl ? (
                    <video src={getImageUrl(action.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
@@ -263,6 +348,12 @@ export function CollectionPage({ user }: CollectionPageProps) {
                    <div className="w-full h-full flex items-center justify-center text-gray-700">
                      <PlayCircle className="w-8 h-8" />
                    </div>
+                )}
+                {/* Maximize Icon */}
+                {owned && isActionActive && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                  </div>
                 )}
                 {!isActionActive && (
                   <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md z-10">
@@ -347,6 +438,55 @@ export function CollectionPage({ user }: CollectionPageProps) {
         {activeTab === 'cards' && renderCards()}
         {activeTab === 'actions' && renderActions()}
       </div>
+
+      {/* Fullscreen Media Modal */}
+      <AnimatePresence>
+        {fullscreenMedia && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setFullscreenMedia(null)}
+            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center md:p-8 backdrop-blur-sm cursor-pointer"
+          >
+            <motion.button 
+              className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-3 bg-black/40 hover:bg-black/60 rounded-full transition-colors z-50 text-white shadow-lg backdrop-blur-md border border-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFullscreenMedia(null);
+              }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <X className="w-6 h-6 md:w-8 md:h-8" />
+            </motion.button>
+            
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="relative w-full h-full md:max-w-7xl md:max-h-[90vh] flex flex-col items-center justify-center cursor-default bg-transparent md:bg-black/50 md:rounded-3xl overflow-hidden md:border md:border-white/10 md:shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-full h-full relative flex items-center justify-center">
+                <OptimizedMedia 
+                  type={fullscreenMedia.type}
+                  src={fullscreenMedia.url}
+                  className="w-full h-full object-contain"
+                  forceUnmuted={true}
+                  controls={true}
+                />
+              </div>
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 lg:p-8 pointer-events-none">
+                <h2 className="text-2xl lg:text-4xl font-black italic uppercase text-white drop-shadow-md">{fullscreenMedia.name}</h2>
+                {fullscreenMedia.description && (
+                  <p className="text-gray-300 mt-2 text-sm lg:text-lg drop-shadow-md">{fullscreenMedia.description}</p>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

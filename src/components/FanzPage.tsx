@@ -278,6 +278,7 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
               src={currentVideoUrl}
               dataSaver={userProfile.dataSaver}
               className="absolute inset-0 w-full h-full object-cover"
+              forceUnmuted={true}
             />
           ) : (
             <OptimizedMedia
