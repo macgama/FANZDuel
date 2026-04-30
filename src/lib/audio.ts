@@ -1,5 +1,6 @@
 export class AudioManager {
   private ctx: AudioContext | null = null;
+  public isMuted: boolean = false;
 
   private init() {
     if (!this.ctx) {
@@ -11,6 +12,7 @@ export class AudioManager {
   }
 
   public playTone(freq: number, type: OscillatorType, duration: number, vol: number = 0.1) {
+    if (this.isMuted) return;
     try {
       this.init();
       if (!this.ctx) return;

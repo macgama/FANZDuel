@@ -21,6 +21,9 @@ export interface UserProfile {
   displayName?: string;
   email: string;
   photoURL?: string;
+  language?: string;
+  dataSaver?: boolean;
+  isMuted?: boolean;
   favoriteTeams: string[];
   money: number;
   gems: number;

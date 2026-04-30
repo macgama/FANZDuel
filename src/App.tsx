@@ -53,6 +53,8 @@ export default function App() {
   return <AppContent />;
 }
 
+import { audioManager } from './lib/audio';
+
 type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'collection' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings' | 'stats' | 'mrfanz';
 
 function AppContent() {
@@ -61,6 +63,12 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [currentDuel, setCurrentDuel] = useState<any>(null);
+
+  useEffect(() => {
+    if (profile !== null) {
+      audioManager.isMuted = profile.isMuted || false;
+    }
+  }, [profile?.isMuted]);
   const [view, _setView] = useState<ViewType>('home');
   const viewHistory = React.useRef<ViewType[]>(['home']);
 

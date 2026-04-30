@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getImageUrl, cn } from '../lib/utils';
 import { useInView } from 'motion/react';
+import { audioManager } from '../lib/audio';
 
 interface OptimizedMediaProps {
   src: string | null;
@@ -25,7 +26,7 @@ export function OptimizedMedia({
   dataSaver = false,
   autoPlay = true,
   loop = true,
-  muted = true,
+  muted,
   controls = false,
   width,
 }: OptimizedMediaProps) {
@@ -33,6 +34,7 @@ export function OptimizedMedia({
   const videoRef = useRef<HTMLVideoElement>(null);
   const isInView = useInView(containerRef, { margin: "200px 0px" });
   const [hasLoaded, setHasLoaded] = useState(false);
+  const isActuallyMuted = muted !== undefined ? muted : audioManager.isMuted;
 
   const finalSrc = src ? getImageUrl(src, width) : '';
   const finalPoster = poster ? getImageUrl(poster, width) : undefined;
@@ -40,7 +42,13 @@ export function OptimizedMedia({
   useEffect(() => {
     if (type === 'video' && videoRef.current && !dataSaver) {
       if (isInView && autoPlay) {
-        videoRef.current.play().catch(e => console.log("Autoplay prevented:", e));
+        videoRef.current.play().catch(e => {
+          console.log("Autoplay prevented, retrying muted:", e);
+          if (videoRef.current) {
+             videoRef.current.muted = true;
+             videoRef.current.play().catch(e2 => console.log("Still failed to play", e2));
+          }
+        });
       } else {
         videoRef.current.pause();
       }
@@ -94,7 +102,7 @@ export function OptimizedMedia({
             className={className}
             autoPlay={autoPlay}
             loop={loop}
-            muted={muted}
+            muted={isActuallyMuted}
             controls={controls}
             playsInline
             preload="metadata"

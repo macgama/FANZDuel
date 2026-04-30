@@ -16,6 +16,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   const [pseudo, setPseudo] = useState(profile.pseudo);
   const [language, setLanguage] = useState(profile.language || 'fr');
   const [dataSaver, setDataSaver] = useState(profile.dataSaver || false);
+  const [isMuted, setIsMuted] = useState(profile.isMuted || false);
   const [photoURL, setPhotoURL] = useState(profile.photoURL || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -102,7 +103,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
     try {
       const docRef = doc(db, 'users', profile.uid);
-      await setDoc(docRef, { pseudo, language, photoURL, dataSaver }, { merge: true });
+      await setDoc(docRef, { pseudo, language, photoURL, dataSaver, isMuted }, { merge: true });
       onClose();
     } catch (err: any) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${profile.uid}`);
@@ -263,6 +264,19 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${dataSaver ? 'bg-orange-500' : 'bg-gray-600'}`}
               >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${dataSaver ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-4 py-3">
+              <div>
+                <label className="block text-sm font-bold text-white mb-0.5">Musique & Ambiance</label>
+                <p className="text-xs text-gray-400">Active le son pendant les parties et événements importants.</p>
+              </div>
+              <button
+                onClick={() => setIsMuted(!isMuted)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${!isMuted ? 'bg-orange-500' : 'bg-gray-600'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${!isMuted ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
 
