@@ -66,9 +66,22 @@ function AppContent() {
 
   useEffect(() => {
     if (profile !== null) {
-      audioManager.isMuted = profile.isMuted || false;
+      audioManager.setMuted(profile.isMuted || false);
     }
   }, [profile?.isMuted]);
+
+  useEffect(() => {
+    const handleInteraction = () => {
+      audioManager.playBGM();
+    };
+    window.addEventListener('click', handleInteraction, { once: true });
+    window.addEventListener('touchstart', handleInteraction, { once: true });
+    return () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+  }, []);
+
   const [view, _setView] = useState<ViewType>('home');
   const viewHistory = React.useRef<ViewType[]>(['home']);
 

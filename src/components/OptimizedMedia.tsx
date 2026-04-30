@@ -37,7 +37,7 @@ export function OptimizedMedia({
   const isInView = useInView(containerRef, { margin: "200px 0px" });
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isHoveredOrClicked, setIsHoveredOrClicked] = useState(false);
-  const globalMuted = muted !== undefined ? muted : audioManager.isMuted;
+  const globalMuted = muted !== undefined ? muted : false;
 
   const finalSrc = src ? getImageUrl(src, width) : '';
   const finalPoster = poster ? getImageUrl(poster, width) : undefined;

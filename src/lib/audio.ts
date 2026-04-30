@@ -1,6 +1,42 @@
 export class AudioManager {
   private ctx: AudioContext | null = null;
   public isMuted: boolean = false;
+  private bgmPlayer: HTMLAudioElement | null = null;
+  private hasInteracted: boolean = false;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      this.bgmPlayer = new Audio('https://thebestfan.online/img/public/sound/bo_tbfo.mp3');
+      this.bgmPlayer.loop = true;
+      this.bgmPlayer.volume = 0.3; // Lower volume for background music
+
+      // Handle user interaction to start playing if needed
+      const handleInteraction = () => {
+        if (!this.hasInteracted) {
+          this.hasInteracted = true;
+          if (!this.isMuted && this.bgmPlayer) {
+            this.bgmPlayer.play().catch(e => console.warn('BGM play failed:', e));
+          }
+        }
+      };
+
+      window.addEventListener('click', handleInteraction);
+      window.addEventListener('touchstart', handleInteraction);
+      window.addEventListener('keydown', handleInteraction);
+    }
+  }
+
+  public playBGM() {
+    if (!this.hasInteracted) {
+        this.hasInteracted = true;
+    }
+    if (!this.isMuted && this.bgmPlayer) {
+      if (this.bgmPlayer.paused) {
+         this.bgmPlayer.play().catch(e => console.warn('BGM play failed:', e));
+      }
+    }
+  }
+
 
   private init() {
     if (!this.ctx) {
@@ -11,8 +47,19 @@ export class AudioManager {
     }
   }
 
+  public setMuted(muted: boolean) {
+    this.isMuted = muted;
+    if (this.bgmPlayer) {
+      if (muted) {
+        this.bgmPlayer.pause();
+      } else if (this.hasInteracted) {
+        this.bgmPlayer.play().catch(e => console.warn('BGM play failed:', e));
+      }
+    }
+  }
+
+
   public playTone(freq: number, type: OscillatorType, duration: number, vol: number = 0.1) {
-    if (this.isMuted) return;
     try {
       this.init();
       if (!this.ctx) return;
