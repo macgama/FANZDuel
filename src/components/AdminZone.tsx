@@ -3155,6 +3155,7 @@ export function AdminZone() {
                             <option value="push_rope">Pousser Corde (%) [Valeur]</option>
                             <option value="drain_energy">Drainer Excitation (Adverse) [Valeur]</option>
                             <option value="refill_energy">Remplir Excitation (Soi) [Valeur]</option>
+                            <option value="draw_cards">Piocher Cartes (Soi) [Valeur]</option>
                             <option value="hide_button">Cacher Bouton (Adverse) [Durée]</option>
                             <option value="shrink_button">Réduire Bouton (Adverse) [Durée]</option>
                             <option value="move_button">Bouger Bouton (Adverse) [Durée]</option>
@@ -3190,6 +3191,11 @@ export function AdminZone() {
                             <option value="confetti">Confettis (Adverse) [Durée]</option>
                             <option value="golden_goal">Action en Or (Soi) [Rien]</option>
                             <option value="hypnosis">Hypnose (Adverse) [Durée]</option>
+                            <option value="pacifier_drama">Drame de la Tétine (Tous) [Rien]</option>
+                            <option value="mascot_bazooka">Bazooka de la Mascotte (Tous) [Rien]</option>
+                            <option value="steal_best_card">Saint Graal (Adverse) [Rien]</option>
+                            <option value="discard_random_cards">Défausse Aléatoire (Soi) [Valeur]</option>
+                            <option value="trade_stickers">Échange de Doubles (Tous) [Rien]</option>
                           </select>
                         </div>
                         <div className="w-24 space-y-1">
@@ -3781,7 +3787,9 @@ export function AdminZone() {
                           className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none text-xs"
                         >
                           <option value="">Sélectionner une carte</option>
-                          {duelCards.map(card => (
+                          {duelCards
+                            .filter(card => card.fanzIds?.includes(editingFanz.id))
+                            .map(card => (
                             <option key={card.id} value={card.id}>{card.name} ({card.rarity})</option>
                           ))}
                         </select>
@@ -3813,7 +3821,9 @@ export function AdminZone() {
                           className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none text-xs"
                         >
                           <option value="">Sélectionner une action</option>
-                          {lifeActions.map(action => (
+                          {lifeActions
+                            .filter(action => action.fanzTemplateId === editingFanz.id)
+                            .map(action => (
                             <option key={action.id} value={action.id}>{action.name}</option>
                           ))}
                         </select>

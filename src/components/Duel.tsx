@@ -678,6 +678,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [isFogOfWar, setIsFogOfWar] = useState(false);
   const [isFrenzy, setIsFrenzy] = useState(false);
   const [isSabotaged, setIsSabotaged] = useState(false);
+  const [isTradingStickers, setIsTradingStickers] = useState(false);
+  const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [isImmune, setIsImmune] = useState(false);
   const [isCriticalStrike, setIsCriticalStrike] = useState(false);
   const [isMomentum, setIsMomentum] = useState(false);
@@ -869,13 +871,19 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   useEffect(() => { duelConfigRef.current = duelConfig; }, [duelConfig]);
   useEffect(() => { handRef.current = hand; }, [hand]);
 
-  const drawCard = () => {
+  const drawCard = (ignoreMax = false, count = 1) => {
     setHand(prev => {
-      if (prev.length >= 4) return prev;
-      const available = deck.filter(c => !prev.find(p => p.id === c.id));
-      if (available.length === 0) return prev;
-      const next = available[Math.floor(Math.random() * available.length)];
-      return [...prev, next];
+      if (!ignoreMax && prev.length >= 4) return prev;
+      let newHand = [...prev];
+      for (let i = 0; i < count; i++) {
+        if (!ignoreMax && newHand.length >= 4) break;
+        const available = deck.filter(c => !newHand.find(p => p.id === c.id));
+        if (available.length === 0) break;
+        const next = available[Math.floor(Math.random() * available.length)];
+        // Assign a unique instance ID to allow multiple copies of the same card in edge cases, or just standard play
+        newHand.push({ ...next, instanceId: Math.random().toString(36).substr(2, 9) });
+      }
+      return newHand;
     });
   };
 
@@ -1371,11 +1379,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   // Base condition check
                   if (!cType || cType === 'global') {
                     matchesCondition = true;
-                  } else if (cType === 'league' && duelLeagueId && cVal === duelLeagueId) {
+                  } else if (cType === 'league' && safeLeagueId && cVal === safeLeagueId) {
                     matchesCondition = true;
                   } else if (cType === 'team' && cVal && (cVal === teamAId || cVal === teamBId || cVal === teamA || cVal === teamB)) {
                     matchesCondition = true;
-                  } else if (cType === 'season' && duelSeason && cVal === duelSeason) {
+                  } else if (cType === 'season' && safeSeason && (cVal === safeSeason || pass.conditionSeason === safeSeason)) {
                     matchesCondition = true;
                   } else if (cType === 'country') {
                     // Extended contexts can be matched here later
@@ -1384,7 +1392,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
                   // If there is an explicit secondary season condition, enforce it
                   if (matchesCondition && pass.conditionSeason && pass.conditionSeason !== '') {
-                    if (duelSeason !== pass.conditionSeason) {
+                    if (safeSeason !== pass.conditionSeason) {
                       matchesCondition = false;
                     }
                   }
@@ -1453,7 +1461,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
 
       const isMalus = card.effects.some(e => 
-        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis'].includes(e.type)
+        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card'].includes(e.type)
       );
       
       if (card.soundUrl) { playSound(card.soundUrl); } 
@@ -1549,6 +1557,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setTimeout(() => setIsFakeButtons(false), getEffectiveDuration(effect.duration || 5, bluffResistance));
             addFloatingEffect('🎭 Faux Boutons!', window.innerWidth / 2, 200, 'text-red-400');
             break;
+          case 'trade_stickers':
+            setIsTradingStickers(true);
+            setSelectedStickers([]);
+            addFloatingEffect('🔄 Échange de Doubles!', window.innerWidth / 2, 200, 'text-blue-400 font-bold max-w-[200px] text-center');
+            break;
           case 'card_lock':
             setIsCardLocked(true);
             setTimeout(() => setIsCardLocked(false), getEffectiveDuration(effect.duration || 5, mentalResistance));
@@ -1586,6 +1599,22 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setTimeout(() => setIsHypnotized(false), getEffectiveDuration(effect.duration || 4, mentalResistance));
             addFloatingEffect('🌀 Hypnotisé!', window.innerWidth / 2, 200, 'text-purple-600 font-black scale-150');
             break;
+          case 'pacifier_drama':
+            setHand(prev => {
+              if (prev.length === 0) return prev;
+              const newHand = [...prev];
+              newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+              return newHand;
+            });
+            setTimeout(drawCard, 2000);
+            setExcitement(prev => Math.max(0, prev - (effect.value || 1)));
+            addFloatingEffect('🍼 DRAME DE LA TÉTINE ! (-1 Carte, -1 PA)', window.innerWidth / 2, 200, 'text-blue-500 font-black scale-125 drop-shadow-md z-[200]');
+            break;
+          case 'mascot_bazooka':
+            setHand(prev => prev.filter(c => c.name.toLowerCase().includes("enfant de la mascotte")));
+            setTimeout(() => drawCard(true, 3), 100);
+            addFloatingEffect('🎁 BAZOOKA À GOODIES ! (Défausse + 3 Cartes)', window.innerWidth / 2, 250, 'text-pink-500 font-black scale-125 drop-shadow-md z-[200]');
+            break;
         }
       });
     };
@@ -1611,6 +1640,30 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     };
     socket.on('swap-hands-complete', handleSwapHandsComplete);
 
+    const handleStealCardRequest = ({ fromTeam }: { fromTeam: string }) => {
+      const myParticipant = participantsRef.current.find(p => p.uid === user.uid);
+      const myTeam = myParticipant?.team || 'A';
+      if (fromTeam !== myTeam) {
+        if (handRef.current.length > 0) {
+           const bestCard = handRef.current.reduce((prev, curr) => (prev.fervorValue || 0) > (curr.fervorValue || 0) ? prev : curr);
+           setHand(prev => prev.filter(c => c.instanceId !== bestCard.instanceId));
+           socket.emit('steal-card-response', { duelId: currentDuelIdRef.current, team: myTeam, card: bestCard });
+           addFloatingEffect('😭 Meilleure Carte Volée!', window.innerWidth / 2, 250, 'text-red-500 font-black scale-125 drop-shadow-md z-[200]');
+        }
+      }
+    };
+    socket.on('steal-card-request', handleStealCardRequest);
+
+    const handleStealCardComplete = ({ stolenCard }: { stolenCard: GameCard }) => {
+       setHand(prev => {
+         let newHand = [...prev];
+         newHand.push({ ...stolenCard, instanceId: Math.random().toString(36).substr(2, 9) });
+         return newHand;
+       });
+       addFloatingEffect(`✨ ${stolenCard.name} obtenue!`, window.innerWidth / 2, 250, 'text-yellow-400 font-black scale-125 drop-shadow-md z-[200]');
+    };
+    socket.on('steal-card-complete', handleStealCardComplete);
+
     const handleReceiveEmote = ({ team, emoteId, senderId }: { team: string, emoteId: string, senderId: string }) => {
       const id = Math.random().toString(36).substring(7);
       // Random position roughly in the middle of the container
@@ -1634,6 +1687,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       socket.off('enemy-card-played', handleEnemyCardPlayed);
       socket.off('swap-hands-request', handleSwapHandsRequest);
       socket.off('swap-hands-complete', handleSwapHandsComplete);
+      socket.off('steal-card-request', handleStealCardRequest);
+      socket.off('steal-card-complete', handleStealCardComplete);
       socket.off('receive-emote', handleReceiveEmote);
     };
   }, [socket, duel.id]);
@@ -1842,6 +1897,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setExcitement(prev => Math.min(maxExcitement, prev + (effect.value || 0)));
         addFloatingEffect(`+${effect.value} Énergie!`, x, y - 30, 'text-yellow-400');
       }
+      if (effect.type === 'draw_cards') {
+        const amount = effect.value || 1;
+        drawCard(true, amount);
+        addFloatingEffect(`+${amount} Carte(s)!`, x, y - 30, 'text-blue-300 font-black');
+      }
+
       if (effect.type === 'double_points') {
         setIsDoublePoints(true);
         setTimeout(() => setIsDoublePoints(false), (effect.duration || 5) * 1000);
@@ -1897,6 +1958,15 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         addFloatingEffect('🔄 Échange de Mains!', x, y - 80, 'text-blue-400 font-bold');
         socket?.emit('swap-hands-init', { duelId: currentDuelIdRef.current, team: myTeam, hand });
       }
+      if (effect.type === 'trade_stickers') {
+        setIsTradingStickers(true);
+        setSelectedStickers([]);
+        addFloatingEffect('🔄 Échange de Doubles!', x, y - 80, 'text-blue-400 font-bold');
+      }
+      if (effect.type === 'steal_best_card') {
+        addFloatingEffect('✨ Vol du Saint Graal !', x, y - 80, 'text-yellow-400 font-bold');
+        socket?.emit('steal-card-init', { duelId: currentDuelIdRef.current, team: myTeam });
+      }
       if (effect.type === 'blessing') {
         setIsBlessed(true);
         setTimeout(() => setIsBlessed(false), (effect.duration || 10) * 1000);
@@ -1905,6 +1975,36 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       if (effect.type === 'golden_goal') {
         setIsGoldenGoal(true);
         addFloatingEffect('⚽ Balle de Match prête!', x, y - 30, 'text-yellow-500 font-black scale-125');
+      }
+      if (effect.type === 'pacifier_drama') {
+        setHand(prev => {
+          if (prev.length === 0) return prev;
+          const newHand = [...prev];
+          newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+          return newHand;
+        });
+        setTimeout(drawCard, 2000);
+        setExcitement(prev => Math.max(0, prev - (effect.value || 1)));
+        addFloatingEffect('🍼 TÉTINE PERDUE !', window.innerWidth / 2, 200, 'text-blue-500 font-black scale-125 drop-shadow-md z-[200]');
+      }
+      if (effect.type === 'mascot_bazooka') {
+        setHand(prev => prev.filter(c => c.name.toLowerCase().includes("enfant de la mascotte")));
+        setTimeout(() => drawCard(true, 3), 100);
+        addFloatingEffect('🎁 BAZOOKA À GOODIES !', window.innerWidth / 2, 250, 'text-pink-500 font-black scale-125 drop-shadow-md z-[200]');
+      }
+      if (effect.type === 'discard_random_cards') {
+        const nbCardsToDiscard = effect.value || 2;
+        setHand(prev => {
+          let newHand = [...prev];
+          for(let i = 0; i < nbCardsToDiscard; i++) {
+            if (newHand.length > 0) {
+              newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+            }
+          }
+          return newHand;
+        });
+        setTimeout(() => drawCard(false, nbCardsToDiscard), 2000);
+        addFloatingEffect(`🃏 ${nbCardsToDiscard} Carte(s) Défaussée(s)!`, x, y - 80, 'text-red-500 font-black scale-125 drop-shadow-md z-[200]');
       }
     });
 
@@ -2607,6 +2707,44 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           {isCriticalStrike && <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase">💥 Coup Critique</div>}
           {isMomentum && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-300 uppercase">💨 Momentum</div>}
         </div>
+        
+        {/* Trade Stickers Confirm Block */}
+        <AnimatePresence>
+          {isTradingStickers && (
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="absolute bottom-[160px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-50 w-full max-w-sm px-4"
+            >
+              <div className="bg-blue-900/90 border-2 border-blue-400 p-3 rounded-xl shadow-[0_0_20px_blue] w-full text-center backdrop-blur-md">
+                <p className="text-white font-bold mb-2">Sélectionnez jusqu'à 3 doubles ({selectedStickers.length}/3)</p>
+                <div className="flex gap-2 w-full">
+                  <button 
+                    onClick={() => setIsTradingStickers(false)}
+                    className="flex-1 py-2 rounded-lg bg-gray-700 text-white font-bold border border-gray-500 hover:bg-gray-600"
+                  >
+                    Ignorer
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (selectedStickers.length > 0) {
+                        setHand(prev => prev.filter(c => !selectedStickers.includes(c.instanceId || c.id)));
+                        setTimeout(() => drawCard(true, selectedStickers.length), 500);
+                        addFloatingEffect(`🔄 ${selectedStickers.length} Carte(s) Échangée(s)!`, window.innerWidth / 2, 200, 'text-blue-400 font-bold max-w-[200px] text-center');
+                      }
+                      setIsTradingStickers(false);
+                    }}
+                    className={`flex-1 py-2 rounded-lg font-bold border ${selectedStickers.length > 0 ? 'bg-blue-600 text-white border-blue-400 hover:bg-blue-500' : 'bg-blue-900/50 text-blue-300/50 border-blue-800 cursor-not-allowed'}`}
+                    disabled={selectedStickers.length === 0}
+                  >
+                    Échanger
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Cards Hand */}
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x justify-center">
@@ -2619,15 +2757,28 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
               return (
                 <motion.div
-                  key={card.id}
+                  key={card.instanceId || card.id}
                   layout
                   initial={{ y: 50, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: -50, opacity: 0 }}
                   whileHover={{ y: -5 }}
-                  onClick={(e) => playCard(card, e)}
-                  className={`min-w-[85px] w-[85px] h-[135px] snap-center shrink-0 rounded-lg border-2 flex flex-col cursor-pointer transition-colors relative overflow-hidden ${
-                    excitement >= actualCost ? 'border-yellow-500 bg-yellow-600/10' : 'border-white/10 bg-white/5 opacity-50'
+                  onClick={(e) => {
+                    if (isTradingStickers) {
+                      const id = card.instanceId || card.id;
+                      if (selectedStickers.includes(id)) {
+                        setSelectedStickers(prev => prev.filter(s => s !== id));
+                      } else if (selectedStickers.length < 3) {
+                        setSelectedStickers(prev => [...prev, id]);
+                      }
+                    } else {
+                      playCard(card, e);
+                    }
+                  }}
+                  className={`min-w-[85px] w-[85px] h-[135px] snap-center shrink-0 rounded-lg border-2 flex flex-col cursor-pointer transition-all relative overflow-hidden ${
+                    isTradingStickers 
+                      ? (selectedStickers.includes(card.instanceId || card.id) ? 'border-blue-500 shadow-[0_0_15px_blue] scale-110 z-20' : 'border-gray-500 opacity-50')
+                      : (excitement >= actualCost ? 'border-yellow-500 bg-yellow-600/10' : 'border-white/10 bg-white/5 opacity-50')
                   }`}
                 >
                   {/* Background Image */}

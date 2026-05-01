@@ -668,6 +668,14 @@ async function startServer() {
       socket.to(duelId).emit("swap-hands-complete", { newHand: hand });
     });
 
+    socket.on("steal-card-init", ({ duelId, team }) => {
+      socket.to(duelId).emit("steal-card-request", { fromTeam: team });
+    });
+
+    socket.on("steal-card-response", ({ duelId, team, card }) => {
+      socket.to(duelId).emit("steal-card-complete", { stolenCard: card });
+    });
+
     socket.on("send-emote", ({ duelId, team, emoteId, senderId }) => {
       socket.to(duelId).emit("receive-emote", { team, emoteId, senderId });
     });

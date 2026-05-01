@@ -42,12 +42,16 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
       id: 'skills',
       title: 'Compétences & Stats',
       icon: <TrendingUp className="text-blue-500" />,
-      content: "Chaque FANZ possède des caractéristiques uniques qui influencent le gameplay.",
+      content: "Les statistiques de votre FANZ déterminent de nombreux paramètres cruciaux pendant le duel. Ne négligez aucune stat et adaptez votre composition !",
       tips: [
-        "FORCE : Augmente la puissance de tes clics.",
-        "ENDURANCE : Ton énergie remonte plus vite.",
-        "MENTAL : Tes malus durent moins longtemps.",
-        "BLUFF : Améliore l'efficacité de tes cartes visuelles."
+        "FORCE : Dégâts et puissance pure de vos clics par rapport à l'adversaire.",
+        "ENDURANCE : Accélère la vitesse de régénération de votre jauge d'Excitation.",
+        "MENTAL : Renforce votre résistance pour réduire la durée des malus agressifs que vous subissez.",
+        "BLUFF : Vos malus visuels dureront plus longtemps chez l'adversaire (et moins longtemps sur vous).",
+        "CRÉATIVITÉ : Vos cartes coûtent moins d'Excitation à jouer.",
+        "SOCIAL : Augmente vos gains d'XP en fin de match.",
+        "INTELLIGENCE : Augmente vos chances de piocher des cartes rares avec Lucky Draw.",
+        "CHARISME : Multiplie les bonus et l'impact de toutes vos cartes."
       ]
     },
     {

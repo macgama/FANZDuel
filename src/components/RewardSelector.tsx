@@ -26,9 +26,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
 
   const availableCards = isFanzContext && currentFanzId
     ? duelCards.filter(c => {
-        const isAllowed = !c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(currentFanzId);
-        const isBlocked = c.blockedFanzIds && c.blockedFanzIds.includes(currentFanzId);
-        return isAllowed && !isBlocked;
+        return c.fanzIds && c.fanzIds.includes(currentFanzId);
       })
     : duelCards;
 

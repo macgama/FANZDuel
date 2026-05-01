@@ -272,7 +272,13 @@ export type CardEffectType =
   | 'blessing'
   | 'confetti'
   | 'golden_goal'
-  | 'hypnosis';
+  | 'hypnosis'
+  | 'pacifier_drama'
+  | 'draw_cards'
+  | 'mascot_bazooka'
+  | 'steal_best_card'
+  | 'discard_random_cards'
+  | 'trade_stickers';
 
 export interface CardEffect {
   type: CardEffectType;
