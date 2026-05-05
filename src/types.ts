@@ -153,6 +153,7 @@ export interface FerveurLevel {
     actionId?: string;
     fanzId?: string;
     statName?: keyof FanzStats;
+    choices?: any[];
   };
 }
 

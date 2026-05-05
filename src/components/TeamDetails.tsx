@@ -437,7 +437,7 @@ function TeamRankingList({ title, data, label, valKey, icon }: { title: string; 
   );
 }
 
-function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number; profile?: any }) {
+function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; selectedSeason: number; profile?: any }) {
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [selectedRound, setSelectedRound] = useState<string>('');
   const [leagueFixtures, setLeagueFixtures] = useState<any[]>([]);

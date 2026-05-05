@@ -1,5 +1,5 @@
 import React from 'react';
-import { useMediaViewer, MediaViewerData } from '../context/MediaViewerContext';
+import { useMediaViewer, MediaViewerData } from '../../context/MediaViewerContext';
 
 interface ClickableMediaProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;

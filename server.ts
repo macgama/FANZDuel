@@ -49,9 +49,9 @@ async function startServer() {
         dbCards.forEach(dbCard => {
           const idx = mergedCards.findIndex(c => c.id === dbCard.id);
           if (idx !== -1) {
-            mergedCards[idx] = dbCard;
+            mergedCards[idx] = { ...mergedCards[idx], ...dbCard } as Card;
           } else {
-            mergedCards.push(dbCard);
+            mergedCards.push(dbCard as Card);
           }
         });
         loadedCards = mergedCards;
@@ -96,6 +96,7 @@ async function startServer() {
     botInterval?: NodeJS.Timeout;
     isPrivate?: boolean;
     inviteCode?: string;
+    historicalParticipants?: Record<string, any>;
   }> = {};
 
   // Helper to get a JSON-safe version of a duel (removing circular timers/intervals)
@@ -395,23 +396,28 @@ async function startServer() {
       // Add participant if not already there
       if (!duel.participants.find(p => p.uid === user.uid)) {
         let team: 'A' | 'B' = 'A';
-        const maxPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[type as '1v1' | '2v2' | '5v5'] || 999;
+        const maxPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 999;
         const teamACount = duel.participants.filter(p => p.team === 'A').length;
         const teamBCount = duel.participants.filter(p => p.team === 'B').length;
 
         if (chosenTeam && (chosenTeam === 'A' || chosenTeam === 'B')) {
           const chosenCount = chosenTeam === 'A' ? teamACount : teamBCount;
+          const otherCount = chosenTeam === 'A' ? teamBCount : teamACount;
           if (chosenCount < maxPerTeam) {
             team = chosenTeam;
-          } else {
+          } else if (otherCount < maxPerTeam) {
             // Fallback to other team if chosen is full
             team = chosenTeam === 'A' ? 'B' : 'A';
+          } else {
+             // Both teams full, reject
+             return;
           }
-        } else if (type === 'war_of_kops') {
+        } else if (duel.type === 'war_of_kops') {
           team = teamACount <= teamBCount ? 'A' : 'B';
-        } else if (type !== 'training') {
+        } else if (duel.type !== 'training') {
           if (teamACount < maxPerTeam) team = 'A';
-          else team = 'B';
+          else if (teamBCount < maxPerTeam) team = 'B';
+          else return; // Both teams full
         }
         
         duel.participants.push({ ...user, fanz, team, socketId: socket.id });
@@ -565,6 +571,22 @@ async function startServer() {
             participants: duel.participants 
           });
         }
+      }
+    });
+
+    socket.on("update-duel-settings", ({ duelId, isPrivate }) => {
+      const duel = duels[duelId];
+      if (duel && duel.status === 'waiting') {
+        duel.isPrivate = isPrivate;
+        io.to(duelId).emit("duel-update", {
+          duelId: duel.id,
+          progress: duel.progress,
+          status: duel.status,
+          participants: duel.participants,
+          scores: duel.scores,
+          isPrivate: duel.isPrivate,
+          inviteCode: duel.inviteCode
+        });
       }
     });
 
@@ -732,8 +754,14 @@ async function startServer() {
   });
 
   app.get("/api/duels", (req, res) => {
+    const uid = req.query.uid as string;
     const waitingDuels = Object.values(duels)
-      .filter(d => !d.isPrivate && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active')))
+      .filter(d => {
+        const isPublicWaiting = !d.isPrivate && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active'));
+        const isUserParticipant = uid && d.participants.some(p => p.uid === uid);
+        const isUserWaiting = isUserParticipant && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active'));
+        return isPublicWaiting || isUserWaiting;
+      })
       .map(d => getSafeDuel(d));
     res.json(waitingDuels);
   });

@@ -87,7 +87,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
   useEffect(() => {
     const fetchDuels = async () => {
       try {
-        const response = await fetch('/api/duels');
+        const response = await fetch('/api/duels?uid=' + user.uid);
         if (response.ok) {
           const data = await response.json();
           setDuels(data);
@@ -304,6 +304,11 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                           <span className="px-1.5 py-0.5 rounded bg-white/5 text-[8px] font-black text-gray-500 uppercase tracking-widest border border-white/5">
                             ID: {duel.id.substring(0, 8)}
                           </span>
+                          {duel.isPrivate && (
+                            <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[8px] font-black text-orange-500 uppercase tracking-widest border border-orange-500/30">
+                              PRIVÉ
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 mt-1">
                           <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 uppercase">
@@ -338,10 +343,10 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                       </button>
                       <Button 
                         onClick={() => onJoinDuel(duel.id, duel.type, duel.matchId)}
-                        disabled={isFull}
+                        disabled={isFull && !duel.participants?.some((p: any) => p.uid === user?.uid)}
                         className="px-6 h-10 text-[10px] font-black uppercase tracking-widest italic"
                       >
-                        Rejoindre
+                        {duel.participants?.some((p: any) => p.uid === user?.uid) ? 'REVENIR' : 'REJOINDRE'}
                       </Button>
                     </div>
                   </div>

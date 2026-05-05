@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { footballApi } from '../services/footballApi';
 import { Card, Button } from './Layout';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Activity } from 'lucide-react';
 import { format, addDays, subDays, isSameDay } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';

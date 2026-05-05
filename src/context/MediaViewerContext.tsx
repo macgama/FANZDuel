@@ -48,7 +48,10 @@ export function MediaViewerProvider({ children }: { children: ReactNode }) {
         // Ignore SVG avatars from dicebear that don't have viewerItemType
         if (mediaElem.src.includes('dicebear') && !mediaElem.dataset.viewerItemType) return;
 
-        // Skip if explicitly ignored
+        // Only open if explicitly marked as viewer-enabled
+        if (mediaElem.dataset.viewerEnabled !== 'true') return;
+
+        // Skip if explicitly ignored (legacy)
         if (mediaElem.dataset.viewerIgnore) return;
 
         // Ensure we stop propagation if we successfully intercept an img click

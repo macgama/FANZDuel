@@ -10,7 +10,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 5,
     description: 'Pousse la corde de 5% vers votre équipe.',
     effects: [{ type: 'push_rope', value: 5 }],
-    imageUrl: 'https://picsum.photos/seed/war/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_1.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -23,7 +23,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Floute la vue de l\'adversaire pendant 5 secondes.',
     effects: [{ type: 'blur_view', duration: 5 }],
-    imageUrl: 'https://picsum.photos/seed/smoke/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_2.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -36,7 +36,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 12,
     description: 'Pousse la corde de 12% vers votre équipe.',
     effects: [{ type: 'push_rope', value: 12 }],
-    imageUrl: 'https://picsum.photos/seed/tifo/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_3.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -49,7 +49,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Rend 4 points d\'excitation.',
     effects: [{ type: 'refill_energy', value: 4 }],
-    imageUrl: 'https://picsum.photos/seed/chant/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_4.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -62,7 +62,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Vole 3 points d\'excitation à l\'adversaire.',
     effects: [{ type: 'drain_energy', value: 3 }],
-    imageUrl: 'https://picsum.photos/seed/noise/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_5.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -75,7 +75,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Fait disparaître le bouton de l\'adversaire pendant 4 secondes.',
     effects: [{ type: 'hide_button', duration: 4 }],
-    imageUrl: 'https://picsum.photos/seed/dark/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_6.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -88,7 +88,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Réduit la taille du bouton adverse pendant 6 secondes.',
     effects: [{ type: 'shrink_button', duration: 6 }],
-    imageUrl: 'https://picsum.photos/seed/small/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_7.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -101,7 +101,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Le bouton adverse se déplace pendant 8 secondes.',
     effects: [{ type: 'move_button', duration: 8 }],
-    imageUrl: 'https://picsum.photos/seed/wind/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_8.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -114,7 +114,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Gèle le bouton adverse pendant 3 secondes.',
     effects: [{ type: 'freeze_button', duration: 3 }],
-    imageUrl: 'https://picsum.photos/seed/redcard/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_9.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -127,7 +127,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Mélange la main de l\'adversaire.',
     effects: [{ type: 'shuffle_deck' }],
-    imageUrl: 'https://picsum.photos/seed/ole/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_10.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -140,7 +140,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Cache le score pendant 7 secondes.',
     effects: [{ type: 'hide_score', duration: 7 }],
-    imageUrl: 'https://picsum.photos/seed/whistle/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_11.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -153,7 +153,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Défausse une carte de la main adverse.',
     effects: [{ type: 'discard_enemy_cards' }],
-    imageUrl: 'https://picsum.photos/seed/offside/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_12.png',
     videoUrl: '',
     fanzIds: []
   },
@@ -166,7 +166,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 4,
     fervorValue: 8,
     effects: [{ type: 'double_points', duration: 5 }],
-    imageUrl: 'https://picsum.photos/seed/double/400/600',
+    imageUrl: 'https://thebestfan.online/public/duel/double-ferveur.png',
     fanzIds: []
   },
   {
@@ -178,7 +178,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 4,
     fervorValue: 6,
     effects: [{ type: 'shield' }],
-    imageUrl: 'https://picsum.photos/seed/shield/400/600',
+    imageUrl: 'https://thebestfan.online/public/duel/bouclier-divin.png',
     fanzIds: []
   },
   {
@@ -190,7 +190,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 3,
     fervorValue: 0,
     effects: [{ type: 'earthquake', duration: 3 }],
-    imageUrl: 'https://picsum.photos/seed/quake/400/600',
+    imageUrl: 'https://thebestfan.online/public/duel/seisme.png',
     fanzIds: []
   },
   {
@@ -202,7 +202,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 5,
     fervorValue: 10,
     effects: [{ type: 'mirror' }],
-    imageUrl: 'https://picsum.photos/seed/mirror/400/600',
+    imageUrl: 'https://thebestfan.online/public/duel/miroir-magique.png',
     fanzIds: []
   },
   {
@@ -214,7 +214,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 5,
     fervorValue: 0,
     effects: [{ type: 'fake_buttons', duration: 5 }],
-    imageUrl: 'https://picsum.photos/seed/ghost/400/600',
+    imageUrl: 'https://thebestfan.online/public/duel/boutons-fantomes.png',
     fanzIds: []
   },
   {
@@ -226,7 +226,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 15,
     description: 'Pousse la corde de 15%. Requis: Force Niv. 3',
     effects: [{ type: 'push_rope', value: 15 }],
-    imageUrl: 'https://picsum.photos/seed/brute/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/unlock_skill_1.png',
     unlockRequirements: [{ type: 'skill', skillName: 'force', minLevel: 3 }]
   },
   {
@@ -238,7 +238,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 0,
     description: 'Double la régénération d\'excitation. Requis: Ferveur Niv. 2',
     effects: [{ type: 'energy_regen_boost', duration: 10 }],
-    imageUrl: 'https://picsum.photos/seed/aura/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/unlock_ferveur_1.png',
     unlockRequirements: [{ type: 'ferveur', minLevel: 2 }]
   },
   {
@@ -250,7 +250,7 @@ export const BASE_CARDS: Card[] = [
     fervorValue: 25,
     description: 'Pousse la corde de 25%. Requis: Rang Fanz 5',
     effects: [{ type: 'push_rope', value: 25 }],
-    imageUrl: 'https://picsum.photos/seed/legend/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/unlock_rank_1.png',
     unlockRequirements: [{ type: 'rank', minLevel: 5 }]
   },
   {
@@ -262,7 +262,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 6,
     fervorValue: 0,
     effects: [{ type: 'mimic' }],
-    imageUrl: 'https://picsum.photos/seed/mimic/400/600',
+    imageUrl: 'https://thebestfan.online/public/duel/mimic.png',
     fanzIds: []
   },
   {
@@ -274,7 +274,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 5,
     fervorValue: 0,
     effects: [{ type: 'lucky_draw' }],
-    imageUrl: 'https://picsum.photos/seed/luck/400/600',
+    imageUrl: 'https://thebestfan.online/public/duel/lucky_draw.png',
     fanzIds: []
   },
   {
@@ -286,7 +286,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 7,
     fervorValue: 0,
     effects: [{ type: 'swap_hands' }],
-    imageUrl: 'https://picsum.photos/seed/swap/400/600',
+    imageUrl: 'https://thebestfan.online/public/duel/swap_hands.png',
     fanzIds: []
   },
   {
@@ -334,7 +334,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 2,
     fervorValue: 0,
     effects: [{ type: 'steal_energy', value: 2 }],
-    imageUrl: 'https://picsum.photos/seed/steal/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_steal_energy.png',
     fanzIds: []
   },
   {
@@ -346,7 +346,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 3,
     fervorValue: 0,
     effects: [{ type: 'cleanse' }],
-    imageUrl: 'https://picsum.photos/seed/cleanse/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_cleanse.png',
     fanzIds: []
   },
   {
@@ -358,7 +358,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 6,
     fervorValue: 0,
     effects: [{ type: 'vampirism', duration: 5 }],
-    imageUrl: 'https://picsum.photos/seed/vamp/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_vampirism.png',
     fanzIds: []
   },
   {
@@ -370,7 +370,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 5,
     fervorValue: 0,
     effects: [{ type: 'fog_of_war', duration: 6 }],
-    imageUrl: 'https://picsum.photos/seed/fog/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_fog_of_war.png',
     fanzIds: []
   },
   {
@@ -382,7 +382,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 9,
     fervorValue: 0,
     effects: [{ type: 'frenzy', duration: 3 }],
-    imageUrl: 'https://picsum.photos/seed/frenzy/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_frenzy.png',
     fanzIds: []
   },
   {
@@ -394,7 +394,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 4,
     fervorValue: 0,
     effects: [{ type: 'sabotage' }],
-    imageUrl: 'https://picsum.photos/seed/sabotage/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_sabotage.png',
     fanzIds: []
   },
   {
@@ -406,7 +406,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 8,
     fervorValue: 0,
     effects: [{ type: 'immunity', duration: 8 }],
-    imageUrl: 'https://picsum.photos/seed/immune/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_immunity.png',
     fanzIds: []
   },
   {
@@ -418,7 +418,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 3,
     fervorValue: 0,
     effects: [{ type: 'critical_strike' }],
-    imageUrl: 'https://picsum.photos/seed/crit/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_critical_strike.png',
     fanzIds: []
   },
   {
@@ -430,7 +430,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 5,
     fervorValue: 0,
     effects: [{ type: 'momentum', duration: 5 }],
-    imageUrl: 'https://picsum.photos/seed/momentum/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_momentum.png',
     fanzIds: []
   },
   {
@@ -442,7 +442,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 0,
     fervorValue: -5,
     effects: [{ type: 'overload' }],
-    imageUrl: 'https://picsum.photos/seed/overload/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_overload.png',
     fanzIds: []
   },
   {
@@ -454,7 +454,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 10,
     fervorValue: 0,
     effects: [{ type: 'invert_rope' }],
-    imageUrl: 'https://picsum.photos/seed/invert/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_invert_rope.png',
     fanzIds: []
   },
   {
@@ -466,7 +466,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 6,
     fervorValue: 0,
     effects: [{ type: 'blackout', duration: 8 }],
-    imageUrl: 'https://picsum.photos/seed/blackout/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_blackout.png',
     fanzIds: []
   },
   {
@@ -478,7 +478,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 3,
     fervorValue: 0,
     effects: [{ type: 'curse' }],
-    imageUrl: 'https://picsum.photos/seed/curse/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_curse.png',
     fanzIds: []
   },
   {
@@ -490,7 +490,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 5,
     fervorValue: 0,
     effects: [{ type: 'blessing', duration: 10 }],
-    imageUrl: 'https://picsum.photos/seed/bless/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_blessing.png',
     fanzIds: []
   },
   {
@@ -502,7 +502,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 3,
     fervorValue: 0,
     effects: [{ type: 'confetti', duration: 7 }],
-    imageUrl: 'https://picsum.photos/seed/confetti/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_confetti.png',
     fanzIds: []
   },
   {
@@ -514,7 +514,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 8,
     fervorValue: 0,
     effects: [{ type: 'golden_goal' }],
-    imageUrl: 'https://picsum.photos/seed/goldengoal/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_golden_goal.png',
     fanzIds: []
   },
   {
@@ -526,7 +526,7 @@ export const BASE_CARDS: Card[] = [
     energyCost: 10,
     fervorValue: 0,
     effects: [{ type: 'hypnosis', duration: 4 }],
-    imageUrl: 'https://picsum.photos/seed/hypno/200/300',
+    imageUrl: 'https://thebestfan.online/public/duel/base_hypnosis.png',
     fanzIds: []
   }
 ];

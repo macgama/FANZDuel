@@ -629,7 +629,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                       match={match}
                       hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
                       matchScore={matchScores[match.fixture.id.toString()]}
-                      onClick={(tab) => onMatchClick(match.fixture.id, tab)}
+                      onClick={() => onMatchClick(match.fixture.id)}
                       onJoinDuel={(isLive) => onJoinDuel(match.fixture.id, isLive)}
                       onTeamClick={onTeamClick}
                       onLeagueClick={onLeagueClick}

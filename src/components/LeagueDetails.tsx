@@ -24,12 +24,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
-import { collection, query, where, orderBy, limit, getDocs, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
 import { SharedMatchCard } from './SharedMatchCard';
-import { db } from '../firebase';
-import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 
 interface LeagueDetailsProps {
   leagueId: number;
@@ -484,7 +482,7 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
   );
 }
 
-function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number; profile?: any }) {
+function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; selectedSeason: number; profile?: any }) {
   const [selectedRound, setSelectedRound] = useState<string>('');
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [activeDuels, setActiveDuels] = useState<any[]>([]);

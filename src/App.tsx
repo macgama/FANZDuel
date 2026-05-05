@@ -120,7 +120,7 @@ function AppContent() {
   const [joiningDuel, setJoiningDuel] = useState<{ id: string; type: string; matchId: number } | null>(null);
   const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
   const [unreadSocialCount, setUnreadSocialCount] = useState(0);
-  const [claimableAlerts, setClaimableAlerts] = useState({ missions: false, globalFervor: false });
+  const [claimableAlerts, setClaimableAlerts] = useState({ missions: false, globalFervor: false, fanzFervor: false });
 
   // Compute claimable states for sidebar dots
   useEffect(() => {
@@ -145,7 +145,7 @@ function AppContent() {
       const config = snap.data();
       lastGlobalConfig = config;
       const currentPoints = profile.ferveurPoints || 0;
-      const path = generateFervorPath(currentPoints + 5000, config);
+      const path = generateFervorPath(currentPoints + 5000, config as GlobalFervorConfig);
       const hasGlobalFervorAlert = path.some(level => {
         const slotId = `ferveur-level-${level.level}`;
         return currentPoints >= level.pointsRequired && !profile.claimedFervorRewards?.includes(slotId);
@@ -164,10 +164,10 @@ function AppContent() {
         
         const hasFanzFervorAlert = fanzList.some((fanz: any) => {
           const currentPts = fanz.ferveurPoints || 0;
-          const template = templatesList.find(t => t.id === fanz.templateId);
-          let path = [];
+          const template: any = templatesList.find(t => t.id === fanz.templateId);
+          let path: any[] = [];
           if (template?.ferveurPath && template.ferveurPath.length > 0) path = template.ferveurPath;
-          else if (fanz?.ferveurPath && fanz.ferveurPath.length > 0) path = fanz.ferveurPath;
+          else if ((fanz as any)?.ferveurPath && (fanz as any).ferveurPath.length > 0) path = (fanz as any).ferveurPath;
           else if (lastGlobalConfig) path = generateFervorPath(Math.max(150000, currentPts + 5000), lastGlobalConfig);
           
           return path.some((step: any) => {
@@ -672,6 +672,14 @@ function AppContent() {
       <Layout containerClassName="md:flex-row">
         <GlobalSocketListener onDuelStarting={(duelId, duelData) => {
           setCurrentDuel(duelData);
+          if (duelData && duelData.matchId) {
+            setView('home');
+            setSelectedLeague(null);
+            setSelectedTeam(null);
+            setSelectedFanzId(null);
+            setSelectedMatchId(Number(duelData.matchId));
+            setJoiningDuel({ id: duelId, type: duelData.type, matchId: Number(duelData.matchId) });
+          }
         }} />
 
       {profile && view !== 'duel' && !isDuelActive && view !== 'admin' && (
