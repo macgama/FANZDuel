@@ -2786,7 +2786,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     <img 
                       src={getImageUrl(card.imageUrl)} 
                       alt={card.name} 
-                      className="absolute inset-0 w-full h-full object-cover z-0 opacity-50"
+                      className="absolute inset-0 w-full h-full object-cover z-0 opacity-50" data-viewer-ignore="true"
                       referrerPolicy="no-referrer"
                     />
                   )}

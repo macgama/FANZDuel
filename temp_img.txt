@@ -1,0 +1,223 @@
+src/components/RewardAlert.tsx:              <img 
+src/components/RewardAlert.tsx:                    <img src="https://thebestfan.online/img/public/logo/chest.png" alt="Chest" className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(249,115,22,0.8)]" />
+src/components/RewardAlert.tsx:                    <img src={getImageUrl(reward.card.imageUrl)} className="w-full h-full object-cover" alt={reward.card.name} />
+src/components/RewardAlert.tsx:                        {reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+src/components/RewardAlert.tsx:                        {reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+src/components/RewardAlert.tsx:                        {reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
+src/components/ChatView.tsx:        <img src={getImageUrl(friend.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} alt={friend.pseudo} className="w-10 h-10 rounded-full bg-white/10" referrerPolicy="no-referrer" />
+src/components/ChatView.tsx:                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-16 h-16 object-contain" />
+src/components/ChatView.tsx:                    <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-10 h-10 object-contain" />
+src/components/Rankings.tsx:                    <img src={getImageUrl(entry.imageUrl)} alt={entry.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+src/components/Rankings.tsx:                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${entry.id}`} alt={entry.name} className="w-full h-full object-cover bg-white/10" referrerPolicy="no-referrer" />
+src/components/Rankings.tsx:                       {entry.countryFlag && <img src={entry.countryFlag} alt={entry.countryName} className="w-3.5 h-2.5 sm:w-4 sm:h-3 object-cover rounded-[2px]" referrerPolicy="no-referrer" />}
+src/components/CollectionPage.tsx:                  <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover" />
+src/components/CollectionPage.tsx:                  <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className="w-full h-full object-cover" />
+src/components/CollectionPage.tsx:                  <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-full h-full object-contain" />
+src/components/CollectionPage.tsx:                 <img src={getImageUrl(card.imageUrl)} alt={card.name} className="w-full h-full object-cover" />
+src/components/CollectionPage.tsx:                   <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+src/components/Header.tsx:                    <img src={getImageUrl(avatarUrl)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+src/components/Header.tsx:                  <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" referrerPolicy="no-referrer" />
+src/components/Header.tsx:                <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
+src/components/Header.tsx:                <img src={LOGOS.gems} alt="Gems" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
+src/components/Header.tsx:                <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" referrerPolicy="no-referrer" />
+src/components/Header.tsx:                  <img src={LOGOS.energy} alt="Energy" className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain", isInfiniteEnergyActive && "animate-pulse")} referrerPolicy="no-referrer" />
+src/components/UserProfileModal.tsx:                  <img src={getImageUrl(avatar.url)} alt={avatar.label} className="w-full h-full object-cover" />
+src/components/UserProfileModal.tsx:                <img src={getImageUrl(photoURL || defaultFanzUrl!)} alt="Avatar" className="w-full h-full object-cover" />
+src/components/WaitingRoom.tsx:                              <img src={match.teams.home.logo} alt="" className="w-5 h-5 object-contain" />
+src/components/WaitingRoom.tsx:                              <img src={match.teams.away.logo} alt="" className="w-5 h-5 object-contain" />
+src/components/WaitingRoom.tsx:                        <img src={matchDetailsCache[duel.matchId].teams.home.logo} alt="Home" className="w-5 h-5 object-contain" />
+src/components/WaitingRoom.tsx:                        <img src={matchDetailsCache[duel.matchId].teams.away.logo} alt="Away" className="w-5 h-5 object-contain" />
+src/components/WaitingRoom.tsx:                          <img 
+src/components/LeaderboardPage.tsx:                    <img src={team.logo} alt={team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+src/components/LeaderboardPage.tsx:                    <img src={getImageUrl(u.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} alt={u.pseudo} className="w-full h-full object-cover" />
+src/components/FanzRanking.tsx:                <img 
+src/components/FanzDetails.tsx:    force: <img src="https://thebestfan.online/img/public/logo/logoForce.png" alt="Force" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+src/components/FanzDetails.tsx:    endurance: <img src="https://thebestfan.online/img/public/logo/logoEndurance.png" alt="Endurance" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+src/components/FanzDetails.tsx:    mental: <img src="https://thebestfan.online/img/public/logo/logoMental.png" alt="Mental" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+src/components/FanzDetails.tsx:    bluff: <img src="https://thebestfan.online/img/public/logo/logoBluff.png" alt="Bluff" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+src/components/FanzDetails.tsx:    creativity: <img src="https://thebestfan.online/img/public/logo/logoCreativity.png" alt="Créativité" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+src/components/FanzDetails.tsx:    social: <img src="https://thebestfan.online/img/public/logo/logoSocial.png" alt="Social" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+src/components/FanzDetails.tsx:    intelligence: <img src="https://thebestfan.online/img/public/logo/logoIntelligence.png" alt="Intelligence" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />,
+src/components/FanzDetails.tsx:    charisma: <img src="https://thebestfan.online/img/public/logo/logoCharisme.png" alt="Charisme" className="w-8 h-8 object-contain drop-shadow-md" referrerPolicy="no-referrer" />
+src/components/FanzDetails.tsx:                              <img src={LOGOS.money} alt="Money" className="w-10 h-10 sm:w-16 sm:h-16 object-contain" />
+src/components/FanzDetails.tsx:                              <img src={LOGOS.gems} alt="Gems" className="w-10 h-10 sm:w-16 sm:h-16 object-contain" />
+src/components/FanzDetails.tsx:                                    if (step.reward?.type === 'money') return <div className="w-full h-full flex items-center justify-center"><img src={LOGOS.money} alt="Money" className={`${step.isIntermediate ? "w-10 h-10 sm:w-12 sm:h-12" : "w-14 h-14 sm:w-20 sm:h-20"} object-contain drop-shadow-lg`} /></div>;
+src/components/FanzDetails.tsx:                                    if (step.reward?.type === 'gems') return <div className="w-full h-full flex items-center justify-center"><img src={LOGOS.gems} alt="Gems" className={`${step.isIntermediate ? "w-10 h-10 sm:w-12 sm:h-12" : "w-14 h-14 sm:w-20 sm:h-20"} object-contain drop-shadow-lg`} /></div>;
+src/components/FanzDetails.tsx:                                            <img src={card.imageUrl} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+src/components/FanzDetails.tsx:                                            <img src={action.image} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+src/components/FanzDetails.tsx:                                        customReward.type === 'money' ? <img src={LOGOS.money} alt="Money" className="w-8 h-8 object-contain" /> :
+src/components/FanzDetails.tsx:                                        customReward.type === 'gems' ? <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 object-contain" /> :
+src/components/FanzDetails.tsx:                                        customReward.type === 'boost' ? <img src={LOGOS.boost} alt="Boost" className="w-8 h-8 object-contain" /> :
+src/components/FanzDetails.tsx:                                        customReward.type === 'energy' ? <img src={LOGOS.energy} alt="Energy" className="w-8 h-8 object-contain" /> :
+src/components/FanzDetails.tsx:                                        customReward.type === 'xp' ? <img src={LOGOS.level} alt="XP" className="w-8 h-8 object-contain" /> :
+src/components/FanzDetails.tsx:                                              <img src={allCards.find(c => c.id === customReward.cardId)?.imageUrl} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+src/components/FanzDetails.tsx:                                                <img src={action.image} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+src/components/FanzDetails.tsx:                                        <><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /><Activity className="w-5 h-5" /></>
+src/components/FanzDetails.tsx:                                      ) : <><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /><Activity className="w-5 h-5" /></>}
+src/components/FanzDetails.tsx:                                      <img src={LOGOS.money} alt="Money" className="w-3.5 h-3.5 object-contain" />
+src/components/FanzDetails.tsx:                                      <img src={LOGOS.boost} alt="Boost" className="w-3.5 h-3.5 object-contain" />
+src/components/FanzDetails.tsx:                            <img src={LOGOS.level} alt="Level" className="w-2 h-2 object-contain" />
+src/components/FanzDetails.tsx:                                <img src={LOGOS.level} alt="Level" className="w-2.5 h-2.5 object-contain" />
+src/components/FanzDetails.tsx:                                <img src={LOGOS.money} alt="Money" className="w-2.5 h-2.5 object-contain" />
+src/components/FanzDetails.tsx:                                <img src={LOGOS.gems} alt="Gems" className="w-2.5 h-2.5 object-contain" />
+src/components/FanzDetails.tsx:                                <img src={LOGOS.boost} alt="Boost" className="w-2.5 h-2.5 object-contain" />
+src/components/FanzDetails.tsx:                                  <img src={LOGOS.money} alt="Money" className="w-2 h-2 object-contain" />
+src/components/FanzDetails.tsx:                                  <img src={LOGOS.gems} alt="Gems" className="w-2 h-2 object-contain" />
+src/components/FanzDetails.tsx:                                  <img src={LOGOS.boost} alt="Boost" className="w-2 h-2 object-contain" />
+src/components/FanzDetails.tsx:                              <img 
+src/components/FanzDetails.tsx:                        icon = <img src={LOGOS.level} alt="XP" className="w-6 h-6 object-contain" />; colorClass = 'text-blue-500 group-hover:scale-110'; bgClass = 'bg-blue-500/20'; hoverClass = 'hover:border-blue-500 hover:bg-blue-500/5';
+src/components/FanzDetails.tsx:                        icon = <img src={LOGOS.money} alt="$" className="w-6 h-6 object-contain" />; title = `${choice.amount || 0} Argent`;
+src/components/FanzDetails.tsx:                        icon = <img src={LOGOS.gems} alt="Gemmes" className="w-6 h-6 object-contain" />; title = `${choice.amount || 0} Gemmes`;
+src/components/FanzDetails.tsx:                            <img src={LOGOS.level} alt="XP" className="w-6 h-6 object-contain" />
+src/components/FanzDetails.tsx:                      <img 
+src/components/FanzDetails.tsx:                      <img 
+src/components/FanzDetails.tsx:                      <img 
+src/components/FanzDetails.tsx:                        <img 
+src/components/OptimizedMedia.tsx:        <img 
+src/components/OptimizedMedia.tsx:            <img src={finalPoster} alt={alt} className={className} />
+src/components/OptimizedMedia.tsx:        <img
+src/components/Duel.tsx:                    <img src={getImageUrl(fanz.imageUrl)} alt={fanz.name} className="w-full h-full object-cover" />
+src/components/Duel.tsx:                      <img src={getImageUrl(team.logo, 100)} alt={team.name} className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-2" referrerPolicy="no-referrer" />
+src/components/Duel.tsx:          <img 
+src/components/Duel.tsx:                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-8 h-8 object-contain" />
+src/components/Duel.tsx:                    <img src={getImageUrl(emoteData.imageUrl)} alt={emoteData.name} className="w-16 h-16 object-contain" />
+src/components/Duel.tsx:                <img 
+src/components/Duel.tsx:                <img src={getImageUrl(arenaBg.image)} className="w-full h-full object-cover opacity-70" />
+src/components/Duel.tsx:                               <img 
+src/components/Duel.tsx:                               <img 
+src/components/Duel.tsx:                                <img 
+src/components/Duel.tsx:                                  <img 
+src/components/Duel.tsx:                                {teamALogo && <img src={getImageUrl(teamALogo, 40)} className="w-3 h-3 object-contain" referrerPolicy="no-referrer" />}
+src/components/Duel.tsx:                               <img 
+src/components/Duel.tsx:                               <img 
+src/components/Duel.tsx:                                <img 
+src/components/Duel.tsx:                                  <img 
+src/components/Duel.tsx:                                {teamBLogo && <img src={getImageUrl(teamBLogo, 40)} className="w-3 h-3 object-contain" referrerPolicy="no-referrer" />}
+src/components/Duel.tsx:                <img src={matchDetails.teams.home.logo} alt={matchDetails.teams.home.name} className="w-12 h-12 object-contain drop-shadow-lg" />
+src/components/Duel.tsx:                <img src={matchDetails.teams.away.logo} alt={matchDetails.teams.away.name} className="w-12 h-12 object-contain drop-shadow-lg" />
+src/components/Duel.tsx:          {isDoublePoints && <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase"><img src={LOGOS.energy} alt="Energy" className="w-3 h-3 object-contain" /> Double Ferveur</div>}
+src/components/Duel.tsx:          {isEnergyRegenBoosted && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500 uppercase"><img src={LOGOS.energy} alt="Energy" className="w-3 h-3 object-contain" /> Regen Boost</div>}
+src/components/Duel.tsx:                    <img 
+src/components/Duel.tsx:                <img 
+src/components/SocialPage.tsx:                  <img src={getImageUrl(chat.otherUser.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.otherUser.uid}`} alt={chat.otherUser.pseudo} className="w-12 h-12 rounded-full bg-white/10" referrerPolicy="no-referrer" />
+src/components/SocialPage.tsx:                  <img src={getImageUrl(friend.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} alt={friend.pseudo} className="w-10 h-10 rounded-full bg-white/10" referrerPolicy="no-referrer" />
+src/components/SocialPage.tsx:                  <img src={getImageUrl(request.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.uid}`} alt={request.pseudo} className="w-10 h-10 rounded-full bg-white/10" referrerPolicy="no-referrer" />
+src/components/SocialPage.tsx:                      <img src={getImageUrl(result.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${result.uid}`} alt={result.pseudo} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10" referrerPolicy="no-referrer" />
+src/components/Home.tsx:                <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a ball&emoji=⚽&slug=fanz.sports&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a ball" className="h-10" />
+src/components/Home.tsx:                              {teamData.team.logo && <img src={getImageUrl(teamData.team.logo, 40)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />}
+src/components/Home.tsx:                                           <img src={getImageUrl(fx.teams.home.logo, 20)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />
+src/components/Home.tsx:                                           <img src={getImageUrl(fx.teams.away.logo, 20)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />
+src/components/ImageUpload.tsx:              <img src={getImageUrl(currentImageUrl)} alt="Uploaded media" className="w-full h-full object-cover" />
+src/components/MatchesPage.tsx:                  <img src={group.league.logo} alt="" className="w-4 h-4 object-contain" />
+src/components/UserStats.tsx:                  <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+src/components/UserStats.tsx:                      <img src={getImageUrl(team.logo, 100)} alt="" className="w-8 h-8 object-contain" />
+src/components/UserStats.tsx:                  <img src={getImageUrl(bestFanz.imageUrl || bestFanz.videoUrl)} alt="" className="w-full h-full object-cover" />
+src/components/AdminZone.tsx:                <img src={item.league.logo} alt={item.league.name} className="w-10 h-10 object-contain" />
+src/components/AdminZone.tsx:                    {item.country.flag && <img src={item.country.flag} alt="" className="w-4 h-3 object-cover rounded-sm" />}
+src/components/AdminZone.tsx:                          <img src={getImageUrl(editingCard.imageUrl)} alt="Preview" className="w-full h-full object-cover" />
+src/components/AdminZone.tsx:                    <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" />
+src/components/AdminZone.tsx:                    <img src={LOGOS.energy} alt="Energy" className="w-2.5 h-2.5 object-contain" /> {card.energyCost}
+src/components/AdminZone.tsx:                          <img src={getImageUrl(editingAction.image)} alt="Preview" className="w-full h-full object-cover" />
+src/components/AdminZone.tsx:                      <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+src/components/AdminZone.tsx:                          <img src={getImageUrl(editingFanz.image)} alt="Preview" className="w-full h-full object-cover" />
+src/components/AdminZone.tsx:                       <img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> Chemin de la Ferveur (Spécifique à ce FANZ)
+src/components/AdminZone.tsx:                                  <img src={getImageUrl(emote.imageUrl)} alt="Preview" className="w-full h-full object-cover" />
+src/components/AdminZone.tsx:                                  <label className="text-[10px] text-gray-400 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-3 h-3" /> Argent</label>
+src/components/AdminZone.tsx:                                  <label className="text-[10px] text-gray-400 flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-3 h-3" /> Boost</label>
+src/components/AdminZone.tsx:                    <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover" />
+src/components/MrFanzPage.tsx:            <img 
+src/components/TeamsPage.tsx:                    <img src={item.team.logo} alt="" className="w-full h-full object-contain" />
+src/components/TeamsPage.tsx:                          <img src={data.flag} alt="" className="w-6 h-4 object-cover rounded-sm shadow-sm" />
+src/components/TeamsPage.tsx:                                    <img src={l.league.logo} alt="" className="w-5 h-5 object-contain" />
+src/components/TeamsPage.tsx:                                                <img src={t.team.logo} alt="" className="w-full h-full object-contain" />
+src/components/LifeActionCard.tsx:    force: <img src="https://thebestfan.online/img/public/logo/logoForce.png" alt="Force" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+src/components/LifeActionCard.tsx:    endurance: <img src="https://thebestfan.online/img/public/logo/logoEndurance.png" alt="Endurance" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+src/components/LifeActionCard.tsx:    mental: <img src="https://thebestfan.online/img/public/logo/logoMental.png" alt="Mental" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+src/components/LifeActionCard.tsx:    bluff: <img src="https://thebestfan.online/img/public/logo/logoBluff.png" alt="Bluff" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+src/components/LifeActionCard.tsx:    creativity: <img src="https://thebestfan.online/img/public/logo/logoCreativity.png" alt="Créativité" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+src/components/LifeActionCard.tsx:    social: <img src="https://thebestfan.online/img/public/logo/logoSocial.png" alt="Social" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+src/components/LifeActionCard.tsx:    intelligence: <img src="https://thebestfan.online/img/public/logo/logoIntelligence.png" alt="Intelligence" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
+src/components/LifeActionCard.tsx:    charisma: <img src="https://thebestfan.online/img/public/logo/logoCharisme.png" alt="Charisme" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
+src/components/LifeActionCard.tsx:            <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+src/components/LifeActionCard.tsx:                {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> +{gainEnergy}</span>}
+src/components/LifeActionCard.tsx:                {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> +{gainMoney}</span>}
+src/components/LifeActionCard.tsx:                {gainGems > 0 && <span className="text-pink-400 font-black flex items-center gap-1"><img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> +{gainGems}</span>}
+src/components/LifeActionCard.tsx:                {gainBoost > 0 && <span className="text-orange-500 font-black flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" /> +{gainBoost}</span>}
+src/components/LifeActionCard.tsx:              {costEnergy > 0 && <span className="text-yellow-500 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}</span>}
+src/components/LifeActionCard.tsx:              {costMoney > 0 && <span className="text-yellow-400 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> {costMoney}</span>}
+src/components/LifeActionCard.tsx:              {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> 0</span>}
+src/components/LifeActionCard.tsx:          <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" /> NIVEAU {currentLevel}
+src/components/LifeActionCard.tsx:          <img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}
+src/components/LifeActionCard.tsx:            {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> +{gainEnergy}</span>}
+src/components/LifeActionCard.tsx:            {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> +{gainMoney}</span>}
+src/components/LifeActionCard.tsx:            {gainGems > 0 && <span className="text-pink-400 flex items-center gap-1"><img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> +{gainGems}</span>}
+src/components/LifeActionCard.tsx:            {gainBoost > 0 && <span className="text-orange-500 flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" /> +{gainBoost}</span>}
+src/components/MatchDetails.tsx:            {details.league.flag && <img src={getImageUrl(details.league.flag, 40)} alt="" className="w-3 h-2.5 sm:w-4 sm:h-3 object-cover rounded-xs flex-shrink-0" />}
+src/components/MatchDetails.tsx:            {details.league.logo && <img src={getImageUrl(details.league.logo, 40)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 object-contain flex-shrink-0" />}
+src/components/MatchDetails.tsx:              <img src={getImageUrl(details.teams.home.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+src/components/MatchDetails.tsx:              <img src={getImageUrl(details.teams.away.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+src/components/MatchDetails.tsx:              <img src={getImageUrl(lineup.team.logo, 40)} alt="" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
+src/components/WeeklyStreakModal.tsx:                      {config.reward.type === 'money' && <img src={LOGOS.money} alt="Money" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
+src/components/WeeklyStreakModal.tsx:                      {config.reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
+src/components/WeeklyStreakModal.tsx:                      {config.reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
+src/components/WeeklyStreakModal.tsx:                      {config.reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
+src/components/SharedMatchCard.tsx:            {match.league?.flag && <img src={getImageUrl(match.league.flag, 40)} alt="" className="w-4 h-3 object-cover rounded-sm" referrerPolicy="no-referrer" />}
+src/components/SharedMatchCard.tsx:            {match.league?.logo && <img src={getImageUrl(match.league.logo, 40)} alt="" className="w-4 h-4 object-contain shrink-0" referrerPolicy="no-referrer" />}
+src/components/SharedMatchCard.tsx:            <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
+src/components/SharedMatchCard.tsx:            <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
+src/components/TransactionsPage.tsx:      case 'money': return <img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" />;
+src/components/TransactionsPage.tsx:      case 'gems': return <img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" />;
+src/components/TransactionsPage.tsx:      case 'boost': return <img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" />;
+src/components/TransactionsPage.tsx:      case 'energy': return <img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" />;
+src/components/TransactionsPage.tsx:      case 'ferveur_general': return <img src={LOGOS.ferveur} alt="Ferveur" className="w-4 h-4 object-contain" />;
+src/components/TransactionsPage.tsx:      case 'ferveur_fanz': return <img src={LOGOS.ferveur} alt="Ferveur FANZ" className="w-4 h-4 object-contain" />;
+src/components/MrFanzHelp.tsx:                  <img 
+src/components/FavoriteTeamsPage.tsx:                      <img src={getImageUrl(team.logo, 100)} alt={team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+src/components/FavoriteTeamsPage.tsx:                      <img src={getImageUrl(result.team.logo, 100)} alt={result.team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+src/components/PassPage.tsx:                            <img src={getImageUrl(skinUrl)} alt="Skin" className="w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(147,51,234,0.3)]" />
+src/components/PassPage.tsx:                      <img src={getImageUrl(skinUrl)} alt="Skin" className="w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(147,51,234,0.5)] relative z-10" />
+src/components/PassPage.tsx:                        {level.freeReward.type === 'money' ? <img src={LOGOS.money} alt="Money" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-md" /> : level.freeReward.type === 'gems' ? <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-md" /> : '⚡'}
+src/components/PassPage.tsx:                               <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-lg" />
+src/components/PassPage.tsx:                            {level.premiumReward.type === 'money' ? <img src={LOGOS.money} alt="Money" className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-md" /> : level.premiumReward.type === 'gems' ? <img src={LOGOS.gems} alt="Gems" className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-md" /> : '💎'}
+src/components/LeagueDetails.tsx:                <img src={league.league.logo} alt="" className="w-full h-full object-contain" />
+src/components/LeagueDetails.tsx:                        <img src={s.team.logo} alt="" className="w-6 h-6 object-contain shrink-0" referrerPolicy="no-referrer" />
+src/components/LeagueDetails.tsx:                              <img src={f.teams.home.logo} alt="" className="w-4 h-4 object-contain" />
+src/components/LeagueDetails.tsx:                              <img src={f.teams.away.logo} alt="" className="w-4 h-4 object-contain" />
+src/components/LeagueDetails.tsx:                            <img src={f.teams.home.logo} alt="" className="w-3.5 h-3.5 object-contain group-hover/team:scale-110 transition-transform" />
+src/components/LeagueDetails.tsx:                            <img src={f.teams.away.logo} alt="" className="w-3.5 h-3.5 object-contain group-hover/team:scale-110 transition-transform" />
+src/components/LeagueDetails.tsx:                <img src={item.player.photo} alt="" className="w-8 h-8 rounded-full border border-white/10 group-hover:scale-110 transition-transform" />
+src/components/LeagueDetails.tsx:                    <img src={t.team.logo} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+src/components/LeagueDetails.tsx:            <img src={t.team.logo} alt="" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+src/components/LeagueDetails.tsx:                    <img src={getImageUrl(entry.imageUrl)} alt={entry.name} className="w-full h-full object-cover" />
+src/components/LeagueDetails.tsx:                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${entry.id}`} alt={entry.name} className="w-full h-full object-cover bg-white/10" />
+src/components/StatsPage.tsx:                  <img src={profile.photoURL} alt="" className="w-full h-full object-cover" />
+src/components/StatsPage.tsx:                      <img src={getImageUrl(team.logo, 100)} alt="" className="w-8 h-8 object-contain" />
+src/components/StatsPage.tsx:                  <img src={getImageUrl(bestFanz.imageUrl || bestFanz.videoUrl)} alt="" className="w-full h-full object-cover" />
+src/components/TeamDetails.tsx:                <img src={team.team.logo} alt="" className="w-full h-full object-contain" />
+src/components/TeamDetails.tsx:              <img 
+src/components/TeamDetails.tsx:                <img src={p.player.photo} alt="" className="w-6 h-6 rounded-full border border-white/10" />
+src/components/TeamDetails.tsx:              <img src={l.logo} alt="" className="w-5 h-5 object-contain" />
+src/components/TeamDetails.tsx:                  <img src={p.player.photo} alt="" className="w-8 h-8 rounded-full border border-white/10" />
+src/components/TeamDetails.tsx:                  <img src={s.team.logo} alt="" className="w-5 h-5 object-contain" />
+src/components/Auth.tsx:                      <img src={selectedTeam.team.logo} alt="" className="w-6 h-6 object-contain" />
+src/components/Auth.tsx:                            <img src={result.team.logo} alt="" className="w-8 h-8 object-contain" />
+src/components/FervorPathPage.tsx:                    <img src={LOGOS.money} alt="Money" className="w-10 h-10 sm:w-16 sm:h-16 object-contain" />
+src/components/FervorPathPage.tsx:                    <img src={LOGOS.gems} alt="Gems" className="w-10 h-10 sm:w-16 sm:h-16 object-contain" />
+src/components/FervorPathPage.tsx:                    <img src={getImageUrl(cards.find(c => c.id === nextLevel.reward!.cardId)?.imageUrl)} className="w-full h-full object-cover" />
+src/components/FervorPathPage.tsx:                    <img src={getImageUrl(actions.find(a => a.id === nextLevel.reward!.actionId)?.image)} className="w-full h-full object-cover" />
+src/components/FervorPathPage.tsx:                          <img src={LOGOS.money} alt="Money" className={`${level.isIntermediate ? "w-10 h-10 sm:w-12 sm:h-12" : "w-14 h-14 sm:w-20 sm:h-20"} object-contain drop-shadow-lg`} />
+src/components/FervorPathPage.tsx:                          <img src={LOGOS.gems} alt="Gems" className={`${level.isIntermediate ? "w-10 h-10 sm:w-12 sm:h-12" : "w-14 h-14 sm:w-20 sm:h-20"} object-contain drop-shadow-lg`} />
+src/components/FervorPathPage.tsx:                          <img src={getImageUrl(cards.find(c => c.id === level.reward!.cardId)?.imageUrl)} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+src/components/FervorPathPage.tsx:                          <img src={getImageUrl(actions.find(a => a.id === level.reward!.actionId)?.image)} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+src/components/LandingPage.tsx:        <img 
+src/components/CompetitionsPage.tsx:                          <img src={data.flag} alt="" className="w-5 h-3.5 object-cover rounded-xs shadow-sm border border-white/5" />
+src/components/CompetitionsPage.tsx:                                      <img src={l.league.logo} alt="" className="w-full h-full object-contain" />
+src/App.tsx:            <img src="/img/logo2.png" alt="TBFO" className="w-8 h-8 rounded-lg outline outline-1 outline-white/10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+src/App.tsx:                     <img src="https://thebestfan.online/img/public/mrfan/mrfan.png" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+src/App.tsx:              <img src="/img/logo2.png" alt="Logo" className="w-5 h-5 rounded" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+src/App.tsx:                     <img src="https://thebestfan.online/img/public/mrfan/mrfan.png" className="w-4 h-4 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+src/context/AlertContext.tsx:          <img
+src/context/AlertContext.tsx:    case 'money': return <img src={LOGOS.money} alt="Money" className="w-8 h-8 object-contain" />;
+src/context/AlertContext.tsx:    case 'gems': return <img src={LOGOS.gems} alt="Gems" className="w-8 h-8 object-contain" />;
+src/context/AlertContext.tsx:    case 'boost': return <img src={LOGOS.boost} alt="Boost" className="w-8 h-8 object-contain" />;
+src/context/AlertContext.tsx:    case 'energy': return <img src={LOGOS.energy} alt="Energy" className="w-8 h-8 object-contain" />;

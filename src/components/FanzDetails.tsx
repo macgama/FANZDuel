@@ -5,7 +5,7 @@ import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSn
 import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
 import { UserProfile, Fanz, ActiveAction, LifeAction, UserCard, Card as DuelCard, FanzTemplate, FanzSkin, FanzEmote, GlobalFervorConfig } from '../types';
-import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift, X, Target } from 'lucide-react';
+import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift, X, Target, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LOGOS } from '../constants';
 
@@ -1446,8 +1446,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           key={card.id}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => toggleCard(card.id)}
-                          className={`bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border} rounded-lg cursor-pointer relative group flex flex-col overflow-hidden`}
+                          className={`bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border} rounded-lg relative group flex flex-col overflow-hidden`}
                         >
                           <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-sm text-yellow-500 text-[6px] font-black px-1 py-0.5 rounded-full z-10 flex items-center gap-0.5">
                             <img src={LOGOS.level} alt="Level" className="w-2 h-2 object-contain" />
@@ -1456,23 +1455,30 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           <div className={`absolute top-1 right-1 ${typeStyle.text === 'text-green-500' ? 'bg-green-500' : typeStyle.text === 'text-red-500' ? 'bg-red-500' : 'bg-blue-500'} text-white text-[6px] font-black uppercase px-1 py-0.5 rounded-full z-10`}>
                             {typeStyle.label}
                           </div>
-                          <div className="w-full aspect-[4/3] overflow-hidden bg-gray-900 shrink-0">
+                          <div className="w-full aspect-[4/3] overflow-hidden bg-gray-900 shrink-0 relative">
                             {card.videoUrl ? (
                               <OptimizedMedia
                                 type="video"
                                 src={card.videoUrl}
                                 poster={card.imageUrl || undefined}
                                 dataSaver={userProfile.dataSaver}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover cursor-pointer"
                               />
                             ) : (
                               <OptimizedMedia
                                 type="image"
                                 src={card.imageUrl || undefined}
                                 alt={card.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover cursor-pointer"
                               />
                             )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleCard(card.id); }}
+                              className="absolute bottom-1 right-1 bg-red-600 hover:bg-red-500 text-white p-1 rounded-full shadow-lg z-20 tooltip"
+                              title="Retirer du deck"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
                           </div>
                         </motion.div>
                       );
@@ -1496,7 +1502,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       const isAllowed = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.includes(fanz.templateId);
                       const isBlocked = card.blockedFanzIds && card.blockedFanzIds.includes(fanz.templateId);
                       return isAllowed && !isBlocked;
-                    }).map(card => {
+                    })
+                    .map(card => {
                       const requirements = card.unlockRequirements || [];
                       const hasRequirements = requirements.length > 0;
                       const metRequirements = hasRequirements && requirements.every(req => {
@@ -1513,8 +1520,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         }
                         return true;
                       });
-
                       const isUnlocked = userProfile.cards?.includes(card.id) || metRequirements || (!hasRequirements && card.rarity === 'common');
+                      return { card, isUnlocked, requirements };
+                    })
+                    .sort((a, b) => {
+                      if (a.isUnlocked === b.isUnlocked) return 0;
+                      return a.isUnlocked ? -1 : 1;
+                    })
+                    .map(({ card, isUnlocked, requirements }) => {
                       const isEquipped = fanz.equippedCards?.includes(card.id);
                       const typeStyle = cardTypeStyles[card.type] || cardTypeStyles.neutral;
                       
@@ -1523,12 +1536,12 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           key={card.id}
                           whileHover={isUnlocked && !isEquipped ? { scale: 1.05 } : {}}
                           whileTap={isUnlocked && !isEquipped ? { scale: 0.95 } : {}}
-                          onClick={() => isUnlocked && !isEquipped && toggleCard(card.id)}
+                          onClick={undefined}
                           className={`relative rounded-xl transition-all flex flex-col h-full overflow-hidden ${
                             isUnlocked 
                               ? isEquipped 
                                 ? 'bg-white/5 border-2 border-white/10 opacity-50 grayscale' 
-                                : `bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border} hover:scale-105 cursor-pointer`
+                                : `bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border}`
                               : 'bg-black/40 border-2 border-white/5 grayscale opacity-30'
                           }`}
                         >
@@ -1561,22 +1574,31 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                               </div>
                             </div>
                           )}
-                          <div className="w-full aspect-[3/4] overflow-hidden bg-gray-900 shrink-0">
+                          <div className="w-full aspect-[3/4] overflow-hidden bg-gray-900 shrink-0 relative">
                             {card.videoUrl ? (
                               <OptimizedMedia
                                 type="video"
                                 src={card.videoUrl}
                                 poster={card.imageUrl || undefined}
                                 dataSaver={userProfile.dataSaver}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover cursor-pointer"
                               />
                             ) : (
                               <OptimizedMedia
                                 type="image"
                                 src={card.imageUrl || undefined}
                                 alt={card.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover cursor-pointer"
                               />
+                            )}
+                            {isUnlocked && !isEquipped && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleCard(card.id); }}
+                                className="absolute bottom-2 right-2 bg-green-600 hover:bg-green-500 text-white p-1.5 rounded-full shadow-lg z-20 tooltip transition-transform hover:scale-110"
+                                title="Ajouter au deck"
+                              >
+                                <Plus className="w-5 h-5" />
+                              </button>
                             )}
                           </div>
                           <div className="p-2 flex-1 flex flex-col gap-1.5">
@@ -1624,14 +1646,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         src={template.video}
                         poster={template.image}
                         dataSaver={userProfile.dataSaver}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover pointer-events-none"
                       />
                     ) : (
                       <OptimizedMedia
                         type="image"
                         src={template.image}
                         alt="Original"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover pointer-events-none"
                       />
                     )}
                   </div>
@@ -1642,7 +1664,15 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   )}
                 </Card>
 
-                {(template.skins || []).filter(skin => fanz.unlockedSkins?.includes(skin.id) || userProfile?.skins?.includes(skin.id) || skin.category !== 'event' || skin.isActive !== false).map((skin, idx) => {
+                {(template.skins || [])
+                  .filter(skin => fanz.unlockedSkins?.includes(skin.id) || userProfile?.skins?.includes(skin.id) || skin.category !== 'event' || skin.isActive !== false)
+                  .sort((a, b) => {
+                    const aUnlocked = fanz.unlockedSkins?.includes(a.id) || userProfile?.skins?.includes(a.id);
+                    const bUnlocked = fanz.unlockedSkins?.includes(b.id) || userProfile?.skins?.includes(b.id);
+                    if (aUnlocked === bUnlocked) return 0;
+                    return aUnlocked ? -1 : 1;
+                  })
+                  .map((skin, idx) => {
                   const isUnlocked = fanz.unlockedSkins?.includes(skin.id) || userProfile?.skins?.includes(skin.id);
                   const isEquipped = fanz.equippedSkin === skin.id;
                   const canAfford = !isUnlocked && userProfile && (
@@ -1696,14 +1726,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             src={skin.videoUrl}
                             poster={skin.imageUrl}
                             dataSaver={userProfile.dataSaver}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover pointer-events-none"
                           />
                         ) : (
                           <OptimizedMedia
                             type="image"
                             src={skin.imageUrl}
                             alt={skin.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover pointer-events-none"
                           />
                         )}
                       </div>
@@ -1720,7 +1750,15 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
             {activeTab === 'emotes' && (
               <div className="grid grid-cols-2 gap-3">
-                {(template.emotes || []).filter(emote => fanz.unlockedEmotes?.includes(emote.id) || userProfile?.emotes?.includes(emote.id) || emote.category !== 'event' || emote.isActive !== false).map((emote, idx) => {
+                {(template.emotes || [])
+                  .filter(emote => fanz.unlockedEmotes?.includes(emote.id) || userProfile?.emotes?.includes(emote.id) || emote.category !== 'event' || emote.isActive !== false)
+                  .sort((a, b) => {
+                    const aUnlocked = fanz.unlockedEmotes?.includes(a.id) || userProfile?.emotes?.includes(a.id);
+                    const bUnlocked = fanz.unlockedEmotes?.includes(b.id) || userProfile?.emotes?.includes(b.id);
+                    if (aUnlocked === bUnlocked) return 0;
+                    return aUnlocked ? -1 : 1;
+                  })
+                  .map((emote, idx) => {
                   const isUnlocked = fanz.unlockedEmotes?.includes(emote.id) || userProfile?.emotes?.includes(emote.id);
                   const canAfford = !isUnlocked && emote.price && userProfile && (
                     (!emote.price.money || (userProfile.money || 0) >= emote.price.money) &&
@@ -1775,14 +1813,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             src={emote.videoUrl}
                             poster={emote.imageUrl}
                             dataSaver={userProfile.dataSaver}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover pointer-events-none"
                           />
                         ) : (
                           <OptimizedMedia
                             type="image"
                             src={emote.imageUrl}
                             alt={emote.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover pointer-events-none"
                           />
                         )}
                       </div>

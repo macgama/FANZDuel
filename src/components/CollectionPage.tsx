@@ -1,492 +1,350 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile } from '../types';
-import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Card } from './Layout';
-import { Star, Flame, Trophy, PlayCircle, X, Maximize2 } from 'lucide-react';
-import { FanzTemplate, FanzSkin, FanzEmote, GameCard, LifeAction } from '../types';
+import { collection, query, where, getDocs, onSnapshot, doc } from 'firebase/firestore';
+import { Card, Button } from './Layout';
+import { UserProfile, FanzTemplate, FanzSkin, FanzEmote, Card as GameCard, LifeAction, Fanz } from '../types';
 import { getImageUrl } from '../lib/utils';
-import { OptimizedMedia } from './OptimizedMedia';
-import { motion, AnimatePresence } from 'motion/react';
+import { Maximize2, PlayCircle } from 'lucide-react';
+import { useMediaViewer } from '../context/MediaViewerContext';
 
 interface CollectionPageProps {
   user: UserProfile;
 }
 
 export function CollectionPage({ user }: CollectionPageProps) {
+  const { openMedia } = useMediaViewer();
   const [activeTab, setActiveTab] = useState<'fanz' | 'skins' | 'emotes' | 'cards' | 'actions'>('fanz');
-  
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [skins, setSkins] = useState<FanzSkin[]>([]);
   const [emotes, setEmotes] = useState<FanzEmote[]>([]);
   const [cards, setCards] = useState<GameCard[]>([]);
   const [actions, setActions] = useState<LifeAction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fullscreenMedia, setFullscreenMedia] = useState<{url: string, type: 'video'|'image', name: string, description?: string} | null>(null);
 
-  // User's owned item caches
   const [ownedTemplates, setOwnedTemplates] = useState<Set<string>>(new Set());
+  const [ownedSkins, setOwnedSkins] = useState<Set<string>>(new Set());
+  const [ownedEmotes, setOwnedEmotes] = useState<Set<string>>(new Set());
+  const [ownedCards, setOwnedCards] = useState<Set<string>>(new Set());
+  const [ownedActions, setOwnedActions] = useState<Set<string>>(new Set());
+
+  const [fanzList, setFanzList] = useState<Fanz[]>([]);
+  const [userDoc, setUserDoc] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Fetch User's Fanz to know which templates they own
-        const fanzSnap = await getDocs(collection(db, 'fanz'));
-        const fanzData = fanzSnap.docs
-          .map(doc => doc.data())
-          .filter(f => f.ownerUid === user.uid);
-        
-        const ownedTemplateIds = new Set(fanzData.map(f => f.templateId));
-        setOwnedTemplates(ownedTemplateIds);
-
-        // Fetch all Fanz Templates
-        const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
-        const allTemplates = templatesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate));
-        setFanzTemplates(allTemplates);
-
-        // Extract skins and emotes
-        let allSkins: FanzSkin[] = [];
-        let allEmotes: FanzEmote[] = [];
-        allTemplates.forEach(t => {
-          if (t.skins) allSkins.push(...t.skins);
-          if (t.emotes) allEmotes.push(...t.emotes);
-        });
-        const uniqueSkins = Array.from(new Map(allSkins.map(s => [s.id, s])).values());
-        const uniqueEmotes = Array.from(new Map(allEmotes.map(e => [e.id, e])).values());
-
-        setSkins(uniqueSkins);
-        setEmotes(uniqueEmotes);
-
-        // Fetch Duel Cards
-        const cardsSnap = await getDocs(collection(db, 'cards'));
-        setCards(cardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameCard)));
-
-        // Fetch Life Actions
-        const actionsSnap = await getDocs(collection(db, 'life_actions'));
-        setActions(actionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction)));
-
-      } catch (error) {
-        console.error("Error fetching collection data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    // 1. Fetch user's FANZ to see what they own
+    const unsubscribe = onSnapshot(query(collection(db, 'fanz'), where('ownerUid', '==', user.uid)), (snap) => {
+      setFanzList(snap.docs.map(d => d.data() as Fanz));
+    });
+    return () => unsubscribe();
   }, [user.uid]);
 
-  const activeFanzTemplates = fanzTemplates.filter(t => t.isActive !== false);
-  const activeSkins = skins.filter(s => fanzTemplates.find(t => t.id === s.fanzId)?.isActive !== false);
-  const activeEmotes = emotes.filter(e => fanzTemplates.find(t => t.id === e.fanzId)?.isActive !== false);
-  const activeActions = actions.filter(a => !a.fanzTemplateId || fanzTemplates.find(t => t.id === a.fanzTemplateId)?.isActive !== false);
-  const activeCards = cards.filter(c => !c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.some(fid => fanzTemplates.find(t => t.id === fid)?.isActive !== false));
+  useEffect(() => {
+    const unsubBase = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+       setUserDoc(docSnap.data() as UserProfile);
+    });
+    return () => unsubBase();
+  }, [user.uid]);
 
-  const countFanz = Array.from(ownedTemplates).filter(id => activeFanzTemplates.some(t => t.id === id)).length;
-  const countSkins = (user.skins || []).filter(id => activeSkins.some(s => s.id === id)).length;
-  const countEmotes = (user.emotes || []).filter(id => activeEmotes.some(e => e.id === id)).length;
-  const countCards = (user.cards || []).filter(id => activeCards.some(c => c.id === id)).length;
-  const countActions = (user.unlockedActions || []).filter(id => activeActions.some(a => a.id === id)).length;
+  useEffect(() => {
+     const t = new Set<string>();
+     const s = new Set<string>();
+     const e = new Set<string>();
+     const c = new Set<string>();
+     const a = new Set<string>();
+
+     fanzList.forEach(f => {
+       if (f.templateId) {
+         t.add(f.templateId);
+         if (f.unlockedSkins) {
+             if (Array.isArray(f.unlockedSkins)) f.unlockedSkins.forEach(x => s.add(`${f.templateId}-${x}`));
+             else Object.keys(f.unlockedSkins).forEach(x => s.add(`${f.templateId}-${x}`));
+         }
+         if (f.unlockedEmotes) {
+             if (Array.isArray(f.unlockedEmotes)) f.unlockedEmotes.forEach(x => e.add(`${f.templateId}-${x}`));
+             else Object.keys(f.unlockedEmotes).forEach(x => e.add(`${f.templateId}-${x}`));
+         }
+       }
+     });
+
+     if (userDoc) {
+       if (userDoc.cards) userDoc.cards.forEach(x => c.add(x));
+       if (userDoc.unlockedActions) userDoc.unlockedActions.forEach(x => a.add(x));
+       if (userDoc.skins) userDoc.skins.forEach(x => s.add(x));
+       if (userDoc.emotes) userDoc.emotes.forEach(x => e.add(x));
+     }
+
+     setOwnedTemplates(t);
+     setOwnedSkins(s);
+     setOwnedEmotes(e);
+     setOwnedCards(c);
+     setOwnedActions(a);
+  }, [fanzList, userDoc]);
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      const [tSnap, cSnap, aSnap] = await Promise.all([
+        getDocs(collection(db, 'fanz_templates')),
+        getDocs(collection(db, 'cards')),
+        getDocs(collection(db, 'life_actions')),
+      ]);
+      const templates = tSnap.docs.map(d => ({id: d.id, ...d.data()})) as FanzTemplate[];
+      setFanzTemplates(templates);
+      
+      const allSkins = templates.flatMap(t => (t.skins || []).filter(s => s.category !== 'event' || s.isActive !== false).map(s => ({...s, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${s.id}`})));
+      const allEmotes = templates.flatMap(t => (t.emotes || []).filter(e => e.category !== 'event' || e.isActive !== false).map(e => ({...e, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${e.id}`})));
+      setSkins(allSkins);
+      setEmotes(allEmotes);
+      
+      setCards(cSnap.docs.map(d => ({id: d.id, ...d.data()})) as any);
+      setActions(aSnap.docs.map(d => ({id: d.id, ...d.data()})) as any);
+      setLoading(false);
+    };
+    fetchAll();
+  }, []);
+
+  if (loading) return <div className="p-8 text-center text-white">Chargement...</div>;
+
+  const checkSkinOwned = (skin: any) => ownedSkins.has(skin.uniqueId) || ownedSkins.has(skin.id);
+  const checkEmoteOwned = (emote: any) => ownedEmotes.has(emote.uniqueId) || ownedEmotes.has(emote.id);
+  const checkCardOwned = (card: any) => {
+    if (ownedCards.has(card.id)) return true;
+
+    // Filter fanz that can actually use this card
+    const allowedFanzList = fanzList.filter(fanz => {
+        const isAllowed = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.includes(fanz.templateId);
+        const isBlocked = card.blockedFanzIds && card.blockedFanzIds.includes(fanz.templateId);
+        return isAllowed && !isBlocked;
+    });
+
+    if (allowedFanzList.length === 0) {
+        // If user has no Fanz that can use this card, they only "own" it if it's a generic common card with no requirements
+        const isGeneric = (!card.fanzIds || card.fanzIds.length === 0) && (!card.blockedFanzIds || card.blockedFanzIds.length === 0);
+        if (isGeneric && card.rarity === 'common' && (!card.unlockRequirements || card.unlockRequirements.length === 0)) return true;
+        return false;
+    }
+
+    const requirements = card.unlockRequirements || [];
+    const hasRequirements = requirements.length > 0;
+    if (!hasRequirements && card.rarity === 'common') return true;
+
+    if (hasRequirements) {
+      return allowedFanzList.some(fanz => {
+        return requirements.every((req: any) => {
+          if (req.type === 'fanzLevel') return (fanz.level || 1) >= req.minLevel;
+          if (req.type === 'rank') return (fanz.rank ?? 0) >= req.minLevel;
+          return true;
+        });
+      });
+    }
+    return false;
+  };
+
+  const validOwnedTemplates = fanzTemplates.filter(t => ownedTemplates.has(t.id)).length;
+  const validOwnedSkins = skins.filter(checkSkinOwned).length;
+  const validOwnedEmotes = emotes.filter(checkEmoteOwned).length;
+  const validOwnedCards = cards.filter(checkCardOwned).length;
+  const validOwnedActions = actions.filter(a => ownedActions.has(a.id)).length;
 
   const tabs = [
-    { id: 'fanz', label: 'FANZ', count: countFanz, total: activeFanzTemplates.length },
-    { id: 'skins', label: 'SKINS', count: countSkins, total: activeSkins.length },
-    { id: 'emotes', label: 'ÉMOTES', count: countEmotes, total: activeEmotes.length },
-    { id: 'cards', label: 'CARTES', count: countCards, total: activeCards.length },
-    { id: 'actions', label: 'ACTIONS', count: countActions, total: activeActions.length },
-  ] as const;
-
-  if (loading) {
-    return (
-      <div className="flex-1 overflow-y-auto no-scrollbar p-6 lg:p-8 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  const renderFanz = () => {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {fanzTemplates.map(template => {
-          const owned = ownedTemplates.has(template.id);
-          const isFanzActive = template.isActive !== false;
-          return (
-            <Card key={template.id} className={`p-4 relative overflow-hidden transition-all ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.2)]'}`}>
-              <div 
-                className={`aspect-square rounded-lg bg-[#0a0a0a] overflow-hidden mb-3 relative ${owned && isFanzActive ? 'group cursor-pointer' : ''}`}
-                onClick={() => {
-                  if (owned && isFanzActive) {
-                    setFullscreenMedia({
-                      url: template.video || template.image,
-                      type: template.video ? 'video' : 'image',
-                      name: template.name
-                    });
-                  }
-                }}
-              >
-                {template.video ? (
-                  <video src={getImageUrl(template.video)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                ) : (
-                  <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover" />
-                )}
-                {/* Maximize Icon */}
-                {owned && isFanzActive && (
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
-                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
-                  </div>
-                )}
-                {!isFanzActive && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md">
-                    Bientôt
-                  </div>
-                )}
-                {!owned && isFanzActive && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <span className="text-white/50 font-bold uppercase tracking-widest text-xs">Verrouillé</span>
-                  </div>
-                )}
-              </div>
-              <h3 className="font-bold text-center text-sm truncate">{template.name}</h3>
-              <div className="text-center text-xs text-gray-500 uppercase mt-1">{template.rarity}</div>
-            </Card>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderSkins = () => {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {skins.map(skin => {
-          const owned = (user.skins || []).includes(skin.id);
-          const isSkinActive = fanzTemplates.find(t => t.id === skin.fanzId)?.isActive !== false;
-          return (
-            <div key={skin.id} className={`bg-gray-900 rounded-xl overflow-hidden relative ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-blue-500/50'}`}>
-              <div 
-                className={`aspect-square bg-black relative ${owned && isSkinActive ? 'group cursor-pointer' : ''}`}
-                onClick={() => {
-                  if (owned && isSkinActive) {
-                    setFullscreenMedia({
-                      url: skin.videoUrl || skin.imageUrl,
-                      type: skin.videoUrl ? 'video' : 'image',
-                      name: skin.name
-                    });
-                  }
-                }}
-              >
-                {skin.videoUrl ? (
-                  <video src={getImageUrl(skin.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                ) : (
-                  <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className="w-full h-full object-cover" />
-                )}
-                {/* Maximize Icon */}
-                {owned && isSkinActive && (
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
-                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
-                  </div>
-                )}
-                {!isSkinActive && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md z-10">
-                    Bientôt
-                  </div>
-                )}
-                {!owned && isSkinActive && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-black/80 flex items-center justify-center border border-white/10">
-                      <div className="w-3 h-3 bg-white/20 rounded-full" />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-2 text-center text-xs font-bold truncate">
-                {skin.name}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderEmotes = () => {
-    return (
-      <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
-        {emotes.map(emote => {
-          const owned = (user.emotes || []).includes(emote.id);
-          const isEmoteActive = fanzTemplates.find(t => t.id === emote.fanzId)?.isActive !== false;
-          return (
-            <div key={emote.id} className={`bg-gray-900 rounded-xl overflow-hidden relative ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-purple-500/50'}`}>
-              <div 
-                className={`aspect-square bg-black relative p-2 ${owned && isEmoteActive ? 'group cursor-pointer' : ''}`}
-                onClick={() => {
-                  if (owned && isEmoteActive) {
-                    setFullscreenMedia({
-                      url: emote.videoUrl || emote.imageUrl,
-                      type: emote.videoUrl ? 'video' : 'image',
-                      name: emote.name
-                    });
-                  }
-                }}
-              >
-                {emote.videoUrl ? (
-                  <video src={getImageUrl(emote.videoUrl)} className="w-full h-full object-contain" autoPlay muted loop playsInline />
-                ) : (
-                  <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-full h-full object-contain" />
-                )}
-                {/* Maximize Icon */}
-                {owned && isEmoteActive && (
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
-                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
-                  </div>
-                )}
-                {!isEmoteActive && (
-                  <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md z-10">
-                    Bientôt
-                  </div>
-                )}
-                {!owned && isEmoteActive && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-white/20" />
-                  </div>
-                )}
-              </div>
-              <div className="p-1.5 text-center text-[10px] font-bold truncate text-gray-400">
-                {emote.name}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderCards = () => {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {cards.map(card => {
-          const owned = (user.cards || []).includes(card.id);
-          const isCardActive = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.some(fid => fanzTemplates.find(t => t.id === fid)?.isActive !== false);
-          return (
-            <div 
-              key={card.id} 
-              className={`aspect-[3/4] rounded-xl overflow-hidden relative ${owned && isCardActive ? 'group cursor-pointer' : ''} ${!owned ? 'bg-gray-900 opacity-50 grayscale hover:grayscale-0' : 'bg-gray-800 outline outline-2 outline-white/10'}`}
-              onClick={() => {
-                if (owned && isCardActive) {
-                  setFullscreenMedia({
-                    url: card.videoUrl || card.imageUrl || '',
-                    type: card.videoUrl ? 'video' : 'image',
-                    name: card.name,
-                    description: card.description
-                  });
-                }
-              }}
-            >
-              {card.videoUrl ? (
-                 <video src={getImageUrl(card.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-              ) : (
-                 <img src={getImageUrl(card.imageUrl)} alt={card.name} className="w-full h-full object-cover" />
-              )}
-              {/* Maximize Icon */}
-              {owned && isCardActive && (
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
-                  <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
-                </div>
-              )}
-              
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-black/80 text-white backdrop-blur-sm z-10">
-                {card.type}
-              </div>
-              
-              {!isCardActive && (
-                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md z-10">
-                  Bientôt
-                </div>
-              )}
-              {isCardActive && (
-                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/90 text-white backdrop-blur-sm flex items-center gap-1 z-10">
-                  <Flame className="w-3 h-3" /> {card.energyCost}
-                </div>
-              )}
-              
-              <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black via-black/80 to-transparent z-10">
-                <div className="text-xs font-black truncate">{card.name}</div>
-                {!owned && isCardActive && <div className="text-[10px] text-gray-500 mt-1 uppercase">À débloquer</div>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderActions = () => {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {actions.map(action => {
-          const owned = (user.unlockedActions || []).includes(action.id);
-          const isActionActive = !action.fanzTemplateId || fanzTemplates.find(t => t.id === action.fanzTemplateId)?.isActive !== false;
-          return (
-            <div 
-              key={action.id} 
-              className={`bg-gray-900 rounded-xl overflow-hidden relative flex flex-col ${owned && isActionActive ? 'group cursor-pointer' : ''} ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-green-500/50'}`}
-              onClick={() => {
-                if (owned && isActionActive) {
-                  setFullscreenMedia({
-                    url: action.videoUrl || action.image || '',
-                    type: action.videoUrl ? 'video' : 'image',
-                    name: action.name
-                  });
-                }
-              }}
-            >
-              <div className="h-32 bg-black relative">
-                {action.videoUrl ? (
-                   <video src={getImageUrl(action.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                ) : action.image ? (
-                   <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
-                ) : (
-                   <div className="w-full h-full flex items-center justify-center text-gray-700">
-                     <PlayCircle className="w-8 h-8" />
-                   </div>
-                )}
-                {/* Maximize Icon */}
-                {owned && isActionActive && (
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
-                    <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
-                  </div>
-                )}
-                {!isActionActive && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/90 text-white backdrop-blur-sm shadow-md z-10">
-                    Bientôt
-                  </div>
-                )}
-                {!owned && isActionActive && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                     <span className="text-white/50 text-xs font-bold uppercase tracking-wider">Non débloqué</span>
-                  </div>
-                )}
-              </div>
-              <div className="p-3 flex items-center justify-center text-center">
-                <div className="text-sm font-bold line-clamp-2">{action.name}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const totalOwnedCount = countFanz + countSkins + countEmotes + countCards + countActions;
-  const totalActiveItems = Math.max(1, activeFanzTemplates.length + activeSkins.length + activeEmotes.length + activeCards.length + activeActions.length);
-  const completionPercentage = Math.round((totalOwnedCount / totalActiveItems) * 100);
+    { id: 'fanz', label: 'FANZ', count: validOwnedTemplates + '/' + fanzTemplates.length },
+    { id: 'skins', label: 'Skins', count: validOwnedSkins + '/' + skins.length },
+    { id: 'emotes', label: 'Emotes', count: validOwnedEmotes + '/' + emotes.length },
+    { id: 'cards', label: 'Cartes', count: validOwnedCards + '/' + cards.length },
+    { id: 'actions', label: 'Actions', count: validOwnedActions + '/' + actions.length },
+  ];
 
   return (
-    <div className="flex-1 overflow-y-auto no-scrollbar p-4 lg:p-8 space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white">Ma <span className="text-orange-500">Collection</span></h1>
-          <p className="text-sm text-gray-400 mt-1">Découvrez tout ce que vous avez débloqué et ce qu'il vous reste à obtenir !</p>
-        </div>
-        
-        <div className="flex flex-col gap-2 w-full lg:min-w-[250px] lg:w-1/3 bg-gray-900/50 p-4 rounded-xl border border-white/5">
-          <div className="flex items-center justify-between font-bold text-orange-400">
-            <div className="flex items-center gap-2">
-              <Trophy className="w-5 h-5" />
-              <span className="uppercase tracking-wider">Complétion</span>
-            </div>
-            <span className="text-lg">{completionPercentage}%</span>
-          </div>
-          <div className="h-3 bg-black/50 rounded-full overflow-hidden relative border border-white/5 shadow-inner">
-            <div 
-              className="absolute top-0 left-0 h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(249,115,22,0.5)]"
-              style={{ width: `${completionPercentage}%` }}
+    <div className="flex flex-col h-full bg-[#0a0a0a] text-white">
+      <div className="p-4 bg-gray-900 border-b border-white/10 sticky top-0 z-40">
+        <h1 className="text-2xl font-black italic uppercase text-white mb-4">Collection</h1>
+        <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex flex-col px-4 py-3 rounded-xl whitespace-nowrap outline-none transition-all ${activeTab === tab.id ? 'bg-orange-500 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)] relative top-0' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-white relative top-1'}`}
             >
-               <div className="absolute inset-0 bg-white/20 w-full h-full -translate-x-full animate-[shimmer_2s_infinite]" />
-            </div>
-          </div>
+              <span className="text-xs font-black tracking-wider uppercase mb-1">{tab.label}</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-black leading-none">{tab.count}</span>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex flex-col px-4 py-3 rounded-xl whitespace-nowrap outline-none transition-all ${activeTab === tab.id ? 'bg-orange-500 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)] relative top-0' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-white relative top-1'}`}
-          >
-            <span className="text-xs font-black tracking-wider uppercase mb-1">{tab.label}</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black leading-none">{tab.count}</span>
-              <span className="text-[10px] font-bold text-white/50">/ {tab.total}</span>
-            </div>
-            
-            {/* Progress bar */}
-            <div className="w-full h-1 bg-black/30 rounded-full mt-2 overflow-hidden">
-              <div 
-                className="h-full bg-white/80 rounded-full"
-                style={{ width: `${tab.total > 0 ? (tab.count / tab.total) * 100 : 0}%` }}
-              />
-            </div>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-8">
-        {activeTab === 'fanz' && renderFanz()}
-        {activeTab === 'skins' && renderSkins()}
-        {activeTab === 'emotes' && renderEmotes()}
-        {activeTab === 'cards' && renderCards()}
-        {activeTab === 'actions' && renderActions()}
-      </div>
-
-      {/* Fullscreen Media Modal */}
-      <AnimatePresence>
-        {fullscreenMedia && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setFullscreenMedia(null)}
-            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center md:p-8 backdrop-blur-sm cursor-pointer"
-          >
-            <motion.button 
-              className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-3 bg-black/40 hover:bg-black/60 rounded-full transition-colors z-50 text-white shadow-lg backdrop-blur-md border border-white/20"
-              onClick={(e) => {
-                e.stopPropagation();
-                setFullscreenMedia(null);
-              }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <X className="w-6 h-6 md:w-8 md:h-8" />
-            </motion.button>
-            
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="relative w-full h-full md:max-w-7xl md:max-h-[90vh] flex flex-col items-center justify-center cursor-default bg-transparent md:bg-black/50 md:rounded-3xl overflow-hidden md:border md:border-white/10 md:shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-full h-full relative flex items-center justify-center">
-                <OptimizedMedia 
-                  type={fullscreenMedia.type}
-                  src={fullscreenMedia.url}
-                  className="w-full h-full object-contain"
-                  forceUnmuted={true}
-                  controls={true}
-                />
-              </div>
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black via-black/80 to-transparent p-6 lg:p-8 pointer-events-none">
-                <h2 className="text-2xl lg:text-4xl font-black italic uppercase text-white drop-shadow-md">{fullscreenMedia.name}</h2>
-                {fullscreenMedia.description && (
-                  <p className="text-gray-300 mt-2 text-sm lg:text-lg drop-shadow-md">{fullscreenMedia.description}</p>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
+      <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 no-scrollbar scroll-smooth">
+        {activeTab === 'fanz' && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[...fanzTemplates]
+              .sort((a, b) => {
+                const aOwned = ownedTemplates.has(a.id);
+                const bOwned = ownedTemplates.has(b.id);
+                if (aOwned === bOwned) return 0;
+                return aOwned ? -1 : 1;
+              })
+              .map(template => {
+              const owned = ownedTemplates.has(template.id);
+              return (
+                <Card key={template.id} className={`p-4 relative overflow-hidden transition-all ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.2)]'}`}>
+                  <div className="aspect-square rounded-lg bg-[#0a0a0a] overflow-hidden mb-3 relative group">
+                    {template.video ? (
+                      <video src={getImageUrl(template.video)} className="w-full h-full object-cover cursor-pointer" autoPlay muted loop playsInline data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
+                    ) : (
+                      <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover cursor-pointer" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
+                    )}
+                    {owned && (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                        <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-center text-sm md:text-base leading-tight">{template.name}</h3>
+                </Card>
+              );
+            })}
+          </div>
         )}
-      </AnimatePresence>
+
+        {activeTab === 'skins' && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[...skins]
+              .sort((a, b) => {
+                const aOwned = checkSkinOwned(a);
+                const bOwned = checkSkinOwned(b);
+                if (aOwned === bOwned) return 0;
+                return aOwned ? -1 : 1;
+              })
+              .map(skin => {
+              const owned = checkSkinOwned(skin);
+              return (
+                <div key={skin.uniqueId} className={`bg-gray-900 rounded-xl overflow-hidden relative ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-blue-500/50'}`}>
+                  <div className="aspect-square bg-black relative group">
+                    {skin.videoUrl ? (
+                      <video src={getImageUrl(skin.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay muted loop playsInline data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" />
+                    ) : (
+                      <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className="w-full h-full object-cover cursor-pointer" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" />
+                    )}
+                    {owned && (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                        <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3 bg-gray-800 text-center">
+                     <h3 className="font-bold text-sm leading-tight text-white">{skin.name}</h3>
+                     <p className="text-[10px] text-blue-400 mt-1 uppercase tracking-wider">{skin.fanzName}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === 'emotes' && (
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+            {[...emotes]
+              .sort((a, b) => {
+                const aOwned = checkEmoteOwned(a);
+                const bOwned = checkEmoteOwned(b);
+                if (aOwned === bOwned) return 0;
+                return aOwned ? -1 : 1;
+              })
+              .map(emote => {
+              const owned = checkEmoteOwned(emote);
+              return (
+                <div key={emote.uniqueId} className={`bg-gray-900 rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-purple-500/50'}`}>
+                  <div className="aspect-square bg-black relative p-2 group">
+                    {emote.videoUrl ? (
+                      <video src={getImageUrl(emote.videoUrl)} className="w-full h-full object-contain cursor-pointer" autoPlay muted loop playsInline data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" />
+                    ) : (
+                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-full h-full object-contain cursor-pointer" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" />
+                    )}
+                    {owned && (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                        <Maximize2 className="w-6 h-6 text-white drop-shadow-md" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-1.5 bg-gray-800 flex-1 flex flex-col items-center justify-center text-center">
+                    <h3 className="font-bold text-[10px] sm:text-xs uppercase truncate w-full text-gray-300">{emote.name}</h3>
+                    <p className="text-[8px] text-purple-400 mt-0.5 uppercase tracking-wider line-clamp-1">{emote.fanzName}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === 'cards' && (
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {[...cards]
+              .sort((a, b) => {
+                const aOwned = checkCardOwned(a);
+                const bOwned = checkCardOwned(b);
+                if (aOwned === bOwned) return 0;
+                return aOwned ? -1 : 1;
+              })
+              .map(card => {
+              const owned = checkCardOwned(card);
+              return (
+                <div key={card.id} className={`aspect-[3/4] rounded-xl overflow-hidden relative flex flex-col group ${!owned ? 'bg-gray-900 opacity-50 grayscale hover:grayscale-0' : 'bg-gray-800 outline outline-2 outline-white/10'}`}>
+                  {card.videoUrl ? (
+                     <video src={getImageUrl(card.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay muted loop playsInline data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
+                  ) : (
+                     <img src={getImageUrl(card.imageUrl)} alt={card.name} className="w-full h-full object-cover cursor-pointer" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
+                  )}
+                  {owned && (
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                      <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === 'actions' && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[...actions]
+              .sort((a, b) => {
+                const aOwned = ownedActions.has(a.id);
+                const bOwned = ownedActions.has(b.id);
+                if (aOwned === bOwned) return 0;
+                return aOwned ? -1 : 1;
+              })
+              .map(action => {
+              const owned = ownedActions.has(action.id);
+              return (
+                <div key={action.id} className={`bg-gray-900 rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-green-500/50'}`}>
+                  <div className="h-32 bg-black relative group">
+                    {action.videoUrl ? (
+                       <video src={getImageUrl(action.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay muted loop playsInline data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
+                    ) : action.image ? (
+                       <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover cursor-pointer" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
+                    ) : (
+                       <div className="w-full h-full flex items-center justify-center text-gray-700">
+                         <PlayCircle className="w-8 h-8" />
+                       </div>
+                    )}
+                    {owned && action.image && (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
+                        <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3 bg-gray-800 flex-1">
+                    <h3 className="font-bold text-center text-xs leading-tight mb-1">{action.name}</h3>
+                    {action.moneyCost && action.moneyCost > 0 ? <p className="text-[10px] text-yellow-500 text-center">{action.moneyCost} FC</p> : null}
+                    {action.moneyGain && action.moneyGain > 0 ? <p className="text-[10px] text-green-400 text-center">+{action.moneyGain} FC</p> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

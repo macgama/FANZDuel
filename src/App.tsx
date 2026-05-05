@@ -35,6 +35,7 @@ import { signOut } from 'firebase/auth';
 import { AlertProvider } from './context/AlertContext';
 import { RewardProvider } from './context/RewardContext';
 import { SocketProvider } from './context/SocketContext';
+import { MediaViewerProvider } from './context/MediaViewerContext';
 import { GlobalSocketListener } from './components/GlobalSocketListener';
 
 import { Home } from './components/Home';
@@ -50,7 +51,11 @@ import { MrFanzHelp } from './components/MrFanzHelp';
 import { CollectionPage } from './components/CollectionPage';
 
 export default function App() {
-  return <AppContent />;
+  return (
+    <MediaViewerProvider>
+      <AppContent />
+    </MediaViewerProvider>
+  );
 }
 
 import { audioManager } from './lib/audio';
