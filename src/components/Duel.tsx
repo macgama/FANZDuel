@@ -9,7 +9,7 @@ import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield,
 import { BASE_CARDS } from '../constants/cards';
 import { OptimizedMedia } from './OptimizedMedia';
 import { LOGOS } from '../constants';
-import { getImageUrl } from '../lib/utils';
+import { getImageUrl, getOptimizedVideoUrl } from '../lib/utils';
 import { audioManager } from '../lib/audio';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where, runTransaction, serverTimestamp } from 'firebase/firestore';
@@ -284,7 +284,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                   }`}
                 >
                   <div className="w-full aspect-square p-0 bg-black/40">
-                    <img src={getImageUrl(fanz.imageUrl)} alt={fanz.name} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(fanz.imageUrl)} alt={fanz.name} className="w-full h-full object-cover pointer-events-none" data-viewer-ignore="true" />
                   </div>
                   <div className="p-2 text-center">
                     <p className="text-[10px] sm:text-xs font-black uppercase truncate text-white">{fanz.name}</p>
@@ -324,7 +324,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                       </div>
                     )}
                     {team.logo ? (
-                      <img src={getImageUrl(team.logo, 100)} alt={team.name} className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-2" referrerPolicy="no-referrer" />
+                      <img src={getImageUrl(team.logo, 100)} alt={team.name} className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-2 pointer-events-none" referrerPolicy="no-referrer" data-viewer-ignore="true" />
                     ) : (
                       <Shield className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mb-2" />
                     )}
@@ -638,6 +638,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [hand, setHand] = useState<GameCard[]>([]);
   const [deck, setDeck] = useState<GameCard[]>([]);
   const [allCards, setAllCards] = useState<GameCard[]>([]);
+  const allCardsRef = useRef<GameCard[]>([]);
+  useEffect(() => { allCardsRef.current = allCards; }, [allCards]);
   const [fanz, setFanz] = useState<Fanz | null>(null);
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
 
@@ -757,6 +759,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           // Load template and skin image
           let imageUrl = fanzData.imageUrl;
           let equippedSkinUrl = null;
+          let equippedSkinVideoUrl = null;
           if (fanzData.templateId) {
             const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
             if (tplSnap.exists()) {
@@ -765,12 +768,15 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               
               if (fanzData.equippedSkin) {
                 const skin = tplData.skins?.find(s => s.id === fanzData.equippedSkin);
-                if (skin) equippedSkinUrl = skin.imageUrl;
+                if (skin) {
+                  equippedSkinUrl = skin.imageUrl;
+                  equippedSkinVideoUrl = skin.videoUrl || null;
+                }
               }
             }
           }
           
-          const finalFanz = { ...fanzData, imageUrl, equippedSkinUrl };
+          const finalFanz = { ...fanzData, imageUrl, equippedSkinUrl, equippedSkinVideoUrl };
           setFanz(finalFanz);
           
           // Filter all available cards for this Fanz template
@@ -1446,29 +1452,33 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
     const handleEnemyCardPlayed = ({ team, card }: { team: string, card: GameCard }) => {
       const currentMyTeam = myTeamRef.current || participantsRef.current.find(p => p.uid === user.uid)?.team || 'A';
+      
+      // Upgrade the card with correct image from allCards if available (fixes bot fake images from server)
+      const realCard = allCardsRef.current.find(c => c.id === card.id) || card;
+      const enhancedCard = { ...card, imageUrl: realCard.imageUrl, videoUrl: realCard.videoUrl };
 
       if (team === currentMyTeam) {
         // Teammate played a card
-        setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
+        setEnemyPlayedCardAnim({ card: enhancedCard, id: Math.random().toString() });
         setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
-        if (card.soundUrl) { playSound(card.soundUrl); } else { audioManager.playCardPlay(); }
-        addFloatingEffect(`🤝 Allié: ${card.name}`, window.innerWidth / 2, 100, 'text-blue-400 font-black scale-125');
+        if (enhancedCard.soundUrl) { playSound(enhancedCard.soundUrl); } else { audioManager.playCardPlay(); }
+        addFloatingEffect(`🤝 Allié: ${enhancedCard.name}`, window.innerWidth / 2, 100, 'text-blue-400 font-black scale-125');
         return;
       }
 
-      setLastEnemyCard(card);
-      setEnemyPlayedCardAnim({ card, id: Math.random().toString() });
+      setLastEnemyCard(enhancedCard);
+      setEnemyPlayedCardAnim({ card: enhancedCard, id: Math.random().toString() });
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
 
-      const isMalus = card.effects.some(e => 
+      const isMalus = enhancedCard.effects.some(e => 
         ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card'].includes(e.type)
       );
       
-      if (card.soundUrl) { playSound(card.soundUrl); } 
+      if (enhancedCard.soundUrl) { playSound(enhancedCard.soundUrl); } 
       else if (isMalus) { audioManager.playDebuff(); }
       else { audioManager.playMagic(); }
 
-      addFloatingEffect(`⚠️ ${card.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
+      addFloatingEffect(`⚠️ ${enhancedCard.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
       if (isMalus) {
         if (isImmune) {
@@ -2281,6 +2291,55 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           </AnimatePresence>
         </div>
 
+        {/* Float participants skins on active duel */}
+        {status === 'active' && participants.length > 1 && (
+          <>
+            {/* Left side (Team A) */}
+            <div className="absolute left-1 top-1/4 bottom-1/4 w-12 sm:w-16 flex flex-col justify-center gap-2 pointer-events-none z-[45]">
+              {participants.filter(p => p.team === 'A').map((p, idx) => (
+                <div key={p.uid} className="relative w-full aspect-square rounded-full border-2 border-blue-500/50 overflow-hidden bg-black/60 shadow-[0_0_15px_rgba(59,130,246,0.3)] backdrop-blur-sm pointer-events-auto">
+                  {p.fanz?.equippedSkinVideoUrl ? (
+                    <video src={getOptimizedVideoUrl(p.fanz.equippedSkinVideoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover scale-[1.3] -translate-y-1" data-viewer-ignore="true" />
+                  ) : p.fanz?.equippedSkinUrl ? (
+                     <img src={getImageUrl(p.fanz.equippedSkinUrl)} className="absolute inset-0 w-full h-full object-cover scale-[1.3] -translate-y-1" />
+                  ) : p.fanz?.videoUrl ? (
+                     <video src={getOptimizedVideoUrl(p.fanz.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover scale-[1.3] -translate-y-1" data-viewer-ignore="true" />
+                  ) : p.fanz?.imageUrl ? (
+                     <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover scale-[1.3] -translate-y-1" />
+                  ) : p.photoURL && (
+                     <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover" />
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/80 px-1 py-0.5">
+                    <p className="text-[7px] min-[380px]:text-[8px] font-black uppercase truncate text-center text-blue-300">{p.pseudo}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Right side (Team B) */}
+            <div className="absolute right-1 top-1/4 bottom-1/4 w-12 sm:w-16 flex flex-col justify-center gap-2 pointer-events-none z-[45]">
+              {participants.filter(p => p.team === 'B').map((p, idx) => (
+                <div key={p.uid} className="relative w-full aspect-square rounded-full border-2 border-red-500/50 overflow-hidden bg-black/60 shadow-[0_0_15px_rgba(239,68,68,0.3)] backdrop-blur-sm pointer-events-auto">
+                  {p.fanz?.equippedSkinVideoUrl ? (
+                    <video src={getOptimizedVideoUrl(p.fanz.equippedSkinVideoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover scale-[1.3] -translate-y-1 scale-x-[-1]" data-viewer-ignore="true" />
+                  ) : p.fanz?.equippedSkinUrl ? (
+                     <img src={getImageUrl(p.fanz.equippedSkinUrl)} className="absolute inset-0 w-full h-full object-cover scale-[1.3] -translate-y-1 scale-x-[-1]" />
+                  ) : p.fanz?.videoUrl ? (
+                     <video src={getOptimizedVideoUrl(p.fanz.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover scale-[1.3] -translate-y-1 scale-x-[-1]" data-viewer-ignore="true" />
+                  ) : p.fanz?.imageUrl ? (
+                     <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover scale-[1.3] -translate-y-1 scale-x-[-1]" />
+                  ) : p.photoURL && (
+                     <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover" />
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/80 px-1 py-0.5">
+                    <p className="text-[7px] min-[380px]:text-[8px] font-black uppercase truncate text-center text-red-300">{p.pseudo}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
       {/* Enemy Played Card Animation */}
       <AnimatePresence>
         {enemyPlayedCardAnim && (
@@ -2293,11 +2352,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             className="absolute top-20 left-1/2 -translate-x-1/2 z-[90] pointer-events-none"
           >
             <div className="relative w-32 h-48 rounded-xl overflow-hidden border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)] bg-[#1a1a1a]">
-              {enemyPlayedCardAnim.card.imageUrl && (
+              {enemyPlayedCardAnim.card.videoUrl ? (
+                <video src={getOptimizedVideoUrl(enemyPlayedCardAnim.card.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-80 pointer-events-none" data-viewer-ignore="true" />
+              ) : enemyPlayedCardAnim.card.imageUrl && (
                 <img 
                   src={getImageUrl(enemyPlayedCardAnim.card.imageUrl)} 
                   alt={enemyPlayedCardAnim.card.name} 
-                  className="absolute inset-0 w-full h-full object-cover opacity-80"
+                  className="absolute inset-0 w-full h-full object-cover opacity-80 pointer-events-none" data-viewer-ignore="true"
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-2">
@@ -2345,79 +2406,66 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             </button>
 
             {/* VS Background Split */}
-            <div className="absolute inset-0 flex flex-col">
+            <div className="absolute inset-0 flex flex-col overflow-hidden">
               <div className="absolute inset-0">
-                <img src={getImageUrl(arenaBg.image)} className="w-full h-full object-cover opacity-70" />
+                {arenaBg.video ? (
+                  <video src={getOptimizedVideoUrl(arenaBg.video)} autoPlay loop muted playsInline className="w-full h-full object-cover opacity-60" />
+                ) : (
+                  <img src={getImageUrl(arenaBg.image)} className="w-full h-full object-cover opacity-60" />
+                )}
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/50 z-[5]" />
-              <div className="flex-1 bg-blue-900/40 relative overflow-hidden hidden">
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
-              </div>
-              <div className="flex-1 bg-red-900/40 relative overflow-hidden hidden">
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black z-[5]" />
             </div>
+
+            {/* Huge Diagonal VS Separator */}
+            <div className="absolute top-1/2 left-[-20%] right-[-20%] h-4 bg-orange-600 -translate-y-1/2 -rotate-6 z-[15] shadow-[0_0_30px_rgba(249,115,22,1)] border-t-2 border-b-2 border-yellow-400"></div>
 
             {/* VS Badge */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-              <div className="w-24 h-24 bg-black rounded-full border-4 border-orange-500 flex items-center justify-center shadow-[0_0_30px_rgba(249,115,22,0.5)]">
-                <span className="text-4xl font-black italic text-orange-500">VS</span>
+              <div className="w-28 h-28 bg-black rounded-full border-4 border-orange-500 flex items-center justify-center shadow-[0_0_50px_rgba(249,115,22,0.8)] transform -rotate-12">
+                <span className="text-5xl font-black italic text-orange-500 tracking-tighter drop-shadow-md">VS</span>
               </div>
             </div>
 
             {/* Teams Container */}
-            <div className="absolute inset-0 flex flex-col z-10">
+            <div className="absolute inset-0 flex flex-col z-10 pointer-events-none px-2">
               {/* Team A (Top) */}
-              <div className="flex-1 flex flex-col items-center justify-center p-4">
-                <div className="flex flex-wrap justify-center gap-4 w-full max-w-lg">
+              <div className="flex-1 flex flex-col items-center justify-end pb-12">
+                <div className="flex justify-center gap-2 w-full max-w-lg mb-2">
+                  <div className="flex items-center gap-2 bg-black/70 px-4 py-2 rounded-full border border-blue-500/30 backdrop-blur-md">
+                    {teamALogo && <img src={getImageUrl(teamALogo, 60)} className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />}
+                    <span className="text-sm font-black text-blue-400 uppercase tracking-widest">{teamA}</span>
+                  </div>
+                </div>
+                <div className="flex justify-center gap-2 w-full max-w-lg">
                   {Array.from({ length: { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1 }).map((_, i) => {
                     const p = participants.filter(p => p.team === 'A')[i];
                     return (
-                      <div key={`A-${i}`} className="w-28 h-40 bg-black/60 border-2 border-blue-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
+                      <div key={`A-${i}`} className="w-24 h-36 bg-black/40 border-b-4 border-blue-500/80 rounded-t-xl overflow-hidden relative flex flex-col items-center shadow-lg backdrop-blur-sm pointer-events-auto">
                         {p ? (
                           <>
-                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-0" />
-                            {p.fanz?.equippedSkinUrl ? (
-                               <img 
-                                 src={getImageUrl(p.fanz.equippedSkinUrl)} 
-                                 className="absolute inset-0 w-full h-full object-cover opacity-60 z-0" 
-                               />
-                            ) : p.fanz?.imageUrl && (
-                               <img 
-                                 src={getImageUrl(p.fanz.imageUrl)} 
-                                 className="absolute inset-0 w-full h-full object-cover opacity-40 z-0" 
-                               />
+                            {p.fanz?.equippedSkinVideoUrl ? (
+                              <video src={getOptimizedVideoUrl(p.fanz.equippedSkinVideoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" data-viewer-ignore="true" />
+                            ) : p.fanz?.equippedSkinUrl ? (
+                               <img src={getImageUrl(p.fanz.equippedSkinUrl)} className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
+                            ) : p.fanz?.videoUrl ? (
+                               <video src={getOptimizedVideoUrl(p.fanz.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" data-viewer-ignore="true" />
+                            ) : p.fanz?.imageUrl ? (
+                               <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
+                            ) : p.photoURL && (
+                               <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
                             )}
-                            <div className="relative z-10 flex flex-col items-center w-full p-2">
-                              <div className="relative w-16 h-20 mb-1">
-                                <img 
-                                  src={p.fanz?.equippedSkinUrl ? getImageUrl(p.fanz.equippedSkinUrl) : (getImageUrl(p.fanz?.imageUrl) || p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`)} 
-                                  className="w-full h-full object-contain drop-shadow-lg bg-black/40 p-1 border-2 border-blue-500/30 rounded-lg" 
-                                  referrerPolicy="no-referrer"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`;
-                                  }}
-                                />
-                                {p.fanz?.equippedSkinUrl && p.photoURL && (
-                                  <img 
-                                    src={p.photoURL} 
-                                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-black object-cover shadow-lg"
-                                    referrerPolicy="no-referrer"
-                                  />
-                                )}
-                              </div>
-                              <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
-                              <span className="text-[9px] text-blue-300 font-bold uppercase mb-1">{p.fanz?.name}</span>
-                              <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded-full border border-white/10 w-full justify-center">
-                                {teamALogo && <img src={getImageUrl(teamALogo, 40)} className="w-3 h-3 object-contain" referrerPolicy="no-referrer" />}
-                                <span className="text-[8px] font-bold text-white truncate">{teamA}</span>
-                              </div>
+                            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/95 to-transparent z-0" />
+                            
+                            <div className="relative z-10 flex flex-col items-center justify-end w-full p-1 pb-2 h-full">
+                              <span className="text-[10px] font-black text-white text-center w-full truncate drop-shadow-md leading-tight">{p.pseudo}</span>
+                              <span className="text-[8px] text-blue-300 font-bold uppercase truncate w-full content-center text-center leading-tight">{p.fanz?.name}</span>
                             </div>
                           </>
                         ) : (
-                          <div className="flex flex-col items-center opacity-50">
-                            <div className="w-8 h-8 border-2 border-blue-500/50 border-t-blue-400 rounded-full animate-spin mb-2" />
-                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest text-center">En attente</span>
+                          <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-2">
+                            <div className="w-6 h-6 border-2 border-blue-500/50 border-t-blue-400 rounded-full animate-spin" />
+                            <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest text-center">En attente</span>
                           </div>
                         )}
                       </div>
@@ -2427,61 +2475,46 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               </div>
 
               {/* Team B (Bottom) */}
-              <div className="flex-1 flex flex-col items-center justify-center p-4">
-                <div className="flex flex-wrap justify-center gap-4 w-full max-w-lg">
+              <div className="flex-1 flex flex-col items-center justify-start pt-16">
+                <div className="flex justify-center gap-2 w-full max-w-lg">
                   {Array.from({ length: { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1 }).map((_, i) => {
                     const p = participants.filter(p => p.team === 'B')[i];
                     return (
-                      <div key={`B-${i}`} className="w-28 h-40 bg-black/60 border-2 border-red-500/50 rounded-xl overflow-hidden relative flex flex-col items-center justify-center shadow-lg backdrop-blur-sm">
+                      <div key={`B-${i}`} className="w-24 h-36 bg-black/40 border-t-4 border-red-500/80 rounded-b-xl overflow-hidden relative flex flex-col items-center shadow-lg backdrop-blur-sm pointer-events-auto">
                         {p ? (
                           <>
-                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-0" />
-                            {p.fanz?.equippedSkinUrl ? (
-                               <img 
-                                 src={getImageUrl(p.fanz.equippedSkinUrl)} 
-                                 className="absolute inset-0 w-full h-full object-cover opacity-60 z-0" 
-                               />
-                            ) : p.fanz?.imageUrl && (
-                               <img 
-                                 src={getImageUrl(p.fanz.imageUrl)} 
-                                 className="absolute inset-0 w-full h-full object-cover opacity-40 z-0" 
-                               />
+                            {p.fanz?.equippedSkinVideoUrl ? (
+                              <video src={getOptimizedVideoUrl(p.fanz.equippedSkinVideoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 opacity-80 scale-x-[-1]" data-viewer-ignore="true" />
+                            ) : p.fanz?.equippedSkinUrl ? (
+                               <img src={getImageUrl(p.fanz.equippedSkinUrl)} className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
+                            ) : p.fanz?.videoUrl ? (
+                               <video src={getOptimizedVideoUrl(p.fanz.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 opacity-80 scale-x-[-1]" data-viewer-ignore="true" />
+                            ) : p.fanz?.imageUrl ? (
+                               <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
+                            ) : p.photoURL && (
+                               <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
                             )}
-                            <div className="relative z-10 flex flex-col items-center w-full p-2">
-                              <div className="relative w-16 h-20 mb-1">
-                                <img 
-                                  src={p.fanz?.equippedSkinUrl ? getImageUrl(p.fanz.equippedSkinUrl) : (getImageUrl(p.fanz?.imageUrl) || p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`)} 
-                                  className="w-full h-full object-contain drop-shadow-lg bg-black/40 p-1 border-2 border-red-500/30 rounded-lg" 
-                                  referrerPolicy="no-referrer"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`;
-                                  }}
-                                />
-                                {p.fanz?.equippedSkinUrl && p.photoURL && (
-                                  <img 
-                                    src={p.photoURL} 
-                                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-black object-cover shadow-lg"
-                                    referrerPolicy="no-referrer"
-                                  />
-                                )}
-                              </div>
-                              <span className="text-xs font-black text-white text-center px-1 truncate w-full">{p.pseudo}</span>
-                              <span className="text-[9px] text-red-300 font-bold uppercase mb-1">{p.fanz?.name}</span>
-                              <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded-full border border-white/10 w-full justify-center">
-                                {teamBLogo && <img src={getImageUrl(teamBLogo, 40)} className="w-3 h-3 object-contain" referrerPolicy="no-referrer" />}
-                                <span className="text-[8px] font-bold text-white truncate">{teamB}</span>
-                              </div>
+                            <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/95 to-transparent z-0" />
+                            <div className="relative z-10 flex flex-col items-center justify-start w-full p-1 pt-2 h-full">
+                              <span className="text-[10px] font-black text-white text-center w-full truncate drop-shadow-md leading-tight">{p.pseudo}</span>
+                              <span className="text-[8px] text-red-300 font-bold uppercase truncate w-full text-center leading-tight">{p.fanz?.name}</span>
                             </div>
                           </>
                         ) : (
-                          <div className="flex flex-col items-center opacity-50">
-                            <div className="w-8 h-8 border-2 border-red-500/50 border-t-red-400 rounded-full animate-spin mb-2" />
-                            <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest text-center">En attente</span>
+                          <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-2">
+                            <div className="w-6 h-6 border-2 border-red-500/50 border-t-red-400 rounded-full animate-spin" />
+                            <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest text-center">En attente</span>
                           </div>
                         )}
                       </div>
                     );
                   })}
+                </div>
+                <div className="flex justify-center gap-2 w-full max-w-lg mt-2">
+                  <div className="flex items-center gap-2 bg-black/70 px-4 py-2 rounded-full border border-red-500/30 backdrop-blur-md">
+                    {teamBLogo && <img src={getImageUrl(teamBLogo, 60)} className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />}
+                    <span className="text-sm font-black text-red-400 uppercase tracking-widest">{teamB}</span>
+                  </div>
                 </div>
               </div>
             </div>

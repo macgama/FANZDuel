@@ -20,9 +20,23 @@ async function startServer() {
   
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    let credentialOptions = {};
+    
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        credentialOptions = { credential: admin.credential.cert(serviceAccount) };
+      } catch(e) {
+        console.error("Invalid FIREBASE_SERVICE_ACCOUNT_KEY JSON format.");
+      }
+    } else {
+      console.warn("\n⚠️ WARNING: FIREBASE_SERVICE_ACCOUNT_KEY is missing from secrets. Server-side Firebase features (like refund, live card images for bots) will experience PERMISSION_DENIED errors. Please generate a Service Account in Firebase and add its JSON content to your AI Studio secrets as FIREBASE_SERVICE_ACCOUNT_KEY.\n");
+    }
+
     if (!admin.apps.length) {
       admin.initializeApp({
         projectId: config.projectId,
+        ...credentialOptions
       });
     }
     db = getFirestore(config.firestoreDatabaseId || '(default)');
@@ -455,7 +469,18 @@ async function startServer() {
           
           // Occasional bot card play (20% chance per tick)
           if (Math.random() < 0.2) {
-            const randomCard = loadedCards[Math.floor(Math.random() * loadedCards.length)];
+            const playerParticipant = duel.participants.find(p => p.team === 'A');
+            const playerDeckIds = playerParticipant?.fanz?.equippedCards || [];
+            
+            let possibleCards = loadedCards;
+            if (playerDeckIds.length > 0) {
+              const matchingCards = loadedCards.filter(c => playerDeckIds.includes(c.id));
+              if (matchingCards.length > 0) {
+                possibleCards = matchingCards;
+              }
+            }
+
+            const randomCard = possibleCards[Math.floor(Math.random() * possibleCards.length)];
             duel.cardCounts['B']++;
             
             if (randomCard.fervorValue) {
@@ -485,7 +510,7 @@ async function startServer() {
     const refundParticipants = async (duelType: string, uids: string[]) => {
       if (!db || uids.length === 0) return;
       try {
-        const configDoc = await db.collection('global_config').doc('duel_config').get();
+        const configDoc = await db.collection('global_configs').doc('duel_config').get();
         let cost = { money: 0, energy: 0 };
         if (configDoc.exists) {
           const config = configDoc.data() as any;
@@ -910,8 +935,16 @@ async function startServer() {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
       if (!admin.apps.length) {
+        let credentialOptions = {};
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+          try {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+            credentialOptions = { credential: admin.credential.cert(serviceAccount) };
+          } catch(e) {}
+        }
         admin.initializeApp({
           projectId: config.projectId,
+          ...credentialOptions
         });
       }
       
