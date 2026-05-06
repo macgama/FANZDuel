@@ -238,7 +238,8 @@ function AppContent() {
       
       const tryJoin = async () => {
         try {
-          const response = await fetch(`/api/duels/code/${joinCode}`);
+          const cleanCode = joinCode.trim().toUpperCase();
+          const response = await fetch(`/api/duels/code/${cleanCode}`);
           if (response.ok) {
             const duel = await response.json();
             if (duel && duel.id) {
@@ -671,14 +672,17 @@ function AppContent() {
 
       <Layout containerClassName="md:flex-row">
         <GlobalSocketListener onDuelStarting={(duelId, duelData) => {
-          setCurrentDuel(duelData);
-          if (duelData && duelData.matchId) {
-            setView('home');
-            setSelectedLeague(null);
-            setSelectedTeam(null);
-            setSelectedFanzId(null);
-            setSelectedMatchId(Number(duelData.matchId));
-            setJoiningDuel({ id: duelId, type: duelData.type, matchId: Number(duelData.matchId) });
+          if (!isDuelActive) {
+            setCurrentDuel(duelData);
+            if (duelData && duelData.matchId) {
+              setView('matches');
+              setSelectedLeague(null);
+              setSelectedTeam(null);
+              setSelectedFanzId(null);
+              setSelectedMatchId(Number(duelData.matchId));
+              setJoiningDuel({ id: duelId, type: duelData.type, matchId: Number(duelData.matchId) });
+              setIsDuelActive(true);
+            }
           }
         }} />
 

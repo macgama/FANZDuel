@@ -155,10 +155,14 @@ async function startServer() {
       proportionalPointsB: scoreB - (winner === 'B' ? 10 : 0)
     };
 
-    io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB, details });
+    // Check if the duel contains real opponents or just bots against real users
+    const isBotMatch = duel.participants.some(p => p.team === 'A' && !p.isBot) === false ||
+                       duel.participants.some(p => p.team === 'B' && !p.isBot) === false;
+
+    io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB, details, isBotMatch });
 
     // Server-side database updates
-    if (db && duel.type !== 'training') {
+    if (db && duel.type !== 'training' && !isBotMatch) {
       (async () => {
         try {
           const seasonsToUpdate = [];
@@ -344,21 +348,33 @@ async function startServer() {
       } else if (type === 'war_of_kops') {
         duelId = clientDuelId || `war_of_kops_${matchId || 'global'}`;
       } else if (!isPrivate) {
-        // Find a waiting public duel of same type and match
-        const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10 }[type as '1v1' | '2v2' | '5v5'] || 2;
-        const availableDuel = Object.values(duels).find(d => 
-          d.type === type && 
-          d.status === 'waiting' && 
-          !d.isPrivate &&
-          d.participants.length < requiredPlayers &&
+        // Find if the user is already in an active or waiting duel of same type and match
+        const existingActiveDuel = Object.values(duels).find(d => 
+          d.type === type &&
           (!matchId || d.matchId === matchId) &&
-          (!clientDuelId || d.id === clientDuelId)
+          d.participants.some(p => p.uid === user.uid) &&
+          d.status !== 'finished'
         );
-        
-        if (availableDuel) {
-          duelId = availableDuel.id;
+
+        if (existingActiveDuel) {
+          duelId = existingActiveDuel.id;
         } else {
-          duelId = clientDuelId || `duel_${Math.random().toString(36).substring(7)}`;
+          // Find a waiting public duel of same type and match
+          const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10 }[type as '1v1' | '2v2' | '5v5'] || 2;
+          const availableDuel = Object.values(duels).find(d => 
+            d.type === type && 
+            d.status === 'waiting' && 
+            !d.isPrivate &&
+            d.participants.length < requiredPlayers &&
+            (!matchId || d.matchId === matchId) &&
+            (!clientDuelId || d.id === clientDuelId)
+          );
+          
+          if (availableDuel) {
+            duelId = availableDuel.id;
+          } else {
+            duelId = clientDuelId || `duel_${Math.random().toString(36).substring(7)}`;
+          }
         }
       } else {
         // Create a new private duel
@@ -386,7 +402,12 @@ async function startServer() {
           lastClicks: {},
           lockedCards: {},
           isPrivate: isPrivate || false,
-          inviteCode: isPrivate ? Math.random().toString(36).substring(2, 8).toUpperCase() : undefined
+          inviteCode: isPrivate ? (() => {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let res = '';
+            for(let i=0;i<6;i++) res += chars[Math.floor(Math.random()*chars.length)];
+            return res;
+          })() : undefined
         };
       }
 
@@ -604,11 +625,17 @@ async function startServer() {
       }
     });
 
-    socket.on("click-ferveur", ({ duelId, team, multiplier }) => {
+    socket.on("click-ferveur", ({ duelId, team, multiplier, userId }) => {
       const duel = duels[duelId];
       if (duel && duel.status === 'active') {
         // Anti-clicker validation
-        const participant = duel.participants.find(p => p.socketId === socket.id);
+        let participant = null;
+        if (userId) {
+          participant = duel.participants.find(p => p.uid === userId && p.socketId === socket.id);
+        } else {
+          participant = duel.participants.find(p => p.socketId === socket.id && !p.isBot);
+        }
+        
         if (participant) {
           const uid = participant.uid;
           const now = Date.now();
@@ -617,10 +644,13 @@ async function startServer() {
           }
           // Remove clicks older than 1 second
           duel.lastClicks[uid] = duel.lastClicks[uid].filter(t => now - t < 1000);
-          // Allow max 12 clicks per second (human limit is around 8-10 max)
-          if (duel.lastClicks[uid].length >= 12) {
-            console.warn(`[Anti-Cheat] Player ${uid} clicking too fast in duel ${duelId}`);
-            socket.emit("duel-error", { message: "Trop de clics détectés, ralentissez !" });
+          
+          const maxClicks = participant.isBot ? 25 : 12; // Allow higher throughput for simulation batches
+          if (duel.lastClicks[uid].length >= maxClicks) {
+            if (!participant.isBot) {
+              console.warn(`[Anti-Cheat] Player ${uid} clicking too fast in duel ${duelId}`);
+              socket.emit("duel-error", { message: "Trop de clics détectés, ralentissez !" });
+            }
             return; // Ignore this click
           }
           duel.lastClicks[uid].push(now);
@@ -647,10 +677,15 @@ async function startServer() {
       }
     });
 
-    socket.on("play-card", ({ duelId, team, card }) => {
+    socket.on("play-card", ({ duelId, team, card, userId }) => {
       const duel = duels[duelId];
       if (duel && duel.status === 'active') {
-        const participant = duel.participants.find(p => p.socketId === socket.id);
+        let participant = null;
+        if (userId) {
+          participant = duel.participants.find(p => p.uid === userId && p.socketId === socket.id);
+        } else {
+          participant = duel.participants.find(p => p.socketId === socket.id && !p.isBot);
+        }
         const uid = participant ? participant.uid : 'unknown';
         
         // Server-Side Card Validation

@@ -41,19 +41,19 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
     }
   };
 
-  const handleShareDuel = async (duelId: string, duelType: string) => {
-    const inviteCode = duelId.substring(0, 8).toUpperCase();
-    const shareUrl = `${window.location.origin}/?join=${inviteCode}`;
+  const handleShareDuel = async (duel: any) => {
+    const inviteCodeToShare = duel.inviteCode || duel.id.substring(0, 8).toUpperCase();
+    const shareUrl = `${window.location.origin}/?join=${inviteCodeToShare}`;
     const shareData = {
       title: 'Rejoins mon duel sur TheBestFan!',
-      text: `Viens m'affronter dans un duel ${duelType.replace('_', ' ')} ! Utilise le code: ${inviteCode}\nLien direct: ${shareUrl}`,
+      text: `Viens m'affronter dans un duel ${duel.type.replace('_', ' ')} ! Utilise le code: ${inviteCodeToShare}\nLien direct: ${shareUrl}`,
     };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(inviteCode);
+        await navigator.clipboard.writeText(inviteCodeToShare);
         showAlert({
           title: 'Code copié !',
           type: 'success'
@@ -67,7 +67,8 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
   const handleJoinByCode = async () => {
     if (!inviteCode) return;
     try {
-      const response = await fetch(`/api/duels/code/${inviteCode}`);
+      const cleanCode = inviteCode.trim().toUpperCase();
+      const response = await fetch(`/api/duels/code/${cleanCode}`);
       if (response.ok) {
         const duel = await response.json();
         if (duel && duel.matchId) {
@@ -335,7 +336,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                         </button>
                       )}
                       <button 
-                        onClick={() => handleShareDuel(duel.id, duel.type)}
+                        onClick={() => handleShareDuel(duel)}
                         className="p-2 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20"
                         title="Partager"
                       >

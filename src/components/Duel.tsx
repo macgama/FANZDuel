@@ -94,6 +94,12 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
               const existingParticipant = duel.participants.find((p: any) => p.uid === user.uid);
               if (existingParticipant) {
                 // User is already in this duel, jump straight to it
+                if (existingParticipant.fanz?.id) {
+                  setSelectedFanzId(existingParticipant.fanz.id);
+                } else if (existingParticipant.fanzId) {
+                  setSelectedFanzId(existingParticipant.fanzId);
+                }
+                
                 setActiveDuel({
                   id: duel.id,
                   type: duel.type,
@@ -173,6 +179,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
           };
         });
         setUserFanzs(fanzList);
+        setSelectedFanzId(prev => prev || (fanzList.length > 0 ? fanzList[0].id : null));
       } catch (err) {
         console.error("Error fetching duel data", err);
       } finally {
@@ -234,12 +241,23 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
   };
 
   if (activeDuel) {
+    if (!selectedFanzId) {
+      return (
+        <div className="flex h-screen items-center justify-center bg-black text-white">
+          <div className="flex flex-col items-center gap-4">
+            <RefreshCw className="w-8 h-8 animate-spin text-orange-500" />
+            <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Préparation du Fanz...</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <ErrorBoundary onReset={() => setActiveDuel(null)}>
         <DuelScreen 
           duel={activeDuel} 
           user={user} 
-          fanzId={selectedFanzId!} 
+          fanzId={selectedFanzId} 
           teamA={teamA} 
           teamB={teamB} 
           teamAId={teamAId} 
@@ -533,7 +551,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const { socket } = useSocket();
   const [winner, setWinner] = useState<string | null>(null);
   const [isPrivate, setIsPrivate] = useState<boolean>(duel.isPrivate || false);
-  const [duelResult, setDuelResult] = useState<{ winner: string, ferveurGain: number, teamGain: number, scoreA?: number, scoreB?: number, details?: any } | null>(null);
+  const [duelResult, setDuelResult] = useState<{ winner: string, ferveurGain: number, teamGain: number, scoreA?: number, scoreB?: number, details?: any, isBotMatch?: boolean } | null>(null);
   const [status, setStatus] = useState<'waiting' | 'starting' | 'active' | 'finished'>(duel.status);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [inviteCode, setInviteCode] = useState(duel.inviteCode);
@@ -736,7 +754,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [unlockedEmoteIds, setUnlockedEmoteIds] = useState<string[]>(user.emotes || []);
   const [showEmotes, setShowEmotes] = useState(false);
   const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, team: string, x: number | string, y: number | string}[]>([]);
-  const [botFillTimer, setBotFillTimer] = useState<number>(30); // Countdown to auto-fill bots
   const isMaster = participants[0]?.uid === user.uid || duel.type === 'training'; // Only the first player manages bots (always master in training)
 
   // Preload card images
@@ -809,13 +826,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           
           // Filter all available cards for this Fanz template
           const fanzAvailableCards = initialCards.filter(c => {
-            const isAllowed = !c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(fanzData.templateId);
-            const isBlocked = c.blockedFanzIds && c.blockedFanzIds.includes(fanzData.templateId);
+            const fanzIdsArray = Array.isArray(c.fanzIds) ? c.fanzIds : (typeof c.fanzIds === 'string' ? [c.fanzIds] : []);
+            const blockedFanzIdsArray = Array.isArray(c.blockedFanzIds) ? c.blockedFanzIds : (typeof c.blockedFanzIds === 'string' ? [c.blockedFanzIds] : []);
+            
+            const isAllowed = !c.fanzIds || fanzIdsArray.length === 0 || (fanzData.templateId && fanzIdsArray.includes(fanzData.templateId));
+            const isBlocked = c.blockedFanzIds && fanzData.templateId && blockedFanzIdsArray.includes(fanzData.templateId);
             return isAllowed && !isBlocked;
           });
           setAllCards(fanzAvailableCards);
 
-          if (fanzData.equippedCards && fanzData.equippedCards.length > 0) {
+          if (fanzData.equippedCards && Array.isArray(fanzData.equippedCards) && fanzData.equippedCards.length > 0) {
             cardsToUse = fanzAvailableCards.filter(c => fanzData.equippedCards?.includes(c.id));
           } else {
             cardsToUse = fanzAvailableCards;
@@ -868,14 +888,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           if (fanzSnap && fanzSnap.exists()) {
             const fanzData = fanzSnap.data() as Fanz;
             setFanz(fanzData);
-            if (fanzData.unlockedEmotes) {
+            if (Array.isArray(fanzData.unlockedEmotes)) {
               fanzEmotes = fanzData.unlockedEmotes;
             }
           }
 
           const combinedEmotes = Array.from(new Set([
-            ...(userData.emotes || []),
-            ...fanzEmotes
+            ...(Array.isArray(userData.emotes) ? userData.emotes : []),
+            ...(Array.isArray(fanzEmotes) ? fanzEmotes : [])
           ]));
           setUnlockedEmoteIds(combinedEmotes);
 
@@ -972,20 +992,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   useEffect(() => {
     if (!socket) return;
     
-    // Bot Auto-Fill Logic
-    let botTimerId: any;
-    if (status === 'waiting' && isMaster && !duel.isPrivate) {
-      botTimerId = setInterval(() => {
-        setBotFillTimer(prev => {
-          if (prev <= 1) {
-            fillWithBots();
-            return duelConfig?.botFillTimer || 30;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
     // Bot Simulation Logic (Clicks & Cards)
     let botSimulationInterval: any;
     if (status === 'active' && isMaster) {
@@ -1047,7 +1053,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     }
 
     return () => {
-      if (botTimerId) clearInterval(botTimerId);
       if (botSimulationInterval) clearInterval(botSimulationInterval);
     };
   }, [socket, status, isMaster, participants.length, allCards.length]);
@@ -1100,7 +1105,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     botsToAdd.forEach(bot => {
       socket.emit('join-duel', { 
         duelId: currentDuelIdRef.current, 
-        user: { uid: bot.uid, pseudo: bot.pseudo, photoURL: bot.photoURL, level: bot.level }, 
+        user: { uid: bot.uid, pseudo: bot.pseudo, photoURL: bot.photoURL, level: bot.level, isBot: true }, 
         team: bot.team,
         fanz: bot.fanz,
         isBot: true 
@@ -1160,11 +1165,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     };
     socket.on('duel-started', handleDuelStarted);
 
-    const handleDuelFinished = async ({ winner, scoreA, scoreB, details }: { winner: string, scoreA: number, scoreB: number, details?: any }) => {
+    const handleDuelFinished = async ({ winner, scoreA, scoreB, details, isBotMatch }: { winner: string, scoreA: number, scoreB: number, details?: any, isBotMatch?: boolean }) => {
       setWinner(winner);
       let ferveurGain = 0;
       let teamGain = 0;
       
+      // If it's purely against bots, bypass database updates as the user should not gain ranked progress
+      if (isBotMatch) {
+         setDuelResult({ winner, ferveurGain: 0, teamGain: 0, scoreA, scoreB, details, isBotMatch });
+         const isWinner = (winner === 'A' && myTeamRef.current === 'A') || (winner === 'B' && myTeamRef.current === 'B');
+         if (isWinner) audioManager.playVictory();
+         else audioManager.playDefeat();
+         return;
+      }
+
       // Normalize scores for match history (scoreA = virtual team A, scoreB = virtual team B)
       // props.teamA is the official Home Team name of the match
       const isSideAHome = duel.teamA === teamA;
@@ -2590,11 +2604,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       <Users className="w-2.5 h-2.5" />
                       Lancer avec des Bots
                     </button>
-                    {!isPrivate && (
-                      <p className="text-[7px] md:text-[8px] font-black uppercase text-orange-500/80 italic text-center text-shadow-sm">
-                        Remplissage auto dans {botFillTimer}s
-                      </p>
-                    )}
                   </div>
                 )}
 
@@ -2959,12 +2968,21 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               </h2>
               
               <div className="space-y-4 my-8">
-                <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                  <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains du Fanz</p>
-                  <p className="text-3xl font-black text-yellow-400">+{duelResult.ferveurGain} XP</p>
-                </div>
+                {duelResult.isBotMatch && (
+                  <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/20 mb-4">
+                    <p className="text-xs text-orange-400 font-bold">Match contre des Bots</p>
+                    <p className="text-[10px] text-orange-400/80 mt-1">Les statistiques et l'XP ne sont pas enregistrées.</p>
+                  </div>
+                )}
                 
-                {duelResult.teamGain > 0 && (
+                {!duelResult.isBotMatch && (
+                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                    <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains du Fanz</p>
+                    <p className="text-3xl font-black text-yellow-400">+{duelResult.ferveurGain} XP</p>
+                  </div>
+                )}
+                
+                {!duelResult.isBotMatch && duelResult.teamGain > 0 && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
                     <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains de l'Équipe</p>
                     <p className="text-3xl font-black text-orange-400">+{duelResult.teamGain} XP</p>
