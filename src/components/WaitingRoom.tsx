@@ -353,7 +353,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                   </div>
                   
                   {/* Participants Preview */}
-                  <div className="px-4 pb-4 flex gap-1.5">
+                  <div className="px-4 pb-4 flex gap-1.5 flex-wrap">
                     {duel.participants.map((p: any, i: number) => (
                       <div 
                         key={i} 
@@ -374,7 +374,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                         )}
                       </div>
                     ))}
-                    {Array.from({ length: Math.max(0, (typeof maxPlayers === 'number' ? maxPlayers : 0) - duel.participants.length) }).slice(0, 5).map((_, i) => (
+                    {Array.from({ length: Math.max(0, (typeof maxPlayers === 'number' ? maxPlayers : 0) - duel.participants.length) }).map((_, i) => (
                       <div key={`empty-${i}`} className="w-8 h-8 rounded-full border border-dashed border-white/10 bg-transparent flex items-center justify-center">
                         <span className="text-[10px] text-white/5">+</span>
                       </div>

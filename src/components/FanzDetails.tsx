@@ -62,10 +62,12 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   } | null>(null);
 
   const [purchaseConfirm, setPurchaseConfirm] = useState<{
-    type: 'skin' | 'emote';
+    type: 'skin' | 'emote' | 'card';
     item: any;
   } | null>(null);
   const [purchasing, setPurchasing] = useState(false);
+  
+  const [cardFilter, setCardFilter] = useState<'all' | 'available' | 'locked'>('all');
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +97,34 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       setFanz({ ...fanz, equippedCards: newDeck });
     } catch (error) {
       console.error("Error updating deck:", error);
+    }
+  };
+
+  const handleBuyCard = async (card: DuelCard) => {
+    if (!userProfile) return;
+    setPurchasing(true);
+    try {
+      const priceParams = card.price || {};
+      const updates: any = {};
+      if (priceParams.money) updates.money = increment(-priceParams.money);
+      if (priceParams.gems) updates.gems = increment(-priceParams.gems);
+      if (priceParams.boostPoints) updates.boostPoints = increment(-priceParams.boostPoints);
+      
+      updates.cards = arrayUnion(card.id);
+
+      await updateDoc(doc(db, 'users', userProfile.uid), updates);
+      
+      setAlertModal({
+        title: "Achat réussi !",
+        message: `La carte ${card.name} a été ajoutée à votre musée.`,
+        type: 'success'
+      });
+      setPurchaseConfirm(null);
+    } catch(err) {
+      console.error(err);
+      handleFirestoreError(err, OperationType.UPDATE, `users/${userProfile.uid}`);
+    } finally {
+      setPurchasing(false);
     }
   };
 
@@ -470,23 +500,23 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       <div className="w-full aspect-[4/3] relative shrink-0 overflow-hidden group">
         {/* Rarity Badge */}
         <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2">
-          <div className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
-            <span className="text-[10px] font-black italic uppercase tracking-widest text-orange-500">
+          <div className="px-2 py-0.5 sm:px-3 sm:py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
+            <span className="text-[8px] sm:text-[10px] font-black italic uppercase tracking-widest text-orange-500">
               {template.rarity}
             </span>
           </div>
           {userProfile.activeFanzId !== fanz.id ? (
             <button
               onClick={handleSetActiveFanz}
-              className="px-3 py-1 bg-orange-500/20 hover:bg-orange-500/40 backdrop-blur-md rounded-full border border-orange-500/50 transition-colors"
+              className="px-2 py-0.5 sm:px-3 sm:py-1 bg-orange-500/20 hover:bg-orange-500/40 backdrop-blur-md rounded-full border border-orange-500/50 transition-colors"
             >
-              <span className="text-[10px] font-black italic uppercase tracking-widest text-orange-500">
+              <span className="text-[8px] sm:text-[10px] font-black italic uppercase tracking-widest text-orange-500">
                 Définir Actif
               </span>
             </button>
           ) : (
-            <div className="px-3 py-1 bg-green-500/20 backdrop-blur-md rounded-full border border-green-500/50">
-              <span className="text-[10px] font-black italic uppercase tracking-widest text-green-500">
+            <div className="px-2 py-0.5 sm:px-3 sm:py-1 bg-green-500/20 backdrop-blur-md rounded-full border border-green-500/50">
+              <span className="text-[8px] sm:text-[10px] font-black italic uppercase tracking-widest text-green-500">
                 FANZ Actif
               </span>
             </div>
@@ -517,13 +547,13 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
           <div className="flex-1">
             <h1 
               onClick={() => setActiveTab('stats')}
-              className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg cursor-pointer hover:text-orange-500 transition-colors"
+              className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer hover:text-orange-500 transition-colors"
             >
               {equippedSkinData?.name || fanz.name}
             </h1>
 
             {template.battleCry && (
-              <p className="text-xs font-black italic uppercase tracking-wider text-orange-400 drop-shadow-md mb-1 animate-pulse">
+              <p className="text-[8px] sm:text-xs font-black italic uppercase tracking-wider text-orange-400 drop-shadow-md mb-1 animate-pulse">
                 "{template.battleCry}"
               </p>
             )}
@@ -531,14 +561,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
             {activeAction && (
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                <p className="text-sm font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
+                <p className="text-[10px] sm:text-sm font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
                   {activeAction.name}
                 </p>
               </div>
             )}
 
             {!activeAction && (
-              <p className="text-[10px] sm:text-xs font-medium text-gray-300 mt-1 max-w-[80%] line-clamp-2">
+              <p className="text-[8px] sm:text-[10px] sm:text-xs font-medium text-gray-300 mt-1 max-w-[80%] line-clamp-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                 {template.shortDescription || template.description}
               </p>
             )}
@@ -548,15 +578,15 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
               return (
                 <div 
                   onClick={() => setActiveTab('ferveur')}
-                  className="mt-3 w-full max-w-[200px] cursor-pointer group/ferveur"
+                  className="mt-2 sm:mt-3 w-full max-w-[150px] sm:max-w-[200px] cursor-pointer group/ferveur"
                 >
-                  <div className="h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden group-hover/ferveur:border-orange-500/50 transition-colors">
+                  <div className="h-3 sm:h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden group-hover/ferveur:border-orange-500/50 transition-colors">
                     <div 
                       className="h-full bg-orange-600 rounded-full transition-all duration-500"
                       style={{ width: `${Math.min(100, (fanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                      <span className="text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      <span className="text-[8px] sm:text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                         {fanz.ferveurPoints} / {nextLevelPoints}
                       </span>
                     </div>
@@ -565,8 +595,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
               );
             })()}
           </div>
-          <div className="w-10 h-10 bg-black rounded-full flex flex-col items-center justify-center border-2 border-white/10 shadow-xl shrink-0 mb-1 backdrop-blur-md">
-            <span className="text-base font-black italic text-white leading-none">{fanz.rank ?? 0}</span>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-full flex flex-col items-center justify-center border-2 border-white/10 shadow-xl shrink-0 mb-1 backdrop-blur-md">
+            <span className="text-sm sm:text-base font-black italic text-white leading-none">{fanz.rank ?? 0}</span>
           </div>
         </div>
       </div>
@@ -1446,7 +1476,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           key={card.id}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          className={`bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border} rounded-lg relative group flex flex-col overflow-hidden`}
+                          className={`bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border} rounded-lg relative group flex flex-col overflow-hidden aspect-[2/3]`}
                         >
                           <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-sm text-yellow-500 text-[6px] font-black px-1 py-0.5 rounded-full z-10 flex items-center gap-0.5">
                             <img src={LOGOS.level} alt="Level" className="w-2 h-2 object-contain" />
@@ -1455,7 +1485,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           <div className={`absolute top-1 right-1 ${typeStyle.text === 'text-green-500' ? 'bg-green-500' : typeStyle.text === 'text-red-500' ? 'bg-red-500' : 'bg-blue-500'} text-white text-[6px] font-black uppercase px-1 py-0.5 rounded-full z-10`}>
                             {typeStyle.label}
                           </div>
-                          <div className="w-full aspect-[4/3] overflow-hidden bg-gray-900 shrink-0 relative">
+                          <div className="w-full h-full overflow-hidden bg-gray-900 shrink-0 relative">
                             {card.videoUrl ? (
                               <OptimizedMedia
                                 type="video"
@@ -1484,7 +1514,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       );
                     })}
                     {Array.from({ length: 8 - (fanz.equippedCards?.length || 0) }).map((_, i) => (
-                      <div key={`empty-${i}`} className="border-2 border-dashed border-white/10 rounded-lg aspect-[4/3] flex items-center justify-center">
+                      <div key={`empty-${i}`} className="border-2 border-dashed border-white/10 rounded-lg aspect-[2/3] flex items-center justify-center">
                         <Database className="w-4 h-4 text-white/5" />
                       </div>
                     ))}
@@ -1493,9 +1523,13 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
 
                 {/* Toutes les Cartes */}
                 <Card className="p-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-base font-black italic uppercase tracking-tighter">Collection de Cartes</h3>
-                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Équiper</p>
+                  <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+                    <h3 className="text-base font-black italic uppercase tracking-tighter">Musée de Cartes</h3>
+                    <div className="flex gap-2">
+                      <button onClick={() => setCardFilter('all')} className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${cardFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-white/10 text-gray-400'}`}>Toutes</button>
+                      <button onClick={() => setCardFilter('available')} className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${cardFilter === 'available' ? 'bg-orange-500 text-white' : 'bg-white/10 text-gray-400'}`}>Débloquées</button>
+                      <button onClick={() => setCardFilter('locked')} className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${cardFilter === 'locked' ? 'bg-orange-500 text-white' : 'bg-white/10 text-gray-400'}`}>Verrouillées</button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {allCards.filter(card => {
@@ -1521,13 +1555,23 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         return true;
                       });
                       const isUnlocked = userProfile.cards?.includes(card.id) || metRequirements || (!hasRequirements && card.rarity === 'common');
-                      return { card, isUnlocked, requirements };
+                      const canAfford = !isUnlocked && userProfile && card.price && (
+                        (!card.price.money || (userProfile.money || 0) >= card.price.money) &&
+                        (!card.price.gems || (userProfile.gems || 0) >= card.price.gems) &&
+                        (!card.price.boostPoints || (userProfile.boostPoints || 0) >= card.price.boostPoints)
+                      );
+                      return { card, isUnlocked, requirements, canAfford };
+                    })
+                    .filter(({isUnlocked}) => {
+                      if (cardFilter === 'available') return isUnlocked;
+                      if (cardFilter === 'locked') return !isUnlocked;
+                      return true;
                     })
                     .sort((a, b) => {
                       if (a.isUnlocked === b.isUnlocked) return 0;
                       return a.isUnlocked ? -1 : 1;
                     })
-                    .map(({ card, isUnlocked, requirements }) => {
+                    .map(({ card, isUnlocked, requirements, canAfford }) => {
                       const isEquipped = fanz.equippedCards?.includes(card.id);
                       const typeStyle = cardTypeStyles[card.type] || cardTypeStyles.neutral;
                       
@@ -1536,13 +1580,13 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           key={card.id}
                           whileHover={isUnlocked && !isEquipped ? { scale: 1.05 } : {}}
                           whileTap={isUnlocked && !isEquipped ? { scale: 0.95 } : {}}
-                          onClick={undefined}
-                          className={`relative rounded-xl transition-all flex flex-col h-full overflow-hidden ${
+                          onClick={() => !isUnlocked && card.price ? setPurchaseConfirm({ type: 'card', item: card }) : undefined}
+                          className={`relative rounded-xl transition-all flex flex-col h-full overflow-hidden cursor-pointer ${
                             isUnlocked 
                               ? isEquipped 
                                 ? 'bg-white/5 border-2 border-white/10 opacity-50 grayscale' 
                                 : `bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border}`
-                              : 'bg-black/40 border-2 border-white/5 grayscale opacity-30'
+                              : 'bg-black/40 border-2 border-white/5 grayscale opacity-30 hover:opacity-50'
                           }`}
                         >
                           {isUnlocked && (
@@ -1558,9 +1602,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           )}
                           {!isUnlocked && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center z-20 p-2 text-center bg-black/60 rounded-xl">
-                              <Lock className="w-6 h-6 text-white/50 mb-1" />
+                              {canAfford ? <Unlock className="w-6 h-6 text-green-500 mb-1" /> : <Lock className="w-6 h-6 text-white/50 mb-1" />}
                               <div className="text-[7px] font-bold text-white uppercase leading-tight">
-                                {requirements.length > 0 ? (
+                                {card.price && card.price?.money ? (
+                                  <div className="flex items-center gap-1 mt-1 justify-center">
+                                    <img src={LOGOS.money} alt="Money" className="w-2.5 h-2.5 object-contain" />
+                                    {card.price.money} {canAfford ? '(Acheter)' : ''}
+                                  </div>
+                                ) : requirements.length > 0 ? (
                                   requirements.map((req, i) => (
                                     <div key={i}>
                                       {req.type === 'skill' && `${statLabels[req.skillName as keyof typeof statLabels]} Niv. ${req.minLevel}`}
@@ -1950,7 +1999,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
               <div className="flex flex-col gap-3">
                 {purchaseConfirm.item.price?.money > 0 && (
                   <Button
-                    onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : handleBuyEmote(purchaseConfirm.item)}
+                    onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : purchaseConfirm.type === 'emote' ? handleBuyEmote(purchaseConfirm.item) : handleBuyCard(purchaseConfirm.item)}
                     disabled={purchasing || (userProfile?.money || 0) < purchaseConfirm.item.price.money}
                     className="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase"
                   >
@@ -1960,7 +2009,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                 
                 {purchaseConfirm.item.price?.gems > 0 && (
                   <Button
-                    onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : handleBuyEmote(purchaseConfirm.item)}
+                    onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : purchaseConfirm.type === 'emote' ? handleBuyEmote(purchaseConfirm.item) : handleBuyCard(purchaseConfirm.item)}
                     disabled={purchasing || (userProfile?.gems || 0) < purchaseConfirm.item.price.gems}
                     className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black uppercase"
                   >
@@ -1982,7 +2031,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       </AnimatePresence>
 
       {alertModal && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -2007,7 +2056,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
       {/* Reward Modal */}
       <AnimatePresence>
       {rewardModal && rewardModal.isOpen && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <motion.div 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}

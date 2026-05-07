@@ -607,7 +607,31 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     }
   };
 
-  const confirmExit = () => {
+  const confirmExit = async () => {
+    // Client-side refund if leaving while waiting
+    if (status === 'waiting' && duelConfig && duelConfig.costs) {
+      const type = duel.type;
+      const cost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
+      
+      let effectiveEnergyCost = cost.energy;
+      if (user.infiniteEnergyUntil && new Date(user.infiniteEnergyUntil) > new Date()) {
+        effectiveEnergyCost = 0;
+      }
+      
+      if (cost.money > 0 || effectiveEnergyCost > 0) {
+        try {
+          await updateDoc(doc(db, 'users', user.uid), {
+            money: increment(cost.money),
+            energy: increment(effectiveEnergyCost)
+          });
+          if (cost.money > 0) await logTransaction(user.uid, 'money', cost.money, `Remboursement annulation duel: ${type}`);
+          if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', effectiveEnergyCost, `Remboursement annulation duel: ${type}`);
+        } catch(e) {
+          console.error("Client refund error:", e);
+        }
+      }
+    }
+    
     socket?.emit('leave-duel', { duelId: currentDuelIdRef.current, userId: user.uid });
     onExitHandler(status);
   };
@@ -1169,15 +1193,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setWinner(winner);
       let ferveurGain = 0;
       let teamGain = 0;
-      
-      // If it's purely against bots, bypass database updates as the user should not gain ranked progress
-      if (isBotMatch) {
-         setDuelResult({ winner, ferveurGain: 0, teamGain: 0, scoreA, scoreB, details, isBotMatch });
-         const isWinner = (winner === 'A' && myTeamRef.current === 'A') || (winner === 'B' && myTeamRef.current === 'B');
-         if (isWinner) audioManager.playVictory();
-         else audioManager.playDefeat();
-         return;
-      }
 
       // Normalize scores for match history (scoreA = virtual team A, scoreB = virtual team B)
       // props.teamA is the official Home Team name of the match
@@ -1209,7 +1224,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       const currentMyTeam = myTeamRef.current || myParticipant?.team || 'A';
       
       // Save legacy match score and fixture_results to Firestore
-      if (duel.matchId && duel.matchId !== 'global' && duel.type !== 'training') {
+      if (!isBotMatch && duel.matchId && duel.matchId !== 'global' && duel.type !== 'training') {
         try {
           const matchIdStr = duel.matchId.toString();
           
@@ -1468,7 +1483,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         console.error("Error updating ferveur", e);
       }
       
-      setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB, details });
+      setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB, details, isBotMatch });
       
       const isWinner = (winner === 'A' && myTeamRef.current === 'A') || (winner === 'B' && myTeamRef.current === 'B');
       if (isWinner) {
@@ -2528,8 +2543,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent z-0" />
                             
-                            <div className="relative z-10 flex flex-col items-center justify-end w-full p-2 h-full">
-                              <span className="text-[8px] text-blue-300 font-bold uppercase truncate w-full content-center text-center">{p.fanz?.name}</span>
+                            <div className="relative z-10 flex flex-col items-center justify-end w-full p-2 h-full gap-1">
+                              {p.fanz && (
+                                <span className="bg-black/80 px-1.5 py-0.5 rounded border border-white/10 text-[8px] font-black text-white drop-shadow-md">
+                                  Niv. {p.fanz.ferveurLevel || p.fanz.level || 1}
+                                </span>
+                              )}
+                              <span className="text-[8px] text-blue-300 font-bold uppercase truncate w-full content-center text-center">{p.pseudo || 'Joueur'}</span>
                             </div>
                           </>
                         ) : (
@@ -2569,8 +2589,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                                <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0 opacity-80" />
                             )}
                             <div className="absolute inset-0 bg-gradient-to-b from-black/90 to-transparent z-0" />
-                            <div className="relative z-10 flex flex-col items-center justify-start w-full p-2 h-full">
-                              <span className="text-[8px] text-red-300 font-bold uppercase truncate w-full text-center">{p.fanz?.name}</span>
+                            <div className="relative z-10 flex flex-col items-center justify-start w-full p-2 h-full gap-1">
+                              <span className="text-[8px] text-red-300 font-bold uppercase truncate w-full text-center">{p.pseudo || 'Joueur'}</span>
+                              {p.fanz && (
+                                <span className="bg-black/80 px-1.5 py-0.5 rounded border border-white/10 text-[8px] font-black text-white drop-shadow-md">
+                                  Niv. {p.fanz.ferveurLevel || p.fanz.level || 1}
+                                </span>
+                              )}
                             </div>
                           </>
                         ) : (
@@ -3092,7 +3117,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}

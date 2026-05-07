@@ -156,7 +156,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a] text-white">
       <div className="p-4 bg-gray-900 border-b border-white/10 sticky top-0 z-40">
-        <h1 className="text-2xl font-black italic uppercase text-white mb-4">Collection</h1>
+        <h1 className="text-2xl font-black italic uppercase text-white mb-4">Mon Musée</h1>
         <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0">
           {tabs.map(tab => (
             <button

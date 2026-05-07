@@ -567,7 +567,7 @@ async function startServer() {
           if (isParticipant) {
             duel.participants = duel.participants.filter(p => p.uid !== userId);
             socket.leave(duelId);
-            await refundParticipants(duel.type, [userId]);
+            // Refund is now handled on the client side to avoid PERMISSION_DENIED
             
             io.to(duelId).emit("duel-update", { 
               duelId: duel.id, 

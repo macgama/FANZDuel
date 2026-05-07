@@ -125,10 +125,11 @@ export function SharedMatchCard({
                 </div>
               )}
               
-              <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center">
+              <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center gap-0.5">
                 <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase">
-                  {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}'` : match.fixture.status.short}
+                  {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}` : match.fixture.status.short}
                 </span>
+                {match.fixture.status.elapsed && <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase animate-pulse">'</span>}
               </div>
             </>
           ) : (

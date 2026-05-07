@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { footballApi } from '../services/footballApi';
+import { DuelDetailsModal } from './DuelDetailsModal';
 
 interface UserStatsProps {
   user: UserProfile;
@@ -30,6 +31,7 @@ export function UserStats({ user, onBack }: UserStatsProps) {
   const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
   const [recentDuels, setRecentDuels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDuelDetails, setSelectedDuelDetails] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -212,7 +214,11 @@ export function UserStats({ user, onBack }: UserStatsProps) {
                   const dateStr = duel.timestamp ? new Date(duel.timestamp.seconds * 1000).toLocaleDateString() : 'Récemment';
                   
                   return (
-                    <div key={idx} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                    <div 
+                      key={idx} 
+                      className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-white/10 transition-colors"
+                      onClick={() => setSelectedDuelDetails(duel.id)}
+                    >
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${isWin ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
                           {isWin ? 'W' : 'L'}
@@ -238,6 +244,13 @@ export function UserStats({ user, onBack }: UserStatsProps) {
 
         </div>
       </div>
+
+      {selectedDuelDetails && (
+        <DuelDetailsModal 
+          duelId={selectedDuelDetails} 
+          onClose={() => setSelectedDuelDetails(null)} 
+        />
+      )}
     </div>
   );
 }

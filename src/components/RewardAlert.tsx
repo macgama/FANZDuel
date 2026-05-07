@@ -139,21 +139,31 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
   const getRewardImage = () => {
     switch (reward.type) {
       case 'money': return 'https://thebestfan.online/img/public/logo/imageMoney.png';
-      case 'gems': return LOGOS.gems;
-      case 'boost': return LOGOS.boost;
-      case 'energy': return LOGOS.energy;
-      case 'xp': return 'https://thebestfan.online/img/public/logo/ferveur.png';
-      case 'card': return getImageUrl(reward.card?.imageUrl || '');
-      case 'skin': return getImageUrl(reward.skin?.imageUrl || '');
-      case 'emote': return getImageUrl(reward.emote?.imageUrl || '');
-      case 'action': return getImageUrl(reward.action?.image || '');
+      case 'gems': return 'https://thebestfan.online/img/public/logo/imageGemme.png';
+      case 'boost': return 'https://thebestfan.online/img/public/logo/imageBoost.png';
+      case 'energy': return 'https://thebestfan.online/img/public/logo/imageEnergy.png';
+      case 'xp': return 'https://thebestfan.online/img/public/logo/imageLevel.png';
+      case 'card': return getImageUrl(reward.card?.imageUrl || 'https://thebestfan.online/img/public/logo/imageMydeck.png');
+      case 'skin': return getImageUrl(reward.skin?.imageUrl || 'https://thebestfan.online/img/public/logo/imageMyfan.png');
+      case 'emote': return getImageUrl(reward.emote?.imageUrl || 'https://thebestfan.online/img/public/logo/imageSocial.png');
+      case 'action': return getImageUrl(reward.action?.image || 'https://thebestfan.online/img/public/logo/imageForce.png');
       default: return 'https://thebestfan.online/img/public/logo/chest.png';
     }
   };
 
   const getRewardVideo = () => {
-    if (reward.type === 'money') return 'https://thebestfan.online/img/public/logo/videoMoney.mp4';
-    return null;
+    switch (reward.type) {
+      case 'money': return 'https://thebestfan.online/img/public/logo/videoMoney.mp4';
+      case 'energy': return 'https://thebestfan.online/img/public/logo/videoEnergy.mp4';
+      case 'xp': return 'https://thebestfan.online/img/public/logo/videoLevel.mp4';
+      case 'gems': return 'https://thebestfan.online/img/public/logo/videoGemme.mp4';
+      case 'boost': return 'https://thebestfan.online/img/public/logo/videoBoost.mp4';
+      case 'emote': return 'https://thebestfan.online/img/public/logo/videoSocial.mp4';
+      case 'action': return 'https://thebestfan.online/img/public/logo/videoForce.mp4';
+      case 'card': return 'https://thebestfan.online/img/public/logo/videoTBFO.mp4';
+      case 'skin': return 'https://thebestfan.online/img/public/logo/videoToken.mp4';
+      default: return null;
+    }
   };
 
   return (
@@ -165,7 +175,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
         onClick={handleGlobalClick}
         className={cn(
           "fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden select-none",
-          reward.type === 'money' && isRevealed ? "bg-black/80" : "bg-black/95 backdrop-blur-xl"
+          ['money', 'gems', 'boost', 'energy', 'xp', 'emote', 'action', 'card', 'skin'].includes(reward.type) && isRevealed ? "bg-black/80" : "bg-black/95 backdrop-blur-xl"
         )}
       >
         {/* Background Particles/Glow */}
@@ -223,13 +233,13 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                 alt="Reward" 
                 className={cn(
                   "w-full h-[120%] object-cover opacity-80 mix-blend-screen scale-110 blur-xl",
-                  reward.type === 'money' ? "filter drop-shadow-[0_15px_50px_rgba(249,115,22,0.8)] blur-none opacity-90 h-[150%] md:h-[120%]" : ""
+                  ['money', 'gems', 'boost', 'energy', 'xp', 'emote', 'action', 'card', 'skin'].includes(reward.type) ? "filter drop-shadow-[0_15px_50px_rgba(249,115,22,0.8)] blur-none opacity-90 h-[150%] md:h-[120%]" : ""
                 )} 
               />
               <div className="absolute inset-0 bg-black/20 pointer-events-none" />
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-20">
                 
-                {reward.type !== 'money' && (
+                {!['money', 'gems', 'boost', 'energy', 'xp', 'emote', 'action', 'skin', 'card'].includes(reward.type) && (
                   <div className="w-48 h-48 md:w-64 md:h-64 mb-10 flex items-center justify-center">
                     <img src="https://thebestfan.online/img/public/logo/chest.png" alt="Chest" className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(249,115,22,0.8)]" />
                   </div>
@@ -290,7 +300,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                 transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
                 className={cn(
                   "relative flex justify-center w-full items-center",
-                  reward.type === 'money' ? "" : "max-h-[50vh]"
+                  ['money', 'gems', 'boost', 'energy', 'xp'].includes(reward.type) ? "" : "max-h-[50vh]"
                 )}
               >
                 {reward.type === 'card' && reward.card && (
@@ -377,40 +387,26 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                   </div>
                 )}
 
-                {reward.type === 'money' && (
+                {['money', 'gems', 'boost', 'energy', 'xp'].includes(reward.type) && (
                   <motion.div 
                     initial={{ scale: 0.5, opacity: 0, y: 100 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     transition={{ type: "spring", damping: 15 }}
-                    className="text-center z-50"
+                    className="text-center z-50 flex flex-col items-center justify-center p-4"
                   >
                     <div className="text-8xl md:text-[10rem] font-black italic text-white tracking-tighter drop-shadow-[0_0_50px_rgba(249,115,22,0.8)]">
-                      +{reward.amount} $
+                      +{reward.amount} {reward.type === 'money' && '$'}
                     </div>
                     <p className="text-white font-black uppercase tracking-widest text-xs md:text-base mt-6 flex items-center justify-center gap-3 bg-black/50 px-6 py-3 rounded-full border border-white/20 backdrop-blur-md">
                       <Sparkles size={18} className="text-orange-500" />
-                      Argent ajouté à votre compte
+                      {reward.type === 'money' && "Argent ajouté à votre compte"}
+                      {reward.type === 'gems' && "Gemmes ajoutées à votre compte"}
+                      {reward.type === 'boost' && "Boost ajouté à votre compte"}
+                      {reward.type === 'energy' && "Énergie ajoutée à votre compte"}
+                      {reward.type === 'xp' && "Points d'expérience gagnés"}
                       <Sparkles size={18} className="text-orange-500" />
                     </p>
                   </motion.div>
-                )}
-
-                {(reward.type === 'gems' || reward.type === 'boost' || reward.type === 'energy' || reward.type === 'xp') && (
-                  <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-2xl shadow-orange-500/40 border-8 border-white/20">
-                    <div className="text-center">
-                      <motion.div
-                        animate={{ rotate: [0, 10, -10, 0] }}
-                        transition={{ repeat: Infinity, duration: 2 }}
-                      >
-                        {reward.type === 'gems' && <img src={LOGOS.gems} alt="Gems" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
-                        {reward.type === 'boost' && <img src={LOGOS.boost} alt="Boost" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
-                        {reward.type === 'energy' && <img src={LOGOS.energy} alt="Energy" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain" />}
-                        {reward.type === 'xp' && <Trophy size={64} className="text-white mx-auto mb-2" />}
-                      </motion.div>
-                      <div className="text-5xl md:text-6xl font-black italic text-white tracking-tighter">+{reward.amount}</div>
-                      <div className="text-xs md:text-sm font-black uppercase tracking-widest text-white/80">{reward.type}</div>
-                    </div>
-                  </div>
                 )}
               </motion.div>
 
@@ -420,7 +416,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                 transition={{ delay: 1 }}
                 className="flex flex-col items-center gap-4 w-full"
               >
-                {reward.type !== 'money' ? (
+                {!['money', 'gems', 'boost', 'energy', 'xp'].includes(reward.type) ? (
                   <>
                     <button
                       onClick={(e) => { e.stopPropagation(); onClose(); }}

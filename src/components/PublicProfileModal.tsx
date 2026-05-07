@@ -5,6 +5,7 @@ import { UserProfile } from '../types';
 import { getDoc, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
+import { footballApi } from '../services/footballApi';
 
 interface PublicProfileModalProps {
   targetUid: string;
@@ -14,11 +15,14 @@ interface PublicProfileModalProps {
 
 export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicProfileModalProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestSent, setRequestSent] = useState(false);
   const [isBot, setIsBot] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    
     if (targetUid.startsWith('bot_')) {
       setIsBot(true);
       setProfile({
@@ -51,20 +55,35 @@ export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicPr
     const fetchProfile = async () => {
       try {
         const snap = await getDoc(doc(db, 'users', targetUid));
-        if (snap.exists()) {
-          setProfile(snap.data() as UserProfile);
+        if (snap.exists() && isMounted) {
           const targetData = snap.data() as UserProfile;
+          setProfile(targetData);
           if (targetData.friendRequests?.includes(currentUser.uid) || targetData.friends?.includes(currentUser.uid)) {
             setRequestSent(true);
+          }
+          
+          if (targetData.favoriteTeams && targetData.favoriteTeams.length > 0) {
+            const teams = await Promise.all(
+              targetData.favoriteTeams.map(async (id) => {
+                try {
+                  const res = await footballApi.getTeamInfo(Number(id));
+                  return res?.team;
+                } catch (e) {
+                  return null;
+                }
+              })
+            );
+            if (isMounted) setFavoriteTeamsInfo(teams.filter(Boolean));
           }
         }
       } catch (e) {
         console.error(e);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     fetchProfile();
+    return () => { isMounted = false; };
   }, [targetUid, currentUser.uid]);
 
   const handleAddFriend = async () => {
@@ -142,12 +161,19 @@ export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicPr
               <div className="w-full mt-6">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 border-b border-white/5 pb-1">Équipes Favorites</h3>
                 <div className="flex flex-wrap gap-2">
-                  {profile.favoriteTeams.map((team: string) => (
-                    <span key={team} className="text-xs font-medium text-white bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                      <Shield className="w-3 h-3 text-emerald-400" />
-                      {team}
+                  {favoriteTeamsInfo.length > 0 ? favoriteTeamsInfo.map((team: any) => (
+                    <span key={team.id} className="text-xs font-medium text-white bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                      <img src={team.logo} alt={team.name} className="w-4 h-4 object-contain" />
+                      {team.name}
                     </span>
-                  ))}
+                  )) : (
+                    profile.favoriteTeams.map((teamId: string) => (
+                      <span key={teamId} className="text-xs font-medium text-white bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                        <Shield className="w-3 h-3 text-emerald-400" />
+                        Chargement...
+                      </span>
+                    ))
+                  )}
                 </div>
               </div>
             )}

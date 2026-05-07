@@ -20,8 +20,8 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
 
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
 
-  const fetchFixtures = async () => {
-    setLoading(true);
+  const fetchFixtures = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       let data;
@@ -51,16 +51,44 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
         console.error('Failed to fetch fixtures', err);
       }
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchFixtures();
-    // Refresh live matches every minute if filter is live
+    // Refresh live matches every minute if date is today
     let interval: any;
-    if (statusFilter === 'live') {
-      interval = setInterval(fetchFixtures, 60000);
+    if (isSameDay(selectedDate, new Date())) {
+      interval = setInterval(async () => {
+        if (statusFilter === 'live') {
+          fetchFixtures(true);
+        } else {
+          // If viewing 'all', fetch live separately and merge
+          try {
+            const liveData = await footballApi.getLiveFixtures();
+            if (liveData && liveData.length > 0) {
+              setFixtures(prev => {
+                const newFixtures = [...prev];
+                let hasChanges = false;
+                liveData.forEach((liveMatch: any) => {
+                  const idx = newFixtures.findIndex(f => f.fixture.id === liveMatch.fixture.id);
+                  if (idx !== -1) {
+                    newFixtures[idx] = {
+                      ...newFixtures[idx],
+                      fixture: liveMatch.fixture,
+                      goals: liveMatch.goals,
+                      score: liveMatch.score
+                    };
+                    hasChanges = true;
+                  }
+                });
+                return hasChanges ? newFixtures : prev;
+              });
+            }
+          } catch (e) {}
+        }
+      }, 60000);
     }
     return () => clearInterval(interval);
   }, [selectedDate, statusFilter]);

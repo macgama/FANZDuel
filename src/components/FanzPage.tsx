@@ -87,7 +87,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
-        <p className="text-gray-500 font-bold animate-pulse">Chargement de votre collection...</p>
+        <p className="text-gray-500 font-bold animate-pulse">Chargement de votre musée...</p>
       </div>
     );
   }

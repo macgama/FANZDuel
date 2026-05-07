@@ -432,23 +432,14 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
 
       {/* Waiting Duels Alert */}
       {waitingDuelsCount > 0 && (
-        <div className="absolute top-20 left-4 right-4 z-50">
+        <div className="absolute top-20 right-4 z-50">
           <button 
             onClick={() => onNavigate('waiting-room')}
-            className="w-full bg-orange-500/90 backdrop-blur-md border border-orange-400 rounded-xl p-3 flex items-center justify-between shadow-lg shadow-orange-500/20 animate-[pulse_2s_ease-in-out_infinite]"
+            className="bg-orange-500/90 backdrop-blur-md border border-orange-400 rounded-full py-1.5 px-3 flex items-center gap-2 shadow-lg shadow-orange-500/20 animate-pulse"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                <Swords className="w-4 h-4 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="text-xs font-black uppercase tracking-wider text-white">
-                  {waitingDuelsCount} {waitingDuelsCount > 1 ? 'Duels en attente' : 'Duel en attente'}
-                </div>
-                <div className="text-[10px] font-bold text-orange-100">Rejoignez un duel maintenant !</div>
-              </div>
-            </div>
-            <ArrowRight className="w-5 h-5 text-white" />
+            <Swords className="w-3 h-3 text-white" />
+            <span className="text-[10px] font-black text-white">{waitingDuelsCount}</span>
+            <ArrowRight className="w-3 h-3 text-white" />
           </button>
         </div>
       )}
@@ -490,10 +481,10 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
           {/* Superimposed FANZ Rank (Top Right) - REMOVED AS PER REQUEST */}
 
           {/* Superimposed FANZ Name (Bottom) */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/50 to-transparent flex items-end justify-between">
+          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black via-black/50 to-transparent flex items-end justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg flex items-center">
+                <h1 className="text-lg sm:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] flex items-center">
                   {activeFanz?.name || 'Mon FANZ'}
                   <MrFanzHelp contextId="home" />
                 </h1>
@@ -502,16 +493,10 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
               {currentActiveAction && (
                 <div className="flex items-center gap-2 mt-1">
                   <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                  <p className="text-xs font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
+                  <p className="text-[10px] sm:text-xs font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
                     {currentActiveAction.name}
                   </p>
                 </div>
-              )}
-
-              {fanzTemplate && (
-                <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mt-1">
-                  {fanzTemplate.rarity}
-                </p>
               )}
 
               {!currentActiveAction && activeFanz && (() => {
@@ -521,14 +506,14 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                 const nextLevelPoints = ferveurPath.find(l => l.level === activeFanz.ferveurLevel + 1)?.pointsRequired || 1000;
                 
                 return (
-                  <div className="mt-2 w-full max-w-[200px]">
-                    <div className="h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
+                  <div className="mt-2 w-full max-w-[150px] sm:max-w-[200px]">
+                    <div className="h-3 sm:h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
                       <div 
                         className="h-full bg-orange-500 rounded-full transition-all duration-500"
                         style={{ width: `${Math.min(100, (activeFanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
                       />
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                        <span className="text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                        <span className="text-[8px] sm:text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                           {activeFanz.ferveurPoints} / {nextLevelPoints}
                         </span>
                       </div>
@@ -538,8 +523,8 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
               })()}
             </div>
             {activeFanz && (
-              <div className="w-10 h-10 bg-black rounded-full flex flex-col items-center justify-center border-2 border-white/10 shadow-xl shrink-0 mb-1 backdrop-blur-md">
-                <span className="text-base font-black italic text-white leading-none">{activeFanz.rank ?? 0}</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-full flex flex-col items-center justify-center border-2 border-white/10 shadow-xl shrink-0 mb-1 backdrop-blur-md">
+                <span className="text-sm sm:text-base font-black italic text-white leading-none">{activeFanz.rank ?? 0}</span>
               </div>
             )}
           </div>

@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserProfile } from '../types';
 import { DuelManager } from './Duel';
+import { DuelDetailsModal } from './DuelDetailsModal';
 import { getImageUrl } from '../lib/utils';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
@@ -56,6 +57,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   const [newDuelType, setNewDuelType] = useState<'1v1' | '2v2' | '5v5'>('1v1');
   const [isPrivateDuel, setIsPrivateDuel] = useState(false);
   const [duelHistory, setDuelHistory] = useState<any[]>([]);
+  const [selectedDuelDetails, setSelectedDuelDetails] = useState<string | null>(null);
 
   const handleDuelClick = (callback: () => void) => {
     if (onDuelIntent) {
@@ -104,9 +106,12 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
     return () => clearInterval(interval);
   }, [fixtureId, user.uid]);
 
+  const isLiveStatusRef = React.useRef<boolean>(false);
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    let isMounted = true;
+    const fetchData = async (isBackground = false) => {
+      if (!isBackground) setLoading(true);
       try {
         const [detailsData, eventsData, lineupsData, statsData] = await Promise.all([
           footballApi.getFixtureDetails(fixtureId),
@@ -114,17 +119,35 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           footballApi.getFixtureLineups(fixtureId),
           footballApi.getFixtureStatistics(fixtureId)
         ]);
-        setDetails(detailsData);
-        setEvents(eventsData);
-        setLineups(lineupsData);
-        setStats(statsData);
+        if (isMounted) {
+          setDetails(detailsData);
+          setEvents(eventsData);
+          setLineups(lineupsData);
+          setStats(statsData);
+          
+          if (detailsData?.fixture?.status?.short) {
+            isLiveStatusRef.current = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(detailsData.fixture.status.short);
+          }
+        }
       } catch (err) {
         console.error('Failed to fetch match details', err);
       } finally {
-        setLoading(false);
+        if (isMounted && !isBackground) setLoading(false);
       }
     };
     fetchData();
+
+    // Refresh live match details every 60s
+    const interval = setInterval(() => {
+      if (isLiveStatusRef.current) {
+        fetchData(true);
+      }
+    }, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [fixtureId]);
 
   useEffect(() => {
@@ -302,8 +325,9 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
             )}
             
             {isLive ? (
-              <div className="px-2 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-500 font-black text-[9px] sm:text-xs">
-                {details.fixture.status.elapsed}{details.fixture.status.extra ? `+${details.fixture.status.extra}` : ''}'
+              <div className="px-2 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-500 font-black text-[9px] sm:text-xs flex items-center justify-center gap-0.5">
+                <span>{details.fixture.status.elapsed}{details.fixture.status.extra ? `+${details.fixture.status.extra}` : ''}</span>
+                <span className="animate-pulse">'</span>
               </div>
             ) : (
               <div className="px-2 py-0.5 bg-white/10 border border-white/10 rounded-full text-gray-400 font-black text-[8px] sm:text-[10px] uppercase">
@@ -511,9 +535,16 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           {activeTab === 'summary' && <SummaryTab events={events} teams={details.teams} />}
           {activeTab === 'lineups' && <LineupsTab lineups={lineups} />}
           {activeTab === 'stats' && <StatsTab stats={stats} teams={details.teams} />}
-          {activeTab === 'duels' && <DuelsTab history={duelHistory} teams={details.teams} />}
+          {activeTab === 'duels' && <DuelsTab history={duelHistory} teams={details.teams} setSelectedDuelDetails={setSelectedDuelDetails} />}
         </motion.div>
       </AnimatePresence>
+
+      {selectedDuelDetails && (
+        <DuelDetailsModal 
+          duelId={selectedDuelDetails} 
+          onClose={() => setSelectedDuelDetails(null)} 
+        />
+      )}
     </div>
   );
 }
@@ -545,36 +576,43 @@ function SummaryTab({ events, teams }: { events: any[]; teams: any }) {
 
   return (
     <div className="space-y-3">
-      {events.map((event, idx) => {
-        const isHome = event.team.id === teams.home.id;
-        return (
-          <div key={idx} className={`flex items-center gap-3 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}>
-            <div className="w-8 text-center font-black text-orange-500 italic text-xs">
-              {event.time.elapsed}'
-            </div>
-            <div className={`flex-1 flex items-center gap-2 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}>
-              <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}>
-                <EventIcon type={event.type} detail={event.detail} />
-                <div className={`flex flex-col ${isHome ? 'items-start' : 'items-end'}`}>
-                  <span className="font-bold text-xs leading-tight">{event.player.name}</span>
-                  {event.type === 'Goal' && event.assist.name && (
-                    <span className="text-[9px] text-gray-500 italic leading-tight">Passe: {event.assist.name}</span>
-                  )}
-                  {event.type === 'subst' && (
-                    <span className="text-[9px] text-gray-500 italic leading-tight">Sortie: {event.assist.name}</span>
-                  )}
+      <AnimatePresence>
+        {events.map((event, idx) => {
+          const isHome = event.team.id === teams.home.id;
+          return (
+            <motion.div 
+              key={idx} 
+              initial={{ opacity: 0, x: isHome ? -20 : 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={`flex items-center gap-3 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}
+            >
+              <div className="w-8 text-center font-black text-orange-500 italic text-xs">
+                {event.time.elapsed}'
+              </div>
+              <div className={`flex-1 flex items-center gap-2 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}>
+                <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}>
+                  <EventIcon type={event.type} detail={event.detail} />
+                  <div className={`flex flex-col ${isHome ? 'items-start' : 'items-end'}`}>
+                    <span className="font-bold text-xs leading-tight">{event.player.name}</span>
+                    {event.type === 'Goal' && event.assist.name && (
+                      <span className="text-[9px] text-gray-500 italic leading-tight">Passe: {event.assist.name}</span>
+                    )}
+                    {event.type === 'subst' && (
+                      <span className="text-[9px] text-gray-500 italic leading-tight">Sortie: {event.assist.name}</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex-1"></div>
-          </div>
-        );
-      })}
+              <div className="flex-1"></div>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }
 
-function DuelsTab({ history, teams }: { history: any[]; teams: any }) {
+function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; teams: any; setSelectedDuelDetails: (id: string) => void }) {
   if (history.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
@@ -604,7 +642,11 @@ function DuelsTab({ history, teams }: { history: any[]; teams: any }) {
       
       <div className="space-y-2">
         {history.map((duel, idx) => (
-          <div key={duel.id || idx} className="bg-white/5 border border-white/10 rounded-xl p-3">
+          <div 
+            key={duel.id || idx} 
+            className="bg-white/5 border border-white/10 rounded-xl p-3 cursor-pointer hover:bg-white/10 transition-colors"
+            onClick={() => setSelectedDuelDetails(duel.id)}
+          >
             <div className="flex justify-between items-center mb-2">
               <span className="text-[8px] font-black text-orange-500 uppercase tracking-wider bg-orange-500/10 px-1.5 py-0.5 rounded">
                 {duel.type || 'Duel'}

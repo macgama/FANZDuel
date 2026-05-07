@@ -385,13 +385,22 @@ function AppContent() {
     if (view === 'duel' || isDuelActive || view === 'admin') return null;
     return (
       <footer className="md:hidden shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <button onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'home' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <HomeIcon className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Home</span>
+        <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'fanz' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+          <Star className="w-6 h-6 sm:w-7 sm:h-7" />
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Fanz</span>
         </button>
-        <button onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'rankings' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
+        <button onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'favorite-teams' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+          <div className="relative">
+            <Layers className="w-6 h-6 sm:w-7 sm:h-7" />
+            {hasFavoriteMatchToday && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+            )}
+          </div>
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Équipes</span>
+        </button>
+        <button onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'collection' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+          <Database className="w-6 h-6 sm:w-7 sm:h-7" />
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Musée</span>
         </button>
         <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-5 sm:-top-7 group">
           <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#0a0a0a] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'} ${waitingDuelsCount > 0 && view !== 'waiting-room' ? 'animate-[pulse_2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(249,115,22,0.6)]' : ''}`}>
@@ -404,22 +413,13 @@ function AppContent() {
           </div>
           <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest mt-1 ${view === 'waiting-room' ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : 'text-orange-600'}`}>Duel</span>
         </button>
-        <button onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'favorite-teams' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <div className="relative">
-            <Layers className="w-6 h-6 sm:w-7 sm:h-7" />
-            {hasFavoriteMatchToday && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
-            )}
-          </div>
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Équipes</span>
-        </button>
-        <button onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'collection' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+        <button onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'rankings' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Collection</span>
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
         </button>
-        <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'fanz' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <Star className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Fanz</span>
+        <button onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'social' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+          <Users className="w-6 h-6 sm:w-7 sm:h-7" />
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Social</span>
         </button>
       </footer>
     );
@@ -688,12 +688,11 @@ function AppContent() {
 
       {profile && view !== 'duel' && !isDuelActive && view !== 'admin' && (
         <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
-          <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start">
+          <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start cursor-pointer hover:bg-white/5 transition-colors" onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }}>
             <img src="/img/logo2.png" alt="TBFO" className="w-8 h-8 rounded-lg outline outline-1 outline-white/10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <span className="hidden lg:block font-black italic text-[15px] uppercase tracking-wider text-white leading-none truncate">TheBestFan.Online</span>
           </div>
           <div className="flex flex-col gap-1 p-2 lg:p-4 flex-1 overflow-y-auto no-scrollbar">
-             <SidebarButton icon={<HomeIcon />} label="ACCUEIL" active={view==='home'} onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton 
                icon={<div className="relative"><Star />
                  {claimableAlerts.fanzFervor && (
@@ -701,7 +700,6 @@ function AppContent() {
                  )}
                </div>} 
                label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton icon={<Trophy />} label="MA COLLECTION" active={view==='collection'} onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton 
                 icon={<div className="relative"><Layers />
                   {hasFavoriteMatchToday && (
@@ -709,6 +707,7 @@ function AppContent() {
                   )}
                 </div>} 
                 label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
+             <SidebarButton icon={<Database />} label="MON MUSÉE" active={view==='collection'} onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton icon={<PieChart />} label="MES STATS" active={view==='stats'} onClick={() => { setView('stats'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton 
                 icon={<div className="relative"><Swords />
@@ -1023,7 +1022,6 @@ function AppContent() {
           
           <div className="flex-1 overflow-y-auto no-scrollbar p-1">
             <div className="flex flex-col gap-0.5">
-               <SidebarButton icon={<HomeIcon className="w-5 h-5" />} label="ACCUEIL" active={view==='home'} onClick={() => { setView('home'); setIsMenuOpen(false); }} />
                <SidebarButton 
                  icon={<div className="relative"><Star className="w-5 h-5" />
                    {claimableAlerts.fanzFervor && (
@@ -1031,7 +1029,6 @@ function AppContent() {
                    )}
                  </div>} 
                  label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
-               <SidebarButton icon={<Trophy className="w-5 h-5" />} label="MA COLLECTION" active={view==='collection'} onClick={() => { setView('collection'); setIsMenuOpen(false); }} />
                <SidebarButton 
                   icon={
                     <div className="relative">
@@ -1042,6 +1039,7 @@ function AppContent() {
                     </div>
                   } 
                   label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
+               <SidebarButton icon={<Database className="w-5 h-5" />} label="MON MUSÉE" active={view==='collection'} onClick={() => { setView('collection'); setIsMenuOpen(false); }} />
                <SidebarButton icon={<PieChart className="w-5 h-5" />} label="MES STATS" active={view==='stats'} onClick={() => { setView('stats'); setIsMenuOpen(false); }} />
                <SidebarButton 
                   icon={
