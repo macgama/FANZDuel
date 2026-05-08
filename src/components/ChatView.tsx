@@ -31,7 +31,7 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
         const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
         templatesSnap.forEach(doc => {
           const template = doc.data() as FanzTemplate;
-          if (template.emotes) {
+          if (template.emotes && Array.isArray(template.emotes)) {
             template.emotes.forEach(emote => {
               if (!emotes.find(e => e.id === emote.id)) {
                 emotes.push(emote);
@@ -67,7 +67,11 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
         snap.forEach(doc => {
           const data = doc.data();
           if (data.unlockedEmotes) {
-            fanzEmotes.push(...data.unlockedEmotes);
+            if (Array.isArray(data.unlockedEmotes)) {
+              fanzEmotes.push(...data.unlockedEmotes);
+            } else {
+              fanzEmotes.push(...Object.keys(data.unlockedEmotes));
+            }
           }
         });
         

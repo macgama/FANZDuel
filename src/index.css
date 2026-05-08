@@ -68,3 +68,9 @@ input[type=number] {
   background-size: 20px 20px;
 }
 
+/* Ensure options inside selects are visible on all platforms */
+select option {
+  background-color: #111827; /* gray-900 */
+  color: white;
+}
+

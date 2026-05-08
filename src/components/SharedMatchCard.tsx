@@ -55,7 +55,7 @@ export function SharedMatchCard({
   return (
     <Card 
       onClick={() => onClick()}
-      className="bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group hover:bg-white/5 transition-colors cursor-pointer w-full"
+      className="bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group hover:bg-white/5 transition-colors cursor-pointer w-full h-full min-h-[250px] justify-between"
     >
       {showLeagueHeader && (
         <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-1">

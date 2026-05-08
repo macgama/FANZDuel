@@ -499,6 +499,33 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                 </div>
               )}
 
+              {activeFanz?.equippedSkin && fanzTemplate?.skins && (() => {
+                const skinData = fanzTemplate.skins.find(s => s.id === activeFanz.equippedSkin);
+                if (!skinData) return null;
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
+                      Skin: {skinData.name}
+                    </div>
+                    {skinData.energyBonus && (
+                      <div className="bg-blue-500/20 backdrop-blur-md border border-blue-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-blue-400 flex items-center gap-1 shadow-sm">
+                        <Zap className="w-2.5 h-2.5" /> +{skinData.energyBonus} ENER Max
+                      </div>
+                    )}
+                    {skinData.moneyBonus && (
+                      <div className="bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-yellow-400 shadow-sm">
+                        +{skinData.moneyBonus}% CRÉDITS
+                      </div>
+                    )}
+                    {skinData.fervorBonus && (
+                      <div className="bg-orange-500/20 backdrop-blur-md border border-orange-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-orange-400 shadow-sm">
+                        +{skinData.fervorBonus}% FERV
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {!currentActiveAction && activeFanz && (() => {
                 const ferveurPath = fanzFervorConfig 
                   ? generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000, fanzFervorConfig)
@@ -606,10 +633,10 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
               ref={scrollContainerRef}
               className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
             >
-              <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit">
+              <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
                 {liveMatches.length > 0 ? (
                 liveMatches.map(match => (
-                  <div key={match.fixture.id} className={`snap-center shrink-0 ${liveMatches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
+                  <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${liveMatches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
                     <SharedMatchCard
                       match={match}
                       hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
@@ -633,21 +660,31 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                           action={action} 
                           fanz={activeFanz} 
                           userProfile={profile} 
+                          fanzTemplate={fanzTemplate}
                         />
                       </div>
                     ))
                 ) : activeFanz && fanzTemplate && !profile.activeAction ? (
-                  lifeActions
-                    .filter(action => action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId)
-                    .map(action => (
-                      <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
-                        <LifeActionCard 
-                          action={action} 
-                          fanz={activeFanz} 
-                          userProfile={profile} 
-                        />
-                      </div>
-                    ))
+                  (() => {
+                    const equippedSkinData = activeFanz.equippedSkin ? fanzTemplate.skins?.find((s: any) => s.id === activeFanz.equippedSkin) : null;
+                    return lifeActions
+                      .filter(action => {
+                        const isTemplateMatch = action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId;
+                        const isSkinMatch = !action.skinId || action.skinId === activeFanz.equippedSkin;
+                        const isSpecialAction = action.id === equippedSkinData?.specialActionId;
+                        return (isTemplateMatch && isSkinMatch) || isSpecialAction;
+                      })
+                      .map(action => (
+                        <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
+                          <LifeActionCard 
+                            action={action} 
+                            fanz={activeFanz} 
+                            userProfile={profile} 
+                            fanzTemplate={fanzTemplate}
+                          />
+                        </div>
+                      ));
+                  })()
                 ) : (
                   <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-[30px]">
                     Aucun match en direct et aucun FANZ actif

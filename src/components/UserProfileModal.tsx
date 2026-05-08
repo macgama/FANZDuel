@@ -40,7 +40,8 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
           const data = d.data() as Fanz;
           if (data.templateId) templates.add(data.templateId);
           if (data.unlockedSkins) {
-             data.unlockedSkins.forEach(s => skins.add(s));
+             if (Array.isArray(data.unlockedSkins)) data.unlockedSkins.forEach(s => skins.add(s));
+             else Object.keys(data.unlockedSkins).forEach(s => skins.add(s));
           }
         });
 

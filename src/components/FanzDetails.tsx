@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getImageUrl } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSnapshot, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, collection, getDocs, query, where, onSnapshot, arrayUnion, increment } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { Card, Button } from './Layout';
 import { UserProfile, Fanz, ActiveAction, LifeAction, UserCard, Card as DuelCard, FanzTemplate, FanzSkin, FanzEmote, GlobalFervorConfig } from '../types';
-import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift, X, Target, Plus, Minus } from 'lucide-react';
+import { Trophy, Lock, Unlock, Star, Info, ArrowLeft, Shield, Brain, Heart, Eye, MessageCircle, Users, Flame, Activity, Database, Clock, Trash2, FastForward, ChevronUp, CheckCircle, RefreshCw, Layers, Smile, ChevronLeft, ChevronRight, Check, Gift, X, Target, Plus, Minus, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LOGOS } from '../constants';
 
@@ -68,6 +68,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   const [purchasing, setPurchasing] = useState(false);
   
   const [cardFilter, setCardFilter] = useState<'all' | 'available' | 'locked'>('all');
+  const [selectedMuseumCard, setSelectedMuseumCard] = useState<{card: DuelCard, isUnlocked: boolean, requirements: any[], canAfford: boolean} | null>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -573,6 +574,29 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
               </p>
             )}
 
+            {equippedSkinData && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1">
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
+                  Skin: {equippedSkinData.name}
+                </div>
+                {equippedSkinData.energyBonus && (
+                  <div className="bg-blue-500/20 backdrop-blur-md border border-blue-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-blue-400 flex items-center gap-1 shadow-sm">
+                    <Zap className="w-2.5 h-2.5" /> +{equippedSkinData.energyBonus} ENER Max
+                  </div>
+                )}
+                {equippedSkinData.moneyBonus && (
+                  <div className="bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-yellow-400 shadow-sm">
+                    +{equippedSkinData.moneyBonus}% CRÉDITS
+                  </div>
+                )}
+                {equippedSkinData.fervorBonus && (
+                  <div className="bg-orange-500/20 backdrop-blur-md border border-orange-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-orange-400 shadow-sm">
+                    +{equippedSkinData.fervorBonus}% FERV
+                  </div>
+                )}
+              </div>
+            )}
+
             {!activeAction && (() => {
               const nextLevelPoints = ferveurPath.find(l => l.level === fanz.ferveurLevel + 1)?.pointsRequired || 1000;
               return (
@@ -630,6 +654,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         action={action} 
                         fanz={fanz} 
                         userProfile={userProfile} 
+                        fanzTemplate={template}
                       />
                     ))}
                 </div>
@@ -660,7 +685,12 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     >
                       <div className="flex flex-nowrap w-full">
                         {lifeActions
-                          .filter(action => action.fanzTemplateId === template.id || !action.fanzTemplateId)
+                          .filter(action => {
+                            const isTemplateMatch = action.fanzTemplateId === template.id || !action.fanzTemplateId;
+                            const isSkinMatch = !action.skinId || action.skinId === fanz.equippedSkin;
+                            const isSpecialAction = action.id === equippedSkinData?.specialActionId;
+                            return (isTemplateMatch && isSkinMatch) || isSpecialAction;
+                          })
                           .filter(action => action.id !== userProfile.activeAction?.actionId)
                           .sort((a, b) => {
                             // Put linked actions first
@@ -676,6 +706,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                               action={action} 
                               fanz={fanz} 
                               userProfile={userProfile} 
+                              fanzTemplate={template}
                             />
                           </div>
                         ))}
@@ -696,6 +727,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   {Object.entries(statLabels).map(([stat, label]) => {
                     const xp = fanz.stats[stat as keyof typeof statLabels] || 1;
                     const level = Math.floor(xp / 100) + 1;
+                    const bonusLevel = equippedSkinData?.statsBonus?.[stat as keyof NonNullable<typeof equippedSkinData>['statsBonus']] || 0;
+                    const totalLevel = level + bonusLevel;
                     const currentXp = xp % 100;
                     const progress = (currentXp / 100) * 100;
 
@@ -712,7 +745,10 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-tight">
                               {label}
                             </div>
-                            <div className="text-lg sm:text-xl font-black leading-tight">Niv. {level}</div>
+                            <div className="text-lg sm:text-xl font-black leading-tight flex items-center gap-1">
+                              Niv. {totalLevel}
+                              {bonusLevel > 0 && <span className="text-[10px] text-blue-400">+{bonusLevel}</span>}
+                            </div>
                           </div>
                         </div>
                         
@@ -1535,7 +1571,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     {allCards.filter(card => {
                       const isAllowed = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.includes(fanz.templateId);
                       const isBlocked = card.blockedFanzIds && card.blockedFanzIds.includes(fanz.templateId);
-                      return isAllowed && !isBlocked;
+                      const isSkinMatch = !card.skinId || card.skinId === fanz.equippedSkin;
+                      return isAllowed && !isBlocked && isSkinMatch;
                     })
                     .map(card => {
                       const requirements = card.unlockRequirements || [];
@@ -1580,7 +1617,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           key={card.id}
                           whileHover={isUnlocked && !isEquipped ? { scale: 1.05 } : {}}
                           whileTap={isUnlocked && !isEquipped ? { scale: 0.95 } : {}}
-                          onClick={() => !isUnlocked && card.price ? setPurchaseConfirm({ type: 'card', item: card }) : undefined}
+                          onClick={() => setSelectedMuseumCard({card, isUnlocked, requirements, canAfford})}
                           className={`relative rounded-xl transition-all flex flex-col h-full overflow-hidden cursor-pointer ${
                             isUnlocked 
                               ? isEquipped 
@@ -1768,7 +1805,17 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           </div>
                         </>
                       )}
-                      <div className={`w-full aspect-square overflow-hidden bg-gray-900 ${!isUnlocked && !canAfford ? 'grayscale opacity-60' : !isUnlocked && canAfford ? 'opacity-90' : ''}`}>
+                      <div className={`relative w-full aspect-square overflow-hidden bg-gray-900 ${!isUnlocked && !canAfford ? 'grayscale opacity-60' : !isUnlocked && canAfford ? 'opacity-90' : ''}`}>
+                        {skin.rarity && (
+                          <div className={`absolute top-2 left-2 px-2 py-1 rounded text-[10px] sm:text-xs font-black uppercase shadow-lg drop-shadow-md z-20 ${
+                            skin.rarity === 'legendary' ? 'bg-yellow-500 text-black' :
+                            skin.rarity === 'epic' ? 'bg-purple-500 text-white' :
+                            skin.rarity === 'rare' ? 'bg-blue-500 text-white' :
+                            'bg-gray-500 text-white'
+                          }`}>
+                            {skin.rarity === 'legendary' ? 'Légendaire' : skin.rarity === 'epic' ? 'Épique' : skin.rarity === 'rare' ? 'Rare' : 'Commune'}
+                          </div>
+                        )}
                         {skin.videoUrl ? (
                           <OptimizedMedia
                             type="video"
@@ -1785,7 +1832,34 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             className="w-full h-full object-cover pointer-events-none"
                           />
                         )}
+
+                        {/* Skin Bonuses Overlay */}
+                        {(skin.energyBonus || skin.fervorBonus || skin.moneyBonus || skin.gemsBonus || skin.boostBonus || skin.specialCardId || skin.specialActionId || skin.statsBonus) && (
+                          <div className="absolute inset-x-0 bottom-0 p-2 sm:p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end">
+                            <div className="flex flex-wrap items-center gap-1.5 justify-start">
+                              {skin.statsBonus && Object.entries(skin.statsBonus).map(([stat, val]) => {
+                                const validStats = ['force', 'mental', 'intelligence', 'creativity', 'bluff', 'social', 'charisma', 'endurance'];
+                                if (val === 0 || !validStats.includes(stat)) return null;
+                                const statMap: Record<string, string> = {
+                                  force: 'FOR', mental: 'MEN', intelligence: 'INT', creativity: 'CRÉ',
+                                  bluff: 'BLU', social: 'SOC', charisma: 'CHA', endurance: 'END'
+                                };
+                                return (
+                                  <span key={stat} className="bg-blue-600/90 backdrop-blur-md shadow-lg border border-blue-400/40 text-white text-[10px] sm:text-xs font-black uppercase px-2 py-1 rounded-md flex items-center shadow-black/50">+{val} {statMap[stat]}</span>
+                                );
+                              })}
+                              {skin.energyBonus ? <span className="bg-amber-500/90 backdrop-blur-md shadow-lg border border-amber-400/40 text-white text-[10px] sm:text-xs font-black uppercase px-2 py-1 rounded-md flex items-center gap-1.5 shadow-black/50"><img src={LOGOS.energy} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 drop-shadow-md" />+{skin.energyBonus} Max</span> : null}
+                              {skin.fervorBonus ? <span className="bg-purple-600/90 backdrop-blur-md shadow-lg border border-purple-400/40 text-white text-[10px] sm:text-xs font-black uppercase px-2 py-1 rounded-md shadow-black/50 drop-shadow-md">+{skin.fervorBonus}% Ferv</span> : null}
+                              {skin.moneyBonus ? <span className="bg-yellow-500/90 backdrop-blur-md shadow-lg border border-yellow-300/40 text-white text-[10px] sm:text-xs font-black uppercase px-2 py-1 rounded-md flex items-center gap-1.5 shadow-black/50"><img src={LOGOS.money} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 drop-shadow-md" />+{skin.moneyBonus}%</span> : null}
+                              {skin.gemsBonus ? <span className="bg-pink-500/90 backdrop-blur-md shadow-lg border border-pink-300/40 text-white text-[10px] sm:text-xs font-black uppercase px-2 py-1 rounded-md flex items-center gap-1.5 shadow-black/50"><img src={LOGOS.gems} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 drop-shadow-md" />+{skin.gemsBonus}%</span> : null}
+                              {skin.boostBonus ? <span className="bg-orange-500/90 backdrop-blur-md shadow-lg border border-orange-400/40 text-white text-[10px] sm:text-xs font-black uppercase px-2 py-1 rounded-md flex items-center gap-1.5 shadow-black/50"><img src={LOGOS.boost} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 drop-shadow-md" />+{skin.boostBonus}%</span> : null}
+                              {skin.specialCardId ? <span className="bg-indigo-500/90 backdrop-blur-md shadow-lg border border-indigo-400/40 text-white text-[10px] sm:text-xs font-black uppercase px-2 py-1 rounded-md shadow-black/50">1 Carte Spé</span> : null}
+                              {skin.specialActionId ? <span className="bg-emerald-500/90 backdrop-blur-md shadow-lg border border-emerald-400/40 text-white text-[10px] sm:text-xs font-black uppercase px-2 py-1 rounded-md shadow-black/50">1 Action Spé</span> : null}
+                            </div>
+                          </div>
+                        )}
                       </div>
+                      
                       {isEquipped && (
                         <div className="absolute top-2 right-2 bg-orange-500 text-white text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full z-20">
                           Équipé
@@ -1955,6 +2029,155 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
         </div>
 
       {/* Alert Modal */}
+      {/* Fullscreen Card Modal */}
+      <AnimatePresence>
+        {selectedMuseumCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md overflow-y-auto"
+          >
+            <div className="min-h-full max-w-sm mx-auto flex flex-col p-4">
+              <div className="flex justify-end mb-4 pt-2">
+                <button 
+                  onClick={() => setSelectedMuseumCard(null)}
+                  className="bg-white/10 hover:bg-white/20 p-2 rounded-full text-white/70 hover:text-white transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="flex flex-col gap-6 my-auto">
+                <motion.div
+                  initial={{ scale: 0.9, y: 20 }}
+                  animate={{ scale: 1, y: 0 }}
+                  exit={{ scale: 0.9, y: 20 }}
+                  className="relative w-full aspect-[3/4] max-h-[50vh] mx-auto flex-shrink-0"
+                >
+                  {selectedMuseumCard.card.imageUrl ? (
+                    <img 
+                      src={getImageUrl(selectedMuseumCard.card.imageUrl)} 
+                      alt={selectedMuseumCard.card.name} 
+                      className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]" 
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className={`w-full h-full rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br ${cardTypeStyles[selectedMuseumCard.card.type]?.bg || 'from-gray-800 to-gray-900'} border-4 ${cardTypeStyles[selectedMuseumCard.card.type]?.border || 'border-gray-700'}`}>
+                      <Zap className="w-24 h-24 mb-6 opacity-50" />
+                      <h3 className="text-3xl font-black italic uppercase text-center px-4">{selectedMuseumCard.card.name}</h3>
+                    </div>
+                  )}
+                  
+                  {!selectedMuseumCard.isUnlocked && (
+                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-2xl backdrop-blur-sm">
+                      <Lock className="w-24 h-24 text-white/30" />
+                    </div>
+                  )}
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="bg-gray-900/80 backdrop-blur border border-white/10 p-6 rounded-3xl flex-shrink-0 mb-4"
+                >
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-2xl font-black uppercase tracking-tighter text-white">
+                    {selectedMuseumCard.card.name}
+                  </h3>
+                  <div className={`${cardTypeStyles[selectedMuseumCard.card.type]?.text === 'text-green-500' ? 'bg-green-500' : cardTypeStyles[selectedMuseumCard.card.type]?.text === 'text-red-500' ? 'bg-red-500' : 'bg-blue-500'} text-white text-xs font-black px-2 py-1 rounded-full uppercase`}>
+                    {cardTypeStyles[selectedMuseumCard.card.type]?.label || selectedMuseumCard.card.type}
+                  </div>
+                </div>
+
+                <div className="bg-black/50 rounded-xl p-4 mb-6 border border-white/5">
+                  <p className="text-sm text-gray-300 mb-4">{selectedMuseumCard.card.description}</p>
+                  
+                  {selectedMuseumCard.card.effects && selectedMuseumCard.card.effects.length > 0 && (
+                    <div className="space-y-1 mb-2">
+                       <span className="text-xs font-bold text-gray-400 uppercase">Effets:</span>
+                       {selectedMuseumCard.card.effects.map((effect, i) => (
+                         <div key={i} className={`text-sm font-black ${cardTypeStyles[selectedMuseumCard.card.type]?.text || 'text-white'} bg-white/5 px-2 py-1 rounded uppercase tracking-wider`}>
+                           {effectLabels[effect.type] || effect.type} {effect.value && effect.value > 0 ? '+' : ''}{effect.value}
+                           {effect.duration && ` (${effect.duration}s)`}
+                         </div>
+                       ))}
+                    </div>
+                  )}
+                </div>
+
+                {!selectedMuseumCard.isUnlocked ? (
+                  <div className="space-y-4">
+                    {selectedMuseumCard.requirements.length > 0 && (
+                      <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
+                        <h4 className="text-xs font-black text-red-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <Lock className="w-4 h-4" /> Conditions requises
+                        </h4>
+                        <ul className="text-sm text-gray-300 space-y-1">
+                          {selectedMuseumCard.requirements.map((req, i) => (
+                            <li key={i} className="flex items-center gap-2">
+                              <span className="w-1 h-1 bg-red-400 rounded-full" />
+                              {req.type === 'skill' && req.skillName && `Compétence ${req.skillName} niv.${req.minLevel}`}
+                              {req.type === 'ferveur' && `Ferveur minimale: niv.${req.minLevel}`}
+                              {req.type === 'rank' && `Rang minimal: ${req.minLevel}`}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedMuseumCard.card.price ? (
+                      <Button 
+                        onClick={() => {
+                          setSelectedMuseumCard(null);
+                          setPurchaseConfirm({ type: 'card', item: selectedMuseumCard.card });
+                        }}
+                        disabled={!selectedMuseumCard.canAfford}
+                        className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black uppercase py-4 text-base shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                      >
+                        {selectedMuseumCard.canAfford ? (
+                          <>Débloquer pour {selectedMuseumCard.card.price.money} <img src={LOGOS.money} alt="Money" className="w-4 h-4 ml-1 inline-block" /></>
+                        ) : 'Fonds insuffisants'}
+                      </Button>
+                    ) : (
+                      selectedMuseumCard.requirements.length > 0 && (
+                        <div className="bg-white/5 text-gray-400 text-center py-3 rounded-lg text-sm font-bold uppercase">
+                          Ceci ne s'achète pas
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-black uppercase tracking-widest text-center py-2 rounded-xl flex flex-col items-center justify-center gap-1">
+                       <Unlock className="w-4 h-4" />
+                       Carte débloquée
+                    </div>
+                    {fanz.equippedCards?.includes(selectedMuseumCard.card.id) ? (
+                      <div className="text-center text-xs font-bold text-gray-500 uppercase">
+                        Déjà équipée dans votre deck
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => {
+                          setSelectedMuseumCard(null);
+                          // It will trigger equip when they go back if we had a quick equip. But FanzDetails handles equip via drag&drop. Let's just say it's done.
+                        }}
+                        className="w-full bg-gray-800 text-white"
+                      >
+                        Fermer
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Purchase Confirmation Modal */}
       <AnimatePresence>
         {purchaseConfirm && (
@@ -2159,6 +2382,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         allCards.filter(c => {
                           const isAllowed = !c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(fanz.templateId);
                           const isBlocked = c.blockedFanzIds && c.blockedFanzIds.includes(fanz.templateId);
+                          const isSkinMatch = !c.skinId || c.skinId === fanz.equippedSkin;
                           
                           const requirements = c.unlockRequirements || [];
                           const metRequirements = requirements.length > 0 && requirements.every(req => {
@@ -2240,6 +2464,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       {(rewardModal.rewardType === 'choice' || rewardModal.rewardType === 'action') && (
                         lifeActions.filter(a => 
                           (!a.fanzTemplateId || a.fanzTemplateId === fanz.templateId) &&
+                          (!a.skinId || a.skinId === fanz.equippedSkin) &&
                           !(fanz.unlockedActions || []).includes(a.id) &&
                           !(userProfile.unlockedActions || []).includes(a.id)
                         ).length > 0 && (
@@ -2334,6 +2559,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   .filter(c => {
                     const isAllowed = !c.fanzIds || c.fanzIds.length === 0 || c.fanzIds.includes(fanz.templateId);
                     const isBlocked = c.blockedFanzIds && c.blockedFanzIds.includes(fanz.templateId);
+                    const isSkinMatch = !c.skinId || c.skinId === fanz.equippedSkin;
                     
                     const requirements = c.unlockRequirements || [];
                     const metRequirements = requirements.length > 0 && requirements.every(req => {
@@ -2514,6 +2740,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                 {lifeActions
                   .filter(a => 
                     (!a.fanzTemplateId || a.fanzTemplateId === fanz.templateId) &&
+                    (!a.skinId || a.skinId === fanz.equippedSkin) &&
                     !(fanz.unlockedActions || []).includes(a.id) &&
                     !(userProfile.unlockedActions || []).includes(a.id)
                   )

@@ -14,7 +14,8 @@ import {
   Zap,
   Flame,
   Shield,
-  Star
+  Star,
+  TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfileModal } from './UserProfileModal';
@@ -147,7 +148,8 @@ export function Header({
   }, [profile.uid, profile.activeFanzId, profile.activeAction?.fanzId, profile.photoURL]);
 
   useEffect(() => {
-    if (profile.energy >= (profile.maxEnergy || 100)) {
+    const maxEner = (profile.maxEnergy || 100) + (profile.skinEnergyBonus || 0);
+    if (profile.energy >= maxEner) {
       setTimeUntilRefill('');
       return;
     }
@@ -184,6 +186,7 @@ export function Header({
   const isXpBoostActive = profile.boostXpUntil && new Date(profile.boostXpUntil) > new Date();
   const isInfiniteEnergyActive = profile.infiniteEnergyUntil && new Date(profile.infiniteEnergyUntil) > new Date();
   const isAntiMalusActive = (profile.antiMalusMatches || 0) > 0;
+  const isDoubleGainsActive = profile.doubleGainsUntil && new Date(profile.doubleGainsUntil) > new Date();
 
   const currentFerveur = profile.ferveurPoints || 0;
   const ferveurProgressPercent = Math.min(100, Math.max(0, (currentFerveur / maxFerveur) * 100));
@@ -194,7 +197,7 @@ export function Header({
         "left-0 right-0 z-50 shrink-0",
         variant === 'home' || absolute 
           ? "absolute top-0 bg-gradient-to-b from-black/80 to-transparent" 
-          : "relative bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/5 shadow-lg"
+          : "relative bg-[#0a0a0a]/95 backdrop-blur-xl"
       )}>
         <div className="w-full max-w-3xl mx-auto flex items-start justify-between px-4 md:px-6 py-4">
           {/* Left: Avatar & Level OR Back Button */}
@@ -230,7 +233,13 @@ export function Header({
           )}
 
           {/* Center: Attributes & Ferveur Progress */}
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center relative">
+            {isDoubleGainsActive && (
+              <div className="absolute -top-6 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse flex items-center gap-1 z-20">
+                <TrendingUp className="w-2.5 h-2.5" />
+                Gains x2
+              </div>
+            )}
             <div 
               className="flex items-center gap-2 sm:gap-3 bg-black/50 backdrop-blur-md rounded-full px-3 sm:px-4 py-1.5 sm:py-2 border border-white/10 relative z-10 cursor-pointer hover:bg-white/10 transition-colors"
               onClick={() => onTransactionsClick && onTransactionsClick()}

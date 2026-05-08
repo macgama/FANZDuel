@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot, query, collection, where, writeBatch, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, query, collection, where, writeBatch, getDocs, updateDoc } from 'firebase/firestore';
 import { Layout, Card, Button } from './components/Layout';
 import { cn } from './lib/utils';
 import { Auth } from './components/Auth';
@@ -13,7 +13,7 @@ import { Header } from './components/Header';
 import { MatchDetails } from './components/MatchDetails';
 import { LeagueDetails } from './components/LeagueDetails';
 import { TeamDetails } from './components/TeamDetails';
-import { UserProfile } from './types';
+import { UserProfile, GlobalFervorConfig } from './types';
 import { FanzPage } from './components/FanzPage';
 import { FanzDetails } from './components/FanzDetails';
 import { LifeActionCard } from './components/LifeActionCard';
@@ -162,7 +162,25 @@ function AppContent() {
         const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
         const templatesList = templatesSnap.docs.map(d => ({id: d.id, ...d.data()}));
         
-        const hasFanzFervorAlert = fanzList.some((fanz: any) => {
+        // Compute total energy bonus from equipped skins
+      let totalSkinEnergyBonus = 0;
+      fanzList.forEach((fanz: any) => {
+        if (fanz.equippedSkin) {
+          const tpl: any = templatesList.find(t => t.id === fanz.templateId);
+          if (tpl && tpl.skins) {
+            const skin = tpl.skins.find((s: any) => s.id === fanz.equippedSkin);
+            if (skin && skin.energyBonus) {
+              totalSkinEnergyBonus += skin.energyBonus;
+            }
+          }
+        }
+      });
+      // Always update db so profile is in sync, App logic will pick it up
+      if ((profile.skinEnergyBonus || 0) !== totalSkinEnergyBonus) {
+        updateDoc(doc(db, 'users', profile.uid), { skinEnergyBonus: totalSkinEnergyBonus }).catch(console.error);
+      }
+
+      const hasFanzFervorAlert = fanzList.some((fanz: any) => {
           const currentPts = fanz.ferveurPoints || 0;
           const template: any = templatesList.find(t => t.id === fanz.templateId);
           let path: any[] = [];
@@ -446,9 +464,10 @@ function AppContent() {
             const msPassed = nowTime - lastRefillTime;
             const hoursPassed = Math.floor(msPassed / (1000 * 60 * 60));
 
-            if (hoursPassed >= 1 && data.energy < (data.maxEnergy || 100)) {
+            const maxEner = (data.maxEnergy || 100) + (data.skinEnergyBonus || 0);
+            if (hoursPassed >= 1 && data.energy < maxEner) {
               const energyToAdd = hoursPassed * 5;
-              updatedData.energy = Math.min(data.maxEnergy || 100, (data.energy || 0) + energyToAdd);
+              updatedData.energy = Math.min(maxEner, (data.energy || 0) + energyToAdd);
               updatedData.lastEnergyRefill = new Date(lastRefillTime + hoursPassed * 3600000).toISOString();
               needsUpdate = true;
             }
@@ -587,9 +606,10 @@ function AppContent() {
       const msPassed = nowTime - lastRefillTime;
       const hoursPassed = Math.floor(msPassed / (1000 * 60 * 60));
 
-      if (hoursPassed >= 1 && profile.energy < (profile.maxEnergy || 100)) {
+      const maxE = (profile.maxEnergy || 100) + (profile.skinEnergyBonus || 0);
+      if (hoursPassed >= 1 && profile.energy < maxE) {
         const energyToAdd = hoursPassed * 5;
-        const newEnergy = Math.min(profile.maxEnergy || 100, (profile.energy || 0) + energyToAdd);
+        const newEnergy = Math.min(maxE, (profile.energy || 0) + energyToAdd);
         const newRefillTime = new Date(lastRefillTime + hoursPassed * 3600000).toISOString();
 
         const docRef = doc(db, 'users', user.uid);

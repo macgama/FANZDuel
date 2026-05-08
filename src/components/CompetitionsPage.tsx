@@ -76,7 +76,7 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
   const groupedLeagues = useMemo(() => {
     const continents: Record<string, Record<string, { flag: string; leagues: any[] }>> = {};
     
-    leagues.forEach(l => {
+    (leagues || []).forEach(l => {
       const continent = getContinent(l.country.name);
       const country = translateCountryName(l.country.name);
       

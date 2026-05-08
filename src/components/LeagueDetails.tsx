@@ -332,7 +332,7 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
                   selectedSeason={selectedSeason}
                 />
               )}
-              {activeTab === 'teams' && <TeamsTab teams={teams} onTeamClick={onTeamClick} selectedSeason={selectedSeason} standings={standings} />}
+              {activeTab === 'teams' && <TeamsTab teams={teams} onTeamClick={onTeamClick} selectedSeason={selectedSeason} standings={standings} fixtures={fixtures} />}
               {activeTab === 'stats' && <StatsTab standings={standings} leagueId={leagueId} selectedSeason={selectedSeason} />}
             </motion.div>
           </AnimatePresence>
@@ -695,7 +695,7 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
           ref={scrollContainerRef}
           className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
         >
-          <div className="flex flex-nowrap gap-4 w-fit px-0.5">
+          <div className="flex flex-nowrap gap-4 w-fit px-0.5 items-stretch">
             {groupedByRound[selectedRound].map((match: any) => {
               const matchWithEvents = {
                 ...match,
@@ -703,7 +703,7 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
               };
               
               return (
-              <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-60px)] sm:w-[400px]">
+              <div key={match.fixture.id} className="snap-center shrink-0 flex items-stretch w-[calc(100vw-60px)] sm:w-[400px]">
                 <SharedMatchCard
                   match={matchWithEvents}
                   hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
@@ -740,7 +740,7 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
 
   let hasKnockouts = false;
 
-  fixtures.forEach(f => {
+  (fixtures || []).forEach(f => {
     const round = f.league.round || '';
     const matched = knockoutRounds.find(r => r.regex.test(round));
     if (matched) {
@@ -858,28 +858,61 @@ function RankingList({ title, data, statLabel, statKey, icon, onTeamClick, selec
   );
 }
 
-function TeamsTab({ teams, onTeamClick, selectedSeason, standings }: { teams: any[]; onTeamClick: (id: number, season: number) => void; selectedSeason: number; standings?: any[] }) {
-  // If there are groups in standings, we can structure it. Otherwise simple list.
-  const isGroupStage = standings && standings.length > 1 && standings[0].group;
+function TeamsTab({ teams, onTeamClick, selectedSeason, standings, fixtures }: { teams: any[]; onTeamClick: (id: number, season: number) => void; selectedSeason: number; standings?: any[]; fixtures?: any[] }) {
+  let safeTeams = teams || [];
+  
+  if (safeTeams.length === 0 || !safeTeams.some(t => t?.team)) {
+    const extractedMap = new Map();
+    if (standings && standings.length > 0) {
+      standings.forEach((teamEntry: any) => {
+        if (teamEntry?.team && !extractedMap.has(teamEntry.team.id)) {
+          extractedMap.set(teamEntry.team.id, { team: teamEntry.team, venue: {} });
+        }
+      });
+    }
+    if (fixtures && fixtures.length > 0) {
+      fixtures.forEach((f: any) => {
+        if (f?.teams?.home && !extractedMap.has(f.teams.home.id)) {
+          extractedMap.set(f.teams.home.id, { team: f.teams.home, venue: f.fixture?.venue || {} });
+        }
+        if (f?.teams?.away && !extractedMap.has(f.teams.away.id)) {
+          extractedMap.set(f.teams.away.id, { team: f.teams.away, venue: f.fixture?.venue || {} });
+        }
+      });
+    }
+    safeTeams = Array.from(extractedMap.values());
+  }
+
+  // Determine if we should group by evaluating distinct groups in standings
+  const teamToGroup = new Map<number, string>();
+  if (standings) {
+    standings.forEach(s => {
+      if (s.team?.id && s.group) {
+        teamToGroup.set(s.team.id, s.group);
+      }
+    });
+  }
+  
+  const uniqueGroups = Array.from(new Set(Array.from(teamToGroup.values())));
+  const isGroupStage = uniqueGroups.length > 1;
   
   if (isGroupStage) {
     const groupedTeams: Record<string, any[]> = {};
-    standings.forEach(group => {
-      const groupName = group.group || 'Group';
-      groupedTeams[groupName] = [];
-      group.standings.forEach((teamEntry: any) => {
-        const teamObj = teams.find(t => t.team.id === teamEntry.team.id);
-        if (teamObj) {
-           groupedTeams[groupName].push(teamObj);
-        }
-      });
+    safeTeams.forEach(t => {
+      if (t?.team) {
+        const groupName = teamToGroup.get(t.team.id) || 'Autres';
+        if (!groupedTeams[groupName]) groupedTeams[groupName] = [];
+        groupedTeams[groupName].push(t);
+      }
     });
 
     return (
       <div className="space-y-6">
-        {Object.entries(groupedTeams).map(([groupName, groupTeams]) => (
+        {Object.entries(groupedTeams)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([groupName, groupTeams]) => (
           <div key={groupName}>
-            <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">{translateCountryName(groupName)}</h3>
+            <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">{translateCountryName(groupName.replace(/Group /i, 'Groupe '))}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {groupTeams.map((t) => (
                 <Card key={t.team.id} onClick={() => onTeamClick(t.team.id, selectedSeason)} className="flex flex-col items-center gap-2 p-3 hover:border-orange-500/50 transition-all group cursor-pointer relative">
@@ -893,16 +926,16 @@ function TeamsTab({ teams, onTeamClick, selectedSeason, standings }: { teams: an
                   </div>
                   <div className="text-center w-full">
                     <h3 className="font-black italic uppercase text-[10px] tracking-widest group-hover:text-orange-500 transition-colors leading-tight truncate px-1">{translateCountryName(t.team.name)}</h3>
-                    <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5 truncate px-1">{t.venue.city}</p>
+                    <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5 truncate px-1">{t.venue?.city}</p>
                   </div>
                   <div className="w-full pt-2 border-t border-white/5 flex flex-col gap-1">
                     <div className="flex items-center gap-1.5 text-gray-500">
                       <MapPin className="w-2.5 h-2.5 shrink-0" />
-                      <span className="text-[8px] font-bold uppercase truncate">{t.venue.name}</span>
+                      <span className="text-[8px] font-bold uppercase truncate">{t.venue?.name}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-gray-500">
                       <Users className="w-2.5 h-2.5 shrink-0" />
-                      <span className="text-[8px] font-bold uppercase">{t.venue.capacity?.toLocaleString()}</span>
+                      <span className="text-[8px] font-bold uppercase">{t.venue?.capacity?.toLocaleString()}</span>
                     </div>
                   </div>
                 </Card>
@@ -916,7 +949,7 @@ function TeamsTab({ teams, onTeamClick, selectedSeason, standings }: { teams: an
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-      {teams.map((t) => (
+      {safeTeams.filter(t => t?.team).map((t) => (
         <Card key={t.team.id} onClick={() => onTeamClick(t.team.id, selectedSeason)} className="flex flex-col items-center gap-2 p-3 hover:border-orange-500/50 transition-all group cursor-pointer relative">
           {t.team.country && (
             <div className="absolute top-2 right-2 flex items-center justify-center">
@@ -928,16 +961,16 @@ function TeamsTab({ teams, onTeamClick, selectedSeason, standings }: { teams: an
           </div>
           <div className="text-center w-full">
             <h3 className="font-black italic uppercase text-[10px] tracking-widest group-hover:text-orange-500 transition-colors leading-tight truncate px-1">{translateCountryName(t.team.name)}</h3>
-            <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5 truncate px-1">{t.venue.city}</p>
+            <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5 truncate px-1">{t.venue?.city}</p>
           </div>
           <div className="w-full pt-2 border-t border-white/5 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-gray-500">
               <MapPin className="w-2.5 h-2.5 shrink-0" />
-              <span className="text-[8px] font-bold uppercase truncate">{t.venue.name}</span>
+              <span className="text-[8px] font-bold uppercase truncate">{t.venue?.name}</span>
             </div>
             <div className="flex items-center gap-1.5 text-gray-500">
               <Users className="w-2.5 h-2.5 shrink-0" />
-              <span className="text-[8px] font-bold uppercase">{t.venue.capacity?.toLocaleString()}</span>
+              <span className="text-[8px] font-bold uppercase">{t.venue?.capacity?.toLocaleString()}</span>
             </div>
           </div>
         </Card>
@@ -998,7 +1031,7 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
             
             // Count cards used if available in the duel data directly (e.g., participants history)
             // This depends on the specific db structure. We'll provide a placeholder or basic count
-            if (data.participants) {
+            if (data.participants && Array.isArray(data.participants)) {
               data.participants.forEach((p: any) => {
                 // If cards are stored here
                 if (p.usedCards) totalCards += p.usedCards;
@@ -1247,7 +1280,7 @@ export function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams, 
         
         // If viewing teams, include teams that have 0 played games
         if (activeTab === 'teams' && teams) {
-          teams.forEach(t => {
+          (teams || []).filter(t => t?.team).forEach(t => {
             if (!entries.find(e => Number(e.teamId) === t.team.id)) {
               entries.push({
                 id: `team_${t.team.id}`,

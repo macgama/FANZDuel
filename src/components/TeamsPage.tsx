@@ -132,7 +132,7 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
   const groupedLeagues = useMemo(() => {
     const continents: Record<string, Record<string, { flag: string; leagues: any[] }>> = {};
     
-    leagues.forEach(l => {
+    (leagues || []).forEach(l => {
       const continent = getContinent(l.country.name);
       // Translate the country name immediately for sorting and display
       const country = translateCountryName(l.country.name);

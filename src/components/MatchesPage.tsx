@@ -441,9 +441,9 @@ function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoi
                     ref={scrollContainerRef}
                     className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
                   >
-                    <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit">
+                    <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
                       {group.matches.map((match: any) => (
-                        <div key={match.fixture.id} className={`snap-center shrink-0 ${group.matches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
+                        <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${group.matches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
                           <SharedMatchCard 
                             match={match} 
                             hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}

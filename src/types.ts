@@ -31,6 +31,7 @@ export interface UserProfile {
   energy: number;
   maxEnergy?: number;
   lastEnergyRefill: string;
+  skinEnergyBonus?: number;
   ferveurPoints: number;
   matchesParticipated?: number;
   totalScoreGiven?: number;
@@ -46,10 +47,13 @@ export interface UserProfile {
   emotes: string[];
   unlockedActions?: string[];
   role: 'admin' | 'moderator' | 'client';
-  language?: string;
   activeAction?: ActiveAction | null;
   streak: number;
   lastLoginDate?: string;
+  boostXpUntil?: string;
+  infiniteEnergyUntil?: string;
+  antiMalusMatches?: number;
+  doubleGainsUntil?: string;
   lastDailyMissionReset?: string; // YYYY-MM-DD
   lastWeeklyMissionReset?: string; // YYYY-MM-DD
   claimedStreakDays: number[]; // Days claimed in current week (1-7)
@@ -64,10 +68,6 @@ export interface UserProfile {
   friends?: string[];
   friendRequests?: string[];
   activeFanzId?: string;
-  dataSaver?: boolean;
-  boostXpUntil?: string; // ISO timestamp
-  infiniteEnergyUntil?: string; // ISO timestamp
-  antiMalusMatches?: number; // Number of matches remaining
 }
 
 export interface FanzStats {
@@ -84,6 +84,7 @@ export interface FanzStats {
 export interface LifeAction {
   id: string;
   fanzTemplateId?: string; // If undefined, applies to all Fanz
+  skinId?: string; // If defined, applies only when this skin is equipped
   name: string;
   image?: string;
   videoUrl?: string;
@@ -114,6 +115,7 @@ export interface FanzSkin {
   name: string;
   imageUrl: string;
   videoUrl?: string;
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
   price: {
     money?: number;
     gems?: number;
@@ -121,6 +123,33 @@ export interface FanzSkin {
   };
   category?: 'base' | 'event';
   isActive?: boolean;
+  
+  // Passive Bonuses
+  statsBonus?: {
+    force?: number;       // e.g. 5 for +5% Force
+    mental?: number;      // e.g. 10 for +10% Mental
+    intelligence?: number; // e.g. -5 for -5% Intelligence
+    creativity?: number;
+    bluff?: number;
+    social?: number;
+    charisma?: number;
+    endurance?: number;
+  };
+  energyBonus?: number;    // Additional Max Energy (e.g., +20)
+  fervorBonus?: number;    // % Bonus Fervor points in Duels (e.g. 15 for +15%)
+  dropRateBonus?: number;  // % Bonus rewards in Duels (gains généraux)
+  gemsBonus?: number;      // % Bonus gems
+  moneyBonus?: number;     // % Bonus money
+  boostBonus?: number;     // % Bonus boost points
+  
+  energyCostReduction?: number; // % reduction in energy cost of actions (e.g. 10 for -10%)
+  moneyCostReduction?: number;  // % reduction in money cost of actions
+  gemsCostReduction?: number;   // % reduction in gems cost of actions
+  boostCostReduction?: number;  // % reduction in boost cost of actions
+  
+  // Specific features for skins
+  specialCardId?: string;  // A unique Duel card ID that gets added to deck when skin is equipped
+  specialActionId?: string; // A unique Life action ID that is unlocked when skin is equipped
 }
 
 export interface FanzEmote {
@@ -308,6 +337,7 @@ export interface Card {
   soundUrl?: string;
   fanzIds?: string[]; // For specific cards
   blockedFanzIds?: string[]; // Blocked Fanz templates
+  skinId?: string; // If defined, available only when this skin is equipped
   unlockRequirements?: CardUnlockRequirement[];
   price?: {
     money?: number;
@@ -389,6 +419,17 @@ export interface FervorRangeConfig {
   step: number;
   levelReward: NonNullable<FerveurLevel['reward']>;
   intermediateReward: NonNullable<FerveurLevel['reward']>;
+}
+
+export interface GlobalShopConfig {
+  id: string;
+  ferveurPacks: {
+    id: string;
+    name: string;
+    price: number;
+    numberOfRewards: number;
+    description: string;
+  }[];
 }
 
 export interface GlobalFervorConfig {

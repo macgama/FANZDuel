@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Store, Gem, Zap, Star, User, Shirt, Smile, TrendingUp, Shield, Flame, Sparkles, X } from 'lucide-react';
 import { Card, Button } from './Layout';
-import { UserProfile, FanzTemplate, Card as DuelCard } from '../types';
+import { UserProfile, FanzTemplate, Card as DuelCard, GlobalShopConfig } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, getImageUrl } from '../lib/utils';
 import { OptimizedMedia } from './OptimizedMedia';
 import { MrFanzHelp } from './MrFanzHelp';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, setDoc, getDoc } from 'firebase/firestore';
 
 interface ShopPageProps {
   profile: UserProfile;
@@ -62,6 +62,34 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [packAnimation, setPackAnimation] = useState<'idle' | 'opening' | 'opened'>('idle');
+  const [packRewards, setPackRewards] = useState<any[]>([]);
+  const [shopConfig, setShopConfig] = useState<GlobalShopConfig | null>(null);
+
+  useEffect(() => {
+    const fetchShopConfig = async () => {
+      try {
+        const configDoc = await getDoc(doc(db, 'global_configs', 'shop'));
+        if (configDoc.exists()) {
+          setShopConfig(configDoc.data() as GlobalShopConfig);
+        } else {
+          // Default config
+          setShopConfig({
+            id: 'shop',
+            ferveurPacks: [
+              { id: 'pack_1', name: 'Pack Ferveur Standard', price: 5, numberOfRewards: 1, description: '1 Récompense (Skin, Carte, Énergie...)' },
+              { id: 'pack_2', name: 'Pack Ferveur Épique', price: 9, numberOfRewards: 2, description: '2 Récompenses (Skins, Cartes, Énergie...)' },
+              { id: 'pack_3', name: 'Pack Ferveur Légendaire', price: 13, numberOfRewards: 3, description: '3 Récompenses (Skins, Cartes, Énergie...)' }
+            ]
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching shop config", err);
+      }
+    };
+    fetchShopConfig();
+  }, []);
 
   useEffect(() => {
     const fetchShopItems = async () => {
@@ -99,7 +127,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         fanzData.forEach(fanz => {
           // Only show skins and emotes if the user has unlocked this FANZ
           if (ownedFanzTemplateIds.includes(fanz.id)) {
-            if (fanz.skins) {
+            if (fanz.skins && Array.isArray(fanz.skins)) {
               fanz.skins.forEach(skin => {
                 if (skin.price && (skin.price.money || skin.price.gems) && !(profile.skins || []).includes(skin.id) && (skin.category !== 'event' || skin.isActive !== false)) {
                   skinsForSale.push({
@@ -120,7 +148,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 }
               });
             }
-            if (fanz.emotes) {
+            if (fanz.emotes && Array.isArray(fanz.emotes)) {
               fanz.emotes.forEach(emote => {
                 if (emote.price && (emote.price.money || emote.price.gems) && !(profile.emotes || []).includes(emote.id) && (emote.category !== 'event' || emote.isActive !== false)) {
                   emotesForSale.push({
@@ -194,6 +222,154 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
     fetchShopItems();
   }, [profile.uid, profile.skins, profile.emotes, profile.cards]);
+
+  const purchasePackFerveur = async (pack: { price: number; numberOfRewards: number }) => {
+    if ((profile.gems || 0) < pack.price) {
+      setError("Pas assez de gemmes pour acheter le Pack !");
+      return;
+    }
+
+    setPurchasing(true);
+    setPackAnimation('opening');
+    setPackRewards([]);
+    setError(null);
+    
+    try {
+      const userRef = doc(db, 'users', profile.uid);
+      const updates: any = {};
+      
+      updates.gems = (profile.gems || 0) - pack.price;
+
+      // 1. Fetch user's Fanzs to see what we can give
+      const userFanzSnap = await getDocs(query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid)));
+      const userFanzs = userFanzSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+      
+      // 2. Fetch Templates and Cards to pick skins/emotes/cards
+      const fanzTemplatesSnap = await getDocs(collection(db, 'fanz_templates'));
+      const fanzTemplates = fanzTemplatesSnap.docs.map(d => ({ id: d.id, ...d.data() as FanzTemplate }));
+      
+      const cardsSnap = await getDocs(collection(db, 'cards'));
+      const allCards = cardsSnap.docs.map(d => ({ id: d.id, ...d.data() as DuelCard }));
+      
+      // Decide number of rewards from pack
+      const numRewards = pack.numberOfRewards;
+      
+      const generatedRewards: any[] = [];
+      const userSkins = [...(profile.skins || [])];
+      const userEmotes = [...(profile.emotes || [])];
+      const userCards = [...(profile.cards || [])];
+      
+      const REWARD_TYPES = ['skin', 'emote', 'card', 'money', 'gems', 'boost', 'infinite_energy', 'double_gains', 'xp'];
+      
+      for (let i = 0; i < numRewards; i++) {
+        const shuffledTypes = [...REWARD_TYPES].sort(() => 0.5 - Math.random());
+        let rewardAdded = false;
+        
+        for (const type of shuffledTypes) {
+           if (rewardAdded) break;
+           
+           if (type === 'money') {
+              const amount = Math.floor(Math.random() * 900) + 100;
+              generatedRewards.push({ type, name: `${amount} $`, icon: '💰', amount });
+              updates.money = (updates.money !== undefined ? updates.money : profile.money || 0) + amount;
+              rewardAdded = true;
+           } else if (type === 'gems') {
+              const amount = Math.floor(Math.random() * 40) + 10;
+              generatedRewards.push({ type, name: `${amount} Gemmes`, icon: '💎', amount });
+              updates.gems = (updates.gems !== undefined ? updates.gems : profile.gems || 0) + amount;
+              rewardAdded = true;
+           } else if (type === 'boost') {
+              const boostPoints = Math.floor(Math.random() * 50) + 10;
+              generatedRewards.push({ type, name: `${boostPoints} Boosts`, icon: '🚀', amount: boostPoints });
+              updates.boostPoints = (updates.boostPoints !== undefined ? updates.boostPoints : profile.boostPoints || 0) + boostPoints;
+              rewardAdded = true;
+           } else if (type === 'infinite_energy') {
+              generatedRewards.push({ type, name: 'Énergie Infinie (1h)', icon: '⚡' });
+              const now = new Date();
+              const currentUntil = profile.infiniteEnergyUntil ? new Date(profile.infiniteEnergyUntil) : now;
+              const baseDate = currentUntil > now ? currentUntil : now;
+              updates.infiniteEnergyUntil = new Date(baseDate.getTime() + 60 * 60 * 1000).toISOString();
+              rewardAdded = true;
+           } else if (type === 'double_gains') {
+              generatedRewards.push({ type, name: 'Gains x2 (1h)', icon: '📈' });
+              const now = new Date();
+              const currentUntil = profile.doubleGainsUntil ? new Date(profile.doubleGainsUntil) : now;
+              const baseDate = currentUntil > now ? currentUntil : now;
+              updates.doubleGainsUntil = new Date(baseDate.getTime() + 60 * 60 * 1000).toISOString();
+              rewardAdded = true;
+           } else if (type === 'skin' || type === 'emote' || type === 'xp' || type === 'card') {
+              if (userFanzs.length > 0) {
+                 const randomFanz = userFanzs[Math.floor(Math.random() * userFanzs.length)];
+                 const template = fanzTemplates.find(t => t.id === randomFanz.templateId);
+                 
+                 if (type === 'skin' && template?.skins) {
+                    const availableSkins = template.skins.filter((s:any) => !userSkins.includes(s.id));
+                    if (availableSkins.length > 0) {
+                       const skin = availableSkins[Math.floor(Math.random() * availableSkins.length)];
+                       generatedRewards.push({ type, name: `Skin: ${skin.name}`, fanz: template.name, icon: '👕', image: skin.imageUrl ? getImageUrl(skin.imageUrl) : undefined });
+                       userSkins.push(skin.id);
+                       updates.skins = arrayUnion(...userSkins.filter(s => !profile.skins?.includes(s)));
+                       rewardAdded = true;
+                    }
+                 } else if (type === 'emote' && template?.emotes) {
+                    const availableEmotes = template.emotes.filter((e:any) => !userEmotes.includes(e.id));
+                    if (availableEmotes.length > 0) {
+                       const emote = availableEmotes[Math.floor(Math.random() * availableEmotes.length)];
+                       generatedRewards.push({ type, name: `Emote: ${emote.name}`, fanz: template.name, icon: '😀', image: emote.imageUrl ? getImageUrl(emote.imageUrl) : undefined });
+                       userEmotes.push(emote.id);
+                       updates.emotes = arrayUnion(...userEmotes.filter(e => !profile.emotes?.includes(e)));
+                       rewardAdded = true;
+                    }
+                 } else if (type === 'card') {
+                    const availableCards = allCards.filter(c => (c.fanzIds && c.fanzIds.includes(template!.id)) && !c.blockedFanzIds?.includes(template!.id) && !userCards.includes(c.id));
+                    if (availableCards.length > 0) {
+                       const card = availableCards[Math.floor(Math.random() * availableCards.length)];
+                       generatedRewards.push({ type, name: `Carte: ${card.name}`, fanz: template!.name, icon: '🃏', image: card.imageUrl ? getImageUrl(card.imageUrl) : undefined });
+                       userCards.push(card.id);
+                       updates.cards = arrayUnion(...userCards.filter(c => !profile.cards?.includes(c)));
+                       rewardAdded = true;
+                    }
+                 } else if (type === 'xp') {
+                    const stats = ['force', 'endurance', 'mental', 'bluff', 'creativity', 'social', 'intelligence', 'charisma'];
+                    const randomStat = stats[Math.floor(Math.random() * stats.length)];
+                    const xpGain = Math.floor(Math.random() * 50) + 20; // 20-70 XP
+                    generatedRewards.push({ type, name: `+${xpGain} XP ${randomStat}`, fanz: template!.name, icon: '⭐' });
+                    
+                    const fanzRef = doc(db, 'fanz', randomFanz.id);
+                    await updateDoc(fanzRef, {
+                      [`stats.${randomStat}`]: (randomFanz.stats?.[randomStat] || 0) + xpGain
+                    });
+                    rewardAdded = true;
+                 }
+              }
+           }
+        }
+        
+        // Fallback
+        if (!rewardAdded) {
+           const amount = 500;
+           generatedRewards.push({ type: 'money', name: `${amount} $`, icon: '💰', amount });
+           updates.money = (updates.money !== undefined ? updates.money : profile.money || 0) + amount;
+        }
+      }
+
+      await updateDoc(userRef, updates);
+      
+      setPackRewards(generatedRewards);
+      
+      // Keep "opening" animation for 2 seconds
+      setTimeout(() => {
+        setPackAnimation('opened');
+        setPurchasing(false);
+      }, 2000);
+
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors de l'ouverture du pack.");
+      setPurchasing(false);
+      setPackAnimation('idle');
+    }
+  };
 
   const handlePurchase = async (currencyToUse: 'money' | 'gems' | 'both') => {
     if (!selectedItem) return;
@@ -438,30 +614,41 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 <section>
                   <h2 className="text-lg font-black italic uppercase tracking-tighter text-white mb-4 flex items-center gap-2">
                     <Flame className="w-5 h-5 text-orange-500" />
-                    Offre du jour
+                    Offres Fanzzy
                   </h2>
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Card className="relative overflow-hidden border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.2)]">
-                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 via-orange-500/20 to-red-500/20" />
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/20 blur-3xl rounded-full" />
-                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-orange-500/20 blur-3xl rounded-full" />
-                      
-                      <div className="relative p-6 flex flex-col items-center text-center">
-                        <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg animate-pulse">
-                          -50%
-                        </div>
-                        <div className="relative mb-4">
-                          <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-400 animate-spin-slow" />
-                          <Zap className="w-20 h-20 text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.8)]" />
-                        </div>
-                        <h3 className="text-2xl font-black italic uppercase text-white mb-2 drop-shadow-md">Pack Ferveur</h3>
-                        <p className="text-sm text-yellow-200/80 font-bold uppercase tracking-widest mb-6">1000 Gemmes + 5000$ + Boost XP</p>
-                        <Button className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black uppercase text-lg shadow-[0_0_20px_rgba(234,179,8,0.4)] border-none">
-                          Acheter 4.99€
-                        </Button>
-                      </div>
-                    </Card>
-                  </motion.div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {(shopConfig?.ferveurPacks || []).map((pack, idx) => (
+                      <motion.div
+                        key={pack.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Card className="relative overflow-hidden border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.2)] h-full flex flex-col justify-between">
+                          <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 via-orange-500/20 to-red-500/20" />
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/20 blur-3xl rounded-full" />
+                          <div className="absolute bottom-0 left-0 w-32 h-32 bg-orange-500/20 blur-3xl rounded-full" />
+                          
+                          <div className="relative p-6 flex flex-col items-center text-center h-full">
+                            <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg animate-pulse">
+                              Épique
+                            </div>
+                            <div className="relative mb-4 mt-2">
+                              {pack.numberOfRewards >= 3 && <Sparkles className="absolute -top-4 -right-4 w-8 h-8 text-yellow-400 animate-spin-slow" />}
+                              <Zap className="w-16 h-16 text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.8)]" />
+                            </div>
+                            <h3 className="text-xl font-black italic uppercase text-white mb-2 drop-shadow-md">{pack.name}</h3>
+                            <p className="text-[10px] text-yellow-200/80 font-bold uppercase tracking-widest mb-6 flex-grow flex items-center justify-center min-h-[40px]">{pack.description}</p>
+                            <Button 
+                              onClick={() => purchasePackFerveur(pack)}
+                              disabled={purchasing || (profile.gems || 0) < pack.price}
+                              className="w-full mt-auto bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black uppercase text-base shadow-[0_0_20px_rgba(234,179,8,0.4)] border-none flex items-center justify-center gap-1.5 py-3">
+                              {purchasing && packAnimation !== 'idle' ? 'Ouverture...' : <>Acheter {pack.price} <Gem className="w-4 h-4 mx-0.5" /></>}
+                            </Button>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
                 </section>
 
                 <section>
@@ -688,6 +875,84 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 </Button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {packAnimation !== 'idle' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden"
+          >
+            {packAnimation === 'opening' ? (
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ 
+                  scale: [0.8, 1.2, 0.9, 1.1, 1],
+                  rotate: [0, -5, 5, -5, 0]
+                }}
+                transition={{ duration: 1.5, ease: "easeInOut" }}
+                className="relative"
+              >
+                <div className="absolute inset-0 bg-yellow-500 blur-[100px] opacity-50 animate-pulse" />
+                <Zap className="w-48 h-48 text-yellow-400 drop-shadow-[0_0_30px_rgba(234,179,8,1)] animate-bounce" />
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="w-full max-w-md flex flex-col items-center gap-6"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-500/20 via-transparent to-transparent pointer-events-none" />
+                
+                <h2 className="text-4xl font-black italic uppercase text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)] text-center mb-4">
+                  Incroyable !
+                </h2>
+                
+                <div className="flex flex-col gap-4 w-full">
+                  {packRewards.map((reward, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ x: -50, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: i * 0.3, type: "spring", stiffness: 200 }}
+                    >
+                      <Card className="p-4 bg-gradient-to-r from-gray-800 to-gray-900 border-yellow-500/30 flex items-center gap-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/10 blur-2xl rounded-full" />
+                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-black/50 flex-shrink-0 flex items-center justify-center border border-white/10 relative">
+                          {reward.image ? (
+                            <img src={reward.image} alt={reward.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-3xl">{reward.icon}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-lg font-black uppercase text-white truncate drop-shadow-sm">{reward.name}</h4>
+                          {reward.fanz && <p className="text-xs text-yellow-500 font-bold uppercase truncate">Pour {reward.fanz}</p>}
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: packRewards.length * 0.3 + 0.5 }}
+                  className="w-full mt-6"
+                >
+                  <Button
+                    onClick={() => setPackAnimation('idle')}
+                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black uppercase text-xl py-4 shadow-[0_0_30px_rgba(234,179,8,0.3)]"
+                  >
+                    Génial !
+                  </Button>
+                </motion.div>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

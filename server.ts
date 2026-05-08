@@ -49,9 +49,9 @@ async function startServer() {
         dbCards.forEach(dbCard => {
           const idx = mergedCards.findIndex(c => c.id === dbCard.id);
           if (idx !== -1) {
-            mergedCards[idx] = { ...mergedCards[idx], ...dbCard } as Card;
+            mergedCards[idx] = { ...mergedCards[idx], ...dbCard } as any;
           } else {
-            mergedCards.push(dbCard as Card);
+            mergedCards.push(dbCard as any);
           }
         });
         loadedCards = mergedCards;

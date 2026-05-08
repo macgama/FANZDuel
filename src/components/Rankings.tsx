@@ -48,7 +48,7 @@ export function Rankings({ onBack }: RankingsProps) {
   const uniqueCountries = useMemo(() => {
     let countries = Array.from(new Set(availableLeagues.filter(l => l.countryName !== 'Toutes les régions').map(l => l.countryName)));
     if (metric === 'popularity') {
-       rankings.forEach(r => {
+       (rankings || []).forEach(r => {
           if (r.countryName) countries.push(r.countryName);
        });
     }

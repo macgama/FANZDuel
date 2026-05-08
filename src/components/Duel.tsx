@@ -20,6 +20,8 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { useAlert } from '../context/AlertContext';
 import { generateFervorPath } from '../utils/fervorPath';
 
+import { getEffectiveFanz } from '../utils/skinModifiers';
+
 const DEFAULT_DUEL_CONFIG: DuelConfig = {
   id: 'duel_config',
   baseExcitementRegenTime: 5,
@@ -139,10 +141,11 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
 
   // Calculate Stat Bonuses for Impact Estimation
   const getStatEffectValue = (effectType: string, fanz: Fanz | null) => {
-    if (!duelConfig || !fanz) return 0;
+    if (!duelConfig || !fanz || !fanz.stats) return 0;
     const effect = duelConfig.statEffects.find(e => e.effectType === effectType);
     if (!effect) return 0;
-    const statLevel = (fanz.stats as any)[effect.statName] || 1;
+    const statXp = (fanz.stats as any)[effect.statName] || 1;
+    const statLevel = Math.floor(statXp / 100) + 1;
     return effect.baseValue + (statLevel * effect.multiplierPerLevel);
   };
 
@@ -170,13 +173,19 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
 
         const fanzList = fanzSnap.docs.map(d => {
           const data = d.data() as Fanz;
-          const template = templatesMap.get(data.templateId) as any;
+          const template = templatesMap.get(data.templateId) as FanzTemplate;
+          let effectiveFanzData = data;
+          if (template) {
+             effectiveFanzData = getEffectiveFanz(data, template);
+          }
+          const skin = template?.skins?.find(s => s.id === data.equippedSkin);
           return {
-            ...data,
+            ...effectiveFanzData,
             id: d.id,
-            name: data.name || template?.name || 'Unknown Fanz',
-            imageUrl: data.imageUrl || template?.image || null,
-          };
+            name: effectiveFanzData.name || template?.name || 'Unknown Fanz',
+            imageUrl: effectiveFanzData.imageUrl || template?.image || null,
+            _skinBonus: skin || null
+          } as any;
         });
         setUserFanzs(fanzList);
         setSelectedFanzId(prev => prev || (fanzList.length > 0 ? fanzList[0].id : null));
@@ -201,10 +210,17 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
       return;
     }
 
-    const cost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
-    const effectiveEnergyCost = isInfiniteEnergyActive ? 0 : cost.energy;
+    const baseCost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
+    const skinBonus = (selectedFanz as any)._skinBonus;
+    const energyReductionPct = skinBonus?.energyCostReduction || 0;
+    const moneyReductionPct = skinBonus?.moneyCostReduction || 0;
     
-    if (user.money < cost.money || user.energy < effectiveEnergyCost) {
+    const costMoney = Math.max(0, Math.round(baseCost.money * (1 - moneyReductionPct / 100)));
+    const costEnergy = Math.max(0, Math.round(baseCost.energy * (1 - energyReductionPct / 100)));
+    
+    const effectiveEnergyCost = isInfiniteEnergyActive ? 0 : costEnergy;
+    
+    if (user.money < costMoney || user.energy < effectiveEnergyCost) {
       showAlert({ type: 'error', title: 'Fonds ou énergie insuffisants !' });
       return;
     }
@@ -212,11 +228,11 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
     try {
       // Deduct costs
       await updateDoc(doc(db, 'users', user.uid), {
-        money: increment(-cost.money),
+        money: increment(-costMoney),
         energy: increment(-effectiveEnergyCost)
       });
 
-      if (cost.money > 0) await logTransaction(user.uid, 'money', -cost.money, `Inscription duel: ${type}`);
+      if (costMoney > 0) await logTransaction(user.uid, 'money', -costMoney, `Inscription duel: ${type}`);
       if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', -effectiveEnergyCost, `Inscription duel: ${type}`);
 
       const duelId = joiningDuelId || (type === 'training' ? `training_${user.uid}_${Date.now()}` : `${type}_${matchId}_${Math.random().toString(36).substring(7)}`);
@@ -375,7 +391,15 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                   { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'background5v5.png', video: 'videoBackground5v5.mp4', fullWidth: false },
                   { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'backgroundKOP.png', video: 'videoBackgroundKOP.mp4', fullWidth: true }
                 ].filter(arena => isLiveMatch || arena.id === 'training').map(arena => {
-                  const cost = duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
+                  const baseCost = duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
+                  
+                  const skinBonus = (selectedFanz as any)?._skinBonus;
+                  const energyReductionPct = skinBonus?.energyCostReduction || 0;
+                  const moneyReductionPct = skinBonus?.moneyCostReduction || 0;
+                  
+                  const costEnergy = Math.max(0, Math.round(baseCost.energy * (1 - energyReductionPct / 100)));
+                  const costMoney = Math.max(0, Math.round(baseCost.money * (1 - moneyReductionPct / 100)));
+
                   const baseUrl = 'https://thebestfan.online/img/public/background/';
                   const bgUrl = `${baseUrl}${arena.bg}`;
                   const videoUrl = arena.video ? `${baseUrl}${arena.video}` : null;
@@ -403,10 +427,10 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                         </div>
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center gap-1 text-yellow-500 font-black text-xs sm:text-sm">
-                            {cost.energy} ⚡
+                            {costEnergy} ⚡
                           </div>
                           <div className="flex items-center gap-1 text-green-500 font-black text-xs sm:text-sm">
-                            {cost.money} $
+                            {costMoney} $
                           </div>
                         </div>
                       </div>
@@ -611,24 +635,50 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     // Client-side refund if leaving while waiting
     if (status === 'waiting' && duelConfig && duelConfig.costs) {
       const type = duel.type;
-      const cost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
+      const baseCost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
       
-      let effectiveEnergyCost = cost.energy;
-      if (user.infiniteEnergyUntil && new Date(user.infiniteEnergyUntil) > new Date()) {
-        effectiveEnergyCost = 0;
-      }
-      
-      if (cost.money > 0 || effectiveEnergyCost > 0) {
-        try {
-          await updateDoc(doc(db, 'users', user.uid), {
-            money: increment(cost.money),
-            energy: increment(effectiveEnergyCost)
-          });
-          if (cost.money > 0) await logTransaction(user.uid, 'money', cost.money, `Remboursement annulation duel: ${type}`);
-          if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', effectiveEnergyCost, `Remboursement annulation duel: ${type}`);
-        } catch(e) {
-          console.error("Client refund error:", e);
+      const participantFanzId = duel.participants.find((p: any) => p.uid === user.uid)?.fanzId || fanzId;
+      try {
+        const fanzSnap = await getDoc(doc(db, 'fanz', participantFanzId));
+        if (fanzSnap.exists()) {
+          const fanzData = fanzSnap.data();
+          const targetSkin = fanzData.equippedSkin;
+          let skinBonus = { energyCostReduction: 0, moneyCostReduction: 0 };
+          if (targetSkin) {
+             const skinSnap = await getDoc(doc(db, 'fanz_skins', targetSkin));
+             if (skinSnap.exists()) {
+                const skinRes = skinSnap.data();
+                if (skinRes.bonus) {
+                  skinBonus = {
+                     energyCostReduction: skinRes.bonus.energyCostReduction || 0,
+                     moneyCostReduction: skinRes.bonus.moneyCostReduction || 0
+                  };
+                }
+             }
+          }
+          
+          const energyReductionPct = skinBonus.energyCostReduction || 0;
+          const moneyReductionPct = skinBonus.moneyCostReduction || 0;
+          
+          const costMoney = Math.max(0, Math.round(baseCost.money * (1 - moneyReductionPct / 100)));
+          const costEnergy = Math.max(0, Math.round(baseCost.energy * (1 - energyReductionPct / 100)));
+          
+          let effectiveEnergyCost = costEnergy;
+          if (user.infiniteEnergyUntil && new Date(user.infiniteEnergyUntil) > new Date()) {
+            effectiveEnergyCost = 0;
+          }
+          
+          if (costMoney > 0 || effectiveEnergyCost > 0) {
+            await updateDoc(doc(db, 'users', user.uid), {
+              money: increment(costMoney),
+              energy: increment(effectiveEnergyCost)
+            });
+            if (costMoney > 0) await logTransaction(user.uid, 'money', costMoney, `Remboursement annulation duel: ${type}`);
+            if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', effectiveEnergyCost, `Remboursement annulation duel: ${type}`);
+          }
         }
+      } catch (err) {
+        console.error("Failed to refund on exit", err);
       }
     }
     
@@ -729,10 +779,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
   // Calculate Stat Bonuses
   const getStatEffectValue = (effectType: string, isMultiplier = false) => {
-    if (!duelConfig || !fanz) return isMultiplier ? 1 : 0;
+    if (!duelConfig || !fanz || !fanz.stats) return isMultiplier ? 1 : 0;
     const effect = duelConfig.statEffects.find(e => e.effectType === effectType);
     if (!effect) return isMultiplier ? 1 : 0;
-    const statLevel = (fanz.stats as any)[effect.statName] || 1;
+    const statXp = (fanz.stats as any)[effect.statName] || 1;
+    const statLevel = Math.floor(statXp / 100) + 1;
     const val = effect.baseValue + (statLevel * effect.multiplierPerLevel);
     return isMultiplier ? Math.max(0.1, val) : val;
   };
@@ -836,10 +887,36 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               if (!imageUrl) imageUrl = tplData.image || null;
               
               if (fanzData.equippedSkin) {
-                const skin = tplData.skins?.find(s => s.id === fanzData.equippedSkin);
+                const skin = tplData.skins?.find((s: any) => s.id === fanzData.equippedSkin);
                 if (skin) {
                   equippedSkinUrl = skin.imageUrl;
                   equippedSkinVideoUrl = skin.videoUrl || null;
+                  
+                  // Apply stat bonuses
+                  if (skin.statsBonus) {
+                    if (!fanzData.stats) fanzData.stats = { force: 0, mental: 0, intelligence: 0, creativity: 0, bluff: 0, social: 0, charisma: 0, endurance: 0 };
+                    if (skin.statsBonus.force) fanzData.stats.force = (fanzData.stats.force || 0) + (skin.statsBonus.force * 100);
+                    if (skin.statsBonus.mental) fanzData.stats.mental = (fanzData.stats.mental || 0) + (skin.statsBonus.mental * 100);
+                    if (skin.statsBonus.intelligence) fanzData.stats.intelligence = (fanzData.stats.intelligence || 0) + (skin.statsBonus.intelligence * 100);
+                    if (skin.statsBonus.creativity) fanzData.stats.creativity = (fanzData.stats.creativity || 0) + (skin.statsBonus.creativity * 100);
+                    if (skin.statsBonus.bluff) fanzData.stats.bluff = (fanzData.stats.bluff || 0) + (skin.statsBonus.bluff * 100);
+                    if (skin.statsBonus.social) fanzData.stats.social = (fanzData.stats.social || 0) + (skin.statsBonus.social * 100);
+                    if (skin.statsBonus.charisma) fanzData.stats.charisma = (fanzData.stats.charisma || 0) + (skin.statsBonus.charisma * 100);
+                    if (skin.statsBonus.endurance) fanzData.stats.endurance = (fanzData.stats.endurance || 0) + (skin.statsBonus.endurance * 100);
+
+                    // Ensure minimum 0
+                    Object.keys(fanzData.stats).forEach(k => {
+                      if ((fanzData.stats as any)[k] < 0) (fanzData.stats as any)[k] = 0;
+                    });
+                  }
+
+                  // Inject special card
+                  if (skin.specialCardId) {
+                    if (!fanzData.equippedCards) fanzData.equippedCards = [];
+                    if (!fanzData.equippedCards.includes(skin.specialCardId)) {
+                      fanzData.equippedCards.push(skin.specialCardId);
+                    }
+                  }
                 }
               }
             }
@@ -855,7 +932,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             
             const isAllowed = !c.fanzIds || fanzIdsArray.length === 0 || (fanzData.templateId && fanzIdsArray.includes(fanzData.templateId));
             const isBlocked = c.blockedFanzIds && fanzData.templateId && blockedFanzIdsArray.includes(fanzData.templateId);
-            return isAllowed && !isBlocked;
+            const isSkinMatch = !c.skinId || c.skinId === fanzData.equippedSkin;
+            return isAllowed && !isBlocked && isSkinMatch;
           });
           setAllCards(fanzAvailableCards);
 
@@ -870,9 +948,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           if (configSnap.exists()) {
             const config = configSnap.data() as DuelConfig;
             const getStatValue = (type: string, stats: FanzStats) => {
+              if (!stats) return 0;
               const effect = config.statEffects.find(e => e.effectType === type);
               if (!effect) return 0;
-              return effect.baseValue + (stats[effect.statName] * effect.multiplierPerLevel);
+              const statXp = (stats as any)[effect.statName] || 1;
+              const statLevel = Math.floor(statXp / 100) + 1;
+              return effect.baseValue + (statLevel * effect.multiplierPerLevel);
             };
             const visD = getStatValue('button_visibility', fanzData.stats) || 3000;
             const hidD = getStatValue('button_hidden', fanzData.stats) || 2000;
@@ -887,8 +968,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         const emotes: FanzEmote[] = [];
         templatesSnap.forEach(doc => {
           const template = doc.data() as FanzTemplate;
-          if (template.emotes) {
+          if (template.emotes && Array.isArray(template.emotes)) {
             emotes.push(...template.emotes);
+          } else if (template.emotes && typeof template.emotes === 'object') {
+            emotes.push(...Object.values(template.emotes));
           }
         });
         
@@ -1321,30 +1404,46 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           
           let ferveurGainFanz = 0;
           let ferveurGainGeneral = 0;
+          let skinFervorBonusMod = 0;
+          let template: FanzTemplate | null = null;
+          let fanzData: Fanz | null = null;
+
+          if (fanzId) {
+            const fanzSnap = await getDoc(doc(db, 'fanz', fanzId));
+            if (fanzSnap.exists()) {
+              fanzData = fanzSnap.data() as Fanz;
+              const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
+              if (tplSnap.exists()) {
+                 template = tplSnap.data() as FanzTemplate;
+                 if (fanzData.equippedSkin) {
+                   const skin = template.skins?.find((s: any) => s.id === fanzData.equippedSkin);
+                   if (skin) {
+                     skinFervorBonusMod = skin.fervorBonus || 0;
+                   }
+                 }
+              }
+            }
+          }
           
+          const fervorModMultiplier = 1 + (skinFervorBonusMod / 100);
+
           if (duelType === 'training') {
             // Pour l'entraînement, gain fixe de 5 points (ne dépend pas du score ni du résultat)
-            ferveurGainFanz = 5 * xpMultiplier;
-            ferveurGainGeneral = 5 * xpMultiplier;
+            ferveurGainFanz = Math.round(5 * xpMultiplier * fervorModMultiplier);
+            ferveurGainGeneral = Math.round(5 * xpMultiplier * fervorModMultiplier);
           } else if (isWin) {
             // L'XP gagnée est basée sur le score multiplié par le type de duel
-            ferveurGainFanz = myScore * duelMultiplier * xpMultiplier;
-            ferveurGainGeneral = myScore * duelMultiplier * xpMultiplier;
+            ferveurGainFanz = Math.round(myScore * duelMultiplier * xpMultiplier * fervorModMultiplier);
+            ferveurGainGeneral = Math.round(myScore * duelMultiplier * xpMultiplier * fervorModMultiplier);
           } else {
             // En cas de défaite, on gagne la moitié
-            ferveurGainFanz = Math.round((myScore / 2) * duelMultiplier * xpMultiplier);
-            ferveurGainGeneral = Math.round((myScore / 2) * duelMultiplier * xpMultiplier);
+            ferveurGainFanz = Math.round((myScore / 2) * duelMultiplier * xpMultiplier * fervorModMultiplier);
+            ferveurGainGeneral = Math.round((myScore / 2) * duelMultiplier * xpMultiplier * fervorModMultiplier);
           }
           
           // Update FANZ
-          if (fanzId) {
-            const fanzRef = doc(db, 'fanz', fanzId);
-            const fanzSnap = await getDoc(fanzRef);
-            if (fanzSnap.exists()) {
-              const fanzData = fanzSnap.data() as Fanz;
-              const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
-              const template = tplSnap.exists() ? tplSnap.data() as FanzTemplate : null;
-              
+          if (fanzData && fanzId) {
+              const fanzRef = doc(db, 'fanz', fanzId);
               let newFanzPoints = Math.max(0, (fanzData.ferveurPoints || 0) + ferveurGainFanz);
               let newFanzLevel = fanzData.ferveurLevel || 1;
               
@@ -1374,7 +1473,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               
               setFanz(prev => prev ? { ...prev, ferveurPoints: newFanzPoints, ferveurLevel: newFanzLevel } : null);
               ferveurGain = ferveurGainFanz;
-            }
           }
           
           // Update User General
@@ -1518,7 +1616,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setEnemyPlayedCardAnim({ card: enhancedCard, id: Math.random().toString() });
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
 
-      const isMalus = enhancedCard.effects.some(e => 
+      const isMalus = (enhancedCard.effects || []).some(e => 
         ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card'].includes(e.type)
       );
       
@@ -1546,7 +1644,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         }
       }
 
-      card.effects.forEach((effect: CardEffect) => {
+      (card.effects || []).forEach((effect: CardEffect) => {
         // Resistance stats: higher value means shorter duration
         const mentalResistance = getStatEffectValue('malus_duration', true);
         const bluffResistance = getStatEffectValue('visual_malus_duration', true);
@@ -1897,7 +1995,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     const myTeam = myParticipant?.team || 'A';
 
     // Apply self-effects (on client)
-    boostedCard.effects.forEach(effect => {
+    (boostedCard.effects || []).forEach(effect => {
       if (effect.type === 'cleanse') {
         setIsBlurred(false);
         setIsButtonHidden(false);

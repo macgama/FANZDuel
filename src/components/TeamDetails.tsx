@@ -74,8 +74,8 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
         let currentByFlag: number | null = null;
         const today = new Date().toISOString().split('T')[0];
 
-        leaguesRes.forEach((l: any) => {
-          l.seasons.forEach((s: any) => {
+        (leaguesRes || []).forEach((l: any) => {
+          (l.seasons || []).forEach((s: any) => {
             seasons.add(s.year);
             if (s.start <= today && s.end >= today) {
               if (!bestSeasonByDate || s.year > bestSeasonByDate) {
@@ -475,7 +475,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
         .then(data => {
           setLeagueFixtures(data);
           // Set initial round based on the team's next or last match in this league, or just the first round found
-          if (data.length > 0) {
+          if (data && data.length > 0) {
             const teamMatches = data.filter((f: any) => f.teams.home.id === fixtures[0]?.teams?.home?.id || f.teams.away.id === fixtures[0]?.teams?.home?.id); // approximation
             
             // Just gather all rounds
@@ -714,14 +714,14 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
                 ref={scrollContainerRef}
                 className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
               >
-                <div className="flex flex-nowrap gap-4 w-fit px-0.5">
+                <div className="flex flex-nowrap gap-4 w-fit px-0.5 items-stretch">
                   {groupedByRound[selectedRound].map((match: any) => {
                     const matchWithEvents = {
                       ...match,
                       events: match.events || roundEvents[match.fixture.id] || []
                     };
                     return (
-                    <div key={match.fixture.id} className="snap-center shrink-0 w-[calc(100vw-60px)] sm:w-[400px]">
+                    <div key={match.fixture.id} className="snap-center shrink-0 flex items-stretch w-[calc(100vw-60px)] sm:w-[400px]">
                       <SharedMatchCard
                         match={matchWithEvents}
                         hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
@@ -872,7 +872,7 @@ function StatsTab({ stats, teamId, selectedSeason }: { stats: any, teamId: numbe
              else if (data.type === 'war_of_kops') dKop++;
              else if (data.type === 'kop') dKop++;
              
-             if (data.participants) {
+             if (data.participants && Array.isArray(data.participants)) {
                data.participants.forEach((p: any) => {
                  if (p.usedCards) totalCards += p.usedCards;
                });

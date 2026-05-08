@@ -15,12 +15,34 @@ interface LifeActionCardProps {
   action: LifeAction;
   fanz: Fanz;
   userProfile: UserProfile;
+  fanzTemplate?: any;
 }
 
-export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProps) {
+export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: LifeActionCardProps) {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const { showAlert } = useAlert();
+
+  // Find skin modifiers
+  let moneyBonusMod = 0;
+  let gemsBonusMod = 0;
+  let boostBonusMod = 0;
+  let energyCostReduction = 0;
+  let moneyCostReduction = 0;
+  let gemsCostReduction = 0;
+  let boostCostReduction = 0;
+  if (fanzTemplate && fanz.equippedSkin) {
+    const skin = (fanzTemplate.skins || []).find((s: any) => s.id === fanz.equippedSkin);
+    if (skin) {
+      moneyBonusMod = skin.moneyBonus || 0;
+      gemsBonusMod = skin.gemsBonus || 0;
+      boostBonusMod = skin.boostBonus || 0;
+      energyCostReduction = skin.energyCostReduction || 0;
+      moneyCostReduction = skin.moneyCostReduction || 0;
+      gemsCostReduction = skin.gemsCostReduction || 0;
+      boostCostReduction = skin.boostCostReduction || 0;
+    }
+  }
 
   const activeAction = userProfile.activeAction;
   const isThisActionActive = activeAction?.actionId === action.id && activeAction?.fanzId === fanz.id;
@@ -36,15 +58,22 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
   const isInfiniteEnergyActive = userProfile.infiniteEnergyUntil && new Date(userProfile.infiniteEnergyUntil) > now;
   const isXpBoostActive = userProfile.boostXpUntil && new Date(userProfile.boostXpUntil) > now;
 
-  const costEnergy = isInfiniteEnergyActive ? 0 : Math.floor((action.energyCost || 0) * scaleFactor);
-  const costMoney = Math.floor((action.moneyCost || 0) * scaleFactor);
-  const costGems = Math.floor((action.gemsCost || 0) * scaleFactor);
-  const costBoost = Math.floor((action.boostCost || 0) * scaleFactor);
+  const rawCostEnergy = Math.floor((action.energyCost || 0) * scaleFactor);
+  const costEnergy = isInfiniteEnergyActive ? 0 : Math.max(0, Math.round(rawCostEnergy * (1 - energyCostReduction / 100)));
+  
+  const rawCostMoney = Math.floor((action.moneyCost || 0) * scaleFactor);
+  const costMoney = Math.max(0, Math.round(rawCostMoney * (1 - moneyCostReduction / 100)));
+  
+  const rawCostGems = Math.floor((action.gemsCost || 0) * scaleFactor);
+  const costGems = Math.max(0, Math.round(rawCostGems * (1 - gemsCostReduction / 100)));
+  
+  const rawCostBoost = Math.floor((action.boostCost || 0) * scaleFactor);
+  const costBoost = Math.max(0, Math.round(rawCostBoost * (1 - boostCostReduction / 100)));
   
   const gainEnergy = Math.floor((action.energyGain || 0) * scaleFactor);
-  const gainMoney = Math.floor((action.moneyGain || 0) * scaleFactor);
-  const gainGems = Math.floor((action.gemsGain || 0) * scaleFactor);
-  const gainBoost = Math.floor((action.boostGain || 0) * scaleFactor);
+  const gainMoney = Math.floor((action.moneyGain || 0) * scaleFactor * (1 + moneyBonusMod / 100));
+  const gainGems = Math.floor((action.gemsGain || 0) * scaleFactor * (1 + gemsBonusMod / 100));
+  const gainBoost = Math.floor((action.boostGain || 0) * scaleFactor * (1 + boostBonusMod / 100));
   const gainXp = Math.floor((action.xpGain || 0) * scaleFactor);
 
   const statIcons = {
@@ -382,16 +411,16 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
 
           <div>
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 mb-3 border border-white/10 text-center">
-              <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Butin prévu</div>
-              <div className="flex flex-wrap items-center justify-center gap-3 text-[10px]">
-                {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> +{gainEnergy}</span>}
-                {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> +{gainMoney}</span>}
-                {gainGems > 0 && <span className="text-pink-400 font-black flex items-center gap-1"><img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> +{gainGems}</span>}
-                {gainBoost > 0 && <span className="text-orange-500 font-black flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" /> +{gainBoost}</span>}
+              <div className="text-xs font-black text-blue-400/80 uppercase tracking-widest mb-3">Butin prévu</div>
+              <div className="flex flex-wrap items-center justify-center gap-4 text-xs sm:text-sm">
+                {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1.5"><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> +{gainEnergy}</span>}
+                {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1.5"><img src={LOGOS.money} alt="Money" className="w-5 h-5 object-contain" /> +{gainMoney}</span>}
+                {gainGems > 0 && <span className="text-pink-400 font-black flex items-center gap-1.5"><img src={LOGOS.gems} alt="Gems" className="w-5 h-5 object-contain" /> +{gainGems}</span>}
+                {gainBoost > 0 && <span className="text-orange-500 font-black flex items-center gap-1.5"><img src={LOGOS.boost} alt="Boost" className="w-5 h-5 object-contain" /> +{gainBoost}</span>}
                 
                 {action.targetStat && gainXp > 0 && (
-                  <span className="text-blue-400 font-black flex items-center gap-1">
-                    {statIcons[action.targetStat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
+                  <span className="text-blue-400 font-black flex items-center gap-1.5">
+                    {statIcons[action.targetStat as keyof typeof statIcons] || <Activity className="w-5 h-5" />}
                     +{gainXp}
                   </span>
                 )}
@@ -401,8 +430,8 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
                   const scaledGain = Math.floor(gain * scaleFactor);
                   if (scaledGain <= 0) return null;
                   return (
-                    <span key={stat} className="text-blue-400 font-black flex items-center gap-1">
-                      {statIcons[stat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
+                    <span key={stat} className="text-blue-400 font-black flex items-center gap-1.5">
+                      {statIcons[stat as keyof typeof statIcons] || <Activity className="w-5 h-5" />}
                       +{scaledGain}
                     </span>
                   );
@@ -410,11 +439,11 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
               </div>
             </div>
 
-            <div className="bg-black/60 backdrop-blur-md rounded-xl p-3 mb-4 border border-white/10 text-center flex justify-center items-center gap-2">
-              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Coût :</span>
-              {costEnergy > 0 && <span className="text-yellow-500 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}</span>}
-              {costMoney > 0 && <span className="text-yellow-400 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> {costMoney}</span>}
-              {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-[10px] flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> 0</span>}
+            <div className="bg-black/60 backdrop-blur-md rounded-xl p-3 mb-4 border border-white/10 text-center flex justify-center items-center gap-3">
+              <span className="text-xs font-black text-blue-400/80 uppercase tracking-widest">Coût :</span>
+              {costEnergy > 0 && <span className="text-yellow-500 font-black text-xs sm:text-sm flex items-center gap-1.5"><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> {costEnergy}</span>}
+              {costMoney > 0 && <span className="text-yellow-400 font-black text-xs sm:text-sm flex items-center gap-1.5"><img src={LOGOS.money} alt="Money" className="w-5 h-5 object-contain" /> {costMoney}</span>}
+              {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-xs sm:text-sm flex items-center gap-1.5"><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> 0</span>}
             </div>
 
             <div className="flex gap-3">
@@ -479,26 +508,31 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
         </div>
       </div>
       <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
-        <div className="bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg text-yellow-500 font-black text-[10px] border border-white/10 flex items-center justify-center gap-2 shadow-lg">
-          <img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> {costEnergy}
+        <div className="bg-black/80 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-yellow-500 font-black text-xs border border-white/10 flex items-center justify-center gap-2 shadow-lg">
+          <img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> {costEnergy}
         </div>
-        <div className="bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg text-orange-500 font-black text-[10px] border border-white/10 flex items-center justify-center gap-2 shadow-lg">
-          <Clock className="w-4 h-4" /> {action.durationMinutes >= 60 ? `${action.durationMinutes / 60}H` : `${action.durationMinutes}M`}
+        {costMoney > 0 && (
+          <div className="bg-black/80 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-yellow-400 font-black text-xs border border-white/10 flex items-center justify-center gap-2 shadow-lg">
+            <img src={LOGOS.money} alt="Money" className="w-5 h-5 object-contain" /> {costMoney}
+          </div>
+        )}
+        <div className="bg-black/80 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-orange-500 font-black text-xs border border-white/10 flex items-center justify-center gap-2 shadow-lg">
+          <Clock className="w-5 h-5" /> {action.durationMinutes >= 60 ? `${action.durationMinutes / 60}H` : `${action.durationMinutes}M`}
         </div>
       </div>
 
-      <div className="relative z-10 p-4 flex flex-col justify-end mt-auto">
+      <div className="relative z-10 p-4 flex flex-col justify-end mt-auto bg-gradient-to-t from-black/90 via-black/40 to-transparent">
         <div>
-          <h4 className="font-black text-white uppercase tracking-tighter text-center text-lg mb-2 drop-shadow-md">{action.name}</h4>
-          <div className="flex flex-wrap justify-center items-center gap-3 text-[10px] font-black mb-4 drop-shadow-md">
-            {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1"><img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" /> +{gainEnergy}</span>}
-            {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1"><img src={LOGOS.money} alt="Money" className="w-4 h-4 object-contain" /> +{gainMoney}</span>}
-            {gainGems > 0 && <span className="text-pink-400 flex items-center gap-1"><img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> +{gainGems}</span>}
-            {gainBoost > 0 && <span className="text-orange-500 flex items-center gap-1"><img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" /> +{gainBoost}</span>}
+          <h4 className="font-black text-white uppercase tracking-tighter text-center text-lg mb-3 drop-shadow-md">{action.name}</h4>
+          <div className="flex flex-wrap justify-center items-center gap-4 text-xs sm:text-sm font-black mb-4 drop-shadow-md">
+            {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded border border-white/5"><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> +{gainEnergy}</span>}
+            {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded border border-white/5"><img src={LOGOS.money} alt="Money" className="w-5 h-5 object-contain" /> +{gainMoney}</span>}
+            {gainGems > 0 && <span className="text-pink-400 flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded border border-white/5"><img src={LOGOS.gems} alt="Gems" className="w-5 h-5 object-contain" /> +{gainGems}</span>}
+            {gainBoost > 0 && <span className="text-orange-500 flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded border border-white/5"><img src={LOGOS.boost} alt="Boost" className="w-5 h-5 object-contain" /> +{gainBoost}</span>}
             
             {action.targetStat && gainXp > 0 && (
-              <span className="text-blue-400 flex items-center gap-1">
-                {statIcons[action.targetStat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
+              <span className="text-blue-400 flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded border border-white/5">
+                {statIcons[action.targetStat as keyof typeof statIcons] || <Activity className="w-5 h-5" />}
                 +{gainXp}
               </span>
             )}
@@ -508,8 +542,8 @@ export function LifeActionCard({ action, fanz, userProfile }: LifeActionCardProp
               const scaledGain = Math.floor(gain * scaleFactor);
               if (scaledGain <= 0) return null;
               return (
-                <span key={stat} className="text-blue-400 flex items-center gap-1">
-                  {statIcons[stat as keyof typeof statIcons] || <Activity className="w-4 h-4" />}
+                <span key={stat} className="text-blue-400 flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded border border-white/5">
+                  {statIcons[stat as keyof typeof statIcons] || <Activity className="w-5 h-5" />}
                   +{scaledGain}
                 </span>
               );

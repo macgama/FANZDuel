@@ -50,7 +50,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
           const fanzSnap = await getDocs(collection(db, 'fanz_templates'));
           fanzSnap.forEach(doc => {
             const data = doc.data();
-            if (data.skins) {
+            if (data.skins && Array.isArray(data.skins)) {
               data.skins.forEach((s: FanzSkin) => {
                 if (s.id) allSkins[s.id] = s;
               });

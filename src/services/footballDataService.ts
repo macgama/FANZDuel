@@ -103,7 +103,7 @@ export const footballDataService = {
         }
         await this.setLastUpdated(cacheKey);
       }
-      return leagues;
+      return leagues || [];
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
       return [];
@@ -172,7 +172,7 @@ export const footballDataService = {
         await this.setLastUpdated(cacheKey);
       }
 
-      return standings;
+      return standings || [];
     } catch (error: any) {
       if (error.message?.includes('API Data Error')) {
         console.error('API Error in getStandings:', error.message);
@@ -220,7 +220,7 @@ export const footballDataService = {
         await this.setLastUpdated(cacheKey);
       }
 
-      return fixtures;
+      return fixtures || [];
     } catch (error: any) {
       if (error.message?.includes('API Data Error')) {
         console.error('API Error in getFixtures:', error.message);
@@ -263,7 +263,7 @@ export const footballDataService = {
         await this.setLastUpdated(cacheKey);
       }
 
-      return teams;
+      return teams || [];
     } catch (error: any) {
       if (error.message?.includes('API Data Error')) {
         console.error('API Error in getTeams:', error.message);
@@ -307,7 +307,7 @@ export const footballDataService = {
         await this.setLastUpdated(cacheKey);
       }
 
-      return fixtures;
+      return fixtures || [];
     } catch (error: any) {
       if (error.message?.includes('API Data Error')) {
         console.error('API Error in getFixturesByTeam:', error.message);

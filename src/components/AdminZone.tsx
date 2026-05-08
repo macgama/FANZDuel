@@ -4,10 +4,11 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where, getDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
 import { Card, Button } from './Layout';
 import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle, DuelConfig, FanzSkin, PassLevel } from '../types';
-import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog } from 'lucide-react';
+import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog, List, LayoutGrid, ChevronUp, ChevronDown } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { generateFervorPath } from '../utils/fervorPath';
 import { RewardSelector } from './RewardSelector';
+import { FanzSkinsTable, FanzEmotesTable, FanzFerveurTable } from './FanzItemsTable';
 import { BASE_CARDS } from '../constants/cards';
 import { ALL_FANZ } from '../constants/fanz';
 import { LOGOS } from '../constants';
@@ -15,7 +16,7 @@ import { LOGOS } from '../constants';
 import { footballDataService } from '../services/footballDataService';
 
 export function AdminZone() {
-  const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig'>('football');
+  const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig' | 'shop'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
   const [confirmRecalculate, setConfirmRecalculate] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -29,16 +30,27 @@ export function AdminZone() {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [manualLeagueId, setManualLeagueId] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<{ type: 'info' | 'success' | 'error', message: string } | null>(null);
+  const [status, setStatus] = useState<{ type: 'info' | 'success' | 'error' | 'loading', message: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Life Actions state
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
   const [editingAction, setEditingAction] = useState<LifeAction | null>(null);
+  const [filterLifeActionFanz, setFilterLifeActionFanz] = useState<string>('all');
+  const [lifeActionViewMode, setLifeActionViewMode] = useState<'grid'|'list'>('grid');
+  const [lifeActionSort, setLifeActionSort] = useState<{column: string, direction: 'asc'|'desc'} | null>(null);
+  const [searchLifeAction, setSearchLifeAction] = useState<string>('');
 
   // Duel Cards state
   const [duelCards, setDuelCards] = useState<DuelCard[]>([]);
   const [editingCard, setEditingCard] = useState<DuelCard | null>(null);
+  const [filterCardType, setFilterCardType] = useState<string>('all');
+  const [filterCardRarity, setFilterCardRarity] = useState<string>('all');
+  const [filterCardFanz, setFilterCardFanz] = useState<string>('all');
+  const [cardViewMode, setCardViewMode] = useState<'grid'|'list'>('grid');
+  const [cardSort, setCardSort] = useState<{column: string, direction: 'asc'|'desc'} | null>(null);
+  const [searchCard, setSearchCard] = useState<string>('');
+
 
   // Fanz state
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
@@ -64,12 +76,53 @@ export function AdminZone() {
   const [editingCycle, setEditingCycle] = useState<WeeklyStreakCycle | null>(null);
   const [editingMission, setEditingMission] = useState<Mission | null>(null);
   const [editingPass, setEditingPass] = useState<Pass | null>(null);
+  const [shopConfig, setShopConfig] = useState<any | null>(null);
+
+  const fetchShopConfig = async () => {
+    try {
+      setStatus({ type: 'loading', message: 'Chargement config de la boutique...' });
+      const docRef = doc(db, 'global_configs', 'shop');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setShopConfig(docSnap.data());
+      } else {
+        const defaultShopConfig = {
+          id: 'shop',
+          ferveurPacks: [
+             { id: 'pack_1', name: 'Pack Ferveur Standard', price: 5, numberOfRewards: 1, description: '1 Récompense (Skin, Carte, Énergie...)' },
+             { id: 'pack_2', name: 'Pack Ferveur Épique', price: 9, numberOfRewards: 2, description: '2 Récompenses (Skins, Cartes, Énergie...)' },
+             { id: 'pack_3', name: 'Pack Ferveur Légendaire', price: 13, numberOfRewards: 3, description: '3 Récompenses (Skins, Cartes, Énergie...)' }
+          ]
+        };
+        setShopConfig(defaultShopConfig);
+      }
+      setStatus(null);
+    } catch (err) {
+      console.error(err);
+      setStatus({ type: 'error', message: 'Erreur lors du chargement' });
+    }
+  };
+
+  const handleSaveShopConfig = async (newConfig: any) => {
+    try {
+      setStatus({ type: 'loading', message: 'Sauvegarde config boutique...' });
+      await setDoc(doc(db, 'global_configs', 'shop'), newConfig);
+      setShopConfig(newConfig);
+      setStatus({ type: 'success', message: 'Config boutique sauvegardée' });
+      setTimeout(() => setStatus(null), 3000);
+    } catch (err) {
+      console.error(err);
+      setStatus({ type: 'error', message: 'Erreur lors de la sauvegarde' });
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'lifeActions') {
       fetchLifeActions();
+      if (fanzTemplates.length === 0) fetchFanzTemplates();
     } else if (activeTab === 'duelCards') {
       fetchDuelCards();
+      if (fanzTemplates.length === 0) fetchFanzTemplates();
     } else if (activeTab === 'fanz') {
       fetchFanzTemplates();
       fetchUserFervorConfig();
@@ -104,6 +157,8 @@ export function AdminZone() {
       }
     } else if (activeTab === 'duelConfig') {
       fetchDuelConfig();
+    } else if (activeTab === 'shop') {
+      fetchShopConfig();
     }
   }, [activeTab, activeUserSubTab]); // Added activeUserSubTab to dependencies
 
@@ -796,8 +851,8 @@ export function AdminZone() {
         const uData = uSnap.data() as UserProfile;
         let changed = false;
 
-        const fixArray = (arr: string[] | undefined) => {
-          if (!arr) return arr;
+        const fixArray = (arr: string[] | undefined | any) => {
+          if (!arr || !Array.isArray(arr)) return arr;
           const newArr: string[] = [];
           arr.forEach(item => {
             if (item.startsWith('skin') || item.startsWith('emote')) {
@@ -1295,7 +1350,7 @@ export function AdminZone() {
       effects: [],
       imageUrl: '',
       videoUrl: '',
-      fanzIds: []
+      fanzIds: filterCardFanz !== 'all' && filterCardFanz !== 'generic' ? [filterCardFanz] : []
     });
   };
 
@@ -1359,7 +1414,7 @@ export function AdminZone() {
     const newId = `action-${Date.now()}`;
     setEditingAction({
       id: newId,
-      fanzTemplateId: '',
+      fanzTemplateId: filterLifeActionFanz !== 'all' && filterLifeActionFanz !== 'generic' ? filterLifeActionFanz : '',
       name: 'Nouvelle Action',
       durationMinutes: 30,
       energyCost: 0,
@@ -1842,6 +1897,12 @@ export function AdminZone() {
           onClick={() => setActiveTab('duelConfig')}
         >
           Config DUEL
+        </button>
+        <button
+          className={`pb-2 px-4 font-bold ${activeTab === 'shop' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          onClick={() => setActiveTab('shop')}
+        >
+          BOUTIQUE 
         </button>
       </div>
 
@@ -3041,11 +3102,26 @@ export function AdminZone() {
                     <input
                       type="text"
                       value={(editingCard.fanzIds || []).join(', ')}
-                      onChange={e => setEditingCard({...editingCard, fanzIds: e.target.value ? e.target.value.split(',').map(s => s.trim()).filter(Boolean) : []})}
+                      onChange={e => setEditingCard({...editingCard, fanzIds: e.target.value ? e.target.value.split(',').map(s => s.trim()).filter(Boolean) : [], skinId: undefined})}
                       placeholder="Ex: fanz-001, fanz-002 (Laissez vide pour tous)"
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                     />
                   </div>
+                  {editingCard.fanzIds && editingCard.fanzIds.length === 1 && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-500">Skin spécifique (Optionnel)</label>
+                      <select
+                        value={editingCard.skinId || ''}
+                        onChange={e => setEditingCard({...editingCard, skinId: e.target.value})}
+                        className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                      >
+                        <option value="">Tous les skins du FANZ</option>
+                        {fanzTemplates.find(f => f.id === editingCard.fanzIds![0])?.skins?.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">Fanz Bloqués (Optionnel)</label>
                     <input
@@ -3259,8 +3335,103 @@ export function AdminZone() {
             </Card>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {duelCards.map((card) => (
+          <div className="flex flex-wrap gap-4 mb-4">
+            <select
+              value={filterCardType}
+              onChange={(e) => setFilterCardType(e.target.value)}
+              className="p-2 bg-[#1a1a2e] border border-white/20 rounded-lg text-white font-bold text-sm"
+            >
+              <option value="all">Tous les types</option>
+              <option value="bonus">Bonus</option>
+              <option value="malus">Malus</option>
+              <option value="neutral">Neutre</option>
+            </select>
+            <select
+              value={filterCardRarity}
+              onChange={(e) => setFilterCardRarity(e.target.value)}
+              className="p-2 bg-[#1a1a2e] border border-white/20 rounded-lg text-white font-bold text-sm"
+            >
+              <option value="all">Toutes raretés</option>
+              <option value="common">Commune</option>
+              <option value="rare">Rare</option>
+              <option value="epic">Épique</option>
+              <option value="legendary">Légendaire</option>
+            </select>
+            <select
+              value={filterCardFanz}
+              onChange={(e) => setFilterCardFanz(e.target.value)}
+              className="p-2 bg-[#1a1a2e] border border-white/20 rounded-lg text-white font-bold text-sm"
+            >
+              <option value="all">Tous les FANZ</option>
+              <option value="generic">Cartes Génériques</option>
+              {effectiveFanzTemplates.map(fanz => (
+                <option key={fanz.id} value={fanz.id}>{fanz.id} - {fanz.name}</option>
+              ))}
+            </select>
+
+            <div className="flex-1 relative min-w-[200px]">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Rechercher une carte..."
+                value={searchCard}
+                onChange={(e) => setSearchCard(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-[#1a1a2e] border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div className="flex bg-[#1a1a2e] border border-white/20 rounded-lg overflow-hidden ml-auto">
+              <button 
+                onClick={() => setCardViewMode('grid')}
+                className={`p-2 transition-colors ${cardViewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              >
+                 <LayoutGrid className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setCardViewMode('list')}
+                className={`p-2 transition-colors ${cardViewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              >
+                 <List className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {(() => {
+            const sortedDuelCards = duelCards.filter(c => {
+               if (filterCardType !== 'all' && c.type !== filterCardType) return false;
+               if (filterCardRarity !== 'all' && c.rarity !== filterCardRarity) return false;
+               if (filterCardFanz !== 'all') {
+                 if (filterCardFanz === 'generic' && c.fanzIds && c.fanzIds.length > 0) return false;
+                 if (filterCardFanz !== 'generic' && (!c.fanzIds || !c.fanzIds.includes(filterCardFanz))) return false;
+               }
+               if (searchCard.trim()) {
+                 const q = searchCard.toLowerCase();
+                 if (!c.name.toLowerCase().includes(q) && !(c.id || '').toLowerCase().includes(q)) return false;
+               }
+               return true;
+            }).sort((a, b) => {
+              if (!cardSort) return 0;
+              const { column, direction } = cardSort;
+              const aVal = String(a[column as keyof typeof a] || '').toLowerCase();
+              const bVal = String(b[column as keyof typeof b] || '').toLowerCase();
+              return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            const handleCardSort = (col: string) => {
+              if (cardSort?.column === col) {
+                setCardSort({ column: col, direction: cardSort.direction === 'asc' ? 'desc' : 'asc' });
+              } else {
+                setCardSort({ column: col, direction: 'asc' });
+              }
+            };
+            
+            return (
+              <>
+                {cardViewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {sortedDuelCards.map((card) => (
               <Card key={card.id} className="p-4 hover:border-blue-500 transition-colors cursor-pointer group" onClick={() => setEditingCard(card)}>
                 <div className="relative aspect-[3/4] rounded-lg overflow-hidden mb-3 bg-gray-100">
                   {card.videoUrl ? (
@@ -3305,13 +3476,88 @@ export function AdminZone() {
                 </div>
               </Card>
             ))}
-            {duelCards.length === 0 && !loading && (
-              <div className="col-span-full text-center p-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-xl">
-                <Layers className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p>Aucune carte DUEL trouvée. Utilisez "Synchroniser Base" pour commencer.</p>
-              </div>
-            )}
-          </div>
+                  </div>
+                ) : (
+                  <div className="bg-[#1a1a2e] rounded-xl border border-white/10 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm text-gray-300">
+                        <thead className="bg-black/40 text-xs font-black uppercase text-gray-400">
+                          <tr>
+                            <th className="px-4 py-3 align-middle text-center w-16">Image</th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white" onClick={() => handleCardSort('name')}>
+                              <div className="flex items-center gap-1">Nom {cardSort?.column === 'name' ? (cardSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white" onClick={() => handleCardSort('type')}>
+                              <div className="flex items-center gap-1">Type {cardSort?.column === 'type' ? (cardSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white" onClick={() => handleCardSort('rarity')}>
+                              <div className="flex items-center gap-1">Rareté {cardSort?.column === 'rarity' ? (cardSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white" onClick={() => handleCardSort('fanzIds')}>
+                              <div className="flex items-center gap-1">Fanz {cardSort?.column === 'fanzIds' ? (cardSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white text-center" onClick={() => handleCardSort('energyCost')}>
+                              <div className="flex items-center justify-center gap-1">Coût {cardSort?.column === 'energyCost' ? (cardSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle text-center w-16">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {sortedDuelCards.map((card) => (
+                            <tr key={card.id} className="hover:bg-white/5 cursor-pointer transition-colors" onClick={() => setEditingCard(card)}>
+                              <td className="px-4 py-2 align-middle">
+                                <div className="w-12 h-16 rounded overflow-hidden bg-black/40 border border-white/10 shrink-0">
+                                   {card.videoUrl ? (
+                                     <video src={getImageUrl(card.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                                   ) : (
+                                     <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" />
+                                   )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 align-middle font-bold text-white max-w-[200px] truncate">{card.name}</td>
+                              <td className="px-4 py-3 align-middle">
+                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded flex w-fit ${
+                                  card.type === 'bonus' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
+                                  card.type === 'malus' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
+                                  'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                                }`}>
+                                  {card.type}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 align-middle capitalize">{card.rarity}</td>
+                              <td className="px-4 py-3 align-middle text-xs text-blue-400 font-bold max-w-[150px] truncate">
+                                {card.fanzIds?.length ? card.fanzIds.join(', ') : 'Générique'}
+                              </td>
+                              <td className="px-4 py-3 align-middle text-center font-bold text-yellow-500">{card.energyCost}</td>
+                              <td className="px-4 py-3 align-middle text-center">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-red-500 hover:text-red-400 hover:bg-red-500/10 p-1.5 h-auto border-red-500/30 mx-auto"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteDuelCard(card.id);
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                {duelCards.length === 0 && !loading && (
+                  <div className="col-span-full text-center p-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-xl">
+                    <Layers className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p>Aucune carte DUEL trouvée. Utilisez "Synchroniser Base" pour commencer.</p>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
       {activeTab === 'lifeActions' && (
@@ -3342,15 +3588,33 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">ID du Fanz (Optionnel)</label>
-                    <input
-                      type="text"
+                    <label className="text-sm font-medium text-gray-500">Appartenance FANZ (Optionnel)</label>
+                    <select
                       value={editingAction.fanzTemplateId || ''}
-                      onChange={e => setEditingAction({...editingAction, fanzTemplateId: e.target.value})}
-                      placeholder="Ex: fanz-001 (Laissez vide pour tous)"
+                      onChange={e => setEditingAction({...editingAction, fanzTemplateId: e.target.value, skinId: undefined})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
-                    />
+                    >
+                      <option value="">Tous les FANZ</option>
+                      {fanzTemplates.map(f => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
                   </div>
+                  {editingAction.fanzTemplateId && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-500">Skin spécifique (Optionnel)</label>
+                      <select
+                        value={editingAction.skinId || ''}
+                        onChange={e => setEditingAction({...editingAction, skinId: e.target.value})}
+                        className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                      >
+                        <option value="">Tous les skins du FANZ</option>
+                        {fanzTemplates.find(f => f.id === editingAction.fanzTemplateId)?.skins?.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">Nom de l'action</label>
                     <input
@@ -3506,53 +3770,195 @@ export function AdminZone() {
             </Card>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {lifeActions.map((action) => (
-              <Card key={action.id} className="p-4 hover:border-blue-500 transition-colors cursor-pointer" onClick={() => setEditingAction(action)}>
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 relative">
-                    {action.videoUrl ? (
-                      <video 
-                        key={getImageUrl(action.videoUrl)}
-                        src={getImageUrl(action.videoUrl)}
-                        poster={getImageUrl(action.image)}
-                        className="w-full h-full object-cover"
-                        autoPlay muted loop playsInline
-                      />
-                    ) : action.image ? (
-                      <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><Activity className="w-8 h-8 text-gray-400" /></div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-lg">{action.name}</h4>
-                    <div className="text-sm text-gray-500">{action.durationMinutes} minutes</div>
-                    <div className="text-xs text-gray-400 mt-1">ID: {action.id}</div>
-                    {action.fanzTemplateId && (
-                      <div className="text-xs text-blue-500 mt-1 font-bold">Fanz: {action.fanzTemplateId}</div>
-                    )}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteLifeAction(action.id);
-                    }}
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-            {lifeActions.length === 0 && !loading && (
-              <div className="col-span-full text-center p-8 text-gray-500">
-                Aucune action LIFE trouvée dans la base de données.
+          <div className="flex flex-wrap gap-4 mb-4">
+            <select
+              value={filterLifeActionFanz}
+              onChange={(e) => setFilterLifeActionFanz(e.target.value)}
+              className="p-2 bg-[#1a1a2e] border border-white/20 rounded-lg text-white font-bold text-sm"
+            >
+              <option value="all">Tous les FANZ</option>
+              <option value="generic">Actions Génériques</option>
+              {effectiveFanzTemplates.map(fanz => (
+                <option key={fanz.id} value={fanz.id}>{fanz.id} - {fanz.name}</option>
+              ))}
+            </select>
+
+            <div className="flex-1 relative min-w-[200px]">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
               </div>
-            )}
+              <input
+                type="text"
+                placeholder="Rechercher une action..."
+                value={searchLifeAction}
+                onChange={(e) => setSearchLifeAction(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-[#1a1a2e] border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex bg-[#1a1a2e] border border-white/20 rounded-lg overflow-hidden ml-auto">
+              <button 
+                onClick={() => setLifeActionViewMode('grid')}
+                className={`p-2 transition-colors ${lifeActionViewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              >
+                 <LayoutGrid className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setLifeActionViewMode('list')}
+                className={`p-2 transition-colors ${lifeActionViewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              >
+                 <List className="w-5 h-5" />
+              </button>
+            </div>
           </div>
+
+          {(() => {
+            const sortedLifeActions = lifeActions.filter(action => {
+              if (filterLifeActionFanz !== 'all') {
+                if (filterLifeActionFanz === 'generic' && action.fanzTemplateId) return false;
+                if (filterLifeActionFanz !== 'generic' && action.fanzTemplateId !== filterLifeActionFanz) return false;
+              }
+              if (searchLifeAction.trim()) {
+                const q = searchLifeAction.toLowerCase();
+                if (!action.name.toLowerCase().includes(q) && !(action.id || '').toLowerCase().includes(q)) return false;
+              }
+              return true;
+            }).sort((a, b) => {
+              if (!lifeActionSort) return 0;
+              const { column, direction } = lifeActionSort;
+              const aVal = String(a[column as keyof typeof a] || '').toLowerCase();
+              const bVal = String(b[column as keyof typeof b] || '').toLowerCase();
+              return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            const handleActionSort = (col: string) => {
+              if (lifeActionSort?.column === col) {
+                setLifeActionSort({ column: col, direction: lifeActionSort.direction === 'asc' ? 'desc' : 'asc' });
+              } else {
+                setLifeActionSort({ column: col, direction: 'asc' });
+              }
+            };
+            
+            return (
+              <>
+                {lifeActionViewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {sortedLifeActions.map((action) => (
+                      <Card key={action.id} className="p-4 hover:border-blue-500 transition-colors cursor-pointer" onClick={() => setEditingAction(action)}>
+                        <div className="flex items-start gap-4">
+                          <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 relative">
+                            {action.videoUrl ? (
+                              <video 
+                                key={getImageUrl(action.videoUrl)}
+                                src={getImageUrl(action.videoUrl)}
+                                poster={getImageUrl(action.image)}
+                                className="w-full h-full object-cover"
+                                autoPlay muted loop playsInline
+                              />
+                            ) : action.image ? (
+                              <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center"><Activity className="w-8 h-8 text-gray-400" /></div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-lg">{action.name}</h4>
+                            <div className="text-sm text-gray-500">{action.durationMinutes} minutes</div>
+                            <div className="text-xs text-gray-400 mt-1">ID: {action.id}</div>
+                            {action.fanzTemplateId && (
+                              <div className="text-xs text-blue-500 mt-1 font-bold">Fanz: {action.fanzTemplateId}</div>
+                            )}
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteLifeAction(action.id);
+                            }}
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-[#1a1a2e] rounded-xl border border-white/10 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm text-gray-300">
+                        <thead className="bg-black/40 text-xs font-black uppercase text-gray-400">
+                          <tr>
+                            <th className="px-4 py-3 align-middle text-center w-16">Image</th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white" onClick={() => handleActionSort('name')}>
+                              <div className="flex items-center gap-1">Nom {lifeActionSort?.column === 'name' ? (lifeActionSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white text-center" onClick={() => handleActionSort('durationMinutes')}>
+                              <div className="flex items-center justify-center gap-1">Durée {lifeActionSort?.column === 'durationMinutes' ? (lifeActionSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white" onClick={() => handleActionSort('fanzTemplateId')}>
+                              <div className="flex items-center gap-1">Fanz {lifeActionSort?.column === 'fanzTemplateId' ? (lifeActionSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle cursor-pointer hover:text-white" onClick={() => handleActionSort('id')}>
+                              <div className="flex items-center gap-1">ID {lifeActionSort?.column === 'id' ? (lifeActionSort.direction === 'asc' ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>) : null}</div>
+                            </th>
+                            <th className="px-4 py-3 align-middle text-center w-16">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {sortedLifeActions.map((action) => (
+                            <tr key={action.id} className="hover:bg-white/5 cursor-pointer transition-colors" onClick={() => setEditingAction(action)}>
+                              <td className="px-4 py-2 align-middle">
+                                <div className="w-12 h-12 rounded overflow-hidden bg-black/40 border border-white/10 shrink-0">
+                                   {action.videoUrl ? (
+                                     <video src={getImageUrl(action.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                                   ) : action.image ? (
+                                     <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+                                   ) : (
+                                     <div className="w-full h-full flex items-center justify-center"><Activity className="w-6 h-6 text-gray-400" /></div>
+                                   )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 align-middle">
+                                <div className="font-bold text-white max-w-[200px] truncate">{action.name}</div>
+                                {action.fanzTemplateId && (
+                                  <div className="text-[10px] text-blue-400 font-bold mt-1">Fanz: {action.fanzTemplateId}</div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 align-middle text-center">{action.durationMinutes} min</td>
+                              <td className="px-4 py-3 align-middle text-xs text-blue-400 font-bold max-w-[150px] truncate">
+                                {action.fanzTemplateId ? action.fanzTemplateId : 'Générique'}
+                              </td>
+                              <td className="px-4 py-3 align-middle text-xs text-gray-500 font-mono">{action.id}</td>
+                              <td className="px-4 py-3 align-middle text-center">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-red-500 hover:text-red-400 hover:bg-red-500/10 p-1.5 h-auto border-red-500/30 mx-auto"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteLifeAction(action.id);
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                {lifeActions.length === 0 && !loading && (
+                  <div className="col-span-full text-center p-8 text-gray-500">
+                    Aucune action LIFE trouvée dans la base de données.
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
       {activeTab === 'fanz' && (
@@ -3855,17 +4261,6 @@ export function AdminZone() {
                     )}
                     {editingFanz.ferveurConfig && (
                       <div className="flex gap-2">
-                         <Button type="button" size="sm" onClick={() => {
-                            const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
-                            newRanges.push({ 
-                              level: newRanges.length + 1, min: 0, max: 0, step: 1000, 
-                              levelReward: { type: 'money', amount: 100 }, 
-                              intermediateReward: { type: 'money', amount: 50 } 
-                            });
-                            setEditingFanz({...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig, ranges: newRanges }});
-                         }}>
-                            Ajouter Niveau
-                         </Button>
                          <Button type="button" size="sm" variant="outline" className="text-red-500" onClick={() => {
                             setEditingFanz({...editingFanz, ferveurConfig: undefined});
                          }}>
@@ -3880,104 +4275,14 @@ export function AdminZone() {
                       Ce FANZ utilise la configuration de ferveur par défaut. Cliquez sur "Personnaliser à partir du Global" pour modifier les paliers spécifiquement pour ce FANZ.
                     </div>
                   ) : (
-                    <div className="space-y-6">
-                      {(editingFanz.ferveurConfig.ranges || []).map((range, idx) => (
-                        <div key={idx} className="p-4 rounded-xl border bg-gray-800/50 border-orange-900/30 space-y-4 relative">
-                          <button 
-                            onClick={() => {
-                              const newRanges = (editingFanz.ferveurConfig?.ranges || []).filter((_, i) => i !== idx);
-                              newRanges.forEach((r, i) => r.level = i + 1);
-                              setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
-                            }}
-                            className="absolute top-2 right-2 text-red-500 hover:text-red-400"
-                            type="button"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-black text-orange-400 uppercase italic">
-                              NIVEAU {range.level}
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-3 gap-2">
-                            <div>
-                              <label className="text-[10px] font-bold uppercase text-gray-500">Min</label>
-                              <input
-                                type="number"
-                                value={range.min}
-                                onChange={(e) => {
-                                  const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
-                                  newRanges[idx] = { ...range, min: Number(e.target.value) };
-                                  setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
-                                }}
-                                className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold uppercase text-gray-500">Max</label>
-                              <input
-                                type="number"
-                                value={range.max}
-                                onChange={(e) => {
-                                  const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
-                                  newRanges[idx] = { ...range, max: Number(e.target.value) };
-                                  setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
-                                }}
-                                className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold uppercase text-gray-500">Pas</label>
-                              <input
-                                type="number"
-                                value={range.step}
-                                onChange={(e) => {
-                                  const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
-                                  newRanges[idx] = { ...range, step: Number(e.target.value) };
-                                  setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
-                                }}
-                                className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2 mt-4">
-                            <label className="text-[10px] font-bold uppercase text-gray-500">Récompense de Niveau</label>
-                            <RewardSelector
-                              reward={range.levelReward}
-                              onChange={(reward) => {
-                                const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
-                                newRanges[idx] = { ...range, levelReward: reward };
-                                setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
-                              }}
-                              fanzTemplates={effectiveFanzTemplates}
-                              lifeActions={lifeActions}
-                              duelCards={duelCards}
-                              isFanzContext={true}
-                              currentFanzId={editingFanz.id}
-                            />
-                          </div>
-
-                          <div className="space-y-2 mt-4 pt-4 border-t border-gray-700">
-                            <label className="text-[10px] font-bold uppercase text-gray-500">Gain Intermédiaire</label>
-                            <RewardSelector
-                              reward={range.intermediateReward}
-                              onChange={(reward) => {
-                                const newRanges = [...(editingFanz.ferveurConfig?.ranges || [])];
-                                newRanges[idx] = { ...range, intermediateReward: reward };
-                                setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges: newRanges } });
-                              }}
-                              fanzTemplates={effectiveFanzTemplates}
-                              lifeActions={lifeActions}
-                              duelCards={duelCards}
-                              isFanzContext={true}
-                              currentFanzId={editingFanz.id}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <FanzFerveurTable 
+                      ranges={editingFanz.ferveurConfig.ranges || []} 
+                      onChange={ranges => setEditingFanz({ ...editingFanz, ferveurConfig: { ...editingFanz.ferveurConfig!, ranges } })} 
+                      fanzId={editingFanz.id} 
+                      fanzTemplates={effectiveFanzTemplates}
+                      lifeActions={lifeActions}
+                      duelCards={duelCards}
+                    />
                   )}
                 </div>
 
@@ -3992,188 +4297,14 @@ export function AdminZone() {
                     <h4 className="font-bold flex items-center gap-2">
                       <Star className="w-5 h-5 text-purple-500" /> Skins du Fanz
                     </h4>
-                    <Button type="button" size="sm" onClick={() => {
-                      const newSkins = [...(editingFanz.skins || []), { id: `${editingFanz.id}_skin-${Date.now()}`, fanzId: editingFanz.id, name: 'Nouveau Skin', imageUrl: '', videoUrl: '', price: { money: 1000 } }];
-                      setEditingFanz({...editingFanz, skins: newSkins});
-                    }}>
-                      Ajouter Skin
-                    </Button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(editingFanz.skins || []).map((skin, sIdx) => (
-                      <div key={sIdx} className="p-4 bg-gray-900/50 rounded-xl space-y-3 border border-gray-800 relative group">
-                        <div className="absolute top-2 right-2 flex gap-2 z-10">
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-white border-white/20 hover:bg-white/10"
-                            onClick={() => {
-                              const newSkins = [...editingFanz.skins, { ...skin, id: `skin-${Date.now()}`, name: `${skin.name} (Copie)` }];
-                              setEditingFanz({...editingFanz, skins: newSkins});
-                            }}
-                          >
-                            Dupliquer
-                          </Button>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-red-500 hover:text-white hover:bg-red-500 border-red-500/50"
-                            onClick={() => {
-                              const newSkins = editingFanz.skins.filter((_, i) => i !== sIdx);
-                              setEditingFanz({...editingFanz, skins: newSkins});
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 pt-8 relative z-0">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Nom</label>
-                            <input
-                              type="text"
-                              value={skin.name}
-                              onChange={e => {
-                                const newSkins = [...editingFanz.skins];
-                                newSkins[sIdx] = { ...skin, name: e.target.value };
-                                setEditingFanz({...editingFanz, skins: newSkins});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">ID</label>
-                            <input
-                              type="text"
-                              value={skin.id}
-                              onChange={e => {
-                                const newSkins = [...editingFanz.skins];
-                                newSkins[sIdx] = { ...skin, id: e.target.value };
-                                setEditingFanz({...editingFanz, skins: newSkins});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Image URL</label>
-                            <input
-                              type="text"
-                              value={skin.imageUrl}
-                              onChange={e => {
-                                const newSkins = [...editingFanz.skins];
-                                newSkins[sIdx] = { ...skin, imageUrl: e.target.value };
-                                setEditingFanz({...editingFanz, skins: newSkins});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Video URL</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={skin.videoUrl || ''}
-                                onChange={e => {
-                                  const newSkins = [...editingFanz.skins];
-                                  newSkins[sIdx] = { ...skin, videoUrl: e.target.value };
-                                  setEditingFanz({...editingFanz, skins: newSkins});
-                                }}
-                                className="flex-1 w-0 truncate p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                              />
-                              {skin.videoUrl && (
-                                <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden flex-shrink-0">
-                                  <video 
-                                    key={getImageUrl(skin.videoUrl)}
-                                    src={getImageUrl(skin.videoUrl)} 
-                                    className="w-full h-full object-cover"
-                                    autoPlay muted loop playsInline
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Argent</label>
-                            <input
-                              type="number"
-                              value={skin.price.money || 0}
-                              onChange={e => {
-                                const newSkins = [...editingFanz.skins];
-                                newSkins[sIdx] = { ...skin, price: { ...skin.price, money: Number(e.target.value) } };
-                                setEditingFanz({...editingFanz, skins: newSkins});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Gemmes</label>
-                            <input
-                              type="number"
-                              value={skin.price.gems || 0}
-                              onChange={e => {
-                                const newSkins = [...editingFanz.skins];
-                                newSkins[sIdx] = { ...skin, price: { ...skin.price, gems: Number(e.target.value) } };
-                                setEditingFanz({...editingFanz, skins: newSkins});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Boost</label>
-                            <input
-                              type="number"
-                              value={skin.price.boostPoints || 0}
-                              onChange={e => {
-                                const newSkins = [...editingFanz.skins];
-                                newSkins[sIdx] = { ...skin, price: { ...skin.price, boostPoints: Number(e.target.value) } };
-                                setEditingFanz({...editingFanz, skins: newSkins});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-800 mt-2 relative z-0">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Catégorie</label>
-                            <select
-                              value={skin.category || 'base'}
-                              onChange={e => {
-                                const newSkins = [...editingFanz.skins];
-                                newSkins[sIdx] = { ...skin, category: e.target.value as 'base' | 'event' };
-                                setEditingFanz({...editingFanz, skins: newSkins});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            >
-                              <option value="base">Permanent (Base)</option>
-                              <option value="event">Événementiel (Event)</option>
-                            </select>
-                          </div>
-                          {(skin.category === 'event') && (
-                            <div className="space-y-1 flex flex-col justify-end">
-                              <label className="flex items-center gap-2 cursor-pointer h-8 mt-4">
-                                <input
-                                  type="checkbox"
-                                  checked={skin.isActive !== false}
-                                  onChange={e => {
-                                    const newSkins = [...editingFanz.skins];
-                                    newSkins[sIdx] = { ...skin, isActive: e.target.checked };
-                                    setEditingFanz({...editingFanz, skins: newSkins});
-                                  }}
-                                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 bg-gray-800 border-gray-700"
-                                />
-                                <span className="text-xs font-bold uppercase text-gray-300">Skin Actif</span>
-                              </label>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <FanzSkinsTable 
+                    skins={editingFanz.skins || []} 
+                    onChange={skins => setEditingFanz({...editingFanz, skins})} 
+                    lifeActions={lifeActions} 
+                    duelCards={duelCards} 
+                    fanzId={editingFanz.id} 
+                  />
                 </div>
 
                 <div className="flex justify-end mt-4">
@@ -4187,197 +4318,12 @@ export function AdminZone() {
                     <h4 className="font-bold flex items-center gap-2">
                       <MessageCircle className="w-5 h-5 text-yellow-500" /> Emotes du Fanz
                     </h4>
-                    <Button type="button" size="sm" onClick={() => {
-                      const newEmotes = [...(editingFanz.emotes || []), { id: `${editingFanz.id}_emote-${Date.now()}`, fanzId: editingFanz.id, name: 'Nouvel Emote', imageUrl: '', price: { money: 500 } }];
-                      setEditingFanz({...editingFanz, emotes: newEmotes});
-                    }}>
-                      Ajouter Emote
-                    </Button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(editingFanz.emotes || []).map((emote, eIdx) => (
-                      <div key={eIdx} className="p-4 bg-gray-900/50 rounded-xl space-y-3 border border-gray-800 relative">
-                        <div className="absolute top-2 right-2 flex gap-2">
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-white border-white/20 hover:bg-white/10"
-                            onClick={() => {
-                              const newEmotes = [...editingFanz.emotes, { ...emote, id: `emote-${Date.now()}`, name: `${emote.name} (Copie)` }];
-                              setEditingFanz({...editingFanz, emotes: newEmotes});
-                            }}
-                          >
-                            Dupliquer
-                          </Button>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-red-500 hover:bg-red-500 hover:text-white border-red-500/50"
-                            onClick={() => {
-                               const newEmotes = editingFanz.emotes.filter((_, i) => i !== eIdx);
-                               setEditingFanz({...editingFanz, emotes: newEmotes});
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 pt-6">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Nom</label>
-                            <input
-                              type="text"
-                              value={emote.name}
-                              onChange={e => {
-                                const newEmotes = [...editingFanz.emotes];
-                                newEmotes[eIdx] = { ...emote, name: e.target.value };
-                                setEditingFanz({...editingFanz, emotes: newEmotes});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">ID</label>
-                            <input
-                              type="text"
-                              value={emote.id}
-                              onChange={e => {
-                                const newEmotes = [...editingFanz.emotes];
-                                newEmotes[eIdx] = { ...emote, id: e.target.value };
-                                setEditingFanz({...editingFanz, emotes: newEmotes});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Image URL</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={emote.imageUrl || ''}
-                                onChange={e => {
-                                  const newEmotes = [...editingFanz.emotes];
-                                  newEmotes[eIdx] = { ...emote, imageUrl: e.target.value };
-                                  setEditingFanz({...editingFanz, emotes: newEmotes});
-                                }}
-                                className="w-0 flex-1 p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                                placeholder="gs://... ou https://..."
-                              />
-                              {emote.imageUrl && (
-                                <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden flex-shrink-0">
-                                  <img src={getImageUrl(emote.imageUrl)} alt="Preview" className="w-full h-full object-cover" />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Video URL</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={emote.videoUrl || ''}
-                                onChange={e => {
-                                  const newEmotes = [...editingFanz.emotes];
-                                  newEmotes[eIdx] = { ...emote, videoUrl: e.target.value };
-                                  setEditingFanz({...editingFanz, emotes: newEmotes});
-                                }}
-                                className="w-0 flex-1 p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                                placeholder="gs://... ou https://..."
-                              />
-                              {emote.videoUrl && (
-                                <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden flex-shrink-0">
-                                  <video 
-                                    key={getImageUrl(emote.videoUrl)}
-                                    src={getImageUrl(emote.videoUrl)} 
-                                    className="w-full h-full object-cover"
-                                    autoPlay muted loop playsInline
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Argent</label>
-                            <input
-                              type="number"
-                              value={emote.price?.money || 0}
-                              onChange={e => {
-                                const newEmotes = [...editingFanz.emotes];
-                                newEmotes[eIdx] = { ...emote, price: { ...(emote.price || {}), money: Number(e.target.value) } };
-                                setEditingFanz({...editingFanz, emotes: newEmotes});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Gemmes</label>
-                            <input
-                              type="number"
-                              value={emote.price?.gems || 0}
-                              onChange={e => {
-                                const newEmotes = [...editingFanz.emotes];
-                                newEmotes[eIdx] = { ...emote, price: { ...(emote.price || {}), gems: Number(e.target.value) } };
-                                setEditingFanz({...editingFanz, emotes: newEmotes});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Boost</label>
-                            <input
-                              type="number"
-                              value={emote.price?.boostPoints || 0}
-                              onChange={e => {
-                                const newEmotes = [...editingFanz.emotes];
-                                newEmotes[eIdx] = { ...emote, price: { ...(emote.price || {}), boostPoints: Number(e.target.value) } };
-                                setEditingFanz({...editingFanz, emotes: newEmotes});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-800 mt-2 relative z-0">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-gray-400">Catégorie</label>
-                            <select
-                              value={emote.category || 'base'}
-                              onChange={e => {
-                                const newEmotes = [...editingFanz.emotes];
-                                newEmotes[eIdx] = { ...emote, category: e.target.value as 'base' | 'event' };
-                                setEditingFanz({...editingFanz, emotes: newEmotes});
-                              }}
-                              className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-xs"
-                            >
-                              <option value="base">Permanent (Base)</option>
-                              <option value="event">Événementiel (Event)</option>
-                            </select>
-                          </div>
-                          {(emote.category === 'event') && (
-                            <div className="space-y-1 flex flex-col justify-end">
-                              <label className="flex items-center gap-2 cursor-pointer h-8 mt-4">
-                                <input
-                                  type="checkbox"
-                                  checked={emote.isActive !== false}
-                                  onChange={e => {
-                                    const newEmotes = [...editingFanz.emotes];
-                                    newEmotes[eIdx] = { ...emote, isActive: e.target.checked };
-                                    setEditingFanz({...editingFanz, emotes: newEmotes});
-                                  }}
-                                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 bg-gray-800 border-gray-700"
-                                />
-                                <span className="text-xs font-bold uppercase text-gray-300">Emote Actif</span>
-                              </label>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <FanzEmotesTable 
+                    emotes={editingFanz.emotes || []} 
+                    onChange={emotes => setEditingFanz({...editingFanz, emotes})} 
+                    fanzId={editingFanz.id} 
+                  />
                 </div>
 
                 <div className="flex justify-end mt-4">
@@ -4577,132 +4523,91 @@ export function AdminZone() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {fanzFervorConfig.ranges?.map((range, idx) => (
-                  <div key={idx} className="p-4 rounded-xl border bg-gray-800/50 border-orange-900/30 space-y-4 relative">
-                    <button 
-                      onClick={() => {
-                        const newRanges = fanzFervorConfig.ranges.filter((_, i) => i !== idx);
-                        // Re-number levels
-                        newRanges.forEach((r, i) => r.level = i + 1);
-                        setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
-                      }}
-                      className="absolute top-2 right-2 text-red-500 hover:text-red-400"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-black text-orange-400 uppercase italic">
-                        NIVEAU {range.level}
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-gray-500">Min</label>
-                        <input
-                          type="number"
-                          value={range.min}
-                          onChange={(e) => {
-                            const newRanges = [...fanzFervorConfig.ranges];
-                            newRanges[idx] = { ...range, min: Number(e.target.value) };
-                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
-                          }}
-                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-gray-500">Max</label>
-                        <input
-                          type="number"
-                          value={range.max}
-                          onChange={(e) => {
-                            const newRanges = [...fanzFervorConfig.ranges];
-                            newRanges[idx] = { ...range, max: Number(e.target.value) };
-                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
-                          }}
-                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-gray-500">Pas</label>
-                        <input
-                          type="number"
-                          value={range.step}
-                          onChange={(e) => {
-                            const newRanges = [...fanzFervorConfig.ranges];
-                            newRanges[idx] = { ...range, step: Number(e.target.value) };
-                            setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
-                          }}
-                          className="w-full bg-black/50 border border-white/10 rounded p-1 text-sm text-white"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2 mt-4">
-                      <label className="text-[10px] font-bold uppercase text-gray-500">Récompense de Niveau</label>
-                      <RewardSelector
-                        reward={range.levelReward}
-                        onChange={(reward) => {
-                          const newRanges = [...fanzFervorConfig.ranges];
-                          newRanges[idx] = { ...range, levelReward: reward };
-                          setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
-                        }}
-                        fanzTemplates={fanzTemplates}
-                        lifeActions={lifeActions}
-                        duelCards={duelCards}
-                      />
-                    </div>
-
-                    <div className="space-y-2 mt-4 pt-4 border-t border-gray-700">
-                      <label className="text-[10px] font-bold uppercase text-gray-500">Gain Intermédiaire</label>
-                      <RewardSelector
-                        reward={range.intermediateReward}
-                        onChange={(reward) => {
-                          const newRanges = [...fanzFervorConfig.ranges];
-                          newRanges[idx] = { ...range, intermediateReward: reward };
-                          setFanzFervorConfig({ ...fanzFervorConfig, ranges: newRanges });
-                        }}
-                        fanzTemplates={fanzTemplates}
-                        lifeActions={lifeActions}
-                        duelCards={duelCards}
-                      />
-                    </div>
-                  </div>
-                ))}
-                
-                <div 
-                  className="p-4 rounded-xl border border-dashed border-gray-700 bg-gray-800/20 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-800/50 hover:border-orange-500/50 transition-colors min-h-[200px]"
-                  onClick={() => {
-                    const lastRange = fanzFervorConfig.ranges[fanzFervorConfig.ranges.length - 1];
-                    const newLevel = (lastRange?.level || 0) + 1;
-                    const newMin = (lastRange?.max || 0) + 1;
-                    const newMax = newMin + 9999;
-                    const newStep = lastRange?.step || 100;
-                    setFanzFervorConfig({
-                      ...fanzFervorConfig,
-                      ranges: [
-                        ...fanzFervorConfig.ranges,
-                        {
-                          level: newLevel,
-                          min: newMin,
-                          max: newMax,
-                          step: newStep,
-                          levelReward: { type: 'money', amount: 1000 },
-                          intermediateReward: { type: 'money', amount: 50 }
-                        }
-                      ]
-                    });
-                  }}
-                >
-                  <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center mb-2">
-                    <span className="text-2xl text-orange-400">+</span>
-                  </div>
-                  <span className="font-bold text-gray-400">Ajouter un Niveau</span>
-                </div>
+              <div className="mt-4">
+                <FanzFerveurTable 
+                  ranges={fanzFervorConfig.ranges || []} 
+                  onChange={ranges => setFanzFervorConfig({ ...fanzFervorConfig, ranges })} 
+                  fanzId="global" 
+                  fanzTemplates={fanzTemplates}
+                  lifeActions={lifeActions}
+                  duelCards={duelCards}
+                />
               </div>
             </Card>
           )}
+        </div>
+      )}
+
+      {activeTab === 'shop' && shopConfig && (
+        <div className="space-y-6">
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">Packs Ferveur (Boutique)</h3>
+              <Button onClick={() => handleSaveShopConfig(shopConfig)} className="bg-green-600 hover:bg-green-700">
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder la config
+              </Button>
+            </div>
+            
+            <div className="space-y-6">
+              {shopConfig.ferveurPacks.map((pack: any, index: number) => (
+                <div key={pack.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Nom du pack</label>
+                    <input
+                      type="text"
+                      value={pack.name}
+                      onChange={e => {
+                        const newPacks = [...shopConfig.ferveurPacks];
+                        newPacks[index].name = e.target.value;
+                        setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
+                      }}
+                      className="w-full text-black px-3 py-2 border rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Prix (Gemmes)</label>
+                    <input
+                      type="number"
+                      value={pack.price}
+                      onChange={e => {
+                        const newPacks = [...shopConfig.ferveurPacks];
+                        newPacks[index].price = parseInt(e.target.value) || 0;
+                        setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
+                      }}
+                      className="w-full text-black px-3 py-2 border rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Nb. d'objets</label>
+                    <input
+                      type="number"
+                      value={pack.numberOfRewards}
+                      onChange={e => {
+                        const newPacks = [...shopConfig.ferveurPacks];
+                        newPacks[index].numberOfRewards = parseInt(e.target.value) || 1;
+                        setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
+                      }}
+                      className="w-full text-black px-3 py-2 border rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Description</label>
+                    <input
+                      type="text"
+                      value={pack.description}
+                      onChange={e => {
+                        const newPacks = [...shopConfig.ferveurPacks];
+                        newPacks[index].description = e.target.value;
+                        setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
+                      }}
+                      className="w-full text-black px-3 py-2 border rounded"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
     </div>

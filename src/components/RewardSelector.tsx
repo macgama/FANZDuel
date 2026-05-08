@@ -13,18 +13,18 @@ interface RewardSelectorProps {
 }
 
 export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange, fanzTemplates, lifeActions, duelCards, theme = 'dark', isFanzContext, currentFanzId }) => {
-  const filteredTemplates = isFanzContext && currentFanzId 
-    ? fanzTemplates.filter(t => t.id === currentFanzId)
-    : fanzTemplates;
+  const filteredTemplates = isFanzContext && currentFanzId && currentFanzId !== 'global'
+    ? fanzTemplates.filter(t => t.id === currentFanzId && t.isActive !== false)
+    : fanzTemplates.filter(t => t.isActive !== false);
 
   const allSkins = filteredTemplates.flatMap(t => (t.skins || []).map(s => ({ ...s, templateName: t.name })));
   const allEmotes = filteredTemplates.flatMap(t => (t.emotes || []).map(e => ({ ...e, templateName: t.name })));
 
   const inputClass = theme === 'dark' 
-    ? "p-1 min-w-0 bg-gray-800 rounded border border-gray-700 text-xs text-white"
-    : "p-2 min-w-0 bg-white rounded border border-gray-200 text-sm text-gray-900";
+    ? "p-1 min-w-0 bg-gray-800 [&>option]:bg-gray-800 [&>option]:text-white rounded border border-gray-700 text-xs text-white"
+    : "p-2 min-w-0 bg-white [&>option]:bg-white [&>option]:text-black rounded border border-gray-200 text-sm text-gray-900";
 
-  const availableCards = isFanzContext && currentFanzId
+  const availableCards = isFanzContext && currentFanzId && currentFanzId !== 'global'
     ? duelCards.filter(c => {
         return c.fanzIds && c.fanzIds.includes(currentFanzId);
       })
@@ -141,7 +141,7 @@ export const RewardSelector: React.FC<RewardSelectorProps> = ({ reward, onChange
           className={`w-full truncate ${inputClass}`}
         >
           <option value="">Sélectionner un FANZ...</option>
-          {fanzTemplates.map(f => (
+          {filteredTemplates.map(f => (
             <option key={f.id} value={f.id}>{f.name}</option>
           ))}
         </select>

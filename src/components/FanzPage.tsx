@@ -27,8 +27,7 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
       try {
         const querySnapshot = await getDocs(collection(db, 'fanz_templates'));
         const templates = querySnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate))
-          .filter(t => t.isActive !== false);
+          .map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate));
         setFanzTemplates(templates);
 
         const configDoc = await getDoc(doc(db, 'global_configs', 'fanz_fervor'));
@@ -315,7 +314,7 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
               <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3" />
               Actif
             </div>
-          ) : isOwned && fanz && onSetActive ? (
+          ) : isOwned && fanz && onSetActive && template.isActive !== false ? (
             <button
               onClick={onSetActive}
               className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-orange-500/80 hover:bg-orange-500 text-white text-[7px] sm:text-[9px] font-black uppercase z-10 shadow-lg transition-colors opacity-0 group-hover:opacity-100"
@@ -324,10 +323,19 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
             </button>
           ) : null}
 
-          {!isOwned && (
+          {!isOwned && template.isActive !== false && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity z-20">
               <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white/50" />
               <span className="text-[8px] sm:text-[10px] font-black uppercase italic text-white/50 mt-1 text-center px-2">À GAGNER OU ACHETER</span>
+            </div>
+          )}
+
+          {template.isActive === false && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-20">
+              <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white/50 mb-2" />
+              <div className="bg-orange-500 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg">
+                Bientôt dispo
+              </div>
             </div>
           )}
 
