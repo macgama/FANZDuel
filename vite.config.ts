@@ -13,6 +13,9 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        workbox: {
+          navigateFallbackDenylist: [/^\/api/],
+        },
         manifest: {
           name: 'The Best Fan',
           short_name: 'TheBestFan',

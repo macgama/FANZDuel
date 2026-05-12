@@ -1,0 +1,340 @@
+src/components/WaitingRoom.tsx:97:          const matchIds = [...new Set(data.filter((d: any) => d.matchId && d.matchId !== 'global').map((d: any) => d.matchId))] as number[];
+src/components/WaitingRoom.tsx:191:        {['1v1', '2v2', '5v5', 'war_of_kops'].map(type => (
+src/components/WaitingRoom.tsx:229:                {liveMatches.slice(0, 3).map((match: any) => (
+src/components/WaitingRoom.tsx:271:            {filteredDuels.map((duel) => {
+src/components/WaitingRoom.tsx:357:                    {duel.participants.map((p: any, i: number) => (
+src/components/WaitingRoom.tsx:377:                    {Array.from({ length: Math.max(0, (typeof maxPlayers === 'number' ? maxPlayers : 0) - duel.participants.length) }).map((_, i) => (
+src/components/ui/particles.tsx:56:      .map((char) => char + char)
+src/components/Auth.tsx:148:          .map(d => ({ id: d.id, data: d.data() as any }))
+src/components/Auth.tsx:155:          .map(c => c.id);
+src/components/Auth.tsx:480:                        {teamResults.map((result: any) => (
+src/components/AdminZone.tsx:385:      const usersData = querySnapshot.docs.map(doc => ({ ...doc.data() } as UserProfile));
+src/components/AdminZone.tsx:398:      const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Mission));
+src/components/AdminZone.tsx:409:      const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pass));
+src/components/AdminZone.tsx:566:      const data = querySnapshot.docs.map(doc => ({ ...doc.data() } as WeeklyStreakCycle));
+src/components/AdminZone.tsx:799:      const fanzData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate));
+src/components/AdminZone.tsx:823:        const newSkins = (data.skins || []).map(skin => {
+src/components/AdminZone.tsx:831:        const newEmotes = (data.emotes || []).map(emote => {
+src/components/AdminZone.tsx:962:              updated.skins = updated.skins.map((skin: any) => {
+src/components/AdminZone.tsx:973:              updated.emotes = updated.emotes.map((emote: any) => {
+src/components/AdminZone.tsx:1269:      const cardsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DuelCard));
+src/components/AdminZone.tsx:1361:      const actionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction));
+src/components/AdminZone.tsx:1978:                      {users.map(user => (
+src/components/AdminZone.tsx:2027:                {userFervorConfig.ranges?.map((range, idx) => (
+src/components/AdminZone.tsx:2215:                        {(editingCycle.days || []).map((config, idx) => (
+src/components/AdminZone.tsx:2243:                {streakCycles.map(cycle => (
+src/components/AdminZone.tsx:2377:                {missions.map(mission => (
+src/components/AdminZone.tsx:2520:                        {(editingPass.levels || []).map((lvl, idx) => (
+src/components/AdminZone.tsx:2565:                              newLevels = newLevels.map((l, i) => ({ ...l, level: i + 1 }));
+src/components/AdminZone.tsx:2575:                            nextLevelNum = Math.max(...(editingPass.levels || []).map(l => l.level)) + 1;
+src/components/AdminZone.tsx:2602:                {passes.map(pass => (
+src/components/AdminZone.tsx:2707:            {duelConfig.statEffects.map((effect, idx) => (
+src/components/AdminZone.tsx:2779:              {duelConfig.costs && Object.entries(duelConfig.costs).map(([type, cost]) => (
+src/components/AdminZone.tsx:2819:              {duelConfig.rewards && Object.entries(duelConfig.rewards).map(([type, reward]) => (
+src/components/AdminZone.tsx:2865:              {seasons.map(s => (
+src/components/AdminZone.tsx:2904:          {filteredLeagues.map((item) => (
+src/components/AdminZone.tsx:3105:                      onChange={e => setEditingCard({...editingCard, fanzIds: e.target.value ? e.target.value.split(',').map(s => s.trim()).filter(Boolean) : [], skinId: undefined})}
+src/components/AdminZone.tsx:3119:                        {fanzTemplates.find(f => f.id === editingCard.fanzIds![0])?.skins?.map(s => (
+src/components/AdminZone.tsx:3130:                      onChange={e => setEditingCard({...editingCard, blockedFanzIds: e.target.value ? e.target.value.split(',').map(s => s.trim()).filter(Boolean) : []})}
+src/components/AdminZone.tsx:3145:                    {(editingCard.unlockRequirements || []).map((req, idx) => (
+src/components/AdminZone.tsx:3218:                    {(editingCard.effects || []).map((effect, idx) => (
+src/components/AdminZone.tsx:3367:              {effectiveFanzTemplates.map(fanz => (
+src/components/AdminZone.tsx:3434:                    {sortedDuelCards.map((card) => (
+src/components/AdminZone.tsx:3506:                          {sortedDuelCards.map((card) => (
+src/components/AdminZone.tsx:3598:                      {fanzTemplates.map(f => (
+src/components/AdminZone.tsx:3612:                        {fanzTemplates.find(f => f.id === editingAction.fanzTemplateId)?.skins?.map(s => (
+src/components/AdminZone.tsx:3732:                    {['force', 'endurance', 'mental', 'bluff', 'creativity', 'social', 'intelligence', 'charisma'].map((stat) => (
+src/components/AdminZone.tsx:3781:              {effectiveFanzTemplates.map(fanz => (
+src/components/AdminZone.tsx:3846:                    {sortedLifeActions.map((action) => (
+src/components/AdminZone.tsx:3910:                          {sortedLifeActions.map((action) => (
+src/components/AdminZone.tsx:4153:                    {Object.keys(editingFanz.baseStats).map((stat) => (
+src/components/AdminZone.tsx:4180:                    {[0, 1, 2].map((idx) => (
+src/components/AdminZone.tsx:4198:                            .map(card => (
+src/components/AdminZone.tsx:4213:                    {(['force', 'endurance', 'mental', 'bluff', 'creativity', 'social', 'intelligence', 'charisma'] as (keyof FanzStats)[]).map((stat) => (
+src/components/AdminZone.tsx:4232:                            .map(action => (
+src/components/AdminZone.tsx:4340:                    {Array.from({ length: 10 }).map((_, rIdx) => {
+src/components/AdminZone.tsx:4420:                        skins: editingFanz.skins?.map(skin => ({ ...skin, id: `skin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, fanzId: newId })),
+src/components/AdminZone.tsx:4421:                        emotes: editingFanz.emotes?.map(emote => ({ ...emote, id: `emote-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, fanzId: newId }))
+src/components/AdminZone.tsx:4437:            {fanzTemplates.map((template) => (
+src/components/AdminZone.tsx:4553:              {shopConfig.ferveurPacks.map((pack: any, index: number) => (
+src/components/MissionsPage.tsx:57:      const missionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Mission));
+src/components/MissionsPage.tsx:166:            {missions.filter(m => !m.period || m.period === 'daily').map((mission, idx) => {
+src/components/MissionsPage.tsx:254:            {missions.filter(m => m.period === 'weekly').map((mission, idx) => {
+src/components/MissionsPage.tsx:343:            {missions.filter(m => m.period === 'one_shot').map((mission, idx) => {
+src/components/FavoriteTeamsPage.tsx:34:          favoriteTeams.map(async (teamIdOrName) => {
+src/components/FavoriteTeamsPage.tsx:94:                competitions: leagues.map((l: any) => l.league.name)
+src/components/FavoriteTeamsPage.tsx:143:    if (favoriteTeams.map(t => t.toString()).includes(teamId)) {
+src/components/FavoriteTeamsPage.tsx:164:          leagueIds = leaguesData.map((l: any) => l.league.id);
+src/components/FavoriteTeamsPage.tsx:245:            {teams.map((team, idx) => (
+src/components/FavoriteTeamsPage.tsx:285:                        team.summary.lastMatches.map((m: any, i: number) => {
+src/components/FavoriteTeamsPage.tsx:320:                        team.summary.competitions.slice(0, 3).map((comp: string, i: number) => (
+src/components/FavoriteTeamsPage.tsx:341:            {Array.from({ length: emptySlots }).map((_, idx) => (
+src/components/FavoriteTeamsPage.tsx:387:              {searchResults.map((result) => (
+src/components/DuelDetailsModal.tsx:91:                    {Object.entries(duel.users || {}).map(([uid, info]: [string, any]) => {
+src/components/FanzItemsTable.tsx:31:  const skinsWithOriginalIndex = skins.map((skin, originalIdx) => ({ skin, originalIdx }));
+src/components/FanzItemsTable.tsx:105:          {sortedSkinsObjects.map(({ skin, originalIdx }) => (
+src/components/FanzItemsTable.tsx:162:                  {['force', 'mental', 'intelligence', 'creativity', 'bluff', 'social', 'charisma', 'endurance'].map(s => (
+src/components/FanzItemsTable.tsx:187:                  {lifeActions.filter(a => a.fanzTemplateId === fanzId).map(a => (
+src/components/FanzItemsTable.tsx:195:                      {lifeActions.filter(a => a.skinId === skin.id).map(a => (
+src/components/FanzItemsTable.tsx:205:                  {duelCards.filter((c: any) => c.fanzIds?.includes(fanzId)).map((c: any) => (
+src/components/FanzItemsTable.tsx:213:                      {duelCards.filter((c: any) => c.skinId === skin.id).map((c: any) => (
+src/components/FanzItemsTable.tsx:256:  const emotesWithOriginalIndex = emotes.map((emote, originalIdx) => ({ emote, originalIdx }));
+src/components/FanzItemsTable.tsx:324:          {sortedEmotesObjects.map(({ emote, originalIdx }) => (
+src/components/FanzItemsTable.tsx:429:          {ranges.map((range, idx) => (
+src/components/MatchesPage.tsx:34:            data.slice(0, 10).map((f: any) => footballApi.getFixtureEvents(f.fixture.id).catch(() => []))
+src/components/MatchesPage.tsx:36:          data = data.map((f: any, i: number) => ({
+src/components/MatchesPage.tsx:99:    const matchIds = fixtures.map((f: any) => f.fixture.id.toString());
+src/components/MatchesPage.tsx:142:    const favoriteIds = profile?.favoriteTeams?.map(id => id.toString()) || [];
+src/components/MatchesPage.tsx:180:        const chunkIds = matchesToEnrich.slice(i, i + chunkSize).map(f => f.fixture.id);
+src/components/MatchesPage.tsx:191:              setFixtures(prev => prev.map(p => {
+src/components/MatchesPage.tsx:200:              setFixtures(prev => prev.map(p => 
+src/components/MatchesPage.tsx:209:            setFixtures(prev => prev.map(p => 
+src/components/MatchesPage.tsx:263:      .map(country => ({
+src/components/MatchesPage.tsx:347:          {groupedByCountry.map(country => (
+src/components/MatchesPage.tsx:410:            {country.leagues.map((group: any) => (
+src/components/MatchesPage.tsx:445:                      {group.matches.map((match: any) => (
+src/components/StatsPage.tsx:41:        setUserFanz(fanzSnap.docs.map(d => ({ id: d.id, ...d.data() } as Fanz)));
+src/components/StatsPage.tsx:46:          .map(d => ({ id: d.id, ...d.data() }))
+src/components/StatsPage.tsx:53:            profile.favoriteTeams.map(async (id) => {
+src/components/StatsPage.tsx:151:                favoriteTeamsInfo.map(team => (
+src/components/StatsPage.tsx:219:                recentDuels.map((duel, idx) => {
+src/components/SharedMatchCard.tsx:37:  const favoriteIds = profile?.favoriteTeams?.map((id: any) => id.toString()) || [];
+src/components/SharedMatchCard.tsx:184:            {homeEvents.map((e: any, idx: number) => (
+src/components/SharedMatchCard.tsx:195:            {awayEvents.map((e: any, idx: number) => (
+src/components/WeeklyStreakModal.tsx:240:              {configs.map((config) => {
+src/components/Preloader.tsx:97:          await Promise.all(batch.map(loadImage));
+src/components/UserProfileModal.tsx:157:                 SKIN_AVATARS.filter(s => ownedSkinIds.includes(s.id.replace('avatar-skin-', '')))).map(avatar => (
+src/components/UserProfileModal.tsx:250:                {LANGUAGES.map(lang => (
+src/components/TeamDetails.tsx:152:        .map(res => res.value)
+src/components/TeamDetails.tsx:156:        setLastUpdated(new Date(Math.max(...dates.map(d => d.getTime()))));
+src/components/TeamDetails.tsx:255:            {availableSeasons.map((year) => (
+src/components/TeamDetails.tsx:418:        {data.map((p, idx) => {
+src/components/TeamDetails.tsx:509:      const dateA = Math.min(...groupedByRound[a].map((f: any) => new Date(f.fixture.date).getTime()));
+src/components/TeamDetails.tsx:510:      const dateB = Math.min(...groupedByRound[b].map((f: any) => new Date(f.fixture.date).getTime()));
+src/components/TeamDetails.tsx:539:        .map((m: any) => m.fixture.id);
+src/components/TeamDetails.tsx:599:    const matchIds = groupedByRound[selectedRound]?.map((m: any) => m.fixture.id.toString()) || [];
+src/components/TeamDetails.tsx:658:          {sortedLeagues.map((l: any) => (
+src/components/TeamDetails.tsx:690:              {rounds.map(round => (
+src/components/TeamDetails.tsx:723:                  {(groupedByRound[selectedRound] || []).map((match: any) => {
+src/components/TeamDetails.tsx:774:      {posOrder.map(pos => {
+src/components/TeamDetails.tsx:782:              {groupedByPos[pos].map((p: any) => (
+src/components/TeamDetails.tsx:825:          {standings.map((s) => (
+src/components/MrFanzHelp.tsx:123:                  {help.features.map((f, i) => (
+src/components/TeamsPage.tsx:247:              {searchResults.map((item) => (
+src/components/TeamsPage.tsx:282:          {Object.entries(filteredContinents).map(([continent, countries]) => (
+src/components/TeamsPage.tsx:294:                {Object.entries(countries).map(([country, data]) => (
+src/components/TeamsPage.tsx:319:                          {data.leagues.map(l => {
+src/components/TeamsPage.tsx:354:                                          {teams[l.league.id]?.map((t: any) => (
+src/components/ShopPage.tsx:100:        const ownedFanzTemplateIds = userFanzSnap.docs.map(d => d.data().templateId);
+src/components/ShopPage.tsx:105:          .map(doc => doc.data() as FanzTemplate)
+src/components/ShopPage.tsx:111:          .map(f => ({
+src/components/ShopPage.tsx:177:        const cardsData = cardsSnapshot.docs.map(doc => {
+src/components/ShopPage.tsx:197:          .map(c => ({
+src/components/ShopPage.tsx:245:      const userFanzs = userFanzSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+src/components/ShopPage.tsx:249:      const fanzTemplates = fanzTemplatesSnap.docs.map(d => ({ id: d.id, ...d.data() as FanzTemplate }));
+src/components/ShopPage.tsx:252:      const allCards = cardsSnap.docs.map(d => ({ id: d.id, ...d.data() as DuelCard }));
+src/components/ShopPage.tsx:578:          {CATEGORIES.map(cat => (
+src/components/ShopPage.tsx:620:                    {(shopConfig?.ferveurPacks || []).map((pack, idx) => (
+src/components/ShopPage.tsx:671:                  {fanzItems.map(fanz => renderItemCard(fanz, 'fanz'))}
+src/components/ShopPage.tsx:683:                  {skinItems.map(skin => renderItemCard(skin, 'skin'))}
+src/components/ShopPage.tsx:695:                  {emoteItems.map(emote => renderItemCard(emote, 'emote'))}
+src/components/ShopPage.tsx:707:                  {cardItems.map(card => renderItemCard(card, 'card'))}
+src/components/ShopPage.tsx:716:                  {MOCK_BOOSTS.map(boost => renderItemCard(boost, 'boost'))}
+src/components/ShopPage.tsx:725:                  {MOCK_GEMS.map(gem => (
+src/components/ShopPage.tsx:916:                  {packRewards.map((reward, i) => (
+src/components/FanzRanking.tsx:23:        const fanzList = fanzSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Fanz));
+src/components/FanzRanking.tsx:32:        const ownerUids = Array.from(new Set(fanzList.map(f => f.ownerUid)));
+src/components/FanzRanking.tsx:51:        const templateIds = Array.from(new Set(fanzList.map(f => f.templateId)));
+src/components/FanzRanking.tsx:68:        const combined = fanzList.map(f => ({
+src/components/FanzRanking.tsx:102:        {topFanz.map((fanz, index) => {
+src/components/CollectionPage.tsx:37:      setFanzList(snap.docs.map(d => d.data() as Fanz));
+src/components/CollectionPage.tsx:103:      const templates = tSnap.docs.map(d => ({id: d.id, ...d.data()})) as FanzTemplate[];
+src/components/CollectionPage.tsx:106:      const allSkins = templates.flatMap(t => (t.skins || []).filter(s => s.category !== 'event' || s.isActive !== false).map(s => ({...s, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${s.id}`})));
+src/components/CollectionPage.tsx:107:      const allEmotes = templates.flatMap(t => (t.emotes || []).filter(e => e.category !== 'event' || e.isActive !== false).map(e => ({...e, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${e.id}`})));
+src/components/CollectionPage.tsx:111:      setCards(cSnap.docs.map(d => ({id: d.id, ...d.data()})) as any);
+src/components/CollectionPage.tsx:112:      setActions(aSnap.docs.map(d => ({id: d.id, ...d.data()})) as any);
+src/components/CollectionPage.tsx:174:          {tabs.map(tab => (
+src/components/CollectionPage.tsx:196:              {fanzTemplates.filter(f => f.isActive !== false).map(fanz => (
+src/components/CollectionPage.tsx:214:              .map(template => {
+src/components/CollectionPage.tsx:259:              .map(skin => {
+src/components/CollectionPage.tsx:301:              .map(emote => {
+src/components/CollectionPage.tsx:341:                  return card.fanzIds.map(id => {
+src/components/CollectionPage.tsx:351:              .map(card => {
+src/components/CollectionPage.tsx:368:                        const fanzNames = card.fanzIds.map(id => {
+src/components/CollectionPage.tsx:403:              .map(action => {
+src/components/FanzDetails.tsx:161:        const cardsData = cardsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DuelCard));
+src/components/FanzDetails.tsx:165:        const actionsData = actionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction));
+src/components/FanzDetails.tsx:651:                    .map(action => (
+src/components/FanzDetails.tsx:703:                          .map((action) => (
+src/components/FanzDetails.tsx:727:                  {Object.entries(statLabels).map(([stat, label]) => {
+src/components/FanzDetails.tsx:902:                      ferveurPath.map((step, idx) => {
+src/components/FanzDetails.tsx:1205:                  {Array.from({ length: 10 }).map((_, rIdx) => {
+src/components/FanzDetails.tsx:1507:                    {allCards.filter(c => fanz.equippedCards?.includes(c.id)).map(card => {
+src/components/FanzDetails.tsx:1552:                    {Array.from({ length: 8 - (fanz.equippedCards?.length || 0) }).map((_, i) => (
+src/components/FanzDetails.tsx:1577:                    .map(card => {
+src/components/FanzDetails.tsx:1611:                    .map(({ card, isUnlocked, requirements, canAfford }) => {
+src/components/FanzDetails.tsx:1650:                                  requirements.map((req, i) => (
+src/components/FanzDetails.tsx:1702:                                    {(card.effects || []).map((effect, idx) => (
+src/components/FanzDetails.tsx:1761:                  .map((skin, idx) => {
+src/components/FanzDetails.tsx:1840:                              {skin.statsBonus && Object.entries(skin.statsBonus).map(([stat, val]) => {
+src/components/FanzDetails.tsx:1884:                  .map((emote, idx) => {
+src/components/FanzDetails.tsx:1983:                      {template.specialAttackIds.map(cardId => {
+src/components/FanzDetails.tsx:2100:                       {selectedMuseumCard.card.effects.map((effect, i) => (
+src/components/FanzDetails.tsx:2118:                          {selectedMuseumCard.requirements.map((req, i) => (
+src/components/FanzDetails.tsx:2308:                    rewardModal.choices.map((choice, idx) => {
+src/components/FanzDetails.tsx:2584:                  .map(card => (
+src/components/FanzDetails.tsx:2638:                  .map((skin, idx) => (
+src/components/FanzDetails.tsx:2692:                  .map((emote, idx) => (
+src/components/FanzDetails.tsx:2747:                  .map(action => (
+src/components/FanzDetails.tsx:2797:                {Object.entries(statLabels).map(([key, label]) => (
+src/components/PassPage.tsx:32:        const passesData = await Promise.all(snap.docs.map(async (docSnap) => {
+src/components/PassPage.tsx:45:        const allSkinIds = passesData.flatMap(p => (p.levels || []).map(l => l.premiumReward?.skinId).filter(Boolean)) as string[];
+src/components/PassPage.tsx:208:            allPasses.map(pass => {
+src/components/PassPage.tsx:211:                .map(l => l.premiumReward?.skinId ? skins[l.premiumReward.skinId]?.imageUrl : null)
+src/components/PassPage.tsx:224:                        {sampleSkins.map((skinUrl, idx) => (
+src/components/PassPage.tsx:323:                .map(l => l.premiumReward?.skinId ? skins[l.premiumReward.skinId]?.imageUrl : null)
+src/components/PassPage.tsx:329:                  {sampleSkins.map((skinUrl, idx) => (
+src/components/PassPage.tsx:400:          {(selectedPass.levels || []).map((level) => {
+src/components/MatchEvents.tsx:93:            {scorers.filter((e: any) => e.team.id === homeId).map((e: any, i: number) => (
+src/components/MatchEvents.tsx:101:            {scorers.filter((e: any) => e.team.id === awayId).map((e: any, i: number) => (
+src/components/CompetitionsPage.tsx:305:          {Object.entries(filteredContinents).map(([continent, countries]) => (
+src/components/CompetitionsPage.tsx:315:                {Object.entries(countries).map(([country, data]) => (
+src/components/CompetitionsPage.tsx:344:                            {data.leagues.map(l => {
+src/components/MrFanzPage.tsx:101:        {sections.map((section, idx) => (
+src/components/MrFanzPage.tsx:128:                    {section.tips.map((tip, i) => (
+src/components/TransactionsPage.tsx:43:      const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResourceTransaction));
+src/components/TransactionsPage.tsx:92:            {(['all', 'money', 'gems', 'boost', 'energy', 'ferveur_general', 'ferveur_fanz'] as FilterType[]).map((f) => (
+src/components/TransactionsPage.tsx:122:            filteredTransactions.map((tx) => (
+src/components/SocialPage.tsx:52:        const chatsData = await Promise.all(querySnapshot.docs.map(async (chatDoc): Promise<Chat | null> => {
+src/components/SocialPage.tsx:105:          user.friends.map(async (uid) => {
+src/components/SocialPage.tsx:119:          user.friendRequests.map(async (uid) => {
+src/components/SocialPage.tsx:307:            chats.map(chat => (
+src/components/SocialPage.tsx:343:            friends.map(friend => (
+src/components/SocialPage.tsx:367:            requests.map(request => (
+src/components/SocialPage.tsx:410:              {searchResults.map(result => {
+src/components/RewardSelector.tsx:20:  const allSkins = filteredTemplates.flatMap(t => (t.skins || []).map(s => ({ ...s, templateName: t.name })));
+src/components/RewardSelector.tsx:21:  const allEmotes = filteredTemplates.flatMap(t => (t.emotes || []).map(e => ({ ...e, templateName: t.name })));
+src/components/RewardSelector.tsx:75:          {(reward.choices || []).map((choice, cIdx) => (
+src/components/RewardSelector.tsx:144:          {filteredTemplates.map(f => (
+src/components/RewardSelector.tsx:157:          {allSkins.map((s, idx) => (
+src/components/RewardSelector.tsx:170:          {allEmotes.map((e, idx) => (
+src/components/RewardSelector.tsx:183:          {availableCards.map(c => (
+src/components/RewardSelector.tsx:196:          {lifeActions.map(a => (
+src/components/FanzPage.tsx:30:          .map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate));
+src/components/FanzPage.tsx:162:                  {fanzTemplates.filter(f => ownedFanz.has(f.id)).map((template) => (
+src/components/FanzPage.tsx:206:                  {fanzTemplates.filter(f => !ownedFanz.has(f.id)).map((template) => (
+src/components/MatchDetails.tsx:474:              {activeDuels.map(duel => (
+src/components/MatchDetails.tsx:588:        {events.map((event, idx) => {
+src/components/MatchDetails.tsx:682:        {history.map((duel, idx) => (
+src/components/MatchDetails.tsx:755:      {lineups.map((lineup, idx) => (
+src/components/MatchDetails.tsx:771:                {lineup.startXI.map((p: any) => (
+src/components/MatchDetails.tsx:780:                {lineup.substitutes.map((p: any) => (
+src/components/MatchDetails.tsx:830:  const statTypes = stats[0].statistics.map((s: any) => s.type);
+src/components/MatchDetails.tsx:834:      {statTypes.map((type: string) => {
+src/components/LeagueDetails.tsx:144:        .map(res => res.value)
+src/components/LeagueDetails.tsx:148:        setLastUpdated(new Date(Math.max(...dates.map(d => d.getTime()))));
+src/components/LeagueDetails.tsx:242:            {availableSeasons.map((s) => (
+src/components/LeagueDetails.tsx:383:        .map(([groupName, groupData]: [string, any]) => (
+src/components/LeagueDetails.tsx:407:                {(groupData as any[]).sort((a,b) => a.rank - b.rank).map((s) => (
+src/components/LeagueDetails.tsx:425:                        {(s.form?.split('') || []).map((f: string, i: number) => (
+src/components/LeagueDetails.tsx:450:                  .map(f => (
+src/components/LeagueDetails.tsx:515:      const dateA = Math.min(...groupedByRound[a].map((f: any) => new Date(f.fixture.date).getTime()));
+src/components/LeagueDetails.tsx:516:      const dateB = Math.min(...groupedByRound[b].map((f: any) => new Date(f.fixture.date).getTime()));
+src/components/LeagueDetails.tsx:545:        .map((m: any) => m.fixture.id);
+src/components/LeagueDetails.tsx:616:    const matchIds = groupedByRound[selectedRound]?.map((m: any) => m.fixture.id.toString()) || [];
+src/components/LeagueDetails.tsx:674:          {rounds.map(round => (
+src/components/LeagueDetails.tsx:706:            {(groupedByRound[selectedRound] || []).map((match: any) => {
+src/components/LeagueDetails.tsx:767:        {knockoutRounds.map(r => {
+src/components/LeagueDetails.tsx:774:               {matches.map(f => {
+src/components/LeagueDetails.tsx:843:        {data.slice(0, 10).map((item, idx) => {
+src/components/LeagueDetails.tsx:929:          .map(([groupName, groupTeams]) => (
+src/components/LeagueDetails.tsx:933:              {groupTeams.map((t) => (
+src/components/LeagueDetails.tsx:968:      {safeTeams.filter(t => t?.team).map((t) => (
+src/components/LeagueDetails.tsx:1318:        entries = entries.map((e, index) => ({ ...e, rank: index + 1 }));
+src/components/LeagueDetails.tsx:1374:            {rankings.map((entry, index) => (
+src/components/LifeActionCard.tsx:428:                {action.xpGains && Object.entries(action.xpGains).map(([stat, gain]) => {
+src/components/LifeActionCard.tsx:540:            {action.xpGains && Object.entries(action.xpGains).map(([stat, gain]) => {
+src/components/PublicProfileModal.tsx:67:              targetData.favoriteTeams.map(async (id) => {
+src/components/PublicProfileModal.tsx:164:                  {favoriteTeamsInfo.length > 0 ? favoriteTeamsInfo.map((team: any) => (
+src/components/PublicProfileModal.tsx:170:                    profile.favoriteTeams.map((teamId: string) => (
+src/components/UserStats.tsx:43:        setUserFanz(fanzSnap.docs.map(d => ({ id: d.id, ...d.data() } as Fanz)));
+src/components/UserStats.tsx:56:          .map(d => ({ id: d.id, ...d.data() }))
+src/components/UserStats.tsx:63:            user.favoriteTeams.map(async (id) => {
+src/components/UserStats.tsx:143:                favoriteTeamsInfo.map(team => (
+src/components/UserStats.tsx:211:                recentDuels.map((duel, idx) => {
+src/components/LeaderboardPage.tsx:40:        const teamsData = await Promise.all(snapshot.docs.map(async (docSnapshot) => {
+src/components/LeaderboardPage.tsx:48:              leagueIds = leaguesData.map((l: any) => l.league.id);
+src/components/LeaderboardPage.tsx:111:        const teamIds = new Set<number>(data.map((t: any) => t.team.id));
+src/components/LeaderboardPage.tsx:130:        const usersData = snapshot.docs.map(doc => {
+src/components/LeaderboardPage.tsx:234:                  {leagues.map((l) => (
+src/components/LeaderboardPage.tsx:264:              {sortedTeams.map((team, index) => (
+src/components/LeaderboardPage.tsx:323:              {sortedUsers.map((u, index) => (
+src/components/Rankings.tsx:49:    let countries = Array.from(new Set(availableLeagues.filter(l => l.countryName !== 'Toutes les régions').map(l => l.countryName)));
+src/components/Rankings.tsx:284:          entries = entries.slice(0, 50).map((entry, index) => ({
+src/components/Rankings.tsx:424:            newEntries = newEntries.map((entry, index) => ({
+src/components/Rankings.tsx:616:                  {availableSeasons.map(s => (
+src/components/Rankings.tsx:631:                {uniqueCountries.map(c => (
+src/components/Rankings.tsx:645:                {filteredLeagues.map(l => (
+src/components/Rankings.tsx:669:            {displayedRankings.map((entry, index) => (
+src/components/Home.tsx:79:    return profile?.favoriteTeams?.map(id => id.toString()) || [];
+src/components/Home.tsx:168:          profile.favoriteTeams!.map(async (id) => {
+src/components/Home.tsx:235:        setAllFanz(sortedDocs.map(d => {
+src/components/Home.tsx:332:          const matchIds = liveFixtures.map((m: any) => m.fixture.id.toString());
+src/components/Home.tsx:381:        const actionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction));
+src/components/Home.tsx:638:                liveMatches.map(match => (
+src/components/Home.tsx:657:                    .map(action => (
+src/components/Home.tsx:677:                      .map(action => (
+src/components/Home.tsx:754:                  {worldCupStandings.map((group: any[], index: number) => {
+src/components/Home.tsx:770:                        {group.map((teamData: any) => (
+src/components/Home.tsx:786:                        const groupTeamIds = group.map(t => t.team.id);
+src/components/Home.tsx:803:                               {groupFixtures.slice(0, 6).map((fx: any) => {
+src/components/ChatView.tsx:123:          const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+src/components/ChatView.tsx:203:          messages.map((msg) => {
+src/components/ChatView.tsx:234:                {availableEmotes.map((emote, idx) => (
+src/components/Duel.tsx:172:        const templatesMap = new Map(templatesSnap.docs.map(d => [d.id, d.data()]));
+src/components/Duel.tsx:174:        const fanzList = fanzSnap.docs.map(d => {
+src/components/Duel.tsx:314:              {userFanzs.map(fanz => (
+src/components/Duel.tsx:343:              ].map(team => {
+src/components/Duel.tsx:393:                ].filter(arena => isLiveMatch || arena.id === 'training').map(arena => {
+src/components/Duel.tsx:861:        const fetchedCards = cardsSnap.docs.map(d => ({ id: d.id, ...d.data() } as GameCard));
+src/components/Duel.tsx:1519:                const activePasses = passesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Pass));
+src/components/Duel.tsx:1951:      effects: (card.effects || []).map(e => ({
+src/components/Duel.tsx:2385:                  allEmotes.filter(e => unlockedEmoteIds.includes(e.id) && (!e.fanzId || e.fanzId === fanz?.templateId)).map((emote, idx) => (
+src/components/Duel.tsx:2417:            {activeEmotes.map(emote => {
+src/components/Duel.tsx:2444:              {participants.filter(p => p.team === 'A').map((p, idx) => (
+src/components/Duel.tsx:2467:              {participants.filter(p => p.team === 'B').map((p, idx) => (
+src/components/Duel.tsx:2538:                  {(enemyPlayedCardAnim.card.effects || []).map(e => (
+src/components/Duel.tsx:2552:        {floatingEffects.map(effect => (
+src/components/Duel.tsx:2621:                  {Array.from({ length: { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1 }).map((_, i) => {
+src/components/Duel.tsx:2668:                  {Array.from({ length: { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 1 }).map((_, i) => {
+src/components/Duel.tsx:2848:              {Array.from({ length: 50 }).map((_, i) => (
+src/components/Duel.tsx:2973:            {hand.map(card => {
+src/components/Duel.tsx:3041:                      {(card.effects || []).map(e => (
+src/components/Duel.tsx:3061:            {Array.from({ length: 10 }).map((_, i) => (
+src/components/RewardAlert.tsx:257:                {flyingTexts.map(t => (
+src/components/FervorPathPage.tsx:41:        const fanzData = fanzSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+src/components/FervorPathPage.tsx:44:        setCards(cardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as DuelCard[]);
+src/components/FervorPathPage.tsx:45:        setActions(actionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as LifeAction[]);
+src/components/FervorPathPage.tsx:143:        skin: fanzTemplates.flatMap(t => t.skins?.map((s: any) => ({ ...s, templateName: t.name })) || []).find(s => s.id === level.reward?.skinId),
+src/components/FervorPathPage.tsx:144:        emote: fanzTemplates.flatMap(t => t.emotes?.map((e: any) => ({ ...e, templateName: t.name })) || []).find(e => e.id === level.reward?.emoteId),
+src/components/FervorPathPage.tsx:168:  const allSkins = useMemo(() => fanzTemplates.flatMap(t => t.skins?.map((s: any) => ({ ...s, templateName: t.name })) || []), [fanzTemplates]);
+src/components/FervorPathPage.tsx:169:  const allEmotes = useMemo(() => fanzTemplates.flatMap(t => t.emotes?.map((e: any) => ({ ...e, templateName: t.name })) || []), [fanzTemplates]);
+src/components/FervorPathPage.tsx:318:              {reachableMajorLevels.map(level => {
+src/components/FervorPathPage.tsx:371:            {levels.map((level, idx) => {
+src/utils/fervorPath.ts:26:  const rangesToUse = config?.ranges || FERVOR_RANGES.map(r => ({
+src/context/AlertContext.tsx:155:              {alert.rewards.map((reward, idx) => (
+src/context/MediaViewerContext.tsx:176:                            {Object.entries(mediaData.metadata.stats).map(([stat, val]) => (
+src/services/missionService.ts:23:      .map(d => ({ id: d.id, ...d.data() } as Mission))
+src/services/footballDataService.ts:70:          return snapshot.docs.map(d => {
+src/services/footballDataService.ts:143:          const cachedStandings = snapshot.docs.map(doc => doc.data()).sort((a, b) => a.rank - b.rank);
+src/services/footballDataService.ts:145:          const uniqueGroups = new Set(cachedStandings.map(s => s.group)).size;
+src/services/footballDataService.ts:196:          return snapshot.docs.map(doc => doc.data()).sort((a, b) => a.timestamp - b.timestamp);
+src/services/footballDataService.ts:244:          return snapshot.docs.map(doc => doc.data());
+src/services/footballDataService.ts:287:          return snapshot.docs.map(doc => doc.data()).sort((a, b) => a.timestamp - b.timestamp);
+src/firebase.ts:56:      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+src/constants/avatars.ts:199:export const FANZ_AVATARS = ALL_FANZ.map(f => ({
+src/constants/avatars.ts:206:  (f.skins || []).map(skin => ({
+src/App.tsx:133:      const activeIds = snap.docs.map(d => d.id);
+src/App.tsx:158:      const fanzList = snap.docs.map(d => ({id: d.id, ...d.data()}));
+src/App.tsx:163:        const templatesList = templatesSnap.docs.map(d => ({id: d.id, ...d.data()}));
+src/App.tsx:226:        const favoriteIds = profile.favoriteTeams.map(id => id.toString());

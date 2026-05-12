@@ -222,10 +222,13 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   useEffect(() => {
     const fetchActiveDuels = async () => {
       try {
-        const res = await fetch('/api/duels/all');
+        const res = await fetch('/api/duels/all', { headers: { 'Accept': 'application/json' }});
         if (res.ok) {
-          const duelsData = await res.json();
-          setActiveDuels(duelsData);
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const duelsData = await res.json();
+            setActiveDuels(duelsData);
+          }
         }
       } catch (err: any) {
         if (err?.message !== 'Failed to fetch') {
@@ -265,6 +268,19 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
         leagues: Object.values(country.leagues).sort((a, b) => a.league.name.localeCompare(b.league.name))
       }));
   }, [filteredFixtures]);
+
+  const liveMatches = useMemo(() => {
+    const favoriteIds = profile?.favoriteTeams?.map(id => id.toString()) || [];
+    return filteredFixtures.filter(f => ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short)).sort((a, b) => {
+      const aIsFav = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
+      const bIsFav = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
+      if (aIsFav && !bIsFav) return -1;
+      if (!aIsFav && bIsFav) return 1;
+      const countryA = translateCountryName(a.league.country || '');
+      const countryB = translateCountryName(b.league.country || '');
+      return countryA.localeCompare(countryB);
+    });
+  }, [filteredFixtures, profile]);
 
   return (
     <div className="space-y-6 pb-20">
@@ -343,7 +359,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
           <p className="text-gray-500">Essayez de changer de date ou de filtre.</p>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 flex flex-col">
           {groupedByCountry.map(country => (
             <CountrySection 
               key={country.name} 

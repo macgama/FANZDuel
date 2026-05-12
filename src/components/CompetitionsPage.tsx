@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { footballApi } from '../services/footballApi';
 import { footballDataService } from '../services/footballDataService';
 import { Card, Button } from './Layout';
-import { Search, Trophy, Globe, ChevronRight, History, ChevronDown, RefreshCw, Clock } from 'lucide-react';
+import { Search, Trophy, Globe, ChevronRight, History, ChevronDown, RefreshCw, Clock, Settings, Download, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LeagueDetails } from './LeagueDetails';
 import { format } from 'date-fns';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
+import { db } from '../firebase';
+import { writeBatch, doc, deleteDoc } from 'firebase/firestore';
 
 // Simple continent mapping helper
 const getContinent = (country: string): string => {
@@ -33,13 +35,20 @@ const getContinent = (country: string): string => {
   return 'Autres';
 };
 
-export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number, season: number) => void }) {
+export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (id: number, season: number) => void; profile?: any }) {
   const [leagues, setLeagues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedCountries, setExpandedCountries] = useState<Set<string>>(new Set());
+  
+  // Admin states
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [manualLeagueId, setManualLeagueId] = useState('');
+  const [importSeason, setImportSeason] = useState(footballDataService.getCurrentSeasonYear().toString());
+  const [importStatus, setImportStatus] = useState<{type: 'success' | 'error' | 'info', message: string} | null>(null);
 
   const fetchLeagues = async (force = false) => {
     if (force) setRefreshing(true);
@@ -55,6 +64,55 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleImportLeague = async () => {
+    if (!manualLeagueId) return;
+    setImporting(true);
+    setImportStatus({ type: 'info', message: `Importation de la compétition ${manualLeagueId}...` });
+    try {
+      const data = await footballApi.getLeagues(parseInt(importSeason), parseInt(manualLeagueId));
+      if (!data || data.length === 0) {
+        setImportStatus({ type: 'error', message: "Aucune compétition trouvée." });
+        setImporting(false);
+        return;
+      }
+      
+      const batch = writeBatch(db);
+      for (const item of data) {
+        const leagueRef = doc(db, 'leagues', item.league.id.toString());
+        batch.set(leagueRef, {
+          id: item.league.id,
+          name: item.league.name,
+          type: item.league.type,
+          logo: item.league.logo,
+          country: item.country.name,
+          countryCode: item.country.code,
+          countryFlag: item.country.flag,
+          season: parseInt(importSeason)
+        });
+      }
+      await batch.commit();
+      await footballDataService.setLastUpdated('leagues_list');
+      
+      setImportStatus({ type: 'success', message: "Importé avec succès!" });
+      setManualLeagueId('');
+      fetchLeagues(true); // refresh
+    } catch (error) {
+      setImportStatus({ type: 'error', message: "Erreur lors de l'import." });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDeleteLeague = async (id: number) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette compétition?")) return;
+    try {
+      await deleteDoc(doc(db, 'leagues', id.toString()));
+      fetchLeagues(true);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -170,6 +228,56 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
           </div>
         )}
         
+        {profile?.role === 'admin' && (
+          <div className="border border-white/10 p-2 rounded-lg bg-orange-500/5 mb-2 space-y-2">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setShowAdmin(!showAdmin)}
+            >
+              <h2 className="text-[10px] font-bold uppercase text-orange-500 tracking-widest flex items-center gap-1.5"><Settings className="w-3 h-3" /> ADM: Gérer Ligues</h2>
+              <ChevronDown className={`w-3.5 h-3.5 text-orange-500 transition-transform ${showAdmin ? 'rotate-180' : ''}`} />
+            </div>
+            
+            <AnimatePresence>
+              {showAdmin && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-2 space-y-2 border-t border-white/10 mt-2">
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={manualLeagueId}
+                        onChange={(e) => setManualLeagueId(e.target.value)}
+                        placeholder="ID Ligue" 
+                        className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs focus:border-orange-500/50 outline-none"
+                      />
+                      <input 
+                        type="text" 
+                        value={importSeason}
+                        onChange={(e) => setImportSeason(e.target.value)}
+                        placeholder="Année" 
+                        className="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs focus:border-orange-500/50 outline-none"
+                      />
+                      <Button size="sm" onClick={handleImportLeague} disabled={importing || !manualLeagueId} className="h-auto py-1 px-3 bg-orange-500 hover:bg-orange-600">
+                        {importing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                      </Button>
+                    </div>
+                    {importStatus && (
+                      <div className={`p-1.5 rounded text-[9px] font-bold ${importStatus.type === 'error' ? 'bg-red-500/20 text-red-500' : importStatus.type === 'success' ? 'bg-green-500/20 text-green-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                        {importStatus.message}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
         <div className="relative w-full group">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
           <input 
@@ -255,7 +363,17 @@ export function CompetitionsPage({ onLeagueClick }: { onLeagueClick: (id: number
                                       </div>
                                     </div>
                                   </div>
-                                  <ChevronRight className="w-3 h-3 text-gray-700 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
+                                  <div className="flex items-center gap-2">
+                                    {profile?.role === 'admin' && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteLeague(l.league.id); }}
+                                        className="p-1.5 opacity-50 hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                    <ChevronRight className="w-3 h-3 text-gray-700 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
+                                  </div>
                                 </div>
                               );
                             })}

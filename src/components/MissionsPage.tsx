@@ -8,6 +8,7 @@ import { handleFirestoreError, OperationType } from '../firebase';
 import { useAlert } from '../context/AlertContext';
 import { useReward } from '../context/RewardContext';
 import { logTransaction } from '../services/transactionService';
+import { motion } from 'motion/react';
 
 interface MissionsPageProps {
   profile: UserProfile;
@@ -162,18 +163,26 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
           </div>
           
           <div className="space-y-3">
-            {missions.filter(m => !m.period || m.period === 'daily').map(mission => {
+            {missions.filter(m => !m.period || m.period === 'daily').map((mission, idx) => {
               const progress = profile.missionsProgress?.[mission.id];
               const currentValue = progress?.currentValue || 0;
               const isCompleted = progress?.isCompleted || false;
               const isClaimed = progress?.isClaimed || false;
 
               return (
-              <Card key={mission.id} className={`p-4 border ${isCompleted ? 'border-green-500/30 bg-green-500/5' : 'border-white/5'}`}>
+              <motion.div
+                key={mission.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: idx * 0.05 }}
+              >
+              <Card className={`p-4 border ${isCompleted ? 'border-green-500/30 bg-green-500/5' : 'border-white/5'} hover:border-white/20 transition-colors`}>
                 <div className="flex items-center gap-4">
                   <div className="shrink-0">
                     {isCompleted ? (
-                      <CheckCircle2 className="w-8 h-8 text-green-500" />
+                      <motion.div initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", bounce: 0.5 }}>
+                        <CheckCircle2 className="w-8 h-8 text-green-500" />
+                      </motion.div>
                     ) : (
                       <Circle className="w-8 h-8 text-gray-600" />
                     )}
@@ -224,6 +233,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                   </div>
                 )}
               </Card>
+              </motion.div>
             )})}
             {missions.filter(m => !m.period || m.period === 'daily').length === 0 && (
               <div className="text-center py-4 text-gray-500 text-sm italic">
@@ -241,18 +251,26 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
           </div>
           
           <div className="space-y-3">
-            {missions.filter(m => m.period === 'weekly').map(mission => {
+            {missions.filter(m => m.period === 'weekly').map((mission, idx) => {
               const progress = profile.missionsProgress?.[mission.id];
               const currentValue = progress?.currentValue || 0;
               const isCompleted = progress?.isCompleted || false;
               const isClaimed = progress?.isClaimed || false;
 
               return (
-              <Card key={mission.id} className={`p-4 border ${isCompleted ? 'border-green-500/30 bg-green-500/5' : 'border-white/5'}`}>
+              <motion.div
+                key={mission.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: idx * 0.05 }}
+              >
+              <Card className={`p-4 border ${isCompleted ? 'border-green-500/30 bg-green-500/5' : 'border-white/5'} hover:border-white/20 transition-colors`}>
                 <div className="flex items-center gap-4">
                   <div className="shrink-0">
                     {isCompleted ? (
-                      <CheckCircle2 className="w-8 h-8 text-green-500" />
+                      <motion.div initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", bounce: 0.5 }}>
+                        <CheckCircle2 className="w-8 h-8 text-green-500" />
+                      </motion.div>
                     ) : (
                       <Circle className="w-8 h-8 text-gray-600" />
                     )}
@@ -303,6 +321,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                   </div>
                 )}
               </Card>
+              </motion.div>
               );
             })}
             {missions.filter(m => m.period === 'weekly').length === 0 && (
@@ -321,18 +340,26 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
           </div>
           
           <div className="space-y-3">
-            {missions.filter(m => m.period === 'one_shot').map(mission => {
+            {missions.filter(m => m.period === 'one_shot').map((mission, idx) => {
               const progress = profile.missionsProgress?.[mission.id];
               const currentValue = progress?.currentValue || 0;
               const isCompleted = progress?.isCompleted || false;
               const isClaimed = progress?.isClaimed || false;
 
               return (
-              <Card key={mission.id} className={`p-4 border ${isCompleted ? 'border-green-500/30 bg-green-500/5' : 'border-white/5'}`}>
+              <motion.div
+                key={mission.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: idx * 0.05 }}
+              >
+              <Card className={`p-4 border ${isCompleted ? 'border-green-500/30 bg-green-500/5' : 'border-white/5'} hover:border-white/20 transition-colors`}>
                 <div className="flex items-center gap-4">
                   <div className="shrink-0">
                     {isCompleted ? (
-                      <CheckCircle2 className="w-8 h-8 text-green-500" />
+                      <motion.div initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", bounce: 0.5 }}>
+                        <CheckCircle2 className="w-8 h-8 text-green-500" />
+                      </motion.div>
                     ) : (
                       <Circle className="w-8 h-8 text-gray-600" />
                     )}
@@ -383,6 +410,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                   </div>
                 )}
               </Card>
+              </motion.div>
               );
             })}
             {missions.filter(m => m.period === 'one_shot').length === 0 && (

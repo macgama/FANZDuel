@@ -9,6 +9,8 @@ import { getImageUrl } from '../lib/utils';
 import { generateFervorPath } from '../utils/fervorPath';
 import { RewardSelector } from './RewardSelector';
 import { FanzSkinsTable, FanzEmotesTable, FanzFerveurTable } from './FanzItemsTable';
+import { AdminLifeActionRow } from './AdminLifeActionRow';
+import { AdminDuelCardRow } from './AdminDuelCardRow';
 import { BASE_CARDS } from '../constants/cards';
 import { ALL_FANZ } from '../constants/fanz';
 import { LOGOS } from '../constants';
@@ -84,7 +86,15 @@ export function AdminZone() {
       const docRef = doc(db, 'global_configs', 'shop');
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setShopConfig(docSnap.data());
+        const data = docSnap.data();
+        if (!data.boosts || data.boosts.length === 0) {
+           data.boosts = [
+             { id: 'b1', name: 'Boost XP x2', duration: '24h', price: 100, currency: 'boost', color: 'blue' },
+             { id: 'b2', name: 'Énergie Infinie', duration: '1h', price: 50, currency: 'boost', color: 'yellow' },
+             { id: 'b3', name: 'Bouclier Anti-Malus', duration: '3 Matchs', price: 150, currency: 'boost', color: 'green' }
+           ];
+        }
+        setShopConfig(data);
       } else {
         const defaultShopConfig = {
           id: 'shop',
@@ -92,6 +102,11 @@ export function AdminZone() {
              { id: 'pack_1', name: 'Pack Ferveur Standard', price: 5, numberOfRewards: 1, description: '1 Récompense (Skin, Carte, Énergie...)' },
              { id: 'pack_2', name: 'Pack Ferveur Épique', price: 9, numberOfRewards: 2, description: '2 Récompenses (Skins, Cartes, Énergie...)' },
              { id: 'pack_3', name: 'Pack Ferveur Légendaire', price: 13, numberOfRewards: 3, description: '3 Récompenses (Skins, Cartes, Énergie...)' }
+          ],
+          boosts: [
+             { id: 'b1', name: 'Boost XP x2', duration: '24h', price: 100, currency: 'boost', color: 'blue' },
+             { id: 'b2', name: 'Énergie Infinie', duration: '1h', price: 50, currency: 'boost', color: 'yellow' },
+             { id: 'b3', name: 'Bouclier Anti-Malus', duration: '3 Matchs', price: 150, currency: 'boost', color: 'green' }
           ]
         };
         setShopConfig(defaultShopConfig);
@@ -164,6 +179,7 @@ export function AdminZone() {
 
   useEffect(() => {
     const addLifeActionsToFanz2 = async () => {
+      return; // Automated injection removed
       try {
         const lifeActionsToAdd = [
           {
@@ -327,6 +343,7 @@ export function AdminZone() {
 
   useEffect(() => {
     const addSkinsToFanz2 = async () => {
+      return; // Automated injection removed
       try {
         const fanzRef = doc(db, 'fanz_templates', 'fanz-2');
         const fanzSnap = await getDoc(fanzRef);
@@ -2902,7 +2919,7 @@ export function AdminZone() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredLeagues.map((item) => (
-            <div key={item.league.id} className="p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-between">
+            <div key={item.league.id} className="p-4 border border-white/10 rounded-xl hover:bg-white/10 transition-colors flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img src={item.league.logo} alt={item.league.name} className="w-10 h-10 object-contain" />
                 <div>
@@ -3143,7 +3160,7 @@ export function AdminZone() {
                   </div>
                   <div className="grid grid-cols-1 gap-3">
                     {(editingCard.unlockRequirements || []).map((req, idx) => (
-                      <div key={idx} className="flex gap-3 items-end p-3 bg-gray-50 rounded-lg">
+                      <div key={idx} className="flex gap-3 items-end p-3 bg-white/5 border border-white/10 rounded-lg">
                         <div className="flex-1 space-y-1">
                           <label className="text-[10px] font-bold uppercase text-gray-400">Type</label>
                           <select
@@ -3216,7 +3233,7 @@ export function AdminZone() {
                   </div>
                   <div className="grid grid-cols-1 gap-3">
                     {(editingCard.effects || []).map((effect, idx) => (
-                      <div key={idx} className="flex gap-3 items-end p-3 bg-gray-50 rounded-lg">
+                      <div key={idx} className="flex gap-3 items-end p-3 bg-white/5 border border-white/10 rounded-lg">
                         <div className="flex-1 space-y-1">
                           <label className="text-[10px] font-bold uppercase text-gray-400">Type</label>
                           <select
@@ -3502,47 +3519,15 @@ export function AdminZone() {
                             <th className="px-4 py-3 align-middle text-center w-16">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-white/5 bg-black/20">
                           {sortedDuelCards.map((card) => (
-                            <tr key={card.id} className="hover:bg-white/5 cursor-pointer transition-colors" onClick={() => setEditingCard(card)}>
-                              <td className="px-4 py-2 align-middle">
-                                <div className="w-12 h-16 rounded overflow-hidden bg-black/40 border border-white/10 shrink-0">
-                                   {card.videoUrl ? (
-                                     <video src={getImageUrl(card.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                                   ) : (
-                                     <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" />
-                                   )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 align-middle font-bold text-white max-w-[200px] truncate">{card.name}</td>
-                              <td className="px-4 py-3 align-middle">
-                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded flex w-fit ${
-                                  card.type === 'bonus' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
-                                  card.type === 'malus' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
-                                  'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                                }`}>
-                                  {card.type}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 align-middle capitalize">{card.rarity}</td>
-                              <td className="px-4 py-3 align-middle text-xs text-blue-400 font-bold max-w-[150px] truncate">
-                                {card.fanzIds?.length ? card.fanzIds.join(', ') : 'Générique'}
-                              </td>
-                              <td className="px-4 py-3 align-middle text-center font-bold text-yellow-500">{card.energyCost}</td>
-                              <td className="px-4 py-3 align-middle text-center">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="text-red-500 hover:text-red-400 hover:bg-red-500/10 p-1.5 h-auto border-red-500/30 mx-auto"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteDuelCard(card.id);
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </td>
-                            </tr>
+                            <AdminDuelCardRow
+                              key={card.id}
+                              card={card}
+                              onSaved={fetchDuelCards}
+                              onDeleted={() => handleDeleteDuelCard(card.id)}
+                              fanzTemplates={fanzTemplates}
+                            />
                           ))}
                         </tbody>
                       </table>
@@ -3906,45 +3891,15 @@ export function AdminZone() {
                             <th className="px-4 py-3 align-middle text-center w-16">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-white/5 bg-black/20">
                           {sortedLifeActions.map((action) => (
-                            <tr key={action.id} className="hover:bg-white/5 cursor-pointer transition-colors" onClick={() => setEditingAction(action)}>
-                              <td className="px-4 py-2 align-middle">
-                                <div className="w-12 h-12 rounded overflow-hidden bg-black/40 border border-white/10 shrink-0">
-                                   {action.videoUrl ? (
-                                     <video src={getImageUrl(action.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                                   ) : action.image ? (
-                                     <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
-                                   ) : (
-                                     <div className="w-full h-full flex items-center justify-center"><Activity className="w-6 h-6 text-gray-400" /></div>
-                                   )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 align-middle">
-                                <div className="font-bold text-white max-w-[200px] truncate">{action.name}</div>
-                                {action.fanzTemplateId && (
-                                  <div className="text-[10px] text-blue-400 font-bold mt-1">Fanz: {action.fanzTemplateId}</div>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 align-middle text-center">{action.durationMinutes} min</td>
-                              <td className="px-4 py-3 align-middle text-xs text-blue-400 font-bold max-w-[150px] truncate">
-                                {action.fanzTemplateId ? action.fanzTemplateId : 'Générique'}
-                              </td>
-                              <td className="px-4 py-3 align-middle text-xs text-gray-500 font-mono">{action.id}</td>
-                              <td className="px-4 py-3 align-middle text-center">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="text-red-500 hover:text-red-400 hover:bg-red-500/10 p-1.5 h-auto border-red-500/30 mx-auto"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteLifeAction(action.id);
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </td>
-                            </tr>
+                            <AdminLifeActionRow
+                              key={action.id}
+                              action={action}
+                              onSaved={fetchLifeActions}
+                              onDeleted={() => handleDeleteLifeAction(action.id)}
+                              fanzTemplates={fanzTemplates}
+                            />
                           ))}
                         </tbody>
                       </table>
@@ -4130,6 +4085,52 @@ export function AdminZone() {
                           <video 
                             key={getImageUrl(editingFanz.video)}
                             src={getImageUrl(editingFanz.video)} 
+                            className="w-full h-full object-cover"
+                            autoPlay muted loop playsInline
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">URL Vidéo Victoire (Skin 000)</label>
+                    <div className="flex gap-4">
+                      <input
+                        type="text"
+                        value={editingFanz.victoryVideoUrl || ''}
+                        onChange={e => setEditingFanz({...editingFanz, victoryVideoUrl: e.target.value})}
+                        className="flex-1 p-2 bg-green-100 text-gray-900 rounded-lg border-none"
+                        placeholder="https://..."
+                      />
+                      {editingFanz.victoryVideoUrl && (
+                        <div className="w-10 h-10 rounded bg-gray-200 overflow-hidden flex-shrink-0">
+                          <video 
+                            key={getImageUrl(editingFanz.victoryVideoUrl)}
+                            src={getImageUrl(editingFanz.victoryVideoUrl)} 
+                            className="w-full h-full object-cover"
+                            autoPlay muted loop playsInline
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">URL Vidéo Défaite (Skin 000)</label>
+                    <div className="flex gap-4">
+                      <input
+                        type="text"
+                        value={editingFanz.defeatVideoUrl || ''}
+                        onChange={e => setEditingFanz({...editingFanz, defeatVideoUrl: e.target.value})}
+                        className="flex-1 p-2 bg-red-100 text-gray-900 rounded-lg border-none"
+                        placeholder="https://..."
+                      />
+                      {editingFanz.defeatVideoUrl && (
+                        <div className="w-10 h-10 rounded bg-gray-200 overflow-hidden flex-shrink-0">
+                          <video 
+                            key={getImageUrl(editingFanz.defeatVideoUrl)}
+                            src={getImageUrl(editingFanz.defeatVideoUrl)} 
                             className="w-full h-full object-cover"
                             autoPlay muted loop playsInline
                           />
@@ -4551,7 +4552,7 @@ export function AdminZone() {
             
             <div className="space-y-6">
               {shopConfig.ferveurPacks.map((pack: any, index: number) => (
-                <div key={pack.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                <div key={pack.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-white/5 border-white/10">
                   <div>
                     <label className="block text-sm font-medium mb-1">Nom du pack</label>
                     <input
@@ -4562,7 +4563,7 @@ export function AdminZone() {
                         newPacks[index].name = e.target.value;
                         setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
                       }}
-                      className="w-full text-black px-3 py-2 border rounded"
+                      className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
                     />
                   </div>
                   <div>
@@ -4575,7 +4576,7 @@ export function AdminZone() {
                         newPacks[index].price = parseInt(e.target.value) || 0;
                         setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
                       }}
-                      className="w-full text-black px-3 py-2 border rounded"
+                      className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
                     />
                   </div>
                   <div>
@@ -4588,7 +4589,7 @@ export function AdminZone() {
                         newPacks[index].numberOfRewards = parseInt(e.target.value) || 1;
                         setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
                       }}
-                      className="w-full text-black px-3 py-2 border rounded"
+                      className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
                     />
                   </div>
                   <div>
@@ -4601,11 +4602,110 @@ export function AdminZone() {
                         newPacks[index].description = e.target.value;
                         setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
                       }}
-                      className="w-full text-black px-3 py-2 border rounded"
+                      className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
                     />
                   </div>
                 </div>
               ))}
+            </div>
+          </Card>
+
+          {/* Boosts Management */}
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">Boosts (Boutique)</h3>
+              <Button onClick={() => handleSaveShopConfig(shopConfig)} className="bg-green-600 hover:bg-green-700">
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder la config
+              </Button>
+            </div>
+            
+            <div className="space-y-6">
+              {(shopConfig.boosts || []).map((boost: any, index: number) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border rounded-lg bg-white/5 border-white/10">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Type d'effet</label>
+                    <select
+                      value={boost.id}
+                      onChange={e => {
+                        const newBoosts = [...(shopConfig.boosts || [])];
+                        newBoosts[index].id = e.target.value;
+                        if (e.target.value === 'b1') newBoosts[index].color = 'blue';
+                        else if (e.target.value === 'b2') newBoosts[index].color = 'yellow';
+                        else if (e.target.value === 'b3') newBoosts[index].color = 'green';
+                        setShopConfig({ ...shopConfig, boosts: newBoosts });
+                      }}
+                      className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
+                    >
+                      <option value="b1" className="bg-black">Boost XP x2</option>
+                      <option value="b2" className="bg-black">Énergie Infinie</option>
+                      <option value="b3" className="bg-black">Bouclier Anti-Malus</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Nom affiché</label>
+                    <input
+                      type="text"
+                      value={boost.name}
+                      onChange={e => {
+                        const newBoosts = [...(shopConfig.boosts || [])];
+                        newBoosts[index].name = e.target.value;
+                        setShopConfig({ ...shopConfig, boosts: newBoosts });
+                      }}
+                      className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Prix (Boosts)</label>
+                    <input
+                      type="number"
+                      value={boost.price}
+                      onChange={e => {
+                        const newBoosts = [...(shopConfig.boosts || [])];
+                        newBoosts[index].price = parseInt(e.target.value) || 0;
+                        setShopConfig({ ...shopConfig, boosts: newBoosts });
+                      }}
+                      className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Durée (ex: 24h)</label>
+                    <input
+                      type="text"
+                      value={boost.duration}
+                      onChange={e => {
+                        const newBoosts = [...(shopConfig.boosts || [])];
+                        newBoosts[index].duration = e.target.value;
+                        setShopConfig({ ...shopConfig, boosts: newBoosts });
+                      }}
+                      className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
+                    />
+                  </div>
+                  <div className="flex items-end justify-end">
+                    <Button 
+                      onClick={() => {
+                        const newBoosts = (shopConfig.boosts || []).filter((_: any, i: number) => i !== index);
+                        setShopConfig({ ...shopConfig, boosts: newBoosts });
+                      }}
+                      variant="destructive"
+                    >
+                      <Trash2 className="w-4 h-4 md:mr-2" /> <span className="md:inline hidden">Supprimer</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button 
+                  onClick={() => {
+                    const newBoosts = [...(shopConfig.boosts || []), { id: `b1`, name: 'Boost XP x2', duration: '24h', price: 100, currency: 'boost', color: 'blue' }];
+                    setShopConfig({ ...shopConfig, boosts: newBoosts });
+                  }}
+                  variant="outline"
+                  className="bg-black text-white hover:bg-gray-800"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Ajouter un Boost
+                </Button>
+              </div>
             </div>
           </Card>
         </div>

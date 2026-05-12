@@ -28,6 +28,7 @@ import { collection, query, where, orderBy, limit, getDocs, getDoc, doc, onSnaps
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
 import { SharedMatchCard } from './SharedMatchCard';
+import { LiveMatchesSlider } from './LiveMatchesSlider';
 
 interface LeagueDetailsProps {
   leagueId: number;
@@ -72,22 +73,42 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
           setAvailableSeasons(sorted);
           
           let actualSeasonYear = sorted[0].year;
-          const today = new Date().toISOString().split('T')[0];
-          
-          const activeByDate = data.seasons.find((s: any) => s.start <= today && s.end >= today);
-          const currentByFlag = data.seasons.find((s: any) => s.current);
-          
-          if (activeByDate) {
-            actualSeasonYear = activeByDate.year;
-          } else if (currentByFlag) {
-            actualSeasonYear = currentByFlag.year;
+          let closestSeason: number | null = null;
+          let minDistance = Infinity;
+          const todayDate = new Date();
+
+          data.seasons.forEach((s: any) => {
+            const start = new Date(s.start);
+            const end = new Date(s.end);
+            let distance = 0;
+            if (todayDate >= start && todayDate <= end) {
+              distance = 0;
+            } else if (todayDate < start) {
+              distance = start.getTime() - todayDate.getTime();
+            } else {
+              distance = todayDate.getTime() - end.getTime();
+            }
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestSeason = s.year;
+            } else if (distance === minDistance && s.year > (closestSeason || 0)) {
+               closestSeason = s.year;
+            }
+          });
+
+          if (closestSeason !== null) {
+            actualSeasonYear = closestSeason;
           }
           
           // Store the actual current season for the UI dropdown
           setActualCurrentSeason(actualSeasonYear);
 
-          // Always default to the actual current season when visiting a competition
-          setSelectedSeason(actualSeasonYear);
+          // Default to initialSeason if provided, else to the actual current season
+          if (initialSeason) {
+            setSelectedSeason(initialSeason);
+          } else {
+            setSelectedSeason(actualSeasonYear);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch league info', err);
@@ -361,7 +382,13 @@ function TabButton({ active, onClick, icon, label, highlight }: { active: boolea
 }
 
 function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selectedSeason }: { standings: any[]; fixtures?: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number }) {
-  if (standings.length === 0) return <Card className="py-10 text-center text-gray-500">Classement non disponible.</Card>;
+  if (standings.length === 0) {
+    return (
+      <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+        Le classement de cette compétition n'est malheureusement pas disponible chez notre fournisseur de données, ou il s'agit d'une phase à élimination directe exclusive.
+      </Card>
+    );
+  }
 
   const groupedStandings = standings.reduce((acc: any, s: any) => {
     const groupName = s.group || 'Classement';
@@ -416,7 +443,7 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
                     <td className="px-2 py-3 text-center font-black text-sm text-orange-400">{s.points}</td>
                     <td className="px-3 py-3">
                       <div className="flex justify-center gap-1">
-                        {s.form?.split('').map((f: string, i: number) => (
+                        {(s.form?.split('') || []).map((f: string, i: number) => (
                           <span 
                             key={i} 
                             className={`w-4 h-4 rounded text-[8px] flex items-center justify-center font-black text-white/90 shadow-sm ${
@@ -512,14 +539,38 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
     });
   }, [groupedByRound]);
 
+  const liveMatches = React.useMemo(() => {
+    const favoriteIds = profile?.favoriteTeams?.map((id: any) => id.toString()) || [];
+    return fixtures.filter(f => ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short)).sort((a, b) => {
+      const aIsFav = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
+      const bIsFav = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
+      if (aIsFav && !bIsFav) return -1;
+      if (!aIsFav && bIsFav) return 1;
+      return 0;
+    });
+  }, [fixtures, profile]);
+
   useEffect(() => {
     if (rounds.length > 0 && !selectedRound) {
-      // Find the round with the most recent live/finished games, or the first upcoming
+      const today = new Date().getTime();
       let bestRound = rounds[0];
-      
+      let minDistance = Infinity;
+
       for (const round of rounds) {
-        const hasLiveInfo = groupedByRound[round].some((m: any) => ['1H', '2H', 'HT', 'LIVE', 'FT'].includes(m.fixture.status.short));
-        if (hasLiveInfo) {
+        const dates = groupedByRound[round].map((m: any) => new Date(m.fixture.date).getTime());
+        const minDate = Math.min(...dates);
+        const maxDate = Math.max(...dates);
+        let distance = 0;
+        if (today >= minDate && today <= maxDate) {
+          distance = 0;
+        } else if (today < minDate) {
+          distance = minDate - today;
+        } else {
+          distance = today - maxDate;
+        }
+
+        if (distance < minDistance) {
+          minDistance = distance;
           bestRound = round;
         }
       }
@@ -593,10 +644,13 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
     // Fetch Duels
     const fetchActiveDuels = async () => {
       try {
-        const res = await fetch('/api/duels/all');
+        const res = await fetch('/api/duels/all', { headers: { 'Accept': 'application/json' }});
         if (res.ok) {
-          const duelsData = await res.json();
-          setActiveDuels(duelsData);
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const duelsData = await res.json();
+            setActiveDuels(duelsData);
+          }
         }
       } catch (err: any) {
         if (err?.message !== 'Failed to fetch') {
@@ -653,28 +707,44 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
 
   if (!selectedRound) return null;
 
+  const currentMatchesCount = groupedByRound[selectedRound]?.length || 0;
+
   return (
     <div className="space-y-4">
+      {/* Live Matches Slider */}
+      {liveMatches.length > 0 && (
+        <div className="-mx-4 md:mx-0">
+          <LiveMatchesSlider
+            matches={liveMatches}
+            activeDuels={activeDuels}
+            matchScores={matchScores}
+            onMatchClick={onMatchClick || (() => {})}
+            onJoinDuel={(id) => {}} // No implementation available in this context without props passing
+            onTeamClick={onTeamClick}
+            profile={profile}
+          />
+        </div>
+      )}
+
       {/* Round Selector */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-        {rounds.map(round => (
-          <button
-            key={round}
-            onClick={() => setSelectedRound(round)}
-            className={`px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-black uppercase italic transition-colors ${
-              selectedRound === round 
-                ? 'bg-orange-500 text-white' 
-                : 'bg-white/5 text-gray-400 hover:bg-white/10'
-            }`}
-          >
-            {formatRound(round)}
-          </button>
-        ))}
+      <div className="flex items-center gap-2 mb-4">
+        <select
+          value={selectedRound}
+          onChange={(e) => setSelectedRound(e.target.value)}
+          className="w-full bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-lg px-4 py-3 text-sm font-black uppercase tracking-widest text-white outline-none focus:ring-2 focus:ring-orange-500 appearance-none h-[48px]"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em`, paddingRight: `2.5rem` }}
+        >
+          {rounds.map(round => (
+            <option key={round} value={round} className="bg-gray-900 text-white">
+              {formatRound(round)}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Horizontal Matches */}
       <div className="relative group/scroll">
-        {groupedByRound[selectedRound].length > 1 && (
+        {currentMatchesCount > 1 && (
           <>
             <button 
               onClick={() => scroll('left')}
@@ -695,15 +765,15 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
           ref={scrollContainerRef}
           className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
         >
-          <div className="flex flex-nowrap gap-4 w-fit px-0.5 items-stretch">
-            {groupedByRound[selectedRound].map((match: any) => {
+          <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch -ml-4 mr-4">
+            {(groupedByRound[selectedRound] || []).map((match: any) => {
               const matchWithEvents = {
                 ...match,
                 events: match.events || roundEvents[match.fixture.id] || []
               };
               
               return (
-              <div key={match.fixture.id} className="snap-center shrink-0 flex items-stretch w-[calc(100vw-60px)] sm:w-[400px]">
+              <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${currentMatchesCount > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
                 <SharedMatchCard
                   match={matchWithEvents}
                   hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
@@ -713,6 +783,7 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
                   onTeamClick={onTeamClick}
                   profile={profile}
                   showLeagueHeader={false}
+                  showDate={true}
                 />
               </div>
             )})}
@@ -804,6 +875,14 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
 }
 
 function RankingsTab({ scorers, assists, yellowCards, redCards, onTeamClick, selectedSeason }: { scorers: any[]; assists: any[]; yellowCards: any[]; redCards: any[]; onTeamClick: (id: number, season: number) => void; selectedSeason: number }) {
+  if (!scorers.length && !assists.length && !yellowCards.length && !redCards.length) {
+    return (
+      <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+        Les classements individuels (buteurs, passeurs, etc.) ne sont malheureusement pas couverts par notre fournisseur de données pour cette compétition.
+      </Card>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
       <RankingList title="Meilleurs Buteurs" data={scorers} statLabel="Buts" statKey="goals" icon={<Goal className="text-green-500" />} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />

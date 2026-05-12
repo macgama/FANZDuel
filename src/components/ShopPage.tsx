@@ -371,19 +371,22 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
     }
   };
 
-  const handlePurchase = async (currencyToUse: 'money' | 'gems' | 'both') => {
+  const handlePurchase = async (currencyToUse: 'money' | 'gems' | 'boost' | 'both') => {
     if (!selectedItem) return;
     
     let costMoney = 0;
     let costGems = 0;
+    let costBoosts = 0;
 
     if (currencyToUse === 'both') {
       costMoney = selectedItem.fullPrice?.money || 0;
       costGems = selectedItem.fullPrice?.gems || 0;
+      costBoosts = selectedItem.fullPrice?.boost || 0;
     } else {
       const singleCost = selectedItem.fullPrice?.[currencyToUse] || selectedItem.price;
       if (currencyToUse === 'money') costMoney = singleCost;
       if (currencyToUse === 'gems') costGems = singleCost;
+      if (currencyToUse === 'boost') costBoosts = singleCost;
     }
 
     if (costMoney > 0 && (profile.money || 0) < costMoney) {
@@ -394,8 +397,12 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       setError(`Vous n'avez pas assez de gemmes.`);
       return;
     }
+    if (costBoosts > 0 && (profile.boostPoints || 0) < costBoosts) {
+      setError(`Vous n'avez pas assez de points de boost.`);
+      return;
+    }
 
-    if (costMoney <= 0 && costGems <= 0) return;
+    if (costMoney <= 0 && costGems <= 0 && costBoosts <= 0) return;
 
     setPurchasing(true);
     setError(null);
@@ -406,6 +413,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       
       if (costMoney > 0) updates.money = (profile.money || 0) - costMoney;
       if (costGems > 0) updates.gems = (profile.gems || 0) - costGems;
+      if (costBoosts > 0) updates.boostPoints = (profile.boostPoints || 0) - costBoosts;
 
       if (selectedItem.type === 'fanz') {
         const newFanzId = `fanz-${Date.now()}`;
@@ -494,8 +502,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       <Button 
         onClick={() => setSelectedItem(item)}
         className={cn(
-        "w-full font-black uppercase text-xs mt-3",
+        "w-full font-black uppercase text-[10px] sm:text-xs mt-3",
         currency === 'gems' ? "bg-blue-500 hover:bg-blue-600 text-white" : 
+        currency === 'boost' ? "bg-orange-500 hover:bg-orange-600 text-white" : 
         currency === 'money' ? "bg-green-500 hover:bg-green-600 text-white" : 
         "bg-white text-black hover:bg-gray-200"
       )}>
@@ -503,6 +512,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           {price} 
           {currency === 'gems' && <Gem className="w-3 h-3" />}
           {currency === 'money' && <span>$</span>}
+          {currency === 'boost' && <span>Boosts</span>}
         </span>
       </Button>
     );
@@ -713,7 +723,16 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'boosts' && (
               <section>
                 <div className="grid grid-cols-2 gap-4">
-                  {MOCK_BOOSTS.map(boost => renderItemCard(boost, 'boost'))}
+                  {(shopConfig?.boosts || MOCK_BOOSTS).map((boost: any) => {
+                    let IconComp = boost.icon;
+                    if (!IconComp) {
+                       if (boost.color === 'blue') IconComp = <TrendingUp className={`w-8 h-8 text-blue-500`} />;
+                       else if (boost.color === 'yellow') IconComp = <Zap className={`w-8 h-8 text-yellow-500`} />;
+                       else if (boost.color === 'green') IconComp = <Shield className={`w-8 h-8 text-green-500`} />;
+                       else IconComp = <TrendingUp className="w-8 h-8 text-orange-500" />;
+                    }
+                    return renderItemCard({ ...boost, icon: IconComp }, 'boost');
+                  })}
                 </div>
               </section>
             )}
@@ -855,14 +874,16 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 {/* Fallback if fullPrice is not structured properly but price/currency exist */}
                 {(!selectedItem.fullPrice || (selectedItem.fullPrice.money === 0 && selectedItem.fullPrice.gems === 0)) && selectedItem.price > 0 && (
                   <Button
-                    onClick={() => handlePurchase(selectedItem.currency as 'money' | 'gems')}
-                    disabled={purchasing || (profile[selectedItem.currency as 'money' | 'gems'] || 0) < selectedItem.price}
+                    onClick={() => handlePurchase(selectedItem.currency as 'money' | 'gems' | 'boost')}
+                    disabled={purchasing || ((selectedItem.currency === 'boost' ? profile.boostPoints : profile[selectedItem.currency as 'money' | 'gems']) || 0) < selectedItem.price}
                     className={cn(
                       "w-full font-black uppercase",
-                      selectedItem.currency === 'gems' ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"
+                      selectedItem.currency === 'gems' ? "bg-blue-500 hover:bg-blue-600 text-white" : 
+                      selectedItem.currency === 'boost' ? "bg-orange-500 hover:bg-orange-600 text-white" : 
+                      "bg-green-500 hover:bg-green-600 text-white"
                     )}
                   >
-                    {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.price} ${selectedItem.currency === 'gems' ? 'Gemmes' : '$'}`}
+                    {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.price} ${selectedItem.currency === 'gems' ? 'Gemmes' : selectedItem.currency === 'boost' ? 'Boosts' : '$'}`}
                   </Button>
                 )}
 

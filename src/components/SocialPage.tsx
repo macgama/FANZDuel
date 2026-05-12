@@ -158,6 +158,12 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
       await updateDoc(doc(db, 'users', targetUser.uid), {
         friendRequests: arrayUnion(user.uid)
       });
+      setSearchResults(prev => prev.map(u => {
+        if (u.uid === targetUser.uid) {
+          return { ...u, friendRequests: [...(u.friendRequests || []), user.uid] };
+        }
+        return u;
+      }));
       showAlert({
         title: `Demande d'ami envoyée à ${targetUser.pseudo}`,
         type: 'success'
@@ -410,6 +416,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
               {searchResults.map(result => {
                 const isFriend = user.friends?.includes(result.uid);
                 const hasRequested = result.friendRequests?.includes(user.uid);
+                const hasRequestedUs = user.friendRequests?.includes(result.uid);
                 
                 return (
                   <div key={result.uid} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
@@ -427,12 +434,24 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
                         </button>
                         <span className="text-xs sm:text-sm text-green-500 font-bold uppercase flex items-center px-2">Ami</span>
                       </div>
+                    ) : hasRequestedUs ? (
+                      <div className="flex gap-2">
+                        <button onClick={() => setSelectedFriend(result)} className="p-2 sm:p-2.5 bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20 transition-colors">
+                          <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                        <button 
+                          onClick={() => acceptFriendRequest(result)}
+                          className="px-3 py-1.5 sm:px-4 sm:py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs sm:text-sm uppercase tracking-wider transition-colors"
+                        >
+                          Accepter
+                        </button>
+                      </div>
                     ) : hasRequested ? (
                       <div className="flex gap-2">
                         <button onClick={() => setSelectedFriend(result)} className="p-2 sm:p-2.5 bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20 transition-colors">
                           <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
-                        <span className="text-xs sm:text-sm text-gray-500 font-bold uppercase flex items-center px-2">En attente</span>
+                        <span className="text-xs sm:text-sm text-gray-500 font-bold uppercase flex items-center px-2">Demande en attente</span>
                       </div>
                     ) : (
                       <div className="flex gap-2">

@@ -13,7 +13,7 @@ import { getImageUrl, cn } from '../lib/utils';
 import { footballApi } from '../services/footballApi';
 import { MatchEvents } from './MatchEvents';
 import { LifeActionCard } from './LifeActionCard';
-import { SharedMatchCard } from './SharedMatchCard';
+import { LiveMatchesSlider } from './LiveMatchesSlider';
 import { generateFervorPath } from '../utils/fervorPath';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { 
@@ -99,7 +99,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
           setHasClaimableStreak(false);
         }
       } catch (err: any) {
-        if (err?.message !== 'Failed to fetch') {
+        if (err?.code !== 'permission-denied' && !err?.message?.includes('Missing or insufficient permissions') && err?.message !== 'Failed to fetch') {
           console.error("Error fetching badges:", err);
         }
       }
@@ -173,8 +173,10 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
               if (teamDoc.exists()) {
                 return teamDoc.data();
               }
-            } catch (err) {
-              console.error(`Error checking api_teams for ${teamIdStr}`, err);
+            } catch (err: any) {
+              if (err?.code !== 'permission-denied' && !err?.message?.includes('Missing or insufficient permissions')) {
+                console.error(`Error checking api_teams for ${teamIdStr}`, err);
+              }
             }
 
             // Fallback to API
@@ -318,8 +320,13 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     const fetchMatches = async () => {
       try {
         const liveFixtures = await footballApi.getLiveFixtures();
-        // Sort live matches alphabetically by country name
+        // Sort live matches alphabetically by country name, but put favorite teams first
         liveFixtures.sort((a, b) => {
+          const favoriteIds = profile.favoriteTeams?.map((id: any) => id.toString()) || [];
+          const aIsFav = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
+          const bIsFav = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
+          if (aIsFav && !bIsFav) return -1;
+          if (!aIsFav && bIsFav) return 1;
           const countryA = translateCountryName(a.league.country || '');
           const countryB = translateCountryName(b.league.country || '');
           return countryA.localeCompare(countryB);
@@ -381,7 +388,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
         const actionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LifeAction));
         setLifeActions(actionsData);
       } catch (error: any) {
-        if (error?.message !== 'Failed to fetch') {
+        if (error?.code !== 'permission-denied' && !error?.message?.includes('Missing or insufficient permissions') && error?.message !== 'Failed to fetch') {
           console.error("Error fetching life actions", error);
         }
       }
@@ -392,10 +399,19 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
 
     const fetchActiveDuels = async () => {
       try {
-        const res = await fetch('/api/duels/all');
+        const res = await fetch('/api/duels/all', {
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
         if (res.ok) {
-          const duelsData = await res.json();
-          setActiveDuels(duelsData);
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const duelsData = await res.json();
+            setActiveDuels(duelsData);
+          } else {
+            console.warn("Expected JSON from /api/duels/all, got", contentType);
+          }
         }
       } catch (err: any) {
         if (err?.message !== 'Failed to fetch') {
@@ -527,21 +543,32 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
               })()}
 
               {!currentActiveAction && activeFanz && (() => {
-                const ferveurPath = fanzFervorConfig 
-                  ? generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000, fanzFervorConfig)
+                const configToUse = fanzTemplate?.ferveurConfig || fanzFervorConfig;
+                const ferveurPath = configToUse 
+                  ? generateFervorPath(configToUse.ranges?.[configToUse.ranges.length - 1]?.max || 50000, configToUse)
                   : fanzTemplate?.ferveurPath || [];
-                const nextLevelPoints = ferveurPath.find(l => l.level === activeFanz.ferveurLevel + 1)?.pointsRequired || 1000;
+                const nextStep = ferveurPath.find(l => (activeFanz.ferveurPoints || 0) < l.pointsRequired);
+                const nextLevelPoints = nextStep?.pointsRequired || (ferveurPath.length > 0 ? ferveurPath[ferveurPath.length - 1].pointsRequired : 1000);
+                const currentPoints = activeFanz.ferveurPoints || 0;
+                const prevStep = ferveurPath.filter(l => l.pointsRequired <= currentPoints).pop();
+                const prevPoints = prevStep ? prevStep.pointsRequired : 0;
+                
+                const progressPercent = nextStep 
+                  ? ((currentPoints - prevPoints) / (nextLevelPoints - prevPoints)) * 100 
+                  : 100;
                 
                 return (
                   <div className="mt-2 w-full max-w-[150px] sm:max-w-[200px]">
                     <div className="h-3 sm:h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
                       <div 
-                        className="h-full bg-orange-500 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(100, (activeFanz.ferveurPoints / nextLevelPoints) * 100)}%` }}
-                      />
+                        className="h-full bg-orange-500 rounded-full transition-all duration-500 relative"
+                        style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white/30 animate-[scan_2s_ease-in-out_infinite]" />
+                      </div>
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                         <span className="text-[8px] sm:text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                          {activeFanz.ferveurPoints} / {nextLevelPoints}
+                          {currentPoints} / {nextLevelPoints}
                         </span>
                       </div>
                     </div>
@@ -558,9 +585,9 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
         </div>
 
         {/* Content Below Video (Live Matches or Life Actions) */}
-        <div className="flex-1 flex flex-col justify-start py-2">
+        <div className="flex-1 flex flex-col justify-evenly gap-4 py-4 shrink-0 min-h-[400px]">
           {/* Quick Links */}
-          <div className="px-4 sm:px-8 pt-3 pb-2 grid grid-cols-4 gap-3 sm:gap-4">
+          <div className="px-4 sm:px-8 grid grid-cols-4 gap-3 sm:gap-4 shrink-0">
             <button 
               onClick={() => onNavigate('shop')}
               className="relative flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
@@ -608,72 +635,36 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
             </p>
           )}
 
-          {liveMatches.length > 0 && (
-            <div className="flex justify-between items-center px-[30px] mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-xs font-black uppercase tracking-widest">EN DIRECT ({liveMatches.length})</span>
-              </div>
-              <button onClick={() => onNavigate('matches')} className="text-[10px] font-black text-orange-500 uppercase flex items-center gap-1 hover:text-orange-400">
-                VOIR TOUT <ArrowRight className="w-3 h-3" />
+          {liveMatches.length > 0 ? (
+            <LiveMatchesSlider
+              matches={liveMatches}
+              activeDuels={activeDuels}
+              matchScores={matchScores}
+              onMatchClick={onMatchClick}
+              onJoinDuel={onJoinDuel}
+              onTeamClick={onTeamClick}
+              onLeagueClick={onLeagueClick}
+              profile={profile}
+              showAllButton={true}
+              onShowAllClick={() => onNavigate('matches')}
+            />
+          ) : (
+            <div className="relative w-full pb-4">
+              <button 
+                onClick={() => scroll(scrollContainerRef, 'left')}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
               </button>
-            </div>
-          )}
 
-          <div className="relative w-full pb-4">
-            {/* Left Scroll Button */}
-            <button 
-              onClick={() => scroll(scrollContainerRef, 'left')}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-
-            <div 
-              ref={scrollContainerRef}
-              className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
-            >
-              <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
-                {liveMatches.length > 0 ? (
-                liveMatches.map(match => (
-                  <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${liveMatches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
-                    <SharedMatchCard
-                      match={match}
-                      hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
-                      matchScore={matchScores[match.fixture.id.toString()]}
-                      onClick={() => onMatchClick(match.fixture.id)}
-                      onJoinDuel={(isLive) => onJoinDuel(match.fixture.id, isLive)}
-                      onTeamClick={onTeamClick}
-                      onLeagueClick={onLeagueClick}
-                      profile={profile}
-                      showLeagueHeader={true}
-                    />
-                  </div>
-                ))
-              ) : (
-                activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id ? (
-                  lifeActions
-                    .filter(action => action.id === profile.activeAction?.actionId)
-                    .map(action => (
-                      <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
-                        <LifeActionCard 
-                          action={action} 
-                          fanz={activeFanz} 
-                          userProfile={profile} 
-                          fanzTemplate={fanzTemplate}
-                        />
-                      </div>
-                    ))
-                ) : activeFanz && fanzTemplate && !profile.activeAction ? (
-                  (() => {
-                    const equippedSkinData = activeFanz.equippedSkin ? fanzTemplate.skins?.find((s: any) => s.id === activeFanz.equippedSkin) : null;
-                    return lifeActions
-                      .filter(action => {
-                        const isTemplateMatch = action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId;
-                        const isSkinMatch = !action.skinId || action.skinId === activeFanz.equippedSkin;
-                        const isSpecialAction = action.id === equippedSkinData?.specialActionId;
-                        return (isTemplateMatch && isSkinMatch) || isSpecialAction;
-                      })
+              <div 
+                ref={scrollContainerRef}
+                className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
+              >
+                <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
+                  {activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id ? (
+                    lifeActions
+                      .filter(action => action.id === profile.activeAction?.actionId)
                       .map(action => (
                         <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
                           <LifeActionCard 
@@ -683,28 +674,59 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                             fanzTemplate={fanzTemplate}
                           />
                         </div>
-                      ));
-                  })()
-                ) : (
-                  <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-[30px]">
-                    Aucun match en direct et aucun FANZ actif
-                  </div>
-                )
-              )}
+                      ))
+                  ) : activeFanz && fanzTemplate && !profile.activeAction ? (
+                    (() => {
+                      const equippedSkinData = activeFanz.equippedSkin ? fanzTemplate.skins?.find((s: any) => s.id === activeFanz.equippedSkin) : null;
+                      return lifeActions
+                        .filter(action => {
+                          const isTemplateMatch = action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId;
+                          const isSkinMatch = !action.skinId || action.skinId === activeFanz.equippedSkin;
+                          const isSpecialAction = action.id === equippedSkinData?.specialActionId;
+                          return (isTemplateMatch && isSkinMatch) || isSpecialAction;
+                        })
+                        .reduce((acc, action) => {
+                          const existingIdx = acc.findIndex(a => a.name === action.name);
+                          if (existingIdx !== -1) {
+                            if (action.skinId && !acc[existingIdx].skinId) {
+                              acc[existingIdx] = action;
+                            }
+                          } else {
+                            acc.push(action);
+                          }
+                          return acc;
+                        }, [] as LifeAction[])
+                        .map(action => (
+                          <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
+                            <LifeActionCard 
+                              action={action} 
+                              fanz={activeFanz} 
+                              userProfile={profile} 
+                              fanzTemplate={fanzTemplate}
+                            />
+                          </div>
+                        ));
+                    })()
+                  ) : (
+                    <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-[30px]">
+                      Aucun match en direct et aucun FANZ actif
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              {/* Right Scroll Button */}
+              <button 
+                onClick={() => scroll(scrollContainerRef, 'right')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
-            
-            {/* Right Scroll Button */}
-            <button 
-              onClick={() => scroll(scrollContainerRef, 'right')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
+          )}
 
           {/* Buy me a ball after live slider / actions */}
-          <div className="px-[30px] py-4">
+          <div className="px-[30px] shrink-0">
             <a 
               href="https://buymeacoffee.com/thebestfanonline" 
               target="_blank" 
@@ -719,7 +741,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
           </div>
 
         {/* HUB COUPE DU MONDE 2026 */}
-        <div className="py-8 relative">
+        <div className="py-2 shrink-0 relative">
           <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-700/10 pointer-events-none"></div>
           <div className="relative z-10 flex items-center justify-between px-[30px] mb-4">
             <div className="flex items-center gap-2">

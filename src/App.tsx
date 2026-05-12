@@ -308,7 +308,7 @@ function AppContent() {
     
     const fetchWaitingDuels = async (retries = 3) => {
       try {
-        const res = await fetch('/api/duels');
+        const res = await fetch('/api/duels', { headers: { 'Accept': 'application/json' } });
         if (res.ok) {
           const contentType = res.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
@@ -402,42 +402,46 @@ function AppContent() {
   const renderFooter = () => {
     if (view === 'duel' || isDuelActive || view === 'admin') return null;
     return (
-      <footer className="md:hidden shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <footer className="md:hidden shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-1 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'fanz' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <Star className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Fanz</span>
+          <Star className="w-5 h-5 sm:w-7 sm:h-7" />
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Fanz</span>
         </button>
         <button onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'favorite-teams' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
           <div className="relative">
-            <Layers className="w-6 h-6 sm:w-7 sm:h-7" />
+            <Layers className="w-5 h-5 sm:w-7 sm:h-7" />
             {hasFavoriteMatchToday && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
             )}
           </div>
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Équipes</span>
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Équipes</span>
         </button>
         <button onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'collection' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <Database className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Musée</span>
+          <Database className="w-5 h-5 sm:w-7 sm:h-7" />
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Musée</span>
         </button>
-        <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-5 sm:-top-7 group">
-          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#0a0a0a] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'} ${waitingDuelsCount > 0 && view !== 'waiting-room' ? 'animate-[pulse_2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(249,115,22,0.6)]' : ''}`}>
-            <Swords className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+        <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-4 sm:-top-7 group">
+          <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#0a0a0a] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'} ${waitingDuelsCount > 0 && view !== 'waiting-room' ? 'animate-[pulse_2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(249,115,22,0.6)]' : ''}`}>
+            <Swords className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             {waitingDuelsCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#0a0a0a] flex items-center justify-center text-[10px] font-black text-white shadow-lg">
+              <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 rounded-full border-2 border-[#0a0a0a] flex items-center justify-center text-[9px] sm:text-[10px] font-black text-white shadow-lg">
                 {waitingDuelsCount}
               </div>
             )}
           </div>
-          <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest mt-1 ${view === 'waiting-room' ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : 'text-orange-600'}`}>Duel</span>
+          <span className={`text-[9px] sm:text-xs font-black uppercase tracking-widest mt-0.5 sm:mt-1 ${view === 'waiting-room' ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : 'text-orange-600'}`}>Duel</span>
         </button>
         <button onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'rankings' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <Trophy className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
+          <Trophy className="w-5 h-5 sm:w-7 sm:h-7" />
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
         </button>
         <button onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'social' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
-          <Users className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">Social</span>
+          <Users className="w-5 h-5 sm:w-7 sm:h-7" />
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Social</span>
+        </button>
+        <button onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'matches' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+          <Activity className="w-5 h-5 sm:w-7 sm:h-7" />
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Live</span>
         </button>
       </footer>
     );
@@ -867,6 +871,15 @@ function AppContent() {
               (selectedFanzId || selectedMatchId || selectedLeague || selectedTeam || ['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-0"
             )}>
               <div className="w-full h-full relative">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={view + (selectedMatchId || '') + (selectedTeam?.id || '') + (selectedLeague?.id || '') + (selectedFanzId || '')}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="w-full min-h-full"
+                >
               {selectedMatchId ? (
                 <MatchDetails 
                   fixtureId={selectedMatchId} 
@@ -966,6 +979,7 @@ function AppContent() {
               ) : view === 'competitions' ? (
                 <CompetitionsPage 
                   onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
+                  profile={profile}
                 />
               ) : view === 'teams' ? (
                 <TeamsPage 
@@ -1003,6 +1017,8 @@ function AppContent() {
               ) : view === 'stats' ? (
                 <StatsPage profile={profile} onBack={() => setView('home')} />
               ) : null}
+                </motion.div>
+              </AnimatePresence>
               </div>
             </div>
           </div>

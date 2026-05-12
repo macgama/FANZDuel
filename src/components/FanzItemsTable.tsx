@@ -88,7 +88,9 @@ export const FanzSkinsTable: React.FC<FanzSkinsTableProps> = ({ skins, onChange,
             {renderSortHeader("Nom", "name")}
             {renderSortHeader("ID", "id")}
             <th className="p-2 border border-gray-700">Image URL</th>
-            <th className="p-2 border border-gray-700">Video URL</th>
+            <th className="p-2 border border-gray-700">Video Menu URL</th>
+            <th className="p-2 border border-gray-700 bg-green-900/30">Vidéo Victoire URL</th>
+            <th className="p-2 border border-gray-700 bg-red-900/30">Vidéo Défaite URL</th>
             {renderSortHeader("Catégorie", "category")}
             {renderSortHeader("Rareté", "rarity")}
             {renderSortHeader("Argent", "price.money", "text-yellow-500")}
@@ -133,6 +135,12 @@ export const FanzSkinsTable: React.FC<FanzSkinsTableProps> = ({ skins, onChange,
               </td>
               <td className="p-2 border border-gray-800">
                 <input type="text" className="w-40 bg-transparent border-b border-gray-700 focus:border-orange-500 outline-none" value={skin.videoUrl || ''} onChange={(e) => updateSkin(originalIdx, { videoUrl: e.target.value })} />
+              </td>
+              <td className="p-2 border border-gray-800 bg-green-900/10">
+                <input type="text" className="w-40 bg-transparent border-b border-gray-700 focus:border-green-500 outline-none" value={skin.victoryVideoUrl || ''} onChange={(e) => updateSkin(originalIdx, { victoryVideoUrl: e.target.value })} />
+              </td>
+              <td className="p-2 border border-gray-800 bg-red-900/10">
+                <input type="text" className="w-40 bg-transparent border-b border-gray-700 focus:border-red-500 outline-none" value={skin.defeatVideoUrl || ''} onChange={(e) => updateSkin(originalIdx, { defeatVideoUrl: e.target.value })} />
               </td>
               <td className="p-2 border border-gray-800">
                 <select className="bg-transparent [&>option]:bg-gray-900 [&>option]:text-white border-b border-gray-700 focus:border-orange-500 outline-none" value={skin.category || 'base'} onChange={(e) => updateSkin(originalIdx, { category: e.target.value as 'base' | 'event' })}>

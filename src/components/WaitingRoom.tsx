@@ -68,13 +68,16 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
     if (!inviteCode) return;
     try {
       const cleanCode = inviteCode.trim().toUpperCase();
-      const response = await fetch(`/api/duels/code/${cleanCode}`);
+      const response = await fetch(`/api/duels/code/${cleanCode}`, { headers: { 'Accept': 'application/json' } });
       if (response.ok) {
-        const duel = await response.json();
-        if (duel && duel.matchId) {
-          onJoinDuel(duel.id, duel.type, duel.matchId);
-        } else {
-          showAlert({ type: 'error', title: 'Duel introuvable ou expiré.' });
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const duel = await response.json();
+          if (duel && duel.matchId) {
+            onJoinDuel(duel.id, duel.type, duel.matchId);
+          } else {
+            showAlert({ type: 'error', title: 'Duel introuvable ou expiré.' });
+          }
         }
       } else {
         showAlert({ type: 'error', title: 'Code invalide.' });
@@ -88,10 +91,12 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
   useEffect(() => {
     const fetchDuels = async () => {
       try {
-        const response = await fetch('/api/duels?uid=' + user.uid);
+        const response = await fetch('/api/duels?uid=' + user.uid, { headers: { 'Accept': 'application/json' } });
         if (response.ok) {
-          const data = await response.json();
-          setDuels(data);
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            setDuels(data);
           
           // Fetch match details for new matches
           const matchIds = [...new Set(data.filter((d: any) => d.matchId && d.matchId !== 'global').map((d: any) => d.matchId))] as number[];
@@ -110,6 +115,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
               }
             }
           });
+          }
         }
       } catch (err: any) {
         if (err?.message !== 'Failed to fetch') {
@@ -294,15 +300,15 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                     </div>
                   )}
 
-                  <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:bg-orange-500/10 transition-colors">
-                        <Trophy className={`w-6 h-6 ${isFull ? 'text-gray-600' : 'text-orange-500'}`} />
+                  <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:bg-orange-500/10 transition-colors">
+                        <Trophy className={`w-5 h-5 sm:w-6 sm:h-6 ${isFull ? 'text-gray-600' : 'text-orange-500'}`} />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                           <span className="text-sm font-black italic uppercase tracking-tighter text-white">{duel.type.replace('_', ' ')}</span>
-                          <span className="px-1.5 py-0.5 rounded bg-white/5 text-[8px] font-black text-gray-500 uppercase tracking-widest border border-white/5">
+                          <span className="px-1.5 py-0.5 rounded bg-white/5 text-[8px] font-black text-gray-500 uppercase tracking-widest border border-white/5 truncate max-w-[80px] sm:max-w-none">
                             ID: {duel.id.substring(0, 8)}
                           </span>
                           {duel.isPrivate && (
@@ -319,13 +325,13 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                           {duel.matchId && (!matchDetailsCache[duel.matchId] || duel.matchId === 'global') && (
                             <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500/60 uppercase">
                               <Clock className="w-3 h-3" />
-                              <span>Match #{duel.matchId}</span>
+                              <span className="truncate max-w-[100px]">Match #{duel.matchId}</span>
                             </div>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full sm:w-auto justify-end">
                       {duel.participants?.some((p: any) => p.uid === user?.uid) && (
                         <button 
                           onClick={() => handleLeaveOrCancelDuel(duel)}

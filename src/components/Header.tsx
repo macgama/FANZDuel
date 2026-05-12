@@ -60,6 +60,7 @@ export function Header({
   }, [profile.photoURL]);
 
   useEffect(() => {
+    if (!profile.uid) return;
     const fetchMaxFerveur = async () => {
       try {
         const fanzSnapshot = await getDocs(collection(db, 'fanz_templates'));
@@ -77,12 +78,14 @@ export function Header({
         } else {
           setMaxFerveur(150000); // default
         }
-      } catch (err) {
-        console.error("Error fetching max ferveur", err);
+      } catch (err: any) {
+        if (err?.code !== 'permission-denied' && !err?.message?.includes('Missing or insufficient permissions')) {
+          console.error("Error fetching max ferveur", err);
+        }
       }
     };
     fetchMaxFerveur();
-  }, []);
+  }, [profile.uid]);
 
   useEffect(() => {
     if (!profile.uid) return;
@@ -120,8 +123,10 @@ export function Header({
               }
               imageUrl = currentImageUrl;
             }
-          } catch (error) {
-            console.error("Error fetching template for avatar", error);
+          } catch (error: any) {
+            if (error?.code !== 'permission-denied' && !error?.message?.includes('Missing or insufficient permissions')) {
+              console.error("Error fetching template for avatar", error);
+            }
           }
         }
         

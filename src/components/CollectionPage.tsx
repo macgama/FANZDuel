@@ -126,7 +126,13 @@ export function CollectionPage({ user }: CollectionPageProps) {
     const allowedFanzList = fanzList.filter(fanz => {
         const isAllowed = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.includes(fanz.templateId);
         const isBlocked = card.blockedFanzIds && card.blockedFanzIds.includes(fanz.templateId);
-        return isAllowed && !isBlocked;
+        const ownsRequiredSkin = !card.skinId || (
+          fanz.unlockedSkins && (
+            Array.isArray(fanz.unlockedSkins) ? fanz.unlockedSkins.includes(card.skinId) 
+            : Object.keys(fanz.unlockedSkins).includes(card.skinId)
+          )
+        );
+        return isAllowed && !isBlocked && ownsRequiredSkin;
     });
 
     if (allowedFanzList.length === 0) {
@@ -168,28 +174,28 @@ export function CollectionPage({ user }: CollectionPageProps) {
 
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a] text-white">
-      <div className="p-4 bg-gray-900 border-b border-white/10 sticky top-0 z-40">
-        <h1 className="text-2xl font-black italic uppercase text-white mb-4">Mon Musée</h1>
-        <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0">
+      <div className="p-4 px-2 sm:px-4 bg-gray-900 border-b border-white/10 sticky top-0 z-40">
+        <h1 className="text-2xl font-black italic uppercase text-white mb-4 px-2 sm:px-0">Mon Musée</h1>
+        <div className="grid grid-cols-5 gap-1 pb-2">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex flex-col px-4 py-3 rounded-xl whitespace-nowrap outline-none transition-all ${activeTab === tab.id ? 'bg-orange-500 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)] relative top-0' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-white relative top-1'}`}
+              className={`flex flex-col items-center justify-center py-2 sm:py-3 rounded-lg outline-none transition-all ${activeTab === tab.id ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)] relative z-10' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-white'}`}
             >
-              <span className="text-xs font-black tracking-wider uppercase mb-1">{tab.label}</span>
+              <span className="text-[9px] sm:text-[10px] font-black tracking-wider uppercase mb-1">{tab.label}</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-black leading-none">{tab.count}</span>
+                <span className="text-sm sm:text-xl font-black leading-none">{tab.count}</span>
               </div>
             </button>
           ))}
         </div>
         {activeTab !== 'fanz' && (
-          <div className="mt-4 flex flex-wrap gap-4">
+          <div className="mt-2 sm:mt-4 px-2 sm:px-0">
             <select
               value={filterCollectionFanz}
               onChange={(e) => setFilterCollectionFanz(e.target.value)}
-              className="p-2 bg-[#1a1a2e] border border-white/20 rounded-lg text-white font-bold text-sm"
+              className="w-full sm:w-auto p-2 bg-[#1a1a2e] border border-white/20 rounded-lg text-white font-bold text-sm"
             >
               <option value="all">Tous les FANZ</option>
               {activeTab === 'cards' || activeTab === 'actions' ? <option value="generic">{activeTab === 'cards' ? 'Cartes Génériques' : 'Actions Génériques'}</option> : null}
@@ -201,9 +207,9 @@ export function CollectionPage({ user }: CollectionPageProps) {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8 no-scrollbar scroll-smooth">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-4 lg:p-8 space-y-4 no-scrollbar scroll-smooth">
         {activeTab === 'fanz' && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
             {[...fanzTemplates]
               .sort((a, b) => {
                 const aOwned = ownedTemplates.has(a.id);
@@ -215,10 +221,10 @@ export function CollectionPage({ user }: CollectionPageProps) {
               const owned = ownedTemplates.has(template.id);
               const isInactive = template.isActive === false;
               return (
-                <Card key={template.id} className={`p-4 relative overflow-hidden transition-all ${!owned ? (isInactive ? 'opacity-50 grayscale' : 'opacity-50 grayscale hover:grayscale-0') : 'border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.2)]'}`}>
-                  <div className="aspect-square rounded-lg bg-[#0a0a0a] overflow-hidden mb-3 relative group">
+                <div key={template.id} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col transition-all ${!owned ? (isInactive ? 'opacity-50 grayscale' : 'opacity-50 grayscale hover:grayscale-0') : 'outline outline-2 outline-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.2)]'}`}>
+                  <div className="aspect-square bg-[#0a0a0a] relative group">
                     {template.video ? (
-                      <video src={getImageUrl(template.video)} className="w-full h-full object-cover cursor-pointer" autoPlay muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
+                      <video src={getImageUrl(template.video)} className="w-full h-full object-cover cursor-pointer" autoPlay={owned && !isInactive} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
                     ) : (
                       <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
                     )}
@@ -229,19 +235,40 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     )}
                     {isInactive && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
-                        <span className="text-white font-black text-sm uppercase px-4 py-2 bg-black/80 rounded-lg border border-white/20 -rotate-6 shadow-xl tracking-wider text-center shadow-black/80">Bientôt dispo</span>
+                        <span className="text-[10px] sm:text-xs text-white font-black uppercase px-2 py-1 bg-black/80 rounded border border-white/20 -rotate-6 shadow-xl tracking-wider text-center">Bientôt dispo</span>
                       </div>
                     )}
                   </div>
-                  <h3 className="font-bold text-center text-sm md:text-base leading-tight">{template.name}</h3>
-                </Card>
+                  <div className="p-3 flex flex-col justify-between flex-1">
+                    <h3 className="font-bold text-center text-xs md:text-sm leading-tight mb-2">{template.name}</h3>
+                    
+                    <div className="flex gap-1 justify-center mt-auto flex-wrap">
+                      {template.victoryVideoUrl && userDoc?.unlockedVideos?.includes(template.id + '_base_victory') && (
+                         <Button size="sm" variant="outline" className="px-1.5 py-1 h-auto text-[9px] sm:text-[10px] uppercase font-black tracking-wider text-green-400 border-green-500/50 hover:bg-green-500/20" onClick={(e) => {
+                            e.stopPropagation();
+                            openMedia({ type: 'video', url: getImageUrl(template.victoryVideoUrl!), title: template.name + ' - Victoire', itemType: 'fanz' });
+                         }}>
+                            <PlayCircle className="w-3 h-3 mr-0.5" /> Victoire
+                         </Button>
+                      )}
+                      {template.defeatVideoUrl && userDoc?.unlockedVideos?.includes(template.id + '_base_defeat') && (
+                         <Button size="sm" variant="outline" className="px-1.5 py-1 h-auto text-[9px] sm:text-[10px] uppercase font-black tracking-wider text-red-400 border-red-500/50 hover:bg-red-500/20" onClick={(e) => {
+                            e.stopPropagation();
+                            openMedia({ type: 'video', url: getImageUrl(template.defeatVideoUrl!), title: template.name + ' - Défaite', itemType: 'fanz' });
+                         }}>
+                            <PlayCircle className="w-3 h-3 mr-0.5" /> Défaite
+                         </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
         )}
 
         {activeTab === 'skins' && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
             {[...skins]
               .filter(s => {
                 if (filterCollectionFanz === 'all') return true;
@@ -259,10 +286,10 @@ export function CollectionPage({ user }: CollectionPageProps) {
               .map(skin => {
               const owned = checkSkinOwned(skin);
               return (
-                <div key={skin.uniqueId} className={`bg-gray-900 rounded-xl overflow-hidden relative ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-blue-500/50'}`}>
+                <div key={skin.uniqueId} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-2 outline-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'}`}>
                   <div className="aspect-square bg-black relative group">
                     {skin.videoUrl ? (
-                      <video src={getImageUrl(skin.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" />
+                      <video src={getImageUrl(skin.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-title={skin.name} data-viewer-item-type="skin" />
                     ) : (
                       <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" />
                     )}
@@ -272,9 +299,30 @@ export function CollectionPage({ user }: CollectionPageProps) {
                       </div>
                     )}
                   </div>
-                  <div className="p-3 bg-gray-800 text-center">
-                     <h3 className="font-bold text-sm leading-tight text-white">{skin.name}</h3>
-                     <p className="text-[10px] text-blue-400 mt-1 uppercase tracking-wider">{skin.fanzName}</p>
+                  <div className="p-3 text-center flex flex-col justify-between flex-1">
+                     <div>
+                       <h3 className="font-bold text-xs sm:text-sm leading-tight text-white mb-0.5">{skin.name}</h3>
+                       <p className="text-[9px] sm:text-[10px] text-blue-400 uppercase tracking-wider mb-2">{skin.fanzName}</p>
+                     </div>
+                     
+                     <div className="flex gap-1 justify-center mt-auto flex-wrap">
+                       {skin.victoryVideoUrl && userDoc?.unlockedVideos?.includes(skin.id + '_victory') && (
+                          <Button size="sm" variant="outline" className="px-1.5 py-1 h-auto text-[9px] sm:text-[10px] uppercase font-black tracking-wider text-green-400 border-green-500/50 hover:bg-green-500/20" onClick={(e) => {
+                             e.stopPropagation();
+                             openMedia({ type: 'video', url: getImageUrl(skin.victoryVideoUrl), title: skin.name + ' - Victoire', itemType: 'skin' });
+                          }}>
+                             <PlayCircle className="w-3 h-3 mr-0.5" /> Victoire
+                          </Button>
+                       )}
+                       {skin.defeatVideoUrl && userDoc?.unlockedVideos?.includes(skin.id + '_defeat') && (
+                          <Button size="sm" variant="outline" className="px-1.5 py-1 h-auto text-[9px] sm:text-[10px] uppercase font-black tracking-wider text-red-400 border-red-500/50 hover:bg-red-500/20" onClick={(e) => {
+                             e.stopPropagation();
+                             openMedia({ type: 'video', url: getImageUrl(skin.defeatVideoUrl), title: skin.name + ' - Défaite', itemType: 'skin' });
+                          }}>
+                             <PlayCircle className="w-3 h-3 mr-0.5" /> Défaite
+                          </Button>
+                       )}
+                     </div>
                   </div>
                 </div>
               );
@@ -283,7 +331,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
         )}
 
         {activeTab === 'emotes' && (
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4">
             {[...emotes]
               .filter(e => {
                 if (filterCollectionFanz === 'all') return true;
@@ -301,12 +349,12 @@ export function CollectionPage({ user }: CollectionPageProps) {
               .map(emote => {
               const owned = checkEmoteOwned(emote);
               return (
-                <div key={emote.uniqueId} className={`bg-gray-900 rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-purple-500/50'}`}>
-                  <div className="aspect-square bg-black relative p-2 group">
+                <div key={emote.uniqueId} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-2 outline-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]'}`}>
+                  <div className="aspect-square bg-black relative group flex items-center justify-center">
                     {emote.videoUrl ? (
-                      <video src={getImageUrl(emote.videoUrl)} className="w-full h-full object-contain cursor-pointer" autoPlay muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" />
+                      <video src={getImageUrl(emote.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-title={emote.name} data-viewer-item-type="emote" />
                     ) : (
-                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-full h-full object-contain cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" />
+                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" />
                     )}
                     {owned && (
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -314,8 +362,8 @@ export function CollectionPage({ user }: CollectionPageProps) {
                       </div>
                     )}
                   </div>
-                  <div className="p-1.5 bg-gray-800 flex-1 flex flex-col items-center justify-center text-center">
-                    <h3 className="font-bold text-[10px] sm:text-xs uppercase truncate w-full text-gray-300">{emote.name}</h3>
+                  <div className="p-2 bg-[#111] flex flex-col items-center justify-center text-center">
+                    <h3 className="font-bold text-[10px] sm:text-xs uppercase truncate w-full text-gray-200">{emote.name}</h3>
                     <p className="text-[8px] text-purple-400 mt-0.5 uppercase tracking-wider line-clamp-1">{emote.fanzName}</p>
                   </div>
                 </div>
@@ -325,7 +373,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
         )}
 
         {activeTab === 'cards' && (
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
             {[...cards]
               .filter(c => {
                 if (filterCollectionFanz === 'all') return true;
@@ -338,10 +386,18 @@ export function CollectionPage({ user }: CollectionPageProps) {
                 if (aOwned !== bOwned) return aOwned ? -1 : 1;
                 const getFanzName = (card: GameCard) => {
                   if (!card.fanzIds || card.fanzIds.length === 0) return 'zzz_générique';
-                  return card.fanzIds.map(id => {
+                  let names = card.fanzIds.map(id => {
                     const fanz = fanzTemplates.find(f => f.id === id);
                     return fanz ? fanz.name : id;
                   }).join(', ');
+                  if (card.skinId && card.fanzIds.length === 1) {
+                     const fanz = fanzTemplates.find(f => f.id === card.fanzIds![0]);
+                     const skin = fanz?.skins?.find(s => s.id === card.skinId);
+                     if (skin) {
+                       names += ` - ${skin.name}`;
+                     }
+                  }
+                  return names;
                 };
                 const aFanzName = getFanzName(a);
                 const bFanzName = getFanzName(b);
@@ -351,11 +407,11 @@ export function CollectionPage({ user }: CollectionPageProps) {
               .map(card => {
               const owned = checkCardOwned(card);
               return (
-                <div key={card.id} className={`aspect-[3/4] rounded-xl overflow-hidden relative flex flex-col group ${!owned ? 'bg-gray-900 opacity-50 grayscale hover:grayscale-0' : 'bg-gray-800 outline outline-2 outline-white/10'}`}>
+                <div key={card.id} className={`aspect-[3/4] rounded-xl overflow-hidden relative flex flex-col group ${!owned ? 'bg-[#111] opacity-50 grayscale hover:grayscale-0' : 'bg-[#111] outline outline-2 outline-white/20 hover:outline-white/50 shadow-md'}`}>
                   {card.videoUrl ? (
-                     <video src={getImageUrl(card.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
+                     <video src={getImageUrl(card.videoUrl)} className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500" autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
                   ) : (
-                     <img src={getImageUrl(card.imageUrl)} alt={card.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
+                     <img src={getImageUrl(card.imageUrl)} alt={card.name} className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
                   )}
                   {owned && (
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -364,12 +420,19 @@ export function CollectionPage({ user }: CollectionPageProps) {
                   )}
                   <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent pt-1 pb-3 px-1 pointer-events-none z-10 flex flex-col items-center">
                      {(() => {
-                        if (!card.fanzIds || card.fanzIds.length === 0) return <span className="text-[8px] text-blue-300 font-bold uppercase tracking-wide drop-shadow-md">Générique</span>;
-                        const fanzNames = card.fanzIds.map(id => {
+                        if (!card.fanzIds || card.fanzIds.length === 0) return <span className="text-[8px] text-blue-300 font-bold uppercase tracking-wide drop-shadow-md bg-black/40 px-1 py-0.5 rounded">Générique</span>;
+                        let names = card.fanzIds.map(id => {
                           const fanz = fanzTemplates.find(f => f.id === id);
                           return fanz ? fanz.name : id;
                         }).join(', ');
-                        return <span className="text-[8px] text-blue-300 font-bold uppercase tracking-wide drop-shadow-md text-center line-clamp-2">{fanzNames}</span>;
+                        if (card.skinId && card.fanzIds.length === 1) {
+                          const fanz = fanzTemplates.find(f => f.id === card.fanzIds![0]);
+                          const skin = fanz?.skins?.find(s => s.id === card.skinId);
+                          if (skin) {
+                            names += ` - ${skin.name}`;
+                          }
+                        }
+                        return <span className="text-[8px] text-blue-300 font-bold uppercase tracking-wide drop-shadow-md text-center line-clamp-2 bg-black/40 px-1 pt-0.5 rounded">{names}</span>;
                      })()}
                   </div>
                 </div>
@@ -379,7 +442,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
         )}
 
         {activeTab === 'actions' && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
             {[...actions]
               .filter(a => {
                 if (filterCollectionFanz === 'all') return true;
@@ -393,7 +456,14 @@ export function CollectionPage({ user }: CollectionPageProps) {
                 const getFanzName = (action: LifeAction) => {
                   if (!action.fanzTemplateId) return 'zzz_générique';
                   const fanz = fanzTemplates.find(f => f.id === action.fanzTemplateId);
-                  return fanz ? fanz.name : action.fanzTemplateId;
+                  let name = fanz ? fanz.name : action.fanzTemplateId;
+                  if (action.skinId) {
+                     const skin = fanz?.skins?.find(s => s.id === action.skinId);
+                     if (skin) {
+                       name += ` - ${skin.name}`;
+                     }
+                  }
+                  return name;
                 };
                 const aFanzName = getFanzName(a);
                 const bFanzName = getFanzName(b);
@@ -403,10 +473,10 @@ export function CollectionPage({ user }: CollectionPageProps) {
               .map(action => {
               const owned = ownedActions.has(action.id);
               return (
-                <div key={action.id} className={`bg-gray-900 rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-1 outline-green-500/50'}`}>
-                  <div className="h-32 bg-black relative group">
+                <div key={action.id} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-2 outline-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]'}`}>
+                  <div className="aspect-square bg-black relative group">
                     {action.videoUrl ? (
-                       <video src={getImageUrl(action.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
+                       <video src={getImageUrl(action.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
                     ) : action.image ? (
                        <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
                     ) : (
@@ -420,12 +490,19 @@ export function CollectionPage({ user }: CollectionPageProps) {
                       </div>
                     )}
                   </div>
-                  <div className="p-3 bg-gray-800 flex-1">
-                    <h3 className="font-bold text-center text-xs leading-tight mb-1">{action.name}</h3>
+                  <div className="p-2 sm:p-3 bg-[#111] flex-1 flex flex-col items-center justify-center text-center">
+                    <h3 className="font-bold text-[10px] sm:text-xs leading-tight mb-0.5">{action.name}</h3>
                     {(() => {
-                        if (!action.fanzTemplateId) return <p className="text-[8px] text-blue-400 text-center uppercase tracking-wider mb-1 line-clamp-1">Générique</p>;
+                        if (!action.fanzTemplateId) return <p className="text-[8px] sm:text-[9px] text-blue-400 uppercase tracking-wider line-clamp-1">Générique</p>;
                         const fanz = fanzTemplates.find(f => f.id === action.fanzTemplateId);
-                        return <p className="text-[8px] text-blue-400 text-center uppercase tracking-wider mb-1 line-clamp-1">{fanz ? fanz.name : action.fanzTemplateId}</p>;
+                        let name = fanz ? fanz.name : action.fanzTemplateId;
+                        if (action.skinId) {
+                           const skin = fanz?.skins?.find(s => s.id === action.skinId);
+                           if (skin) {
+                             name += ` - ${skin.name}`;
+                           }
+                        }
+                        return <p className="text-[8px] sm:text-[9px] text-blue-400 uppercase tracking-wider line-clamp-1">{name}</p>;
                     })()}
                   </div>
                 </div>

@@ -6,14 +6,15 @@ import { useSocket } from '../context/SocketContext';
 import { Duel, UserProfile, Card as GameCard, CardEffect, UserCard, Fanz, FanzTemplate, DuelConfig, FanzStats, FanzEmote, GlobalFervorConfig, Pass } from '../types';
 import { Card, Button } from './Layout';
 import { motion, AnimatePresence } from 'motion/react';
-import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield, RefreshCw, Activity, Lock, Flame, Brain, Star, Users, Search, Trophy, Target, CreditCard, Layers, Snowflake, MessageCircle, AlertCircle } from 'lucide-react';
+import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield, RefreshCw, Activity, Lock, Flame, Brain, Star, Users, Search, Trophy, Target, CreditCard, Layers, Snowflake, MessageCircle, AlertCircle, Zap } from 'lucide-react';
 import { BASE_CARDS } from '../constants/cards';
 import { OptimizedMedia } from './OptimizedMedia';
 import { LOGOS } from '../constants';
 import { getImageUrl, getOptimizedVideoUrl } from '../lib/utils';
 import { audioManager } from '../lib/audio';
+import { useMediaViewer } from '../context/MediaViewerContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, collection, getDocs, increment, query, where, runTransaction, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { progressMission } from '../services/missionService';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -88,10 +89,12 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
     if (joiningDuelId) {
       const fetchDuelData = async () => {
         try {
-          const res = await fetch(`/api/duels/id/${joiningDuelId}`);
+          const res = await fetch(`/api/duels/id/${joiningDuelId}`, { headers: { 'Accept': 'application/json' }});
           if (res.ok) {
-            const duel = await res.json();
-            if (duel) {
+            const contentType = res.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const duel = await res.json();
+              if (duel) {
               // Check if user is already a participant
               const existingParticipant = duel.participants.find((p: any) => p.uid === user.uid);
               if (existingParticipant) {
@@ -131,6 +134,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
               }
             }
           }
+        }
         } catch (err) {
           console.error("Error fetching joining duel data", err);
         }
@@ -569,13 +573,15 @@ interface FloatingEffect {
 
 export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, selectedTeam, duelLeagueId, duelSeason }: { duel: Duel; user: UserProfile; onExit: (status?: string) => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, teamALogo?: string, teamBLogo?: string, selectedTeam: string, duelLeagueId?: string, duelSeason?: string }) {
   const { showAlert } = useAlert();
+  const { openMedia } = useMediaViewer();
   const [progress, setProgress] = useState(50);
   const [excitement, setExcitement] = useState(5);
   const maxExcitement = 10;
   const { socket } = useSocket();
   const [winner, setWinner] = useState<string | null>(null);
   const [isPrivate, setIsPrivate] = useState<boolean>(duel.isPrivate || false);
-  const [duelResult, setDuelResult] = useState<{ winner: string, ferveurGain: number, teamGain: number, scoreA?: number, scoreB?: number, details?: any, isBotMatch?: boolean } | null>(null);
+  const [duelResult, setDuelResult] = useState<{ winner: string, ferveurGain: number, teamGain: number, scoreA?: number, scoreB?: number, details?: any, isBotMatch?: boolean, videoUrl?: string | null } | null>(null);
+  const [showDuelResultDetails, setShowDuelResultDetails] = useState<boolean>(false);
   const [status, setStatus] = useState<'waiting' | 'starting' | 'active' | 'finished'>(duel.status);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [inviteCode, setInviteCode] = useState(duel.inviteCode);
@@ -758,6 +764,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [hand, setHand] = useState<GameCard[]>([]);
   const [deck, setDeck] = useState<GameCard[]>([]);
   const [allCards, setAllCards] = useState<GameCard[]>([]);
+  const [equippedDeck, setEquippedDeck] = useState<GameCard[]>([]);
   const allCardsRef = useRef<GameCard[]>([]);
   useEffect(() => { allCardsRef.current = allCards; }, [allCards]);
   const [fanz, setFanz] = useState<Fanz | null>(null);
@@ -880,50 +887,69 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           let imageUrl = fanzData.imageUrl;
           let equippedSkinUrl = null;
           let equippedSkinVideoUrl = null;
+          let equippedSkinVictoryVideoUrl = null;
+          let equippedSkinDefeatVideoUrl = null;
+          let equippedSkinId = null;
           if (fanzData.templateId) {
             const tplSnap = await getDoc(doc(db, 'fanz_templates', fanzData.templateId));
             if (tplSnap.exists()) {
               const tplData = tplSnap.data() as FanzTemplate;
               if (!imageUrl) imageUrl = tplData.image || null;
               
-              if (fanzData.equippedSkin) {
-                const skin = tplData.skins?.find((s: any) => s.id === fanzData.equippedSkin);
-                if (skin) {
-                  equippedSkinUrl = skin.imageUrl;
-                  equippedSkinVideoUrl = skin.videoUrl || null;
-                  
-                  // Apply stat bonuses
-                  if (skin.statsBonus) {
-                    if (!fanzData.stats) fanzData.stats = { force: 0, mental: 0, intelligence: 0, creativity: 0, bluff: 0, social: 0, charisma: 0, endurance: 0 };
-                    if (skin.statsBonus.force) fanzData.stats.force = (fanzData.stats.force || 0) + (skin.statsBonus.force * 100);
-                    if (skin.statsBonus.mental) fanzData.stats.mental = (fanzData.stats.mental || 0) + (skin.statsBonus.mental * 100);
-                    if (skin.statsBonus.intelligence) fanzData.stats.intelligence = (fanzData.stats.intelligence || 0) + (skin.statsBonus.intelligence * 100);
-                    if (skin.statsBonus.creativity) fanzData.stats.creativity = (fanzData.stats.creativity || 0) + (skin.statsBonus.creativity * 100);
-                    if (skin.statsBonus.bluff) fanzData.stats.bluff = (fanzData.stats.bluff || 0) + (skin.statsBonus.bluff * 100);
-                    if (skin.statsBonus.social) fanzData.stats.social = (fanzData.stats.social || 0) + (skin.statsBonus.social * 100);
-                    if (skin.statsBonus.charisma) fanzData.stats.charisma = (fanzData.stats.charisma || 0) + (skin.statsBonus.charisma * 100);
-                    if (skin.statsBonus.endurance) fanzData.stats.endurance = (fanzData.stats.endurance || 0) + (skin.statsBonus.endurance * 100);
+              let skin = fanzData.equippedSkin ? tplData.skins?.find((s: any) => s.id === fanzData.equippedSkin) : null;
+              if (skin) {
+                equippedSkinId = skin.id;
+                equippedSkinUrl = skin.imageUrl || tplData.image;
+                equippedSkinVideoUrl = skin.videoUrl || tplData.video || null;
+                equippedSkinVictoryVideoUrl = skin.victoryVideoUrl || tplData.victoryVideoUrl || null;
+                equippedSkinDefeatVideoUrl = skin.defeatVideoUrl || tplData.defeatVideoUrl || null;
+                
+                // Apply stat bonuses
+                if (skin.statsBonus) {
+                  if (!fanzData.stats) fanzData.stats = { force: 0, mental: 0, intelligence: 0, creativity: 0, bluff: 0, social: 0, charisma: 0, endurance: 0 };
+                  if (skin.statsBonus.force) fanzData.stats.force = (fanzData.stats.force || 0) + (skin.statsBonus.force * 100);
+                  if (skin.statsBonus.mental) fanzData.stats.mental = (fanzData.stats.mental || 0) + (skin.statsBonus.mental * 100);
+                  if (skin.statsBonus.intelligence) fanzData.stats.intelligence = (fanzData.stats.intelligence || 0) + (skin.statsBonus.intelligence * 100);
+                  if (skin.statsBonus.creativity) fanzData.stats.creativity = (fanzData.stats.creativity || 0) + (skin.statsBonus.creativity * 100);
+                  if (skin.statsBonus.bluff) fanzData.stats.bluff = (fanzData.stats.bluff || 0) + (skin.statsBonus.bluff * 100);
+                  if (skin.statsBonus.social) fanzData.stats.social = (fanzData.stats.social || 0) + (skin.statsBonus.social * 100);
+                  if (skin.statsBonus.charisma) fanzData.stats.charisma = (fanzData.stats.charisma || 0) + (skin.statsBonus.charisma * 100);
+                  if (skin.statsBonus.endurance) fanzData.stats.endurance = (fanzData.stats.endurance || 0) + (skin.statsBonus.endurance * 100);
 
-                    // Ensure minimum 0
-                    Object.keys(fanzData.stats).forEach(k => {
-                      if ((fanzData.stats as any)[k] < 0) (fanzData.stats as any)[k] = 0;
-                    });
-                  }
+                  // Ensure minimum 0
+                  Object.keys(fanzData.stats).forEach(k => {
+                    if ((fanzData.stats as any)[k] < 0) (fanzData.stats as any)[k] = 0;
+                  });
+                }
 
-                  // Inject special card
-                  if (skin.specialCardId) {
-                    if (!fanzData.equippedCards) fanzData.equippedCards = [];
-                    if (!fanzData.equippedCards.includes(skin.specialCardId)) {
-                      fanzData.equippedCards.push(skin.specialCardId);
-                    }
+                // Inject special card
+                if (skin.specialCardId) {
+                  if (!fanzData.equippedCards) fanzData.equippedCards = [];
+                  if (!fanzData.equippedCards.includes(skin.specialCardId)) {
+                    fanzData.equippedCards.push(skin.specialCardId);
                   }
                 }
+              } else {
+                // Base skin (no skin equipped or skin not found)
+                equippedSkinId = `base_${tplData.id}`;
+                equippedSkinUrl = tplData.image;
+                equippedSkinVideoUrl = tplData.video || null;
+                equippedSkinVictoryVideoUrl = tplData.victoryVideoUrl || null;
+                equippedSkinDefeatVideoUrl = tplData.defeatVideoUrl || null;
               }
             }
           }
           
-          const finalFanz = { ...fanzData, imageUrl, equippedSkinUrl, equippedSkinVideoUrl };
-          setFanz(finalFanz);
+          const finalFanz = { 
+             ...fanzData, 
+             imageUrl, 
+             equippedSkinUrl, 
+             equippedSkinVideoUrl, 
+             equippedSkinVictoryVideoUrl, 
+             equippedSkinDefeatVideoUrl,
+             equippedSkinActualId: equippedSkinId
+          };
+          setFanz(finalFanz as any);
           
           // Filter all available cards for this Fanz template
           const fanzAvailableCards = initialCards.filter(c => {
@@ -937,11 +963,15 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           });
           setAllCards(fanzAvailableCards);
 
+          let equippedCardsForDeck = [];
           if (fanzData.equippedCards && Array.isArray(fanzData.equippedCards) && fanzData.equippedCards.length > 0) {
-            cardsToUse = fanzAvailableCards.filter(c => fanzData.equippedCards?.includes(c.id));
+            equippedCardsForDeck = fanzAvailableCards.filter(c => fanzData.equippedCards?.includes(c.id));
+            cardsToUse = equippedCardsForDeck;
           } else {
+            equippedCardsForDeck = fanzAvailableCards;
             cardsToUse = fanzAvailableCards;
           }
+          setEquippedDeck(equippedCardsForDeck);
 
           // Setup energy based on stats
           const configSnap = await getDoc(doc(db, 'global_configs', 'duel_config'));
@@ -1137,10 +1167,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
           // Random chance to play a card if enough energy
           if (currentEnergy >= 2 && Math.random() < cardChance && allCards.length > 0) {
-            // Pick a card from the mirrored deck (if available) or all cards
-            const deckIds = bot.fanz?.equippedCards || fanz?.equippedCards || [];
-            const availableCards = allCards.filter(c => deckIds.includes(c.id));
-            const cardsToPickFrom = availableCards.length > 0 ? availableCards : allCards;
+            // Pick a card from the user's exact equipped deck
+            const cardsToPickFrom = equippedDeck.length > 0 ? equippedDeck : allCards;
             
             const card = cardsToPickFrom[Math.floor(Math.random() * cardsToPickFrom.length)];
             const cost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
@@ -1162,7 +1190,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     return () => {
       if (botSimulationInterval) clearInterval(botSimulationInterval);
     };
-  }, [socket, status, isMaster, participants.length, allCards.length]);
+  }, [socket, status, isMaster, participants.length, allCards.length, equippedDeck]);
 
   const fillWithBots = () => {
     if (!socket || !isMaster) return;
@@ -1510,6 +1538,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               totalScore: increment(myScore),
               matchesPlayed: increment(1)
             };
+            if ((userData.antiMalusMatches || 0) > 0) {
+              updates.antiMalusMatches = increment(-1);
+            }
             if (isWin) {
               updates.matchesWon = increment(1);
             }
@@ -1561,6 +1592,15 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 updates.passPoints = increment(ferveurGainGeneral); // Fallback
               }
             }
+            
+            if ((fanzRef.current as any)?.equippedSkinActualId) {
+              if (isWin && (fanzRef.current as any).equippedSkinVictoryVideoUrl) {
+                updates.unlockedVideos = arrayUnion(`${(fanzRef.current as any).equippedSkinActualId}_victory`);
+              } else if (!isWin && (fanzRef.current as any).equippedSkinDefeatVideoUrl) {
+                updates.unlockedVideos = arrayUnion(`${(fanzRef.current as any).equippedSkinActualId}_defeat`);
+              }
+            }
+
             await updateDoc(userRef, updates);
             if (ferveurGainGeneral > 0) {
               await logTransaction(
@@ -1581,13 +1621,28 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         console.error("Error updating ferveur", e);
       }
       
-      setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB, details, isBotMatch });
-      
       const isWinner = (winner === 'A' && myTeamRef.current === 'A') || (winner === 'B' && myTeamRef.current === 'B');
+      let resultVideoUrl: string | null = null;
+      
       if (isWinner) {
         audioManager.playVictory();
+        if ((fanzRef.current as any)?.equippedSkinVictoryVideoUrl) {
+           resultVideoUrl = getImageUrl((fanzRef.current as any).equippedSkinVictoryVideoUrl);
+        }
       } else {
         audioManager.playDefeat();
+        if ((fanzRef.current as any)?.equippedSkinDefeatVideoUrl) {
+           resultVideoUrl = getImageUrl((fanzRef.current as any).equippedSkinDefeatVideoUrl);
+        }
+      }
+
+      setDuelResult({ winner, ferveurGain, teamGain, scoreA, scoreB, details, isBotMatch, videoUrl: resultVideoUrl });
+      
+      if (resultVideoUrl) {
+         setShowDuelResultDetails(false);
+         setTimeout(() => setShowDuelResultDetails(true), 5000);
+      } else {
+         setShowDuelResultDetails(true);
       }
     };
     socket.on('duel-finished', handleDuelFinished);
@@ -1627,8 +1682,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       addFloatingEffect(`⚠️ ${enhancedCard.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
       if (isMalus) {
-        if (isImmune) {
-          addFloatingEffect('🛡️ Immunité Active!', window.innerWidth / 2, 150, 'text-green-300 font-black');
+        if (isImmune || (user.antiMalusMatches || 0) > 0) {
+          addFloatingEffect('🛡️ Bouclier Anti-Malus Actif!', window.innerWidth / 2, 150, 'text-green-300 font-black');
           return;
         }
         if (hasMirror) {
@@ -2167,6 +2222,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       addFloatingEffect(`+${boostedCard.fervorValue}% Ferveur!`, x, y - 60, 'text-yellow-400 font-black');
     }
 
+    const pushRopeEffect = boostedCard.effects?.find(e => e.type === 'push_rope');
+    if (pushRopeEffect && pushRopeEffect.value && !boostedCard.fervorValue) {
+       addFloatingEffect(`+${Math.round(pushRopeEffect.value * levelBonus * charismaBonus)}% Ferveur!`, x, y - 60, 'text-orange-500 font-black');
+    }
+
     // Emission to server
     socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam, card: boostedCard });
   };
@@ -2280,8 +2340,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const arenaBg = getArenaBackground();
 
   return (
-    <div className="absolute inset-0 z-50 flex justify-center bg-[#0a0a0a]">
-      <div className={`w-full lg:max-w-[450px] h-full relative flex flex-col p-4 bg-black lg:border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isEarthquake || isRealMatchGoal ? 'animate-bounce' : ''}`}>
+    <div className="fixed inset-0 z-50 flex justify-center bg-[#0a0a0a] h-[100dvh] w-[100dvw]">
+      <div className={`w-full lg:max-w-[450px] h-full relative flex flex-col p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-black lg:border-x border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${isEarthquake || isRealMatchGoal ? 'animate-bounce' : ''}`}>
         {/* Arena Background */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           <img 
@@ -2496,53 +2556,48 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             animate={{ opacity: 1, scale: 0.8, y: 0 }}
             exit={{ opacity: 0, scale: 1.2, y: 100 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            className="absolute top-20 left-1/2 -translate-x-1/2 z-[90] pointer-events-none flex justify-center items-center"
+            className="absolute top-20 left-1/2 -translate-x-1/2 z-[90] pointer-events-none flex flex-col justify-center items-center"
           >
-            {/* Same design as user deck cards, just slightly larger */}
-            <div className="min-w-[85px] w-[85px] h-[135px] scale-125 rounded-lg border-2 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)] flex flex-col relative overflow-hidden bg-[#1a1a1a]">
-              {/* Background Image / Video */}
-              {enemyPlayedCardAnim.card.videoUrl ? (
-                <video src={getOptimizedVideoUrl(enemyPlayedCardAnim.card.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 opacity-50" data-viewer-ignore="true" />
-              ) : enemyPlayedCardAnim.card.imageUrl && (
-                <img 
-                  src={getImageUrl(enemyPlayedCardAnim.card.imageUrl)} 
-                  alt={enemyPlayedCardAnim.card.name} 
-                  className="absolute inset-0 w-full h-full object-cover z-0 opacity-50" data-viewer-ignore="true"
-                  referrerPolicy="no-referrer"
-                />
-              )}
-              {/* Gradient Overlay for readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/30 z-0" />
+            {(() => {
+              const borderColors: any = {
+                common: 'border-gray-500 shadow-[0_0_30px_rgba(107,114,128,0.8)]',
+                rare: 'border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.8)]',
+                epic: 'border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.8)]',
+                legendary: 'border-yellow-400 shadow-[0_0_50px_rgba(250,204,21,1)]',
+              };
+              const borderColor = borderColors[enemyPlayedCardAnim.card.rarity] || borderColors.common;
+              const energy = enemyPlayedCardAnim.card.energyCost;
 
-              {/* Card Content */}
-              <div className="relative z-10 flex flex-col h-full p-2">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-[8px] uppercase font-bold text-yellow-500 truncate pr-1 drop-shadow-md">{enemyPlayedCardAnim.card.rarity.substring(0, 3)}</span>
-                  <div className="flex items-center gap-0.5 text-[10px] font-black text-yellow-500 drop-shadow-md">
-                    ⚡{enemyPlayedCardAnim.card.energyCost > 10 ? Math.max(1, Math.round(enemyPlayedCardAnim.card.energyCost / 10)) : enemyPlayedCardAnim.card.energyCost}
-                  </div>
-                </div>
-                <h5 className="font-black italic uppercase text-[10px] leading-tight mb-1 line-clamp-2 drop-shadow-md">{enemyPlayedCardAnim.card.name}</h5>
-                <p className="text-[8px] text-gray-300 flex-1 line-clamp-3 leading-tight drop-shadow-md">{enemyPlayedCardAnim.card.description}</p>
-                
-                <div className="mt-1 flex justify-between items-center">
-                  <div className="flex items-center gap-0.5 text-[8px] font-black text-yellow-500 uppercase drop-shadow-md">
-                    Niv.1
-                  </div>
-                </div>
-                <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
-                  <div className="h-full bg-gradient-to-r from-red-600 to-red-400 rounded-full transition-all duration-500" style={{ width: '0%' }} />
-                </div>
-
-                <div className="mt-1 pt-1 border-t border-white/20 text-center font-black text-orange-400 drop-shadow-md">
-                  {(enemyPlayedCardAnim.card.effects || []).map(e => (
-                    <div key={e.type} className="text-[8px] uppercase truncate">
-                      {e.type === 'push_rope' ? `+${Math.round(e.value)}%` : e.type.replace('_', ' ')}
+              return (
+                <>
+                  <div className={`relative w-[200px] h-[300px] md:w-[240px] md:h-[360px] rounded-2xl border-4 ${borderColor} overflow-hidden bg-black`}>
+                    {enemyPlayedCardAnim.card.videoUrl ? (
+                      <video src={getOptimizedVideoUrl(enemyPlayedCardAnim.card.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0" data-viewer-ignore="true" />
+                    ) : enemyPlayedCardAnim.card.imageUrl && (
+                      <img 
+                        src={getImageUrl(enemyPlayedCardAnim.card.imageUrl)} 
+                        alt={enemyPlayedCardAnim.card.name} 
+                        className="absolute inset-0 w-full h-full object-cover z-0" data-viewer-ignore="true"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-0 opacity-80" />
+                    
+                    {/* Top left Energy */}
+                    <div className="absolute top-3 left-3 z-10 flex items-center justify-center w-12 h-12 bg-black/80 rounded-full border-2 border-yellow-500 shadow-lg backdrop-blur-sm">
+                      <Zap className="absolute inset-0 w-full h-full text-yellow-500 opacity-20 p-2" />
+                      <span className="font-black italic text-xl text-yellow-400 drop-shadow-md z-10">{energy}</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                  </div>
+                  <div className="mt-4 text-center px-4 w-[250px] md:w-[350px]">
+                    <h3 className="text-white font-black italic uppercase text-2xl md:text-3xl leading-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] break-words" style={{ WebkitTextStroke: '1.5px black' }}>
+                      {enemyPlayedCardAnim.card.name}
+                    </h3>
+                  </div>
+                </>
+              );
+            })()}
           </motion.div>
         )}
       </AnimatePresence>
@@ -2601,14 +2656,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             <div className="absolute top-1/2 left-[-20%] right-[-20%] h-4 bg-orange-600 -translate-y-1/2 -rotate-6 z-[15] shadow-[0_0_30px_rgba(249,115,22,1)] border-t-2 border-b-2 border-yellow-400"></div>
 
             {/* VS Badge */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-              <div className="w-28 h-28 bg-black rounded-full border-4 border-orange-500 flex items-center justify-center shadow-[0_0_50px_rgba(249,115,22,0.8)] transform -rotate-12">
-                <span className="text-5xl font-black italic text-orange-500 tracking-tighter drop-shadow-md">VS</span>
-              </div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 transform -rotate-12 pointer-events-none">
+              <span className="text-7xl md:text-8xl font-black italic text-orange-500 tracking-tighter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]" style={{ WebkitTextStroke: '4px black' }}>VS</span>
             </div>
 
             {/* Teams Container */}
-            <div className="absolute inset-0 flex flex-col justify-between pt-36 pb-40 z-10 pointer-events-none px-2">
+            <div className="absolute inset-0 flex flex-col justify-between pt-24 pb-28 md:pt-36 md:pb-40 z-10 pointer-events-none px-2">
               {/* Team A (Top) */}
               <div className="flex-1 flex flex-col items-center justify-end pb-8">
                 <div className="flex justify-center gap-2 w-full max-w-lg mb-2">
@@ -2924,7 +2977,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           {isVampirism && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-500 uppercase">🧛 Vampirisme</div>}
           {isFrenzy && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase">🔥 Frénésie</div>}
           {isSabotaged && <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 uppercase">💣 Saboté</div>}
-          {isImmune && <div className="flex items-center gap-1 text-[10px] font-bold text-green-400 uppercase">🛡️ Immunisé</div>}
+          {(isImmune || (user.antiMalusMatches || 0) > 0) && <div className="flex items-center gap-1 text-[10px] font-bold text-green-400 uppercase">🛡️ Immunisé{(user.antiMalusMatches || 0) > 0 ? ' (Boost)' : ''}</div>}
           {isCriticalStrike && <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase">💥 Coup Critique</div>}
           {isMomentum && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-300 uppercase">💨 Momentum</div>}
         </div>
@@ -2968,7 +3021,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         </AnimatePresence>
 
         {/* Cards Hand */}
-        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x justify-center">
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x justify-start md:justify-center w-full px-2 shrink-0">
           <AnimatePresence>
             {hand.map(card => {
               const userCard = fanz?.cardProgress?.[card.id] || { level: 1, xp: 0 };
@@ -3009,6 +3062,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       alt={card.name} 
                       className="absolute inset-0 w-full h-full object-cover z-0 opacity-50" data-viewer-ignore="true"
                       referrerPolicy="no-referrer"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   )}
                   {/* Gradient Overlay for readability */}
@@ -3017,29 +3071,29 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   {/* Card Content */}
                   <div className="relative z-10 flex flex-col h-full p-2">
                     <div className="flex justify-between items-start mb-1">
-                      <span className="text-[8px] uppercase font-bold text-yellow-500 truncate pr-1 drop-shadow-md">{card.rarity.substring(0, 3)}</span>
-                      <div className="flex items-center gap-0.5 text-[10px] font-black text-yellow-500 drop-shadow-md">
-                        ⚡{actualCost}
+                      <div className="flex-1" />
+                      <div className="flex items-center gap-0.5 text-[10px] items-center justify-center font-black text-white bg-black/50 border-orange-500 border rounded-full px-1 py-0.5 drop-shadow-md leading-none h-[18px]">
+                        ⚡ {actualCost}
                       </div>
                     </div>
-                    <h5 className="font-black italic uppercase text-[10px] leading-tight mb-1 line-clamp-2 drop-shadow-md">{card.name}</h5>
-                    <p className="text-[8px] text-gray-300 flex-1 line-clamp-3 leading-tight drop-shadow-md">{card.description}</p>
                     
-                    <div className="mt-1 flex justify-between items-center">
-                      <div className="flex items-center gap-0.5 text-[8px] font-black text-yellow-500 uppercase drop-shadow-md">
-                        Niv.{userCard.level}
+                    <div className="flex-1" />
+                    
+                    <div className="mt-1 flex items-center gap-1">
+                      <div className="text-[10px] font-black text-yellow-500 uppercase drop-shadow-md leading-none w-3 text-center">
+                        {userCard.level}
                       </div>
-                    </div>
-                    <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
-                      <div 
-                        className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(xpProgress, 100)}%` }}
-                      />
+                      <div className="flex-1 h-1.5 bg-black/50 border border-white/10 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(xpProgress, 100)}%` }}
+                        />
+                      </div>
                     </div>
 
-                    <div className="mt-1 pt-1 border-t border-white/20 text-center font-black text-orange-400 drop-shadow-md">
-                      {(card.effects || []).map(e => (
-                        <div key={e.type} className="text-[8px] uppercase truncate">
+                    <div className="mt-1 pt-0.5 text-center font-black text-orange-400 drop-shadow-md bg-black/80 rounded px-1 min-h-[16px] flex flex-col justify-center">
+                      {(card.effects || []).map((e, index) => (
+                        <div key={index} className="text-[7px] md:text-[8px] uppercase truncate leading-none py-0.5">
                           {e.type === 'push_rope' ? `+${Math.round(e.value * (1 + (userCard.level - 1) * 0.2))}%` : e.type.replace('_', ' ')}
                         </div>
                       ))}
@@ -3081,16 +3135,27 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
           >
+            {duelResult.videoUrl && !showDuelResultDetails ? (
+              <video src={duelResult.videoUrl} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-gray-900 border-2 border-orange-500 rounded-3xl p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(255,102,0,0.3)]"
+              className="bg-gray-900 border-2 border-orange-500 rounded-3xl p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(255,102,0,0.3)] relative overflow-hidden"
             >
-              <h2 className={`text-5xl font-black italic uppercase mb-2 ${duelResult.winner === (myTeam || participants.find(p => p.uid === user.uid)?.team || 'A') ? 'text-orange-500' : 'text-gray-500'}`}>
-                {duelResult.winner === (myTeam || participants.find(p => p.uid === user.uid)?.team || 'A') ? 'Victoire !' : 'Défaite'}
-              </h2>
+              {duelResult.videoUrl && (
+                <div className="absolute inset-0 z-0">
+                  <video src={duelResult.videoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover opacity-30" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                </div>
+              )}
               
-              <div className="space-y-4 my-8">
+              <div className="relative z-10">
+                <h2 className={`text-5xl font-black italic uppercase mb-2 ${duelResult.winner === (myTeam || participants.find(p => p.uid === user.uid)?.team || 'A') ? 'text-orange-500' : 'text-gray-500'}`}>
+                  {duelResult.winner === (myTeam || participants.find(p => p.uid === user.uid)?.team || 'A') ? 'Victoire !' : 'Défaite'}
+                </h2>
+                
+                <div className="space-y-4 my-8">
                 {duelResult.isBotMatch && (
                   <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/20 mb-4">
                     <p className="text-xs text-orange-400 font-bold">Match contre des Bots</p>
@@ -3172,7 +3237,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   </Button>
                 )}
               </div>
+            </div>
             </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -3183,27 +3250,51 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           <motion.div
             key={playedCardAnim.id}
             initial={{ scale: 0.5, y: 100, opacity: 0, rotate: -10 }}
-            animate={{ scale: 1.5, y: 0, opacity: 1, rotate: 0 }}
-            exit={{ scale: 2, opacity: 0, filter: 'blur(10px)' }}
+            animate={{ scale: 1, y: 0, opacity: 1, rotate: 0 }}
+            exit={{ scale: 1.5, opacity: 0, filter: 'blur(10px)' }}
             transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-            className="absolute inset-0 z-[90] flex items-center justify-center pointer-events-none"
+            className="absolute inset-0 z-[90] flex flex-col items-center justify-center pointer-events-none"
           >
-            <div className="relative w-[120px] h-[180px] rounded-xl border-4 border-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.8)] overflow-hidden bg-black">
-              {playedCardAnim.card.imageUrl && (
-                <img 
-                  src={getImageUrl(playedCardAnim.card.imageUrl)} 
-                  alt={playedCardAnim.card.name} 
-                  className="absolute inset-0 w-full h-full object-cover z-0"
-                  referrerPolicy="no-referrer"
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-0" />
-              <div className="relative z-10 flex flex-col justify-end h-full p-3 text-center">
-                <h3 className="text-white font-black italic uppercase text-sm leading-tight drop-shadow-lg">
-                  {playedCardAnim.card.name}
-                </h3>
-              </div>
-            </div>
+            {(() => {
+              const borderColors: any = {
+                common: 'border-gray-500 shadow-[0_0_30px_rgba(107,114,128,0.8)]',
+                rare: 'border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.8)]',
+                epic: 'border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.8)]',
+                legendary: 'border-yellow-400 shadow-[0_0_50px_rgba(250,204,21,1)]',
+              };
+              const borderColor = borderColors[playedCardAnim.card.rarity] || borderColors.common;
+              const energy = playedCardAnim.card.energyCost;
+
+              return (
+                <>
+                  <div className={`relative w-[200px] h-[300px] md:w-[240px] md:h-[360px] rounded-2xl border-4 ${borderColor} overflow-hidden bg-black`}>
+                    {playedCardAnim.card.videoUrl ? (
+                      <video src={getOptimizedVideoUrl(playedCardAnim.card.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0" data-viewer-ignore="true" />
+                    ) : playedCardAnim.card.imageUrl && (
+                      <img 
+                        src={getImageUrl(playedCardAnim.card.imageUrl)} 
+                        alt={playedCardAnim.card.name} 
+                        className="absolute inset-0 w-full h-full object-cover z-0" data-viewer-ignore="true"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-0 opacity-80" />
+                    
+                    {/* Top left Energy */}
+                    <div className="absolute top-3 left-3 z-10 flex items-center justify-center w-12 h-12 bg-black/80 rounded-full border-2 border-yellow-500 shadow-lg backdrop-blur-sm">
+                      <Zap className="absolute inset-0 w-full h-full text-yellow-500 opacity-20 p-2" />
+                      <span className="font-black italic text-xl text-yellow-400 drop-shadow-md z-10">{energy}</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-center px-4 w-[250px] md:w-[350px]">
+                    <h3 className="text-white font-black italic uppercase text-2xl md:text-3xl leading-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] break-words" style={{ WebkitTextStroke: '1.5px black' }}>
+                      {playedCardAnim.card.name}
+                    </h3>
+                  </div>
+                </>
+              );
+            })()}
           </motion.div>
         )}
       </AnimatePresence>

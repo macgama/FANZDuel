@@ -4,7 +4,7 @@ async function fetchApi(url: string) {
   try {
     // We now use the server-side proxy, so we don't need to send the API key from the client.
     // This avoids CORS issues and keeps the API key secure.
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `API Error: ${response.status}`;
@@ -19,6 +19,10 @@ async function fetchApi(url: string) {
       }
       console.error(`API Error (${response.status}): ${errorText}`);
       throw new Error(errorMessage);
+    }
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error(`Expected JSON from API, got ${contentType}`);
     }
     const data = await response.json();
     if (data.errors && Object.keys(data.errors).length > 0) {

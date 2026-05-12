@@ -14,7 +14,8 @@ import {
   Swords,
   Trophy,
   Target,
-  X
+  X,
+  MonitorPlay
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -89,11 +90,14 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   useEffect(() => {
     const fetchActiveDuels = async () => {
       try {
-        const res = await fetch(`/api/duels/${fixtureId}`);
+        const res = await fetch(`/api/duels/${fixtureId}`, { headers: { 'Accept': 'application/json' }});
         if (res.ok) {
-          const data = await res.json();
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await res.json();
           // filter out duels where the user is already a participant
           setActiveDuels(data.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)));
+          }
         }
       } catch (err: any) {
         if (err?.message !== 'Failed to fetch') {
@@ -532,9 +536,9 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
         >
-          {activeTab === 'summary' && <SummaryTab events={events} teams={details.teams} />}
-          {activeTab === 'lineups' && <LineupsTab lineups={lineups} />}
-          {activeTab === 'stats' && <StatsTab stats={stats} teams={details.teams} />}
+          {activeTab === 'summary' && <SummaryTab events={events} teams={details.teams} status={details.fixture.status.short} />}
+          {activeTab === 'lineups' && <LineupsTab lineups={lineups} status={details.fixture.status.short} />}
+          {activeTab === 'stats' && <StatsTab stats={stats} teams={details.teams} status={details.fixture.status.short} />}
           {activeTab === 'duels' && <DuelsTab history={duelHistory} teams={details.teams} setSelectedDuelDetails={setSelectedDuelDetails} />}
         </motion.div>
       </AnimatePresence>
@@ -565,11 +569,18 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   );
 }
 
-function SummaryTab({ events, teams }: { events: any[]; teams: any }) {
+function SummaryTab({ events, teams, status }: { events: any[]; teams: any; status: string }) {
   if (events.length === 0) {
+    const isUpcoming = ['TBD', 'NS'].includes(status);
+    const isCancelled = ['SUSP', 'INT', 'PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(status);
+    let message = "Aucun événement enregistré pour ce match.";
+    if (isUpcoming) message = "Les événements du match seront affichés ici en direct.";
+    else if (isCancelled) message = "Match annulé, reporté ou interrompu.";
+    else message = "Les détails de ce match ne sont malheureusement pas couverts par notre fournisseur de données.";
+
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Aucun événement enregistré pour ce match.
+        {message}
       </Card>
     );
   }
@@ -579,6 +590,33 @@ function SummaryTab({ events, teams }: { events: any[]; teams: any }) {
       <AnimatePresence>
         {events.map((event, idx) => {
           const isHome = event.team.id === teams.home.id;
+          
+          const translateDetail = (type: string, detail: string) => {
+            if (!detail) return null;
+            const d = detail.toLowerCase();
+            if (type === 'Goal') {
+              if (d.includes('missed penalty')) return 'Penalty manqué';
+              if (d.includes('penalty')) return 'Penalty';
+              if (d.includes('own goal')) return 'Contre son camp';
+              if (d.includes('cancelled')) return 'But annulé (VAR)';
+              return null; // Don't show "Normal Goal"
+            }
+            if (type === 'Card') {
+              if (d.includes('second yellow')) return '2ème carton jaune';
+              if (d.includes('red')) return 'Carton rouge';
+              return null; // Don't explicitly write "Yellow Card" as the icon is obvious
+            }
+            if (type === 'Var') {
+              if (d.includes('goal cancelled')) return 'But annulé';
+              if (d.includes('penalty confirmed')) return 'Penalty confirmé';
+              if (d.includes('card review')) return 'Révision arbitre';
+              return detail;
+            }
+            return null; // Ignore subst, etc. as it's handled
+          };
+
+          const detailMsg = translateDetail(event.type, event.detail);
+
           return (
             <motion.div 
               key={idx} 
@@ -593,8 +631,11 @@ function SummaryTab({ events, teams }: { events: any[]; teams: any }) {
                 <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}>
                   <EventIcon type={event.type} detail={event.detail} />
                   <div className={`flex flex-col ${isHome ? 'items-start' : 'items-end'}`}>
-                    <span className="font-bold text-xs leading-tight">{event.player.name}</span>
-                    {event.type === 'Goal' && event.assist.name && (
+                    <span className="font-bold text-xs leading-tight">
+                      {event.player.name}
+                      {detailMsg && <span className="ml-1 text-[8px] font-bold text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded tracking-widest uppercase">{detailMsg}</span>}
+                    </span>
+                    {event.type === 'Goal' && event.assist.name && event.assist.name !== event.player.name && !event.detail?.toLowerCase().includes('penalty') && !event.detail?.toLowerCase().includes('own goal') && (
                       <span className="text-[9px] text-gray-500 italic leading-tight">Passe: {event.assist.name}</span>
                     )}
                     {event.type === 'subst' && (
@@ -681,21 +722,33 @@ function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; 
 function EventIcon({ type, detail }: { type: string; detail: string }) {
   switch (type) {
     case 'Goal':
+      if (detail?.toLowerCase().includes('missed penalty')) {
+        return <X className="w-4 h-4 text-red-500" />;
+      }
       return <CircleDot className="w-4 h-4 text-green-500" />;
     case 'Card':
-      return <Square className={`w-4 h-4 ${detail.includes('Yellow') ? 'text-yellow-500 fill-yellow-500' : 'text-red-500 fill-red-500'}`} />;
+      return <Square className={`w-4 h-4 ${detail?.includes('Yellow') ? 'text-yellow-500 fill-yellow-500' : 'text-red-500 fill-red-500'}`} />;
     case 'subst':
       return <ArrowRightLeft className="w-4 h-4 text-blue-500" />;
+    case 'Var':
+      return <MonitorPlay className="w-4 h-4 text-orange-500" />;
     default:
       return <AlertCircle className="w-4 h-4 text-gray-500" />;
   }
 }
 
-function LineupsTab({ lineups }: { lineups: any[] }) {
+function LineupsTab({ lineups, status }: { lineups: any[]; status: string }) {
   if (lineups.length === 0) {
+    const isUpcoming = ['TBD', 'NS'].includes(status);
+    const isCancelled = ['SUSP', 'INT', 'PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(status);
+    let message = "Compositions non disponibles.";
+    if (isUpcoming) message = "Les compositions d'équipe seront dévoilées environ une heure avant le coup d'envoi.";
+    else if (isCancelled) message = "Match sans compositions en raison de son annulation ou report.";
+    else message = "Les compositions pour de ce match ne sont pas couvertes par notre fournisseur.";
+
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Compositions non disponibles.
+        {message}
       </Card>
     );
   }
@@ -760,11 +813,18 @@ function PlayerRow({ player }: { player: any }) {
   );
 }
 
-function StatsTab({ stats, teams }: { stats: any[]; teams: any }) {
+function StatsTab({ stats, teams, status }: { stats: any[]; teams: any; status: string }) {
   if (stats.length === 0) {
+    const isUpcoming = ['TBD', 'NS'].includes(status);
+    const isCancelled = ['SUSP', 'INT', 'PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(status);
+    let message = "Statistiques non disponibles.";
+    if (isUpcoming) message = "Les statistiques apparaîtront en direct après le coup d'envoi.";
+    else if (isCancelled) message = "Aucune statistique pour ce match (annulé ou reporté).";
+    else message = "Les statistiques de ce match ne sont pas couvertes par notre fournisseur.";
+
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Statistiques non disponibles.
+        {message}
       </Card>
     );
   }

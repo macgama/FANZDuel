@@ -15,6 +15,7 @@ interface SharedMatchCardProps {
   onLeagueClick?: (id: number, season: number) => void;
   profile: any;
   showLeagueHeader?: boolean;
+  showDate?: boolean;
 }
 
 export function SharedMatchCard({ 
@@ -26,7 +27,8 @@ export function SharedMatchCard({
   onTeamClick, 
   onLeagueClick,
   profile,
-  showLeagueHeader = false
+  showLeagueHeader = false,
+  showDate = false
 }: SharedMatchCardProps) {
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(match.fixture.status.short);
   const isUpcoming = ['TBD', 'NS'].includes(match.fixture.status.short);
@@ -55,7 +57,7 @@ export function SharedMatchCard({
   return (
     <Card 
       onClick={() => onClick()}
-      className="bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group hover:bg-white/5 transition-colors cursor-pointer w-full h-full min-h-[250px] justify-between"
+      className={cn("bg-[#1a1a1a]/80 backdrop-blur-xl border rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden group hover:bg-white/5 transition-colors cursor-pointer w-full h-full min-h-[250px] justify-between", (isLive && (homeIsFav || awayIsFav)) ? "border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.15)]" : "border-white/10")}
     >
       {showLeagueHeader && (
         <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-1">
@@ -78,6 +80,12 @@ export function SharedMatchCard({
         </div>
       )}
 
+      {showDate && (
+        <div className="text-center w-full text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest -mt-1 mb-2">
+          {format(new Date(match.fixture.date), 'dd/MM/yyyy • HH:mm')}
+        </div>
+      )}
+
       {/* Teams & Score */}
       <div className="flex justify-between items-start mt-2">
         {/* Home Team */}
@@ -90,8 +98,8 @@ export function SharedMatchCard({
             }
           }}
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover/team:scale-105 transition-transform relative">
-            <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center group-hover/team:scale-105 transition-transform relative">
+            <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" referrerPolicy="no-referrer" />
             {homeIsFav && (
               <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
                 <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
@@ -149,8 +157,8 @@ export function SharedMatchCard({
             }
           }}
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full p-1.5 flex items-center justify-center group-hover/team:scale-105 transition-transform relative">
-            <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" referrerPolicy="no-referrer" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center group-hover/team:scale-105 transition-transform relative">
+            <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" referrerPolicy="no-referrer" />
             {awayIsFav && (
               <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
                 <Star className="w-3 h-3 text-orange-500 fill-orange-500" />

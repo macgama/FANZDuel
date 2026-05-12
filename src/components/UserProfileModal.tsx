@@ -78,8 +78,10 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
               }
               imageUrl = currentImageUrl;
             }
-          } catch (error) {
-            console.error("Error fetching template for avatar", error);
+          } catch (error: any) {
+            if (error?.code !== 'permission-denied' && !error?.message?.includes('Missing or insufficient permissions')) {
+              console.error("Error fetching template for avatar", error);
+            }
           }
         }
         

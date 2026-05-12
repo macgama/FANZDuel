@@ -482,56 +482,7 @@ async function startServer() {
         }, 5000) as any;
       }
 
-      // Training mode: Start bot logic
-      if (duel.type === 'training' && duel.status === 'active' && !duel.botInterval) {
-        const botInterval = setInterval(() => {
-          if (duel.status !== 'active') {
-            clearInterval(botInterval);
-            delete duel.botInterval;
-            return;
-          }
-          const botMultiplier = 1.2; // Buffed multiplier
-          const baseDelta = 0.8; // Buffed base delta
-          duel.progress = Math.min(100, Math.max(0, duel.progress - (baseDelta * botMultiplier)));
-          
-          // Occasional bot card play (20% chance per tick)
-          if (Math.random() < 0.2) {
-            const playerParticipant = duel.participants.find(p => p.team === 'A');
-            const playerDeckIds = playerParticipant?.fanz?.equippedCards || [];
-            
-            let possibleCards = loadedCards;
-            if (playerDeckIds.length > 0) {
-              const matchingCards = loadedCards.filter(c => playerDeckIds.includes(c.id));
-              if (matchingCards.length > 0) {
-                possibleCards = matchingCards;
-              }
-            }
-
-            const randomCard = possibleCards[Math.floor(Math.random() * possibleCards.length)];
-            duel.cardCounts['B']++;
-            
-            if (randomCard.fervorValue) {
-              duel.progress = Math.max(0, duel.progress - (randomCard.fervorValue * 1.2)); // Buffed effect
-            }
-            randomCard.effects.forEach((effect: any) => {
-              if (effect.type === 'push_rope' && effect.value && !randomCard.fervorValue) {
-                duel.progress = Math.max(0, duel.progress - (effect.value * 1.2)); // Buffed effect
-              }
-            });
-            
-            io.to(duelId).emit("enemy-card-played", { team: 'B', card: randomCard });
-          }
-
-          io.to(duelId).emit("duel-update", { duelId: duel.id, progress: duel.progress, status: duel.status, participants: duel.participants });
-
-          if (duel.progress <= 0) {
-            clearInterval(botInterval);
-            delete duel.botInterval;
-            finishDuel(duelId, "B");
-          }
-        }, 1500 + Math.random() * 1000);
-        duel.botInterval = botInterval;
-      }
+      // The bot simulation is handled entirely by the frontend (Duel.tsx) now.
     });
 
     const refundParticipants = async (duelType: string, uids: string[]) => {
@@ -856,7 +807,7 @@ async function startServer() {
       // Fetch the original image
       const response = await axios.get(targetUrl, { 
         responseType: 'arraybuffer',
-        timeout: 8000 // 8 second timeout so it doesn't hang
+        timeout: 4000 // 4 second timeout for faster fallback
       });
       const buffer = Buffer.from(response.data, 'binary');
 
@@ -874,6 +825,8 @@ async function startServer() {
       if (e.response && e.response.status === 404) {
         // Silently handle 404s without polluting the console
         // console.warn(`[Image Proxy Error] 404 Not Found: ${urlParam}`);
+      } else if (e.code === 'ECONNABORTED' || e.message?.includes('timeout')) {
+        console.warn(`[Image Proxy] Timeout falling back to direct URL: ${urlParam}`);
       } else {
         console.error(`[Image Proxy Error] ${e.message} - URL: ${urlParam}`);
       }

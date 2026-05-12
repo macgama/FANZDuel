@@ -18,6 +18,7 @@ export interface ActiveAction {
 export interface UserProfile {
   uid: string;
   pseudo: string;
+  unlockedVideos?: string[]; // Array of strings like "skinId_victory" or "skinId_defeat"
   displayName?: string;
   email: string;
   photoURL?: string;
@@ -114,7 +115,9 @@ export interface FanzSkin {
   fanzId: string;
   name: string;
   imageUrl: string;
-  videoUrl?: string;
+  videoUrl?: string; // Used for skin menu presentation
+  victoryVideoUrl?: string; // Played on duel victory
+  defeatVideoUrl?: string; // Played on duel defeat
   rarity?: 'common' | 'rare' | 'epic' | 'legendary';
   price: {
     money?: number;
@@ -206,6 +209,8 @@ export interface FanzTemplate {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   image: string;
   video?: string;
+  victoryVideoUrl?: string;
+  defeatVideoUrl?: string;
   shortDescription?: string;
   longDescription?: string;
   battleCry?: string;
@@ -242,6 +247,8 @@ export interface Fanz {
   sport: string;
   imageUrl?: string;
   videoUrl?: string;
+  victoryVideoUrl?: string;
+  defeatVideoUrl?: string;
   baseExcitement?: number; // 1 to 10
   stats: FanzStats;
   xp: number;
@@ -429,6 +436,14 @@ export interface GlobalShopConfig {
     price: number;
     numberOfRewards: number;
     description: string;
+  }[];
+  boosts?: {
+    id: string;
+    name: string;
+    duration: string;
+    price: number;
+    currency: string;
+    color: string;
   }[];
 }
 

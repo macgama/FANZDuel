@@ -20,7 +20,9 @@ import {
   Shield,
   Medal,
   Star,
-  Flame
+  Flame,
+  Info,
+  Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -30,6 +32,7 @@ import { collection, query, where, orderBy, limit, getDocs, getDoc, doc, onSnaps
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
 import { SharedMatchCard } from './SharedMatchCard';
+import { LiveMatchesSlider } from './LiveMatchesSlider';
 import { TbfoRankingsTab } from './LeagueDetails';
 import { UserProfile } from '../types';
 
@@ -55,8 +58,9 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<'matches' | 'players' | 'standings' | 'stats' | 'rankings' | 'tbfo'>('matches');
+  const [activeTab, setActiveTab] = useState<'infos' | 'effectif' | 'matches' | 'standings' | 'competitions' | 'stats' | 'historique' | 'tbfo'>('infos');
   const [currentLeagueId, setCurrentLeagueId] = useState<number | null>(null);
+  const [teamLeagues, setTeamLeagues] = useState<any[]>([]);
 
   // Fetch team info and available seasons
   useEffect(() => {
@@ -69,23 +73,30 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
 
         // Fetch leagues/seasons for this team
         const leaguesRes = await footballApi.getLeaguesByTeam(teamId);
+        setTeamLeagues(leaguesRes || []);
         const seasons = new Set<number>();
-        let bestSeasonByDate: number | null = null;
-        let currentByFlag: number | null = null;
-        const today = new Date().toISOString().split('T')[0];
+        let closestSeason: number | null = null;
+        let minDistance = Infinity;
+        const todayDate = new Date();
 
         (leaguesRes || []).forEach((l: any) => {
           (l.seasons || []).forEach((s: any) => {
             seasons.add(s.year);
-            if (s.start <= today && s.end >= today) {
-              if (!bestSeasonByDate || s.year > bestSeasonByDate) {
-                bestSeasonByDate = s.year;
-              }
+            const start = new Date(s.start);
+            const end = new Date(s.end);
+            let distance = 0;
+            if (todayDate >= start && todayDate <= end) {
+              distance = 0;
+            } else if (todayDate < start) {
+              distance = start.getTime() - todayDate.getTime();
+            } else {
+              distance = todayDate.getTime() - end.getTime();
             }
-            if (s.current) {
-              if (!currentByFlag || s.year > currentByFlag) {
-                currentByFlag = s.year;
-              }
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestSeason = s.year;
+            } else if (distance === minDistance && s.year > (closestSeason || 0)) {
+               closestSeason = s.year; 
             }
           });
         });
@@ -94,16 +105,18 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
         setAvailableSeasons(sortedSeasons);
         
         let actualSeason = sortedSeasons[0];
-        if (bestSeasonByDate) {
-          actualSeason = bestSeasonByDate;
-        } else if (currentByFlag) {
-          actualSeason = currentByFlag;
+        if (closestSeason !== null) {
+          actualSeason = closestSeason;
         }
         
         setActualCurrentSeason(actualSeason);
         
-        // Always default to the actual current season when visiting a team
-        setSelectedSeason(actualSeason);
+        // Default to initialSeason if provided, else to the actual current season
+        if (initialSeason) {
+          setSelectedSeason(initialSeason);
+        } else {
+          setSelectedSeason(actualSeason);
+        }
       } catch (err) {
         console.error('Failed to fetch team info', err);
       }
@@ -130,11 +143,20 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
 
       // If we have a league from fixtures, fetch standings and stats
       if (fixturesData.length > 0) {
-        const leagueId = fixturesData[0].league.id;
-        setCurrentLeagueId(leagueId);
+        let bestLeagueId = fixturesData[0].league.id;
+        
+        // Find main domestic league if possible
+        if (teamLeagues.length > 0) {
+          const domesticLeague = teamLeagues.find(l => l.league.type === 'League' && fixturesData.some((f: any) => f.league.id === l.league.id));
+          if (domesticLeague) {
+            bestLeagueId = domesticLeague.league.id;
+          }
+        }
+        
+        setCurrentLeagueId(bestLeagueId);
         const [standingsResults, statsResults] = await Promise.allSettled([
-          footballDataService.getStandings(leagueId, selectedSeason, force),
-          footballApi.getTeamStats(leagueId, teamId, selectedSeason)
+          footballDataService.getStandings(bestLeagueId, selectedSeason, force),
+          footballApi.getTeamStats(bestLeagueId, teamId, selectedSeason)
         ]);
         
         setStandings(standingsResults.status === 'fulfilled' ? standingsResults.value : []);
@@ -300,6 +322,12 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
           {/* Tabs */}
           <div className="flex gap-1 p-1 bg-white/5 rounded-lg border border-white/10 overflow-x-auto no-scrollbar">
             <TabButton 
+              active={activeTab === 'infos'} 
+              onClick={() => setActiveTab('infos')}
+              icon={<Info className="w-3 h-3" />}
+              label="Infos"
+            />
+            <TabButton 
               active={activeTab === 'matches'} 
               onClick={() => setActiveTab('matches')}
               icon={<Calendar className="w-3 h-3" />}
@@ -312,22 +340,28 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               label="Classement"
             />
             <TabButton 
-              active={activeTab === 'rankings'} 
-              onClick={() => setActiveTab('rankings')}
-              icon={<Goal className="w-3 h-3" />}
-              label="Rankings"
+              active={activeTab === 'competitions'} 
+              onClick={() => setActiveTab('competitions')}
+              icon={<Award className="w-3 h-3" />}
+              label="Compétitions"
             />
-             <TabButton 
-              active={activeTab === 'players'} 
-              onClick={() => setActiveTab('players')}
+            <TabButton 
+              active={activeTab === 'effectif'} 
+              onClick={() => setActiveTab('effectif')}
               icon={<Users className="w-3 h-3" />}
-              label="Joueurs"
+              label="Effectif"
             />
             <TabButton 
               active={activeTab === 'stats'} 
               onClick={() => setActiveTab('stats')}
               icon={<BarChart3 className="w-3 h-3" />}
               label="Stats"
+            />
+            <TabButton 
+              active={activeTab === 'historique'} 
+              onClick={() => setActiveTab('historique')}
+              icon={<Clock className="w-3 h-3" />}
+              label="Historique"
             />
             <TabButton 
               active={activeTab === 'tbfo'} 
@@ -347,11 +381,13 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} profile={profile} />}
+              {activeTab === 'infos' && <InfosTab team={team} players={players} />}
+              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} profile={profile} defaultLeagueId={currentLeagueId} />}
               {activeTab === 'standings' && <StandingsTab standings={standings} teamId={teamId} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />}
-              {activeTab === 'rankings' && <TeamRankingsTab players={players} />}
-              {activeTab === 'players' && <PlayersTab players={players} />}
+              {activeTab === 'competitions' && <CompetitionsTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
+              {activeTab === 'effectif' && <EffectifTab players={players} />}
               {activeTab === 'stats' && <StatsTab stats={stats} teamId={teamId} selectedSeason={selectedSeason} />}
+              {activeTab === 'historique' && <HistoriqueTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
               {activeTab === 'tbfo' && currentLeagueId ? (
                 <TbfoRankingsTab leagueId={currentLeagueId} selectedSeason={selectedSeason} onTeamClick={onTeamClick} highlightTeamId={teamId} />
               ) : activeTab === 'tbfo' ? (
@@ -383,8 +419,142 @@ function TabButton({ active, onClick, icon, label, highlight }: { active: boolea
   );
 }
 
+function CompetitionsTab({ leagues, onLeagueClick, selectedSeason }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number }) {
+  if (!leagues || leagues.length === 0) {
+    return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">Aucune compétition trouvée.</Card>;
+  }
+
+  // Filter leagues by the selected season. Some competitions might not have the team in the exact selected season, but let's try.
+  let displayLeagues = leagues.filter(l => l.seasons && l.seasons.some((s: any) => s.year === selectedSeason));
+  if (displayLeagues.length === 0) displayLeagues = leagues;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {displayLeagues.map((l: any) => (
+        <Card key={l.league.id} className="p-4 bg-black/40 border-white/10 hover:border-orange-500/50 cursor-pointer transition-colors group" onClick={() => onLeagueClick(l.league.id, selectedSeason)}>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 p-2 group-hover:bg-white/10 transition-colors">
+              <img src={l.league.logo} alt="" className="w-full h-full object-contain drop-shadow-md" />
+            </div>
+            <div>
+              <h3 className="font-black text-sm sm:text-base uppercase text-orange-500 truncate">{l.league.name}</h3>
+              <div className="flex items-center gap-2 mt-1">
+                {l.country.flag && <img src={l.country.flag} alt="" className="w-3 h-3 object-contain rounded-sm" />}
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.country.name}</p>
+                <span className="text-gray-600 text-[10px]">&bull;</span>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{l.league.type === 'League' ? 'Championnat' : l.league.type === 'Cup' ? 'Coupe' : l.league.type}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function EffectifTab({ players }: { players: any[] }) {
+  return <PlayersTab players={players} />;
+}
+
+function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number }) {
+  if (!leagues || leagues.length === 0) {
+    return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">Aucun historique trouvé.</Card>;
+  }
+
+  // Get all seasons present in the leagues for this team, EXCLUDING the current selectedSeason
+  const seasonsMap: Record<number, any[]> = {};
+  leagues.forEach(l => {
+    if (l.seasons) {
+      l.seasons.forEach((s: any) => {
+        if (s.year !== selectedSeason) {
+          if (!seasonsMap[s.year]) seasonsMap[s.year] = [];
+          seasonsMap[s.year].push(l);
+        }
+      });
+    }
+  });
+
+  const sortedSeasons = Object.keys(seasonsMap).map(Number).sort((a, b) => b - a);
+
+  if (sortedSeasons.length === 0) {
+    return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">Aucun historique disponible pour les années précédentes.</Card>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {sortedSeasons.map(year => (
+        <div key={year} className="space-y-3">
+          <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm pl-2 border-l-2 border-orange-500">Saison {year}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {seasonsMap[year].map((l: any) => (
+              <Card key={`${year}-${l.league.id}`} className="p-4 bg-black/40 border-white/10 hover:border-orange-500/50 cursor-pointer transition-colors group" onClick={() => onLeagueClick(l.league.id, year)}>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 p-2 group-hover:bg-white/10 transition-colors">
+                    <img src={l.league.logo} alt="" className="w-full h-full object-contain drop-shadow-md" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm sm:text-base uppercase text-orange-500 truncate">{l.league.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      {l.country.flag && <img src={l.country.flag} alt="" className="w-3 h-3 object-contain rounded-sm" />}
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.country.name}</p>
+                      <span className="text-gray-600 text-[10px]">&bull;</span>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{l.league.type === 'League' ? 'Championnat' : l.league.type === 'Cup' ? 'Coupe' : l.league.type}</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function InfosTab({ team, players }: { team: any, players: any[] }) {
+  return (
+    <div className="space-y-6">
+      {team && (
+        <Card className="p-4 sm:p-6 bg-black/40 border border-white/10">
+          <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
+            {team.logo && 
+              <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 p-4 shrink-0">
+                <img src={team.logo} className="w-full h-full object-contain drop-shadow-xl" alt="" />
+              </div>
+            }
+            <div className="flex-1 space-y-3">
+              <h2 className="text-2xl sm:text-3xl font-black uppercase text-orange-500 tracking-tight">{team.name}</h2>
+              <div className="flex justify-center sm:justify-start gap-4 flex-wrap text-xs sm:text-sm text-gray-300">
+                {team.country && <span className="font-bold flex items-center gap-1.5 opacity-80"><img src={`https://media.api-sports.io/flags/${team.country.toLowerCase()}.svg`} className="w-4 h-4 object-contain rounded-sm" onError={(e) => e.currentTarget.style.display='none'} alt="" /> {team.country}</span>}
+                {team.founded && <span className="font-bold opacity-80">Fondé en {team.founded}</span>}
+                {team.venue?.name && <span className="font-bold opacity-80">Stade: {team.venue.name}</span>}
+                {team.venue?.city && <span className="font-bold opacity-80">Ville: {team.venue.city}</span>}
+                {team.venue?.capacity && <span className="font-bold opacity-80">Capacité: {team.venue.capacity.toLocaleString()}</span>}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Show Rankings if available */}
+      {players.length > 0 && (
+        <div className="pt-2">
+          <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">Tops Joueurs</h3>
+          <TeamRankingsTab players={players} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TeamRankingsTab({ players }: { players: any[] }) {
-  if (players.length === 0) return <Card className="py-10 text-center text-gray-500">Données non disponibles.</Card>;
+  if (players.length === 0) {
+    return (
+      <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+        Les données individuelles des joueurs ne sont malheureusement pas couvertes par notre fournisseur pour cette équipe.
+      </Card>
+    );
+  }
 
   const scorers = [...players].sort((a, b) => (b.statistics[0].goals.total || 0) - (a.statistics[0].goals.total || 0)).slice(0, 5);
   const assists = [...players].sort((a, b) => (b.statistics[0].goals.assists || 0) - (a.statistics[0].goals.assists || 0)).slice(0, 5);
@@ -437,11 +607,8 @@ function TeamRankingList({ title, data, label, valKey, icon }: { title: string; 
   );
 }
 
-function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; selectedSeason: number; profile?: any }) {
+function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason, profile, defaultLeagueId }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; selectedSeason: number; profile?: any; defaultLeagueId?: number | null }) {
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
-  const [selectedRound, setSelectedRound] = useState<string>('');
-  const [leagueFixtures, setLeagueFixtures] = useState<any[]>([]);
-  const [loadingLeagueFixtures, setLoadingLeagueFixtures] = useState(false);
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
 
@@ -462,124 +629,35 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
 
   const sortedLeagues = React.useMemo(() => Object.values(groupedByLeague).sort((a: any, b: any) => a.name.localeCompare(b.name)), [groupedByLeague]);
 
+  const liveMatches = React.useMemo(() => {
+    const favoriteIds = profile?.favoriteTeams?.map((id: any) => id.toString()) || [];
+    return fixtures.filter(f => ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short)).sort((a, b) => {
+      const aIsFav = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
+      const bIsFav = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
+      if (aIsFav && !bIsFav) return -1;
+      if (!aIsFav && bIsFav) return 1;
+      return 0;
+    });
+  }, [fixtures, profile]);
+
   useEffect(() => {
     if (sortedLeagues.length > 0 && !selectedLeagueId) {
-      setSelectedLeagueId((sortedLeagues[0] as any).id);
+      const targetId = defaultLeagueId && sortedLeagues.some((l: any) => l.id === defaultLeagueId) ? defaultLeagueId : null;
+      setSelectedLeagueId(targetId);
     }
-  }, [sortedLeagues, selectedLeagueId]);
+  }, [sortedLeagues, selectedLeagueId, defaultLeagueId]);
 
+  // Fetch Duels
   useEffect(() => {
-    if (selectedLeagueId) {
-      setLoadingLeagueFixtures(true);
-      footballDataService.getFixtures(selectedLeagueId, selectedSeason)
-        .then(data => {
-          setLeagueFixtures(data);
-          // Set initial round based on the team's next or last match in this league, or just the first round found
-          if (data && data.length > 0) {
-            const teamMatches = data.filter((f: any) => f.teams.home.id === fixtures[0]?.teams?.home?.id || f.teams.away.id === fixtures[0]?.teams?.home?.id); // approximation
-            
-            // Just gather all rounds
-            const roundsSet = new Set<string>();
-            data.forEach((f: any) => roundsSet.add(f.league.round));
-            const availableRounds = Array.from(roundsSet);
-            setSelectedRound(availableRounds[0] || '');
-          }
-        })
-        .finally(() => setLoadingLeagueFixtures(false));
-    }
-  }, [selectedLeagueId, selectedSeason, fixtures]);
-
-  const groupedByRound = React.useMemo(() => {
-    return leagueFixtures.reduce((acc: any, f: any) => {
-      const round = f.league.round;
-      if (!acc[round]) acc[round] = [];
-      acc[round].push(f);
-      return acc;
-    }, {});
-  }, [leagueFixtures]);
-
-  const rounds = React.useMemo(() => {
-    return Object.keys(groupedByRound).sort((a, b) => {
-      const dateA = Math.min(...groupedByRound[a].map((f: any) => new Date(f.fixture.date).getTime()));
-      const dateB = Math.min(...groupedByRound[b].map((f: any) => new Date(f.fixture.date).getTime()));
-      return dateA - dateB;
-    });
-  }, [groupedByRound]);
-
-  useEffect(() => {
-    if (rounds.length > 0 && (!selectedRound || !rounds.includes(selectedRound))) {
-      // Find the round with the most recent live/finished games, or the first upcoming
-      let bestRound = rounds[rounds.length - 1] || rounds[0];
-      
-      for (const round of rounds) {
-        const hasLiveInfo = groupedByRound[round].some((m: any) => ['1H', '2H', 'HT', 'LIVE', 'FT'].includes(m.fixture.status.short));
-        if (hasLiveInfo) {
-          bestRound = round;
-        }
-      }
-      setSelectedRound(bestRound);
-    }
-  }, [rounds, groupedByRound, selectedRound]);
-
-  const [roundEvents, setRoundEvents] = useState<Record<string, any[]>>({});
-
-  useEffect(() => {
-    if (!selectedRound) return;
-    
-    const fetchRoundEvents = async () => {
-      const currentMatches = groupedByRound[selectedRound] || [];
-      const idsToFetch = currentMatches
-        .filter((m: any) => m.events === undefined && !roundEvents[m.fixture.id] && ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'LIVE'].includes(m.fixture.status.short))
-        .map((m: any) => m.fixture.id);
-
-      if (idsToFetch.length > 0) {
-        try {
-          const maxPerRequest = 20;
-          for (let i = 0; i < idsToFetch.length; i += maxPerRequest) {
-            const chunk = idsToFetch.slice(i, i + maxPerRequest);
-            if (i > 0) await new Promise(r => setTimeout(r, 1500));
-            try {
-              const detailedFixtures = await footballApi.getFixturesByIds(chunk);
-              const eventsMap: Record<string, any[]> = {};
-              if (detailedFixtures && detailedFixtures.length > 0) {
-                detailedFixtures.forEach((f: any) => {
-                  eventsMap[f.fixture.id] = f.events || [];
-                });
-                setRoundEvents(prev => ({ ...prev, ...eventsMap }));
-              } else {
-                chunk.forEach((id: any) => eventsMap[id] = null as any);
-                setRoundEvents(prev => ({ ...prev, ...eventsMap }));
-                break;
-              }
-            } catch (err) {
-              if (err instanceof Error && err.message === 'Failed to fetch') {
-                console.warn("Failed to fetch round events chunk (network issue)");
-              } else {
-                console.warn("Failed to fetch round events chunk", err);
-              }
-              const eventsMap: Record<string, any[]> = {};
-              chunk.forEach((id: any) => eventsMap[id] = null as any);
-              setRoundEvents(prev => ({ ...prev, ...eventsMap }));
-            }
-          }
-        } catch (err) {
-          if (err instanceof Error && err.message === 'Failed to fetch') {
-            console.warn("Failed to fetch round events summary (network issue)");
-          } else {
-            console.warn("Failed to fetch round events summary", err);
-          }
-        }
-      }
-    };
-    fetchRoundEvents();
-
-    // Fetch Duels
     const fetchActiveDuels = async () => {
       try {
-        const res = await fetch('/api/duels/all');
+        const res = await fetch('/api/duels/all', { headers: { 'Accept': 'application/json' }});
         if (res.ok) {
-          const duelsData = await res.json();
-          setActiveDuels(duelsData);
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const duelsData = await res.json();
+            setActiveDuels(duelsData);
+          }
         }
       } catch (err: any) {
         if (err?.message !== 'Failed to fetch') {
@@ -588,9 +666,19 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
       }
     };
     fetchActiveDuels();
+  }, []);
 
-    // Fetch scores for this round
-    const matchIds = groupedByRound[selectedRound]?.map((m: any) => m.fixture.id.toString()) || [];
+  const displayedFixtures = React.useMemo(() => {
+    let filtered = fixtures;
+    if (selectedLeagueId) {
+      filtered = fixtures.filter((f: any) => f.league.id === selectedLeagueId);
+    }
+    return [...filtered].sort((a: any, b: any) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime());
+  }, [fixtures, selectedLeagueId]);
+
+  // Fetch scores for this round
+  useEffect(() => {
+    const matchIds = displayedFixtures.map((m: any) => m.fixture.id.toString());
     if (matchIds.length === 0) return;
 
     setMatchScores({});
@@ -624,31 +712,52 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
     return () => {
       unsubs.forEach(u => u());
     };
-  }, [selectedRound, groupedByRound]);
+  }, [displayedFixtures]);
 
-  const formatRound = (round: string) => {
-    const match = round.match(/\d+/);
-    if (match && (round.toLowerCase().includes('round') || round.toLowerCase().includes('regular season'))) {
-      return `Journée ${match[0]}`;
-    }
-    return round;
-  };
-
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = window.innerWidth > 768 ? 400 : window.innerWidth - 60;
-      scrollContainerRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
-    }
-  };
+  const groupedByMonth = React.useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    displayedFixtures.forEach(f => {
+      const date = new Date(f.fixture.date);
+      const monthYear = format(date, 'MMMM yyyy', { locale: fr });
+      if (!grouped[monthYear]) grouped[monthYear] = [];
+      grouped[monthYear].push(f);
+    });
+    return grouped;
+  }, [displayedFixtures]);
 
   if (fixtures.length === 0) return <Card className="py-10 text-center text-gray-500">Aucun match trouvé.</Card>;
 
   return (
     <div className="space-y-4">
+      {/* Live Matches Slider */}
+      {liveMatches.length > 0 && (
+        <div className="-mx-4 md:mx-0">
+          <LiveMatchesSlider
+            matches={liveMatches}
+            activeDuels={activeDuels}
+            matchScores={matchScores}
+            onMatchClick={onMatchClick || (() => {})}
+            onJoinDuel={(id) => {}} // Not implemented internally
+            onTeamClick={onTeamClick}
+            onLeagueClick={onLeagueClick}
+            profile={profile}
+          />
+        </div>
+      )}
+
       {/* League menu */}
       {sortedLeagues.length > 1 && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2">
+          <button
+            onClick={() => setSelectedLeagueId(null)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors whitespace-nowrap min-w-0 ${
+              selectedLeagueId === null 
+                ? 'bg-orange-500/10 border-orange-500 text-white' 
+                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+            }`}
+          >
+            <span className="text-[10px] sm:text-xs font-black uppercase italic truncate">Toutes</span>
+          </button>
           {sortedLeagues.map((l: any) => (
             <button
               key={l.id}
@@ -666,86 +775,40 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
         </div>
       )}
 
-      {loadingLeagueFixtures ? (
-        <Card className="py-10 text-center text-gray-500">
-          <Activity className="w-6 h-6 animate-spin mx-auto opacity-50 mb-2" />
-          <p className="text-[10px] font-bold uppercase tracking-widest">Chargement...</p>
-        </Card>
-      ) : (
-        <>
-          {/* Round Selector */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-            {rounds.map(round => (
-              <button
-                key={round}
-                onClick={() => setSelectedRound(round)}
-                className={`px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-black uppercase italic transition-colors ${
-                  selectedRound === round 
-                    ? 'bg-orange-500 text-white' 
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                }`}
-              >
-                {formatRound(round)}
-              </button>
+      {/* Matches Grid */}
+      {Object.entries(groupedByMonth).map(([month, monthFixtures]) => (
+        <div key={month} className="space-y-3">
+          <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm pl-2 border-l-2 border-orange-500">{month}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {monthFixtures.map(match => (
+              <SharedMatchCard
+                key={match.fixture.id}
+                match={match}
+                hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
+                matchScore={matchScores[match.fixture.id.toString()]}
+                onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
+                onJoinDuel={() => {}}
+                onTeamClick={onTeamClick}
+                profile={profile}
+                showLeagueHeader={true}
+                showDate={true}
+              />
             ))}
           </div>
-
-          {/* Horizontal Matches */}
-          {selectedRound && groupedByRound[selectedRound] && (
-            <div className="relative group/scroll">
-              {groupedByRound[selectedRound].length > 1 && (
-                <>
-                  <button 
-                    onClick={() => scroll('left')}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => scroll('right')}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-
-              <div 
-                ref={scrollContainerRef}
-                className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
-              >
-                <div className="flex flex-nowrap gap-4 w-fit px-0.5 items-stretch">
-                  {groupedByRound[selectedRound].map((match: any) => {
-                    const matchWithEvents = {
-                      ...match,
-                      events: match.events || roundEvents[match.fixture.id] || []
-                    };
-                    return (
-                    <div key={match.fixture.id} className="snap-center shrink-0 flex items-stretch w-[calc(100vw-60px)] sm:w-[400px]">
-                      <SharedMatchCard
-                        match={matchWithEvents}
-                        hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
-                        matchScore={matchScores[match.fixture.id.toString()]}
-                        onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
-                        onJoinDuel={() => {}}
-                        onTeamClick={onTeamClick}
-                        profile={profile}
-                        showLeagueHeader={false}
-                      />
-                    </div>
-                  )})}
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+        </div>
+      ))}
     </div>
   );
 }
 
 function PlayersTab({ players }: { players: any[] }) {
-  if (players.length === 0) return <Card className="py-10 text-center text-gray-500">Joueurs non disponibles.</Card>;
+  if (players.length === 0) {
+    return (
+      <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+        L'effectif de l'équipe n'est malheureusement pas couvert par notre fournisseur de données.
+      </Card>
+    );
+  }
 
   const groupedByPos = players.reduce((acc: any, p: any) => {
     const pos = p.statistics[0].games.position || 'Unknown';
@@ -786,7 +849,13 @@ function PlayersTab({ players }: { players: any[] }) {
 }
 
 function StandingsTab({ standings, teamId, onTeamClick, selectedSeason }: { standings: any[]; teamId: number; onTeamClick: (id: number, season: number) => void; selectedSeason: number }) {
-  if (standings.length === 0) return <Card className="py-10 text-center text-gray-500">Classement non disponible.</Card>;
+  if (standings.length === 0) {
+    return (
+      <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+        Le classement n'est malheureusement pas disponible chez notre fournisseur de données, ou la compétition se déroule sous forme de phase à élimination directe exclusive.
+      </Card>
+    );
+  }
 
   return (
     <Card className="overflow-x-auto p-0">
@@ -916,11 +985,17 @@ function StatsTab({ stats, teamId, selectedSeason }: { stats: any, teamId: numbe
   }, [teamId, selectedSeason]);
 
 
-  if (!stats && tbfoStats.loading) return <Card className="py-10 text-center text-gray-500">Statistiques non disponibles.</Card>;
+  if (!stats && tbfoStats.loading) {
+    return (
+      <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+        Les statistiques de cette équipe (réelles et en jeu) ne sont malheureusement pas couvertes par notre fournisseur de données.
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {stats && (
+      {stats ? (
         <>
           <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mb-2">
             <Trophy className="w-4 h-4 text-orange-500" />
@@ -947,6 +1022,16 @@ function StatsTab({ stats, teamId, selectedSeason }: { stats: any, teamId: numbe
               </div>
             </Card>
           </div>
+        </>
+      ) : (
+        <>
+          <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mb-2">
+            <Trophy className="w-4 h-4 text-orange-500" />
+            Stats Réelles (Football)
+          </h3>
+          <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+            Les statistiques réelles de cette équipe ne sont malheureusement pas couvertes par notre fournisseur de données.
+          </Card>
         </>
       )}
 

@@ -67,7 +67,7 @@ export function Button({
   return (
     <button 
       className={cn(
-        "rounded-lg font-bold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
+        "rounded-lg font-bold transition-all duration-200 active:scale-95 hover:-translate-y-0.5 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0",
         variants[variant],
         sizes[size],
         className
