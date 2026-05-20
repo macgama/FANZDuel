@@ -12,7 +12,8 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        injectRegister: 'auto',
+        includeAssets: ['logo-192.png', 'logo-512.png'],
         workbox: {
           navigateFallbackDenylist: [/^\/api/],
         },
@@ -28,15 +29,16 @@ export default defineConfig(({mode}) => {
           display: 'standalone',
           icons: [
             {
-              src: 'https://thebestfan.online/img/public/logo/logoFerveur.png', // Temporary icon until real icons are added
+              src: '/logo-192.png',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
-              src: 'https://thebestfan.online/img/public/logo/logoFerveur.png',
+              src: '/logo-512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'maskable'
             }
           ]
         },

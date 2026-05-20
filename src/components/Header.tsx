@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfileModal } from './UserProfileModal';
+import { InstallPWA } from './InstallPWA';
 import { getImageUrl, cn } from '../lib/utils';
 import { LOGOS } from '../constants';
 import { generateFervorPath } from '../utils/fervorPath';
@@ -372,7 +373,8 @@ export function Header({
           </div>
 
           {/* Right: Menu Button OR Home Button */}
-          <div className="shrink-0 ml-2">
+          <div className="shrink-0 ml-2 flex items-center gap-2">
+            <InstallPWA />
             {variant === 'subpage' ? (
               <button 
                 onClick={() => onHomeClick?.()} 
