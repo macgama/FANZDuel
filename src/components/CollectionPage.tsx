@@ -56,6 +56,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
      fanzList.forEach(f => {
        if (f.templateId) {
          t.add(f.templateId);
+         s.add(`${f.templateId}-000`); // Always own the base skin
          if (f.unlockedSkins) {
              if (Array.isArray(f.unlockedSkins)) f.unlockedSkins.forEach(x => s.add(`${f.templateId}-${x}`));
              else Object.keys(f.unlockedSkins).forEach(x => s.add(`${f.templateId}-${x}`));
@@ -103,7 +104,22 @@ export function CollectionPage({ user }: CollectionPageProps) {
       const templates = tSnap.docs.map(d => ({id: d.id, ...d.data()})) as FanzTemplate[];
       setFanzTemplates(templates);
       
-      const allSkins = templates.flatMap(t => (t.skins || []).filter(s => s.category !== 'event' || s.isActive !== false).map(s => ({...s, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${s.id}`})));
+      const allSkins = templates.flatMap(t => {
+        const baseSkin = {
+          id: '000',
+          uniqueId: `${t.id}-000`,
+          fanzId: t.id,
+          fanzName: t.name,
+          name: t.name,
+          imageUrl: t.image,
+          videoUrl: t.video,
+          victoryVideoUrl: t.victoryVideoUrl,
+          defeatVideoUrl: t.defeatVideoUrl,
+          isActive: t.isActive
+        };
+        const otherSkins = (t.skins || []).filter(s => s.category !== 'event' || s.isActive !== false).map(s => ({...s, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${s.id}`}));
+        return [baseSkin, ...otherSkins];
+      });
       const allEmotes = templates.flatMap(t => (t.emotes || []).filter(e => e.category !== 'event' || e.isActive !== false).map(e => ({...e, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${e.id}`})));
       setSkins(allSkins);
       setEmotes(allEmotes);
@@ -171,18 +187,53 @@ export function CollectionPage({ user }: CollectionPageProps) {
     return false;
   };
 
+  const expandedActions = actions.flatMap(action => {
+    if (action.skinOverrides && Object.keys(action.skinOverrides).length > 0 && action.fanzTemplateId) {
+      const items = [{
+        ...action,
+        uniqueItemKey: action.id + '-000',
+        associatedSkinId: '000',
+        fanzSkinName: fanzTemplates.find(f => f.id === action.fanzTemplateId)?.name || action.fanzTemplateId
+      }];
+      Object.keys(action.skinOverrides).forEach(skinId => {
+        const skinOverride = action.skinOverrides![skinId];
+        const skinName = fanzTemplates.find(f => f.id === action.fanzTemplateId)?.skins?.find(s => s.id === skinId)?.name || skinId;
+        items.push({
+          ...action,
+          uniqueItemKey: action.id + '-' + skinId,
+          associatedSkinId: skinId,
+          fanzSkinName: skinName,
+          image: skinOverride.image || action.image,
+          videoUrl: skinOverride.videoUrl || action.videoUrl
+        });
+      });
+      return items;
+    }
+    return [{
+      ...action,
+      uniqueItemKey: action.id,
+      associatedSkinId: action.skinId,
+      fanzSkinName: action.fanzTemplateId ? (fanzTemplates.find(f => f.id === action.fanzTemplateId)?.name || action.fanzTemplateId) : ''
+    }];
+  });
+
   const validOwnedTemplates = fanzTemplates.filter(t => ownedTemplates.has(t.id)).length;
   const validOwnedSkins = skins.filter(checkSkinOwned).length;
   const validOwnedEmotes = emotes.filter(checkEmoteOwned).length;
   const validOwnedCards = cards.filter(checkCardOwned).length;
-  const validOwnedActions = actions.filter(a => ownedActions.has(a.id)).length;
+  
+  const validOwnedExpandedActions = expandedActions.filter(a => {
+    const ownedAction = ownedActions.has(a.id);
+    const ownedSkin = !a.associatedSkinId || ownedSkins.has(`${a.fanzTemplateId}-${a.associatedSkinId}`);
+    return ownedAction && ownedSkin;
+  }).length;
 
   const tabs = [
     { id: 'fanz', label: 'FANZ', count: validOwnedTemplates + '/' + fanzTemplates.length },
     { id: 'skins', label: 'Skins', count: validOwnedSkins + '/' + skins.length },
     { id: 'emotes', label: 'Emotes', count: validOwnedEmotes + '/' + emotes.length },
     { id: 'cards', label: 'Cartes', count: validOwnedCards + '/' + cards.length },
-    { id: 'actions', label: 'Actions', count: validOwnedActions + '/' + actions.length },
+    { id: 'actions', label: 'Actions', count: validOwnedExpandedActions + '/' + expandedActions.length },
   ];
 
   return (
@@ -213,7 +264,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
               <option value="all">Tous les FANZ</option>
               {activeTab === 'cards' || activeTab === 'actions' ? <option value="generic">{activeTab === 'cards' ? 'Cartes Génériques' : 'Actions Génériques'}</option> : null}
               {fanzTemplates.filter(f => f.isActive !== false).map(fanz => (
-                <option key={fanz.id} value={fanz.id}>{fanz.id} - {fanz.name}</option>
+                <option key={fanz.id} value={fanz.id}>{fanz.name}</option>
               ))}
             </select>
           </div>
@@ -319,7 +370,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                      </div>
                      
                      <div className="flex gap-1 justify-center mt-auto flex-wrap">
-                       {skin.victoryVideoUrl && userDoc?.unlockedVideos?.includes(skin.id + '_victory') && (
+                       {skin.victoryVideoUrl && userDoc?.unlockedVideos?.includes(skin.id === '000' ? (skin.fanzId + '_base_victory') : (skin.id + '_victory')) && (
                           <Button size="sm" variant="outline" className="px-1.5 py-1 h-auto text-[9px] sm:text-[10px] uppercase font-black tracking-wider text-green-400 border-green-500/50 hover:bg-green-500/20" onClick={(e) => {
                              e.stopPropagation();
                              openMedia({ type: 'video', url: getImageUrl(skin.victoryVideoUrl), title: skin.name + ' - Victoire', itemType: 'skin' });
@@ -327,7 +378,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                              <PlayCircle className="w-3 h-3 mr-0.5" /> Victoire
                           </Button>
                        )}
-                       {skin.defeatVideoUrl && userDoc?.unlockedVideos?.includes(skin.id + '_defeat') && (
+                       {skin.defeatVideoUrl && userDoc?.unlockedVideos?.includes(skin.id === '000' ? (skin.fanzId + '_base_defeat') : (skin.id + '_defeat')) && (
                           <Button size="sm" variant="outline" className="px-1.5 py-1 h-auto text-[9px] sm:text-[10px] uppercase font-black tracking-wider text-red-400 border-red-500/50 hover:bg-red-500/20" onClick={(e) => {
                              e.stopPropagation();
                              openMedia({ type: 'video', url: getImageUrl(skin.defeatVideoUrl), title: skin.name + ' - Défaite', itemType: 'skin' });
@@ -377,7 +428,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                   </div>
                   <div className="p-2 bg-[#111] flex flex-col items-center justify-center text-center">
                     <h3 className="font-bold text-[10px] sm:text-xs uppercase truncate w-full text-gray-200">{emote.name}</h3>
-                    <p className="text-[8px] text-purple-400 mt-0.5 uppercase tracking-wider line-clamp-1">{emote.fanzName}</p>
+                    <p className="text-[8px] text-purple-400 mt-0.5 uppercase tracking-wider">{emote.fanzName}</p>
                   </div>
                 </div>
               );
@@ -456,42 +507,45 @@ export function CollectionPage({ user }: CollectionPageProps) {
 
         {activeTab === 'actions' && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
-            {[...actions]
+            {expandedActions
               .filter(a => {
                 if (filterCollectionFanz === 'all') return true;
                 if (filterCollectionFanz === 'generic') return !a.fanzTemplateId;
                 return a.fanzTemplateId === filterCollectionFanz;
               })
               .sort((a, b) => {
-                const aOwned = ownedActions.has(a.id);
-                const bOwned = ownedActions.has(b.id);
+                const aOwnedAction = ownedActions.has(a.id);
+                const aOwnedSkin = !a.associatedSkinId || ownedSkins.has(`${a.fanzTemplateId}-${a.associatedSkinId}`);
+                const aOwned = aOwnedAction && aOwnedSkin;
+
+                const bOwnedAction = ownedActions.has(b.id);
+                const bOwnedSkin = !b.associatedSkinId || ownedSkins.has(`${b.fanzTemplateId}-${b.associatedSkinId}`);
+                const bOwned = bOwnedAction && bOwnedSkin;
+
                 if (aOwned !== bOwned) return aOwned ? -1 : 1;
-                const getFanzName = (action: LifeAction) => {
+                
+                const getFanzName = (action: any) => {
                   if (!action.fanzTemplateId) return 'zzz_générique';
-                  const fanz = fanzTemplates.find(f => f.id === action.fanzTemplateId);
-                  let name = fanz ? fanz.name : action.fanzTemplateId;
-                  if (action.skinId) {
-                     const skin = fanz?.skins?.find(s => s.id === action.skinId);
-                     if (skin) {
-                       name += ` - ${skin.name}`;
-                     }
-                  }
-                  return name;
+                  return action.fanzSkinName || action.fanzTemplateId;
                 };
                 const aFanzName = getFanzName(a);
                 const bFanzName = getFanzName(b);
                 if (aFanzName !== bFanzName) return aFanzName.localeCompare(bFanzName);
-                return a.name.localeCompare(b.name);
+                if (a.name !== b.name) return a.name.localeCompare(b.name);
+                return (a.associatedSkinId || '').localeCompare(b.associatedSkinId || '');
               })
               .map(action => {
-              const owned = ownedActions.has(action.id);
+              const ownedAction = ownedActions.has(action.id);
+              const ownedSkin = !action.associatedSkinId || ownedSkins.has(`${action.fanzTemplateId}-${action.associatedSkinId}`);
+              const owned = ownedAction && ownedSkin;
+
               return (
-                <div key={action.id} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale' : 'outline outline-2 outline-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]'}`}>
+                <div key={action.uniqueItemKey} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale' : 'outline outline-2 outline-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]'}`}>
                   <div className="aspect-square bg-black relative group">
                     {action.videoUrl && !user.dataSaver ? (
-                       <video src={getImageUrl(action.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
+                       <video src={getImageUrl(action.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={`${action.name} ${action.associatedSkinId && action.associatedSkinId !== '000' ? `(${action.fanzSkinName})` : ''}`} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
                     ) : action.image ? (
-                       <img src={getImageUrl(action.image)} alt={action.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} data-viewer-video-url={action.videoUrl} />
+                       <img src={getImageUrl(action.image)} alt={action.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={`${action.name} ${action.associatedSkinId && action.associatedSkinId !== '000' ? `(${action.fanzSkinName})` : ''}`} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} data-viewer-video-url={action.videoUrl} />
                     ) : (
                        <div className="w-full h-full flex items-center justify-center text-gray-700">
                          <PlayCircle className="w-8 h-8" />
@@ -506,16 +560,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                   <div className="p-2 sm:p-3 bg-[#111] flex-1 flex flex-col items-center justify-center text-center">
                     <h3 className="font-bold text-[10px] sm:text-xs leading-tight mb-0.5">{action.name}</h3>
                     {(() => {
-                        if (!action.fanzTemplateId) return <p className="text-[8px] sm:text-[9px] text-blue-400 uppercase tracking-wider line-clamp-1">Générique</p>;
-                        const fanz = fanzTemplates.find(f => f.id === action.fanzTemplateId);
-                        let name = fanz ? fanz.name : action.fanzTemplateId;
-                        if (action.skinId) {
-                           const skin = fanz?.skins?.find(s => s.id === action.skinId);
-                           if (skin) {
-                             name += ` - ${skin.name}`;
-                           }
-                        }
-                        return <p className="text-[8px] sm:text-[9px] text-blue-400 uppercase tracking-wider line-clamp-1">{name}</p>;
+                        return <p className="text-[8px] sm:text-[9px] text-blue-400 uppercase tracking-wider">{action.fanzSkinName || 'Générique'}</p>;
                     })()}
                   </div>
                 </div>

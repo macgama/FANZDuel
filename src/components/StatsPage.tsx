@@ -175,8 +175,14 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
             </div>
             {bestFanz ? (
               <div className="bg-gradient-to-r from-gray-900 to-black border border-white/10 rounded-3xl p-4 flex gap-6 items-center">
-                <div className="w-24 h-24 bg-white/5 rounded-2xl overflow-hidden shrink-0 border border-white/10">
-                  <img src={getImageUrl(bestFanz.imageUrl || bestFanz.videoUrl)} alt="" className="w-full h-full object-cover" />
+                <div className="w-24 h-24 bg-white/5 rounded-2xl overflow-hidden shrink-0 border border-white/10 flex items-center justify-center">
+                  {(bestFanz.imageUrl || (bestFanz as any).image) ? (
+                    <img src={getImageUrl(bestFanz.imageUrl || (bestFanz as any).image)} alt="" className="w-full h-full object-cover" />
+                  ) : bestFanz.videoUrl ? (
+                    <video src={getImageUrl(bestFanz.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                  ) : (
+                    <Star className="w-8 h-8 text-gray-600" />
+                  )}
                 </div>
                 <div className="flex-1">
                   <div className="text-lg font-black italic uppercase tracking-tighter text-white">{bestFanz.name}</div>

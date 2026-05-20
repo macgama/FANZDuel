@@ -57,6 +57,106 @@ export function AdminZone() {
   // Fanz state
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [editingFanz, setEditingFanz] = useState<FanzTemplate | null>(null);
+  const [fanzViewMode, setFanzViewMode] = useState<'grid'|'list'>('grid');
+  const [fanzSort, setFanzSort] = useState<{column: string, direction: 'asc'|'desc'}>({column: 'id', direction: 'asc'});
+  const [modifiedFanzIds, setModifiedFanzIds] = useState<Set<string>>(new Set());
+
+  const handleFanzSort = (column: string) => {
+    if (fanzSort.column === column) {
+      setFanzSort({ column, direction: fanzSort.direction === 'asc' ? 'desc' : 'asc' });
+    } else {
+      setFanzSort({ column, direction: 'asc' });
+    }
+  };
+
+  const sortedFanzTemplates = React.useMemo(() => {
+    let sorted = [...fanzTemplates];
+    sorted.sort((a, b) => {
+      let valA: any = a[fanzSort.column as keyof FanzTemplate];
+      let valB: any = b[fanzSort.column as keyof FanzTemplate];
+      
+      if (fanzSort.column === 'skins') {
+        valA = a.skins?.length || 0;
+        valB = b.skins?.length || 0;
+      } else if (fanzSort.column === 'emotes') {
+        valA = a.emotes?.length || 0;
+        valB = b.emotes?.length || 0;
+      }
+      
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return fanzSort.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      if (valA < valB) return fanzSort.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return fanzSort.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [fanzTemplates, fanzSort]);
+
+  const handleQuickSaveFanz = async (e: React.MouseEvent, template: FanzTemplate) => {
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      const fanzRef = doc(db, 'fanz_templates', template.id);
+      
+      // Auto-generate fervor path if needed
+      if (template.ferveurConfig && template.ferveurConfig.ranges && template.ferveurConfig.ranges.length > 0) {
+        const lastRange = template.ferveurConfig.ranges[template.ferveurConfig.ranges.length - 1];
+        template.ferveurPath = generateFervorPath(lastRange.max || 150000, template.ferveurConfig);
+      } else if (!template.ferveurPath || template.ferveurPath.length === 0) {
+        if (fanzFervorConfig) {
+          const defaultPath = generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 150000, fanzFervorConfig);
+          template.ferveurPath = defaultPath;
+        }
+      }
+
+      const sanitizedFanz = JSON.parse(JSON.stringify(template));
+      await setDoc(fanzRef, sanitizedFanz);
+      setStatus({ type: 'success', message: 'FANZ mis à jour avec succès !' });
+      setModifiedFanzIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(template.id);
+        return newSet;
+      });
+    } catch (err) {
+      console.error("Error saving fanz template", err);
+      handleFirestoreError(err, OperationType.WRITE, `fanz_templates/${template.id}`);
+      setStatus({ type: 'error', message: `Erreur: ${err instanceof Error ? err.message : String(err)}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDuplicateFanz = async (e: React.MouseEvent, template: FanzTemplate) => {
+    e.stopPropagation();
+    const newId = `fanz-${Date.now()}`;
+    const newTemplate = {
+      ...template,
+      id: newId,
+      name: `${template.name} (Copie)`,
+      skins: template.skins?.map(skin => ({ ...skin, id: `skin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, fanzId: newId })),
+      emotes: template.emotes?.map(emote => ({ ...emote, id: `emote-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, fanzId: newId }))
+    };
+    
+    setLoading(true);
+    try {
+      const fanzRef = doc(db, 'fanz_templates', newId);
+      const sanitizedFanz = JSON.parse(JSON.stringify(newTemplate));
+      await setDoc(fanzRef, sanitizedFanz);
+      setStatus({ type: 'success', message: 'FANZ dupliqué !' });
+      fetchFanzTemplates();
+    } catch (err) {
+      console.error("Error duplicating fanz template", err);
+      setStatus({ type: 'error', message: 'Erreur lors de la duplication' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLocalFanzChange = (id: string, updates: Partial<FanzTemplate>) => {
+    setFanzTemplates(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    setModifiedFanzIds(prev => new Set(prev).add(id));
+  };
 
   const effectiveFanzTemplates = React.useMemo(() => {
     let merged = [...fanzTemplates];
@@ -3941,11 +4041,27 @@ export function AdminZone() {
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Modèles FANZ</h2>
                 <div className="flex gap-3">
-                  <Button onClick={handleMigrateSkinIds} variant="outline" className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-500/10">
+                  <div className="flex items-center gap-1 bg-gray-900 rounded-lg p-1 border border-white/10">
+                    <button
+                      onClick={() => setFanzViewMode('grid')}
+                      className={`p-1.5 rounded-md transition-colors ${fanzViewMode === 'grid' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                      title="Vue Grille"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setFanzViewMode('list')}
+                      className={`p-1.5 rounded-md transition-colors ${fanzViewMode === 'list' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                      title="Vue Liste"
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <Button onClick={handleMigrateSkinIds} variant="outline" className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-500/10 hidden lg:flex">
                     <Database className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /> Migration IDs
                   </Button>
-                  <Button onClick={handleFixFerveurPaths} variant="outline" className="flex items-center gap-2 border-orange-500 text-orange-500 hover:bg-orange-500/10">
-                    <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /> Mettre à jour Ferveur
+                  <Button onClick={handleFixFerveurPaths} variant="outline" className="flex items-center gap-2 border-orange-500 text-orange-500 hover:bg-orange-500/10 hidden lg:flex">
+                    <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /> Maj Ferveur
                   </Button>
                   <Button onClick={handleCreateNewFanz} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
                     <Plus className="w-5 h-5" /> Nouveau FANZ
@@ -4454,73 +4570,217 @@ export function AdminZone() {
             </Card>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {fanzTemplates.map((template) => (
-              <Card 
-                key={template.id} 
-                className={`p-4 hover:border-blue-500 transition-colors cursor-pointer group ${template.isActive === false ? 'opacity-50' : ''}`} 
-                onClick={() => {
-                  const defaultPath: FerveurLevel[] = [
-                    { level: 1, pointsRequired: 249, reward: { type: 'money' as const, amount: 100 } },
-                    { level: 2, pointsRequired: 499, reward: { type: 'money' as const, amount: 100 } },
-                    { level: 3, pointsRequired: 749, reward: { type: 'money' as const, amount: 100 } },
-                    { level: 4, pointsRequired: 999, reward: { type: 'money' as const, amount: 100 } },
-                    { level: 5, pointsRequired: 1000, reward: { type: 'money' as const, amount: 100 } }
-                  ];
-                  setEditingFanz({
-                    ...template,
-                    ferveurPath: template.ferveurPath && template.ferveurPath.length > 0 ? template.ferveurPath : defaultPath
-                  });
-                }}
-              >
-                <div className="relative aspect-[3/4] rounded-lg overflow-hidden mb-3 bg-gray-100">
-                  {template.video ? (
-                    <video 
-                      key={getImageUrl(template.video)}
-                      src={getImageUrl(template.video)}
-                      poster={getImageUrl(template.image)}
-                      className="w-full h-full object-cover"
-                      autoPlay muted loop playsInline
-                    />
-                  ) : (
-                    <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover" />
-                  )}
-                  <div className={`absolute top-2 left-2 text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                    template.rarity === 'legendary' ? 'bg-yellow-500' : template.rarity === 'epic' ? 'bg-purple-500' : template.rarity === 'rare' ? 'bg-blue-500' : 'bg-gray-500'
-                  }`}>
-                    {template.rarity}
-                  </div>
-                  {template.isActive === false && (
-                    <div className="absolute top-2 right-2 text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500 text-white">
-                      Inactif
+          {fanzViewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {sortedFanzTemplates.map((template) => (
+                <Card 
+                  key={template.id} 
+                  className={`p-4 hover:border-blue-500 transition-colors cursor-pointer group ${template.isActive === false ? 'opacity-50' : ''}`} 
+                  onClick={() => {
+                    const defaultPath: FerveurLevel[] = [
+                      { level: 1, pointsRequired: 249, reward: { type: 'money' as const, amount: 100 } },
+                      { level: 2, pointsRequired: 499, reward: { type: 'money' as const, amount: 100 } },
+                      { level: 3, pointsRequired: 749, reward: { type: 'money' as const, amount: 100 } },
+                      { level: 4, pointsRequired: 999, reward: { type: 'money' as const, amount: 100 } },
+                      { level: 5, pointsRequired: 1000, reward: { type: 'money' as const, amount: 100 } }
+                    ];
+                    setEditingFanz({
+                      ...template,
+                      ferveurPath: template.ferveurPath && template.ferveurPath.length > 0 ? template.ferveurPath : defaultPath
+                    });
+                  }}
+                >
+                  <div className="relative aspect-[3/4] rounded-lg overflow-hidden mb-3 bg-gray-100">
+                    {template.video ? (
+                      <video 
+                        key={getImageUrl(template.video)}
+                        src={getImageUrl(template.video)}
+                        poster={getImageUrl(template.image)}
+                        className="w-full h-full object-cover"
+                        autoPlay muted loop playsInline
+                      />
+                    ) : (
+                      <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover" />
+                    )}
+                    <div className={`absolute top-2 left-2 text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      template.rarity === 'legendary' ? 'bg-yellow-500' : template.rarity === 'epic' ? 'bg-purple-500' : template.rarity === 'rare' ? 'bg-blue-500' : 'bg-gray-500'
+                    }`}>
+                      {template.rarity}
                     </div>
-                  )}
-                </div>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-bold text-lg">{template.name}</h4>
-                    <div className="text-xs text-gray-400">ID: {template.id}</div>
+                    {template.isActive === false && (
+                      <div className="absolute top-2 right-2 text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500 text-white">
+                        Inactif
+                      </div>
+                    )}
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteFanzTemplate(template.id);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-lg">{template.name}</h4>
+                      <div className="text-xs text-gray-400">ID: {template.id}</div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFanzTemplate(template.id);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+              {fanzTemplates.length === 0 && !loading && (
+                <div className="col-span-full text-center p-8 text-gray-500">
+                  Aucun FANZ trouvé dans la base de données. Utilisez "Synchroniser Base" pour commencer.
                 </div>
-              </Card>
-            ))}
-            {fanzTemplates.length === 0 && !loading && (
-              <div className="col-span-full text-center p-8 text-gray-500">
-                Aucun FANZ trouvé dans la base de données. Utilisez "Synchroniser Base" pour commencer.
+              )}
+            </div>
+          ) : (
+            <Card className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-800 text-gray-400 uppercase text-xs font-black">
+                      <th className="py-3 px-2 w-16">Média</th>
+                      <th className="py-3 px-2 cursor-pointer hover:text-white" onClick={() => handleFanzSort('id')}>
+                        <div className="flex items-center gap-1">ID {fanzSort.column === 'id' ? (fanzSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                      </th>
+                      <th className="py-3 px-2 cursor-pointer hover:text-white" onClick={() => handleFanzSort('name')}>
+                        <div className="flex items-center gap-1">Nom {fanzSort.column === 'name' ? (fanzSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                      </th>
+                      <th className="py-3 px-2 cursor-pointer hover:text-white" onClick={() => handleFanzSort('rarity')}>
+                        <div className="flex items-center gap-1">Rareté {fanzSort.column === 'rarity' ? (fanzSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                      </th>
+                      <th className="py-3 px-2 cursor-pointer hover:text-white" onClick={() => handleFanzSort('skins')}>
+                        <div className="flex items-center gap-1">Skins {fanzSort.column === 'skins' ? (fanzSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                      </th>
+                      <th className="py-3 px-2 cursor-pointer hover:text-white" onClick={() => handleFanzSort('emotes')}>
+                        <div className="flex items-center gap-1">Emotes {fanzSort.column === 'emotes' ? (fanzSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                      </th>
+                      <th className="py-3 px-2 cursor-pointer hover:text-white" onClick={() => handleFanzSort('isActive')}>
+                        <div className="flex items-center gap-1">Statut {fanzSort.column === 'isActive' ? (fanzSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                      </th>
+                      <th className="py-3 px-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedFanzTemplates.map(template => {
+                      const isModified = modifiedFanzIds.has(template.id);
+                      return (
+                      <tr 
+                        key={template.id} 
+                        className={`border-b border-gray-800/50 hover:bg-white/5 cursor-pointer transition-colors ${template.isActive === false ? 'opacity-50' : ''}`}
+                        onClick={() => {
+                          const defaultPath: FerveurLevel[] = [
+                            { level: 1, pointsRequired: 249, reward: { type: 'money' as const, amount: 100 } },
+                            { level: 2, pointsRequired: 499, reward: { type: 'money' as const, amount: 100 } },
+                            { level: 3, pointsRequired: 749, reward: { type: 'money' as const, amount: 100 } },
+                            { level: 4, pointsRequired: 999, reward: { type: 'money' as const, amount: 100 } },
+                            { level: 5, pointsRequired: 1000, reward: { type: 'money' as const, amount: 100 } }
+                          ];
+                          setEditingFanz({
+                            ...template,
+                            ferveurPath: template.ferveurPath && template.ferveurPath.length > 0 ? template.ferveurPath : defaultPath
+                          });
+                        }}
+                      >
+                        <td className="py-2 px-2">
+                          <div className="w-10 h-10 rounded overflow-hidden">
+                            {template.video ? (
+                              <video src={getImageUrl(template.video)} className="w-full h-full object-cover" muted loop playsInline />
+                            ) : (
+                              <img src={getImageUrl(template.image)} className="w-full h-full object-cover" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2 px-2 font-mono text-xs text-gray-400">{template.id}</td>
+                        <td className="py-2 px-2" onClick={e => e.stopPropagation()}>
+                          <input 
+                            type="text" 
+                            value={template.name} 
+                            onChange={(e) => handleLocalFanzChange(template.id, { name: e.target.value })}
+                            className="bg-transparent border-b border-dashed border-gray-600 focus:border-orange-500 focus:outline-none w-full font-bold px-1"
+                          />
+                        </td>
+                        <td className="py-2 px-2" onClick={e => e.stopPropagation()}>
+                          <select 
+                            value={template.rarity}
+                            onChange={(e) => handleLocalFanzChange(template.id, { rarity: e.target.value as any })}
+                            className={`text-[10px] font-black uppercase px-2 py-1 rounded border-none appearance-none cursor-pointer outline-none ${
+                              template.rarity === 'legendary' ? 'bg-yellow-500/20 text-yellow-500' : template.rarity === 'epic' ? 'bg-purple-500/20 text-purple-500' : template.rarity === 'rare' ? 'bg-blue-500/20 text-blue-500' : 'bg-gray-500/20 text-gray-400'
+                            }`}
+                          >
+                            <option value="common" className="bg-gray-900">COMMON</option>
+                            <option value="rare" className="bg-gray-900">RARE</option>
+                            <option value="epic" className="bg-gray-900">EPIC</option>
+                            <option value="legendary" className="bg-gray-900">LEGENDARY</option>
+                          </select>
+                        </td>
+                        <td className="py-2 px-2 text-gray-400 font-bold text-center">{template.skins?.length || 0}</td>
+                        <td className="py-2 px-2 text-gray-400 font-bold text-center">{template.emotes?.length || 0}</td>
+                        <td className="py-2 px-2 text-center" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleLocalFanzChange(template.id, { isActive: template.isActive === false ? true : false })}
+                            className={`text-[10px] font-black uppercase px-2 py-1 rounded transition-colors ${
+                              template.isActive === false ? 'bg-red-500/20 text-red-500 hover:bg-red-500/40' : 'bg-green-500/20 text-green-500 hover:bg-green-500/40'
+                            }`}
+                          >
+                            {template.isActive === false ? 'Inactif' : 'Actif'}
+                          </button>
+                        </td>
+                        <td className="py-2 px-2" onClick={e => e.stopPropagation()}>
+                          <div className="flex justify-end gap-1">
+                            {isModified && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-green-500 hover:text-green-400 border-green-500/30 hover:bg-green-500/10 px-2"
+                                onClick={(e) => handleQuickSaveFanz(e, template)}
+                                title="Sauvegarder"
+                              >
+                                <Save className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-blue-500 hover:text-blue-400 border-blue-500/30 hover:bg-blue-500/10 px-2"
+                              onClick={(e) => handleDuplicateFanz(e, template)}
+                              title="Dupliquer"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-red-500 hover:text-red-400 border-red-500/30 hover:bg-red-500/10 px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteFanzTemplate(template.id);
+                              }}
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )})}
+                    {fanzTemplates.length === 0 && !loading && (
+                      <tr className="border-b-0 h-32">
+                        <td colSpan={8} className="text-center text-gray-500 py-8">
+                          Aucun FANZ trouvé dans la base de données. Utilisez "Nouveau FANZ" pour commencer.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+            </Card>
+          )}
 
           {fanzFervorConfig && (
             <Card className="p-6 space-y-6 mt-12 bg-gray-900 border-orange-500/30">

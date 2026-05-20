@@ -66,6 +66,8 @@ function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadingRef = React.useRef(true);
+  const currentUserRef = React.useRef<string | null>(null);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [currentDuel, setCurrentDuel] = useState<any>(null);
 
@@ -453,7 +455,12 @@ function AppContent() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        setLoading(true); // Ensure loading is true while fetching profile
+        if (currentUserRef.current !== currentUser.uid) {
+          setLoading(true);
+          loadingRef.current = true;
+          currentUserRef.current = currentUser.uid;
+        }
+        if (unsubscribeSnapshot) unsubscribeSnapshot();
         const docRef = doc(db, 'users', currentUser.uid);
         
         unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
@@ -590,6 +597,8 @@ function AppContent() {
       } else {
         setProfile(null);
         setLoading(false);
+        loadingRef.current = false;
+        currentUserRef.current = null;
         if (unsubscribeSnapshot) unsubscribeSnapshot();
       }
     });
