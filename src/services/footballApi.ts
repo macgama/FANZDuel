@@ -162,8 +162,31 @@ export const footballApi = {
     return data.response;
   },
 
-  async getPlayers(teamId: number, season: number) {
-    const data = await fetchApi(`${BASE_URL}players?team=${teamId}&season=${season}`);
+  async getPlayers(teamId: number, season: number, leagueId?: number) {
+    let allPlayers: any[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    try {
+      do {
+        let url = `${BASE_URL}players?team=${teamId}&season=${season}&page=${page}`;
+        if (leagueId) url += `&league=${leagueId}`;
+        
+        const data = await fetchApi(url);
+        if (!data.response) break;
+        allPlayers = allPlayers.concat(data.response);
+        totalPages = data.paging?.total || 1;
+        page++;
+      } while (page <= totalPages);
+    } catch (e) {
+      console.error('Error fetching paginated players:', e);
+    }
+
+    return allPlayers;
+  },
+
+  async getSquad(teamId: number) {
+    const data = await fetchApi(`${BASE_URL}players/squads?team=${teamId}`);
     return data.response;
   },
 

@@ -73,31 +73,18 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
           setAvailableSeasons(sorted);
           
           let actualSeasonYear = sorted[0].year;
-          let closestSeason: number | null = null;
-          let minDistance = Infinity;
-          const todayDate = new Date();
+          let currentSeasonFromAPI: number | null = null;
 
           data.seasons.forEach((s: any) => {
-            const start = new Date(s.start);
-            const end = new Date(s.end);
-            let distance = 0;
-            if (todayDate >= start && todayDate <= end) {
-              distance = 0;
-            } else if (todayDate < start) {
-              distance = start.getTime() - todayDate.getTime();
-            } else {
-              distance = todayDate.getTime() - end.getTime();
-            }
-            if (distance < minDistance) {
-              minDistance = distance;
-              closestSeason = s.year;
-            } else if (distance === minDistance && s.year > (closestSeason || 0)) {
-               closestSeason = s.year;
+            if (s.current) {
+              if (!currentSeasonFromAPI || s.year > currentSeasonFromAPI) {
+                currentSeasonFromAPI = s.year;
+              }
             }
           });
 
-          if (closestSeason !== null) {
-            actualSeasonYear = closestSeason;
+          if (currentSeasonFromAPI !== null) {
+            actualSeasonYear = currentSeasonFromAPI;
           }
           
           // Store the actual current season for the UI dropdown

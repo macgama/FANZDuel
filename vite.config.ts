@@ -15,6 +15,8 @@ export default defineConfig(({mode}) => {
         injectRegister: 'auto',
         includeAssets: ['logo-192.png', 'logo-512.png'],
         workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+          navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api/],
         },
         manifest: {

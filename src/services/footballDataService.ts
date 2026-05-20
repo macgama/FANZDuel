@@ -321,7 +321,14 @@ export const footballDataService = {
   /**
    * Gets players for a team and season.
    */
-  async getPlayers(teamId: number, season: number) {
-    return await footballApi.getPlayers(teamId, season);
+  async getPlayers(teamId: number, season: number, leagueId?: number) {
+    return await footballApi.getPlayers(teamId, season, leagueId);
+  },
+
+  /**
+   * Gets the full squad for a team.
+   */
+  async getSquad(teamId: number) {
+    return await footballApi.getSquad(teamId);
   }
 };

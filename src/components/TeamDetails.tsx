@@ -53,14 +53,125 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [players, setPlayers] = useState<any[]>([]);
+  const [squad, setSquad] = useState<any[]>([]);
   const [standings, setStandings] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'infos' | 'effectif' | 'matches' | 'standings' | 'competitions' | 'stats' | 'historique' | 'tbfo'>('infos');
-  const [currentLeagueId, setCurrentLeagueId] = useState<number | null>(null);
   const [teamLeagues, setTeamLeagues] = useState<any[]>([]);
+  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
+
+  // Group initial fixtures to know which leagues the team is in
+  const seasonLeagues = React.useMemo(() => {
+    return Object.values(fixtures.reduce((acc: any, f: any) => {
+      const leagueId = f.league.id;
+      if (!acc[leagueId]) {
+        acc[leagueId] = {
+          id: leagueId,
+          name: f.league.name,
+          logo: f.league.logo
+        };
+      }
+      return acc;
+    }, {})).sort((a: any, b: any) => a.name.localeCompare(b.name));
+  }, [fixtures]);
+
+  const bestLeagueId = React.useMemo(() => {
+    if (fixtures.length === 0) return null;
+    let fallback = fixtures[0].league.id;
+    if (teamLeagues.length > 0) {
+      const domesticLeague = teamLeagues.find(l => l.league.type === 'League' && fixtures.some((f: any) => f.league.id === l.league.id));
+      if (domesticLeague) {
+        fallback = domesticLeague.league.id;
+      }
+    }
+    return fallback;
+  }, [fixtures, teamLeagues]);
+
+  const effectiveLeagueId = selectedLeagueId || bestLeagueId;
+
+  const aggregatedStats = React.useMemo(() => {
+    if (selectedLeagueId !== null) return null;
+    if (fixtures.length === 0) return null;
+
+    let played = 0;
+    let wins = 0, draws = 0, loses = 0;
+    let goalsFor = 0, goalsAgainst = 0;
+    let cleanSheets = 0, failedToScore = 0;
+    let currentWins = 0, maxWins = 0;
+
+    const sortedFixtures = [...fixtures].sort((a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime());
+
+    for (const f of sortedFixtures) {
+      if (['FT', 'AET', 'PEN'].includes(f.fixture.status.short)) {
+        played++;
+        const isHome = f.teams.home.id === teamId;
+        const gf = isHome ? f.goals.home : f.goals.away;
+        const ga = isHome ? f.goals.away : f.goals.home;
+        
+        if (gf !== null && ga !== null) {
+          goalsFor += gf;
+          goalsAgainst += ga;
+          
+          if (gf > ga) {
+            wins++;
+            currentWins++;
+            if (currentWins > maxWins) maxWins = currentWins;
+          } else if (gf < ga) {
+            loses++;
+            currentWins = 0;
+          } else {
+            draws++;
+            currentWins = 0;
+          }
+
+          if (ga === 0) cleanSheets++;
+          if (gf === 0) failedToScore++;
+        }
+      }
+    }
+
+    return {
+      fixtures: {
+        played: { total: played },
+        wins: { total: wins },
+        draws: { total: draws },
+        loses: { total: loses }
+      },
+      goals: {
+        for: { total: { total: goalsFor }, average: { total: played ? (goalsFor / played).toFixed(1) : "0.0" } },
+        against: { total: { total: goalsAgainst }, average: { total: played ? (goalsAgainst / played).toFixed(1) : "0.0" } }
+      },
+      biggest: {
+        streak: { wins: maxWins }
+      },
+      clean_sheet: { total: cleanSheets },
+      failed_to_score: { total: failedToScore },
+      _isAggregated: true
+    };
+  }, [fixtures, selectedLeagueId, teamId]);
+
+  // Refetch standings and stats when effectiveLeagueId changes
+  useEffect(() => {
+    if (!effectiveLeagueId) return;
+    let isMounted = true;
+    const fetchLeagueData = async () => {
+      try {
+        const [standingsResults, statsResults] = await Promise.allSettled([
+          footballDataService.getStandings(effectiveLeagueId, selectedSeason, false),
+          footballApi.getTeamStats(effectiveLeagueId, teamId, selectedSeason)
+        ]);
+        if (isMounted) {
+          if (standingsResults.status === 'fulfilled') setStandings(standingsResults.value);
+          if (statsResults.status === 'fulfilled') setStats(statsResults.value);
+        }
+      } catch (err) {}
+    };
+    fetchLeagueData();
+    return () => { isMounted = false; };
+  }, [effectiveLeagueId, selectedSeason, teamId]);
 
   // Fetch team info and available seasons
   useEffect(() => {
@@ -75,54 +186,34 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
         const leaguesRes = await footballApi.getLeaguesByTeam(teamId);
         setTeamLeagues(leaguesRes || []);
         const seasons = new Set<number>();
-        let closestLeagueSeason: number | null = null;
-        let minLeagueDistance = Infinity;
-        let closestAnySeason: number | null = null;
-        let minAnyDistance = Infinity;
-        const todayDate = new Date();
+        let currentLeagueSeason: number | null = null;
+        let currentAnySeason: number | null = null;
 
         (leaguesRes || []).forEach((l: any) => {
           (l.seasons || []).forEach((s: any) => {
             seasons.add(s.year);
-            const start = new Date(s.start);
-            const end = new Date(s.end);
-            let distance = 0;
-            if (todayDate >= start && todayDate <= end) {
-              distance = 0;
-            } else if (todayDate < start) {
-              distance = start.getTime() - todayDate.getTime();
-            } else {
-              distance = todayDate.getTime() - end.getTime();
-            }
-
-            // Track closest for 'League' type specifically
-            if (l.league.type === 'League') {
-              if (distance < minLeagueDistance) {
-                minLeagueDistance = distance;
-                closestLeagueSeason = s.year;
-              } else if (distance === minLeagueDistance && s.year > (closestLeagueSeason || 0)) {
-                closestLeagueSeason = s.year;
+            
+            if (s.current) {
+              if (l.league.type === 'League') {
+                if (!currentLeagueSeason || s.year > currentLeagueSeason) {
+                  currentLeagueSeason = s.year;
+                }
               }
-            }
-
-            // Track closest overall
-            if (distance < minAnyDistance) {
-              minAnyDistance = distance;
-              closestAnySeason = s.year;
-            } else if (distance === minAnyDistance && s.year > (closestAnySeason || 0)) {
-               closestAnySeason = s.year; 
+              if (!currentAnySeason || s.year > currentAnySeason) {
+                currentAnySeason = s.year;
+              }
             }
           });
         });
         
-        const sortedSeasons = Array.from(seasons).sort((a, b) => b - a);
+        const sortedSeasons = Array.from(seasons).sort((a, b: number) => b - a);
         setAvailableSeasons(sortedSeasons);
         
         let actualSeason = sortedSeasons[0];
-        if (closestLeagueSeason !== null) {
-          actualSeason = closestLeagueSeason;
-        } else if (closestAnySeason !== null) {
-          actualSeason = closestAnySeason;
+        if (currentLeagueSeason !== null) {
+          actualSeason = currentLeagueSeason;
+        } else if (currentAnySeason !== null) {
+          actualSeason = currentAnySeason;
         }
         
         setActualCurrentSeason(actualSeason);
@@ -145,38 +236,35 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
     else setLoading(true);
     
     try {
-      // Fetch fixtures and players in parallel using allSettled for resilience
-      const [fixturesResults, playersResults] = await Promise.allSettled([
+      // Fetch fixtures and squad in parallel
+      const [fixturesResults, squadResults] = await Promise.allSettled([
         footballDataService.getFixturesByTeam(teamId, selectedSeason, force),
-        footballDataService.getPlayers(teamId, selectedSeason)
+        footballDataService.getSquad(teamId)
       ]);
 
       const fixturesData = fixturesResults.status === 'fulfilled' ? fixturesResults.value : [];
-      const playersData = playersResults.status === 'fulfilled' ? playersResults.value : [];
+      const squadData = squadResults.status === 'fulfilled' ? squadResults.value : [];
 
       setFixtures(fixturesData);
-      setPlayers(playersData);
+      
+      // squadData comes as [{team: {...}, players: [...]}]
+      if (squadData.length > 0 && squadData[0].players) {
+        setSquad(squadData[0].players);
+      } else {
+        setSquad([]);
+      }
 
-      // If we have a league from fixtures, fetch standings and stats
+      // If we have a league from fixtures, fetch players (no league filter)
       if (fixturesData.length > 0) {
-        let bestLeagueId = fixturesData[0].league.id;
-        
-        // Find main domestic league if possible
-        if (teamLeagues.length > 0) {
-          const domesticLeague = teamLeagues.find(l => l.league.type === 'League' && fixturesData.some((f: any) => f.league.id === l.league.id));
-          if (domesticLeague) {
-            bestLeagueId = domesticLeague.league.id;
-          }
-        }
-        
-        setCurrentLeagueId(bestLeagueId);
-        const [standingsResults, statsResults] = await Promise.allSettled([
-          footballDataService.getStandings(bestLeagueId, selectedSeason, force),
-          footballApi.getTeamStats(bestLeagueId, teamId, selectedSeason)
+        const [playersResults] = await Promise.allSettled([
+          footballDataService.getPlayers(teamId, selectedSeason)
         ]);
         
-        setStandings(standingsResults.status === 'fulfilled' ? standingsResults.value : []);
-        setStats(statsResults.status === 'fulfilled' ? statsResults.value : null);
+        setPlayers(playersResults.status === 'fulfilled' ? playersResults.value : []);
+      } else {
+        // Fallback: fetch players without league filter if no fixtures found
+        const playersFallback = await footballDataService.getPlayers(teamId, selectedSeason);
+        setPlayers(playersFallback);
       }
 
       // Get the most recent update timestamp
@@ -388,6 +476,38 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
             />
           </div>
 
+          {/* Global League Filter (only for relevant tabs) */}
+          {['infos', 'matches', 'standings', 'effectif', 'stats'].includes(activeTab) && seasonLeagues.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 mt-2">
+              {activeTab !== 'standings' && (
+                <button 
+                  onClick={() => setSelectedLeagueId(null)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors whitespace-nowrap min-w-0 flex-shrink-0 ${
+                    selectedLeagueId === null && activeTab !== 'standings'
+                      ? 'bg-orange-500/10 border-orange-500 text-white' 
+                      : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-[10px] sm:text-xs font-black uppercase italic truncate">Toutes</span>
+                </button>
+              )}
+              {seasonLeagues.map((l: any) => (
+                <button 
+                  key={l.id}
+                  onClick={() => setSelectedLeagueId(l.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors whitespace-nowrap min-w-0 flex-shrink-0 ${
+                    (selectedLeagueId === l.id) || (selectedLeagueId === null && effectiveLeagueId === l.id && activeTab === 'standings')
+                      ? 'bg-orange-500/10 border-orange-500 text-white' 
+                      : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  <img src={l.logo} alt="" className="w-5 h-5 object-contain" />
+                  <span className="text-[10px] sm:text-xs font-black uppercase italic truncate">{translateLeagueName(l.name)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Content */}
           <AnimatePresence mode="wait">
             <motion.div
@@ -397,15 +517,15 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'infos' && <InfosTab team={team} players={players} />}
-              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} profile={profile} defaultLeagueId={currentLeagueId} />}
+              {activeTab === 'infos' && <InfosTab team={team} players={players} selectedLeagueId={selectedLeagueId} />}
+              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} profile={profile} selectedLeagueId={selectedLeagueId} />}
               {activeTab === 'standings' && <StandingsTab standings={standings} teamId={teamId} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />}
               {activeTab === 'competitions' && <CompetitionsTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
-              {activeTab === 'effectif' && <EffectifTab players={players} />}
-              {activeTab === 'stats' && <StatsTab stats={stats} teamId={teamId} selectedSeason={selectedSeason} />}
+              {activeTab === 'effectif' && <EffectifTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} />}
+              {activeTab === 'stats' && <StatsTab stats={selectedLeagueId === null ? aggregatedStats : stats} teamId={teamId} selectedSeason={selectedSeason} />}
               {activeTab === 'historique' && <HistoriqueTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
-              {activeTab === 'tbfo' && currentLeagueId ? (
-                <TbfoRankingsTab leagueId={currentLeagueId} selectedSeason={selectedSeason} onTeamClick={onTeamClick} highlightTeamId={teamId} />
+              {activeTab === 'tbfo' && effectiveLeagueId ? (
+                <TbfoRankingsTab leagueId={effectiveLeagueId} selectedSeason={selectedSeason} onTeamClick={onTeamClick} highlightTeamId={teamId} />
               ) : activeTab === 'tbfo' ? (
                 <Card className="py-10 text-center text-gray-500">Données de ligue non disponibles.</Card>
               ) : null}
@@ -468,8 +588,8 @@ function CompetitionsTab({ leagues, onLeagueClick, selectedSeason }: { leagues: 
   );
 }
 
-function EffectifTab({ players }: { players: any[] }) {
-  return <PlayersTab players={players} />;
+function EffectifTab({ squad, players, selectedLeagueId }: { squad: any[], players: any[], selectedLeagueId: number | null }) {
+  return <PlayersTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} />;
 }
 
 function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number }) {
@@ -527,7 +647,7 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: an
   );
 }
 
-function InfosTab({ team, players }: { team: any, players: any[] }) {
+function InfosTab({ team, players, selectedLeagueId }: { team: any, players: any[], selectedLeagueId: number | null }) {
   return (
     <div className="space-y-6">
       {team && (
@@ -556,14 +676,14 @@ function InfosTab({ team, players }: { team: any, players: any[] }) {
       {players.length > 0 && (
         <div className="pt-2">
           <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">Tops Joueurs</h3>
-          <TeamRankingsTab players={players} />
+          <TeamRankingsTab players={players} selectedLeagueId={selectedLeagueId} />
         </div>
       )}
     </div>
   );
 }
 
-function TeamRankingsTab({ players }: { players: any[] }) {
+function TeamRankingsTab({ players, selectedLeagueId }: { players: any[], selectedLeagueId: number | null }) {
   if (players.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
@@ -572,17 +692,39 @@ function TeamRankingsTab({ players }: { players: any[] }) {
     );
   }
 
-  const scorers = [...players].sort((a, b) => (b.statistics[0].goals.total || 0) - (a.statistics[0].goals.total || 0)).slice(0, 5);
-  const assists = [...players].sort((a, b) => (b.statistics[0].goals.assists || 0) - (a.statistics[0].goals.assists || 0)).slice(0, 5);
-  const yellows = [...players].sort((a, b) => (b.statistics[0].cards.yellow || 0) - (a.statistics[0].cards.yellow || 0)).slice(0, 5);
-  const reds = [...players].sort((a, b) => (b.statistics[0].cards.red || 0) - (a.statistics[0].cards.red || 0)).slice(0, 5);
+  const getAggregatedStats = (player: any) => {
+    let goals = 0;
+    let assists = 0;
+    let yellow = 0;
+    let red = 0;
+    
+    player.statistics?.forEach((stat: any) => {
+      if (selectedLeagueId !== null && stat.league?.id !== selectedLeagueId) return;
+      goals += stat.goals?.total || 0;
+      assists += stat.goals?.assists || 0;
+      yellow += stat.cards?.yellow || 0;
+      red += stat.cards?.red || 0;
+    });
+    
+    return { goals, assists, yellow, red };
+  };
+
+  const playersWithAgg = players.map(p => ({
+    ...p,
+    agg: getAggregatedStats(p)
+  }));
+
+  const scorers = [...playersWithAgg].sort((a, b) => b.agg.goals - a.agg.goals).slice(0, 5);
+  const assists = [...playersWithAgg].sort((a, b) => b.agg.assists - a.agg.assists).slice(0, 5);
+  const yellows = [...playersWithAgg].sort((a, b) => b.agg.yellow - a.agg.yellow).slice(0, 5);
+  const reds = [...playersWithAgg].sort((a, b) => b.agg.red - a.agg.red).slice(0, 5);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <TeamRankingList title="Buteurs" data={scorers} label="Buts" valKey="goals.total" icon={<Goal className="w-3.5 h-3.5 text-green-500" />} />
-      <TeamRankingList title="Passeurs" data={assists} label="Passes" valKey="goals.assists" icon={<Activity className="w-3.5 h-3.5 text-blue-500" />} />
-      <TeamRankingList title="Cartons Jaunes" data={yellows} label="Jaunes" valKey="cards.yellow" icon={<Square className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />} />
-      <TeamRankingList title="Cartons Rouges" data={reds} label="Rouges" valKey="cards.red" icon={<Square className="w-3.5 h-3.5 text-red-500 fill-red-500" />} />
+      <TeamRankingList title="Buteurs" data={scorers} label="Buts" valKey="agg.goals" icon={<Goal className="w-3.5 h-3.5 text-green-500" />} />
+      <TeamRankingList title="Passeurs" data={assists} label="Passes" valKey="agg.assists" icon={<Activity className="w-3.5 h-3.5 text-blue-500" />} />
+      <TeamRankingList title="Cartons Jaunes" data={yellows} label="Jaunes" valKey="agg.yellow" icon={<Square className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />} />
+      <TeamRankingList title="Cartons Rouges" data={reds} label="Rouges" valKey="agg.red" icon={<Square className="w-3.5 h-3.5 text-red-500 fill-red-500" />} />
     </div>
   );
 }
@@ -596,12 +738,11 @@ function TeamRankingList({ title, data, label, valKey, icon }: { title: string; 
       </h3>
       <div className="space-y-1">
         {data.map((p, idx) => {
-          const stats = p.statistics[0];
           let val = 0;
-          if (valKey === 'goals.total') val = stats.goals.total || 0;
-          if (valKey === 'goals.assists') val = stats.goals.assists || 0;
-          if (valKey === 'cards.yellow') val = stats.cards.yellow || 0;
-          if (valKey === 'cards.red') val = stats.cards.red || 0;
+          if (valKey === 'agg.goals') val = p.agg.goals;
+          if (valKey === 'agg.assists') val = p.agg.assists;
+          if (valKey === 'agg.yellow') val = p.agg.yellow;
+          if (valKey === 'agg.red') val = p.agg.red;
 
           if (val === 0 && idx > 0) return null;
 
@@ -623,28 +764,10 @@ function TeamRankingList({ title, data, label, valKey, icon }: { title: string; 
   );
 }
 
-function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason, profile, defaultLeagueId }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; selectedSeason: number; profile?: any; defaultLeagueId?: number | null }) {
-  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
+function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, selectedSeason, profile, selectedLeagueId }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; onMatchClick?: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; selectedSeason: number; profile?: any; selectedLeagueId: number | null }) {
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
   const [matchEvents, setMatchEvents] = useState<Record<string, any[] | null>>({});
-
-  // Group initial fixtures to know which leagues the team is in
-  const groupedByLeague = React.useMemo(() => {
-    return fixtures.reduce((acc: any, f: any) => {
-      const leagueId = f.league.id;
-      if (!acc[leagueId]) {
-        acc[leagueId] = {
-          id: leagueId,
-          name: f.league.name,
-          logo: f.league.logo
-        };
-      }
-      return acc;
-    }, {});
-  }, [fixtures]);
-
-  const sortedLeagues = React.useMemo(() => Object.values(groupedByLeague).sort((a: any, b: any) => a.name.localeCompare(b.name)), [groupedByLeague]);
 
   const liveMatches = React.useMemo(() => {
     const favoriteIds = profile?.favoriteTeams?.map((id: any) => id.toString()) || [];
@@ -656,13 +779,6 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
       return 0;
     });
   }, [fixtures, profile]);
-
-  useEffect(() => {
-    if (sortedLeagues.length > 0 && !selectedLeagueId) {
-      const targetId = defaultLeagueId && sortedLeagues.some((l: any) => l.id === defaultLeagueId) ? defaultLeagueId : null;
-      setSelectedLeagueId(targetId);
-    }
-  }, [sortedLeagues, selectedLeagueId, defaultLeagueId]);
 
   useEffect(() => {
     if (!selectedLeagueId) return;
@@ -807,36 +923,6 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
         </div>
       )}
 
-      {/* League menu */}
-      {sortedLeagues.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2">
-          <button
-            onClick={() => setSelectedLeagueId(null)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors whitespace-nowrap min-w-0 ${
-              selectedLeagueId === null 
-                ? 'bg-orange-500/10 border-orange-500 text-white' 
-                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-            }`}
-          >
-            <span className="text-[10px] sm:text-xs font-black uppercase italic truncate">Toutes</span>
-          </button>
-          {sortedLeagues.map((l: any) => (
-            <button
-              key={l.id}
-              onClick={() => setSelectedLeagueId(l.id)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors whitespace-nowrap min-w-0 ${
-                selectedLeagueId === l.id 
-                  ? 'bg-orange-500/10 border-orange-500 text-white' 
-                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-              }`}
-            >
-              <img src={l.logo} alt="" className="w-5 h-5 object-contain" />
-              <span className="text-[10px] sm:text-xs font-black uppercase italic truncate">{translateLeagueName(l.name)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Matches Grid */}
       {Object.entries(groupedByMonth).map(([month, monthFixtures]) => (
         <div key={month} className="space-y-3">
@@ -863,8 +949,73 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
   );
 }
 
-function PlayersTab({ players }: { players: any[] }) {
-  if (players.length === 0) {
+function PlayersTab({ squad, players, selectedLeagueId }: { squad?: any[], players: any[], selectedLeagueId: number | null }) {
+  const mergedPlayers = React.useMemo(() => {
+    const map = new Map<number, any>();
+    
+    // Add all from squad (has photo, name, age, number, position)
+    if (squad && squad.length > 0) {
+      squad.forEach(p => {
+        map.set(p.id, {
+          id: p.id,
+          name: p.name,
+          photo: p.photo,
+          age: p.age,
+          number: p.number,
+          position: p.position,
+          stats: { played: 0, minutes: 0, goals: 0, assists: 0 }
+        });
+      });
+    }
+
+    // Add/merge from players (has detailed stats with array over leagues)
+    if (players && players.length > 0) {
+      players.forEach(p => {
+        const id = p.player?.id;
+        if (!id) return;
+
+        let played = 0;
+        let minutes = 0;
+        let goals = 0;
+        let assists = 0;
+
+        p.statistics?.forEach((stat: any) => {
+          if (selectedLeagueId !== null && stat.league?.id !== selectedLeagueId) return;
+          played += stat.games?.appearences || 0;
+          minutes += stat.games?.minutes || 0;
+          goals += stat.goals?.total || 0;
+          assists += stat.goals?.assists || 0;
+        });
+
+        // Use position from stats if missing
+        const pos = p.statistics?.[0]?.games?.position || 'Unknown';
+
+        if (map.has(id)) {
+          const np = map.get(id);
+          np.stats = { played, minutes, goals, assists };
+        } else {
+          map.set(id, {
+            id: p.player.id,
+            name: p.player.name,
+            photo: p.player.photo,
+            age: p.player.age,
+            number: p.statistics?.[0]?.games?.number,
+            position: pos,
+            stats: { played, minutes, goals, assists }
+          });
+        }
+      });
+    }
+    
+    // Sort by position then name
+    return Array.from(map.values()).sort((a, b) => {
+      // Prioritize played matches to hide completely unknown/inactive players if they have 0
+      if (a.stats.played !== b.stats.played) return b.stats.played - a.stats.played;
+      return a.name.localeCompare(b.name);
+    });
+  }, [squad, players, selectedLeagueId]);
+
+  if (!mergedPlayers || mergedPlayers.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
         L'effectif de l'équipe n'est malheureusement pas couvert par notre fournisseur de données.
@@ -872,8 +1023,8 @@ function PlayersTab({ players }: { players: any[] }) {
     );
   }
 
-  const groupedByPos = players.reduce((acc: any, p: any) => {
-    const pos = p.statistics[0].games.position || 'Unknown';
+  const groupedByPos = mergedPlayers.reduce((acc: any, p: any) => {
+    const pos = p.position || 'Unknown';
     if (!acc[pos]) acc[pos] = [];
     acc[pos].push(p);
     return acc;
@@ -887,20 +1038,43 @@ function PlayersTab({ players }: { players: any[] }) {
         if (!groupedByPos[pos]) return null;
         return (
           <div key={pos} className="space-y-2">
-            <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">
+            <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest pl-2">
               {pos === 'Goalkeeper' ? 'Gardiens' : pos === 'Defender' ? 'Défenseurs' : pos === 'Midfielder' ? 'Milieux' : pos === 'Attacker' ? 'Attaquants' : 'Inconnu'}
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {groupedByPos[pos].map((p: any) => (
-                <Card key={p.player.id} className="flex items-center gap-2 p-1.5 hover:bg-white/5 transition-colors">
-                  <img src={p.player.photo} alt="" className="w-8 h-8 rounded-full border border-white/10" />
-                  <div className="min-w-0">
-                    <h4 className="text-[10px] font-bold truncate">{p.player.name}</h4>
-                    <div className="flex items-center gap-1 text-[7px] text-gray-500 font-bold uppercase">
-                      <span>{p.player.age} ans</span>
-                    </div>
-                  </div>
-                </Card>
+                 <Card key={p.id} className="flex gap-2 p-2 hover:bg-white/5 transition-colors">
+                   <div className="relative">
+                     <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full border border-white/10 object-cover bg-white/5" />
+                     {p.number && (
+                       <div className="absolute -bottom-1 -right-1 bg-orange-600 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-md">
+                         {p.number}
+                       </div>
+                     )}
+                   </div>
+                   <div className="min-w-0 flex-1 flex flex-col justify-center">
+                     <div className="flex items-center justify-between">
+                       <h4 className="text-[11px] font-black uppercase italic truncate">{p.name}</h4>
+                     </div>
+                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                       {p.age && <span className="text-[8px] text-gray-500 font-bold uppercase">{p.age} ans</span>}
+                       <div className="flex items-center gap-2 mt-0.5 ml-auto">
+                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title="Matches joués">
+                           <Activity className="w-2.5 h-2.5 text-blue-400" />
+                           {p.stats.played}
+                         </div>
+                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title="Minutes jouées">
+                           <Clock className="w-2.5 h-2.5 text-purple-400" />
+                           {p.stats.minutes}'
+                         </div>
+                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title="Buts">
+                           <Goal className="w-2.5 h-2.5 text-green-400" />
+                           {p.stats.goals}
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </Card>
               ))}
             </div>
           </div>
