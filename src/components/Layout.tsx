@@ -25,7 +25,7 @@ export function Layout({ children, className, containerClassName, isMobileOnly =
   );
 }
 
-export function Card({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) {
+export function Card({ children, className, onClick, style }: { children: React.ReactNode; className?: string; onClick?: () => void; style?: React.CSSProperties }) {
   return (
     <div 
       onClick={onClick}
@@ -34,7 +34,7 @@ export function Card({ children, className, onClick }: { children: React.ReactNo
         onClick && "cursor-pointer hover:border-orange-500 hover:bg-white/5",
         className
       )}
-      style={{ backgroundColor: COLORS.ink }}
+      style={{ backgroundColor: COLORS.ink, ...style }}
     >
       {children}
     </div>

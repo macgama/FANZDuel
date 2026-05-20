@@ -49,6 +49,9 @@ export function Header({
   hasClaimableFervorAlert
 }: HeaderProps) {
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>('');
+  const [countdownInfiniteEnergy, setCountdownInfiniteEnergy] = useState<string>('');
+  const [countdownXpBoost, setCountdownXpBoost] = useState<string>('');
+  const [countdownDoubleGains, setCountdownDoubleGains] = useState<string>('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.photoURL || null);
   const [maxFerveur, setMaxFerveur] = useState(100000);
@@ -181,6 +184,22 @@ export function Header({
       setTimeUntilRefill(
         `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
       );
+      
+      const getTimeLeftString = (until: string | undefined): string => {
+        if (!until) return '';
+        const endDate = new Date(until);
+        const timeDiff = endDate.getTime() - new Date().getTime();
+        if (timeDiff <= 0) return '';
+        
+        const h = Math.floor(timeDiff / (1000 * 60 * 60));
+        const m = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((timeDiff % (1000 * 60)) / 1000);
+        return `${h > 0 ? h + 'h ' : ''}${m.toString().padStart(h > 0 ? 2 : 1, '0')}:${s.toString().padStart(2, '0')}`;
+      };
+
+      setCountdownInfiniteEnergy(getTimeLeftString(profile.infiniteEnergyUntil));
+      setCountdownXpBoost(getTimeLeftString(profile.boostXpUntil));
+      setCountdownDoubleGains(getTimeLeftString(profile.doubleGainsUntil));
     };
 
     calculateTime();
@@ -242,7 +261,7 @@ export function Header({
             {isDoubleGainsActive && (
               <div className="absolute -top-6 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse flex items-center gap-1 z-20">
                 <TrendingUp className="w-2.5 h-2.5" />
-                Gains x2
+                Gains x2 ({countdownDoubleGains})
               </div>
             )}
             <div 
@@ -291,9 +310,15 @@ export function Header({
                     {isInfiniteEnergyActive ? 'Énergie Infinie' : 'Énergie'}
                   </div>
                   {isInfiniteEnergyActive && (
-                    <div className="text-[9px] text-yellow-400 font-bold mb-1">Boost Actif !</div>
+                    <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-yellow-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        FIN DU BOOST DANS
+                      </div>
+                      <div className="text-white font-black">{countdownInfiniteEnergy}</div>
+                    </div>
                   )}
-                  <div className="text-[9px] text-gray-300">Nécessaire pour affronter des adversaires</div>
+                  <div className="text-[9px] text-gray-300 mt-1">Nécessaire pour affronter des adversaires</div>
                   {timeUntilRefill && !isInfiniteEnergyActive && (
                     <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-orange-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
                       <div className="flex items-center gap-1">
@@ -332,7 +357,16 @@ export function Header({
                 <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest flex items-center gap-1">
                   Ferveur {isXpBoostActive && <span className="text-yellow-500">(XP x2 ACTIF)</span>}
                 </div>
-                <div className="text-[9px] text-gray-300">Répandez votre ferveur pour progresser !</div>
+                {isXpBoostActive && (
+                  <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-yellow-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      FIN DU BOOST DANS
+                    </div>
+                    <div className="text-white font-black">{countdownXpBoost}</div>
+                  </div>
+                )}
+                <div className="text-[9px] text-gray-300 mt-1">Répandez votre ferveur pour progresser !</div>
               </div>
             </div>
           </div>

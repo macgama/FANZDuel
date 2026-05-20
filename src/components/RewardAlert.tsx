@@ -4,6 +4,8 @@ import { Trophy, Star, Sparkles, X, Activity, MessageCircle } from 'lucide-react
 import { getImageUrl, cn } from '../lib/utils';
 import { LOGOS } from '../constants';
 import { OptimizedMedia } from './OptimizedMedia';
+import { auth, db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export interface RewardData {
   type: 'money' | 'gems' | 'boost' | 'energy' | 'xp' | 'card' | 'skin' | 'emote' | 'action' | 'choice';
@@ -25,6 +27,18 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
   const [clickCount, setClickCount] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [dataSaver, setDataSaver] = useState(false);
+
+  React.useEffect(() => {
+    if (auth.currentUser && reward) {
+      getDoc(doc(db, 'users', auth.currentUser.uid)).then(d => {
+        if (d.exists() && d.data().dataSaver) {
+          setDataSaver(true);
+        }
+      });
+    }
+  }, [reward]);
+
   const [flyingTexts, setFlyingTexts] = useState<Array<{id: number, text: string, x: number, y: number, color: string, rotate: number}>>([]);
 
   if (!reward) return null;
@@ -180,7 +194,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
       >
         {/* Background Particles/Glow */}
         <div className="absolute inset-0 pointer-events-none z-0">
-          {isRevealed && getRewardVideo() ? (
+          {isRevealed && getRewardVideo() && !dataSaver ? (
             <motion.div 
               initial={{ opacity: 0, scale: 1.1 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -196,6 +210,16 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                 playsInline 
                 className="w-full h-full object-cover" 
               />
+              <div className="absolute inset-0 bg-black/40" />
+            </motion.div>
+          ) : isRevealed && getRewardImage() ? (
+            <motion.div 
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="w-full h-full relative border-green"
+            >
+              <img src={getRewardImage()} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/40" />
             </motion.div>
           ) : (

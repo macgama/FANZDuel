@@ -203,8 +203,10 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
               break; 
             }
           }
-        } catch (e) {
-          console.error('[MatchesPage] Failed to enrich chunk', e);
+        } catch (e: any) {
+          if (e?.message !== 'Failed to fetch') {
+            console.error('[MatchesPage] Failed to enrich chunk', e);
+          }
           if (isMounted) {
             setFixtures(prev => prev.map(p => 
               chunkIds.includes(p.fixture.id) ? { ...p, events: null } : p
@@ -459,7 +461,7 @@ function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoi
                   >
                     <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
                       {group.matches.map((match: any) => (
-                        <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${group.matches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
+                        <div key={match.fixture.id} className="snap-center shrink-0 flex items-stretch w-[85vw] sm:w-[360px] max-w-[calc(100vw-32px)]">
                           <SharedMatchCard 
                             match={match} 
                             hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}

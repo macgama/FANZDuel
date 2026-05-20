@@ -17,11 +17,14 @@ export default defineConfig(({mode}) => {
           navigateFallbackDenylist: [/^\/api/],
         },
         manifest: {
-          name: 'The Best Fan',
+          id: '/',
+          start_url: '/',
+          scope: '/',
+          name: 'The Best Fan Online',
           short_name: 'TheBestFan',
-          description: 'Rejoignez des milliers de fans et montrez que votre ferveur n\'a pas de limite.',
-          theme_color: '#1a1a1a',
-          background_color: '#1a1a1a',
+          description: 'L\'application ultime pour les fans de football.',
+          theme_color: '#09090b',
+          background_color: '#09090b',
           display: 'standalone',
           icons: [
             {

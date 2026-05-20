@@ -23,6 +23,14 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
   const [isStarting, setIsStarting] = useState(false);
   const { showAlert } = useAlert();
 
+  let resolvedImage = action.image;
+  let resolvedVideoUrl = action.videoUrl;
+  if (fanz.equippedSkin && action.skinOverrides && action.skinOverrides[fanz.equippedSkin]) {
+    const override = action.skinOverrides[fanz.equippedSkin];
+    if (override.image) resolvedImage = override.image;
+    if (override.videoUrl) resolvedVideoUrl = override.videoUrl;
+  }
+
   // Find skin modifiers
   let moneyBonusMod = 0;
   let gemsBonusMod = 0;
@@ -255,8 +263,8 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       showAlert({
         title: action.name,
         subtitle: hasLeveledUp ? `Niveau ${newActionLevel} débloqué !` : "Activité terminée !",
-        videoUrl: action.videoUrl,
-        imageUrl: action.image,
+        videoUrl: resolvedVideoUrl,
+        imageUrl: resolvedImage,
         rewards,
         type: hasLeveledUp ? 'level-up' : 'success'
       });
@@ -351,8 +359,8 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       showAlert({
         title: action.name,
         subtitle: hasLeveledUp ? `Niveau ${newActionLevel} débloqué !` : "Accélération réussie !",
-        videoUrl: action.videoUrl,
-        imageUrl: action.image,
+        videoUrl: resolvedVideoUrl,
+        imageUrl: resolvedImage,
         rewards,
         type: hasLeveledUp ? 'level-up' : 'success'
       });
@@ -367,8 +375,8 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       <Card className="p-0 border-orange-500 relative overflow-hidden bg-black min-h-[380px] flex flex-col justify-end">
         {/* Background Image (No video when active as requested) */}
         <div className="absolute inset-0 z-0">
-          {action.image ? (
-            <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+          {resolvedImage ? (
+            <img src={getImageUrl(resolvedImage)} alt={action.name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
               <Activity className="w-12 h-12 text-gray-700" />
@@ -470,18 +478,18 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
     <Card className={`p-0 overflow-hidden relative group min-h-[380px] flex flex-col justify-end ${isAnyActionActive ? 'opacity-50 grayscale pointer-events-none' : 'cursor-pointer hover:border-orange-500 transition-colors'}`} onClick={handleStartAction}>
       {/* Background Video/Image */}
       <div className="absolute inset-0 z-0">
-        {action.videoUrl ? (
+        {resolvedVideoUrl ? (
           <OptimizedMedia
             type="video"
-            src={action.videoUrl}
-            poster={action.image}
+            src={resolvedVideoUrl}
+            poster={resolvedImage}
             dataSaver={userProfile.dataSaver}
             className="w-full h-full object-cover"
           />
-        ) : action.image ? (
+        ) : resolvedImage ? (
           <OptimizedMedia
             type="image"
-            src={action.image}
+            src={resolvedImage}
             alt={action.name}
             className="w-full h-full object-cover"
           />

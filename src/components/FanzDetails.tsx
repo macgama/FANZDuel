@@ -442,8 +442,15 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   }
 
   if (activeAction) {
-    currentImageUrl = activeAction.image || currentImageUrl;
-    currentVideoUrl = activeAction.videoUrl || null; // Don't fallback to skin video if action has no video
+    let resolvedImage = activeAction.image;
+    let resolvedVideoUrl = activeAction.videoUrl;
+    if (fanz.equippedSkin && activeAction.skinOverrides && activeAction.skinOverrides[fanz.equippedSkin]) {
+      const override = activeAction.skinOverrides[fanz.equippedSkin];
+      if (override.image) resolvedImage = override.image;
+      if (override.videoUrl) resolvedVideoUrl = override.videoUrl;
+    }
+    currentImageUrl = resolvedImage || currentImageUrl;
+    currentVideoUrl = resolvedVideoUrl || null; // Don't fallback to skin video if action has no video
   }
 
   const finalVideoUrl = getImageUrl(currentVideoUrl);
@@ -1002,10 +1009,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                       }
                                     } else if (step.reward?.type === 'action' && step.reward?.actionId) {
                                       const action = lifeActions.find(a => a.id === step.reward?.actionId);
-                                      if (action?.image) {
+                                      let resolvedImg = action?.image;
+                                      if (action && fanz.equippedSkin && action.skinOverrides && action.skinOverrides[fanz.equippedSkin]?.image) {
+                                        resolvedImg = action.skinOverrides[fanz.equippedSkin].image;
+                                      }
+                                      if (resolvedImg) {
                                         return (
                                           <div className="w-full h-full rounded-[inherit] overflow-hidden p-1 sm:p-2 bg-black/40">
-                                            <img src={action.image} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                                            <img src={resolvedImg} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
                                           </div>
                                         );
                                       }
@@ -1396,9 +1407,13 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                         ) : customReward.type === 'action' ? (
                                           customReward.actionId ? (() => {
                                             const action = lifeActions.find(a => a.id === customReward.actionId);
-                                            return action?.image ? (
+                                            let resolvedImg = action?.image;
+                                            if (action && fanz.equippedSkin && action.skinOverrides && action.skinOverrides[fanz.equippedSkin]?.image) {
+                                              resolvedImg = action.skinOverrides[fanz.equippedSkin].image;
+                                            }
+                                            return resolvedImg ? (
                                               <div className="w-16 h-16 rounded-[inherit] overflow-hidden p-1 absolute">
-                                                <img src={action.image} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                                                <img src={resolvedImg} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
                                               </div>
                                             ) : <Activity className="w-8 h-8" />;
                                           })() : <Activity className="w-8 h-8" />
@@ -1595,7 +1610,19 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       const isAllowed = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.includes(fanz.templateId);
                       const isBlocked = card.blockedFanzIds && card.blockedFanzIds.includes(fanz.templateId);
                       const isSkinMatch = !card.skinId || card.skinId === fanz.equippedSkin;
-                      return isAllowed && !isBlocked && isSkinMatch;
+                      let themeMatch = true;
+                      if (card.skinTheme && fanz.equippedSkin) {
+                         const theme = card.skinTheme.toLowerCase();
+                         if (fanz.equippedSkin.toLowerCase().includes(theme)) {
+                            themeMatch = true;
+                         } else {
+                            const skinObj = allSkins.find((s: any) => s.id === fanz.equippedSkin);
+                            themeMatch = skinObj && skinObj.name && skinObj.name.toLowerCase().includes(theme);
+                         }
+                      } else if (card.skinTheme && !fanz.equippedSkin) {
+                         themeMatch = false;
+                      }
+                      return isAllowed && !isBlocked && isSkinMatch && themeMatch;
                     })
                     .map(card => {
                       const requirements = card.unlockRequirements || [];
@@ -1748,21 +1775,23 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   onClick={() => handleEquipSkin(undefined)}
                   className={`relative overflow-hidden cursor-pointer transition-all hover:scale-105 p-0 ${!fanz.equippedSkin ? 'ring-2 ring-orange-500 bg-orange-500/10' : 'bg-gray-800/50'}`}
                 >
-                  <div className="w-full aspect-square overflow-hidden bg-gray-900">
+                  <div className="w-full aspect-[4/3] overflow-hidden bg-gray-900 pointer-events-none">
                     {template.video ? (
                       <OptimizedMedia
                         type="video"
                         src={template.video}
                         poster={template.image}
                         dataSaver={userProfile.dataSaver}
-                        className="w-full h-full object-cover pointer-events-none"
+                        className="w-full h-full object-cover"
+                        forceUnmuted={true}
+                        muted={userProfile.isMuted}
                       />
                     ) : (
                       <OptimizedMedia
                         type="image"
                         src={template.image}
                         alt="Original"
-                        className="w-full h-full object-cover pointer-events-none"
+                        className="w-full h-full object-cover"
                       />
                     )}
                   </div>
@@ -1801,7 +1830,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   return (
                     <Card 
                       key={`${skin.id}-${idx}`} 
-                      onClick={() => isUnlocked ? handleEquipSkin(skin.id) : setPurchaseConfirm({ type: 'skin', item: skin })}
+                      onClick={() => setPurchaseConfirm({ type: 'skin', item: skin })}
                       className={`relative overflow-hidden cursor-pointer transition-all hover:scale-105 p-0 ${rarityBorder} ${isEquipped ? 'ring-2 ring-orange-500 bg-orange-500/10' : 'bg-gray-800/50'}`}
                     >
                       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
@@ -1848,47 +1877,39 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           </div>
                         </>
                       )}
-                      <div className={`relative w-full aspect-square overflow-hidden bg-gray-900 ${!isUnlocked && !canAfford ? 'grayscale opacity-60' : !isUnlocked && canAfford ? 'opacity-90' : ''}`}>
+                      <div className={`relative w-full aspect-[4/3] overflow-hidden bg-gray-900 pointer-events-none ${!isUnlocked && !canAfford ? 'grayscale opacity-60' : !isUnlocked && canAfford ? 'opacity-90' : ''}`}>
                         {skin.videoUrl ? (
                           <OptimizedMedia
                             type="video"
                             src={skin.videoUrl}
                             poster={skin.imageUrl}
                             dataSaver={userProfile.dataSaver}
-                            className="w-full h-full object-cover pointer-events-none"
+                            className="w-full h-full object-cover"
+                            forceUnmuted={true}
+                            muted={userProfile.isMuted}
                           />
                         ) : (
                           <OptimizedMedia
                             type="image"
                             src={skin.imageUrl}
                             alt={skin.name}
-                            className="w-full h-full object-cover pointer-events-none"
+                            className="w-full h-full object-cover"
                           />
                         )}
 
-                        {/* Skin Bonuses Overlay */}
+                        {/* Skin Bonuses Overlay - Icons only */}
                         {(skin.energyBonus || skin.fervorBonus || skin.moneyBonus || skin.gemsBonus || skin.boostBonus || skin.specialCardId || skin.specialActionId || skin.statsBonus) && (
-                          <div className="absolute inset-x-0 bottom-0 p-2 sm:p-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end items-end h-[50%] pointer-events-none">
-                            <div className="flex flex-col items-end gap-1.5 w-full items-end pr-0.5 pb-0.5">
-                              {skin.statsBonus && Object.entries(skin.statsBonus).map(([stat, val]) => {
-                                const validStats = ['force', 'mental', 'intelligence', 'creativity', 'bluff', 'social', 'charisma', 'endurance'];
-                                if (val === 0 || !validStats.includes(stat)) return null;
-                                const statMap: Record<string, string> = {
-                                  force: 'FOR', mental: 'MEN', intelligence: 'INT', creativity: 'CRÉ',
-                                  bluff: 'BLU', social: 'SOC', charisma: 'CHA', endurance: 'END'
-                                };
-                                return (
-                                  <span key={stat} className={`${bonusClass} bg-blue-600/90 border-blue-400/40`}>+{val} {statMap[stat]}</span>
-                                );
-                              })}
-                              {skin.energyBonus ? <span className={`${bonusClass} bg-amber-500/90 border-amber-400/40 gap-1`}><img src={LOGOS.energy} alt="" className="w-3 h-3 sm:w-3.5 sm:h-3.5 drop-shadow-md" />+{skin.energyBonus} Max</span> : null}
-                              {skin.fervorBonus ? <span className={`${bonusClass} bg-purple-600/90 border-purple-400/40`}>+{skin.fervorBonus}% Ferv</span> : null}
-                              {skin.moneyBonus ? <span className={`${bonusClass} bg-yellow-500/90 border-yellow-300/40 gap-1`}><img src={LOGOS.money} alt="" className="w-3 h-3 sm:w-3.5 sm:h-3.5 drop-shadow-md" />+{skin.moneyBonus}%</span> : null}
-                              {skin.gemsBonus ? <span className={`${bonusClass} bg-pink-500/90 border-pink-300/40 gap-1`}><img src={LOGOS.gems} alt="" className="w-3 h-3 sm:w-3.5 sm:h-3.5 drop-shadow-md" />+{skin.gemsBonus}%</span> : null}
-                              {skin.boostBonus ? <span className={`${bonusClass} bg-orange-500/90 border-orange-400/40 gap-1`}><img src={LOGOS.boost} alt="" className="w-3 h-3 sm:w-3.5 sm:h-3.5 drop-shadow-md" />+{skin.boostBonus}%</span> : null}
-                              {skin.specialCardId ? <span className={`${bonusClass} bg-indigo-500/90 border-indigo-400/40`}>1 Carte Spé</span> : null}
-                              {skin.specialActionId ? <span className={`${bonusClass} bg-emerald-500/90 border-emerald-400/40`}>1 Action Spé</span> : null}
-                            </div>
+                          <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 to-transparent flex flex-wrap justify-end content-end gap-1 h-[50%] pointer-events-none">
+                            {skin.statsBonus && Object.entries(skin.statsBonus).some(([s, v]) => v > 0) && (
+                              <div className="w-5 h-5 bg-blue-600/90 rounded-full flex items-center justify-center border border-blue-400/40 shadow-lg"><Activity className="w-3 h-3 text-white" /></div>
+                            )}
+                            {skin.energyBonus ? <div className="w-5 h-5 bg-amber-500/90 rounded-full flex items-center justify-center border border-amber-400/40 shadow-lg"><img src={LOGOS.energy} alt="" className="w-3 h-3 drop-shadow-md" /></div> : null}
+                            {skin.fervorBonus ? <div className="w-5 h-5 bg-purple-600/90 rounded-full flex items-center justify-center border border-purple-400/40 shadow-lg"><Flame className="w-3 h-3 text-white" /></div> : null}
+                            {skin.moneyBonus ? <div className="w-5 h-5 bg-yellow-500/90 rounded-full flex items-center justify-center border border-yellow-300/40 shadow-lg"><img src={LOGOS.money} alt="" className="w-3 h-3 drop-shadow-md" /></div> : null}
+                            {skin.gemsBonus ? <div className="w-5 h-5 bg-pink-500/90 rounded-full flex items-center justify-center border border-pink-300/40 shadow-lg"><img src={LOGOS.gems} alt="" className="w-3 h-3 drop-shadow-md" /></div> : null}
+                            {skin.boostBonus ? <div className="w-5 h-5 bg-orange-500/90 rounded-full flex items-center justify-center border border-orange-400/40 shadow-lg"><img src={LOGOS.boost} alt="" className="w-3 h-3 drop-shadow-md" /></div> : null}
+                            {skin.specialCardId ? <div className="w-5 h-5 bg-indigo-500/90 rounded-full flex items-center justify-center border border-indigo-400/40 shadow-lg"><Database className="w-3 h-3 text-white" /></div> : null}
+                            {skin.specialActionId ? <div className="w-5 h-5 bg-emerald-500/90 rounded-full flex items-center justify-center border border-emerald-400/40 shadow-lg"><Zap className="w-3 h-3 text-white" /></div> : null}
                           </div>
                         )}
                       </div>
@@ -1925,8 +1946,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   return (
                     <Card 
                       key={`${emote.id}-${idx}`} 
-                      onClick={() => !isUnlocked && emote.price && setPurchaseConfirm({ type: 'emote', item: emote })}
-                      className={`relative transition-all overflow-hidden p-0 ${!isUnlocked ? 'cursor-pointer hover:scale-105' : ''}`}
+                      onClick={() => emote.price && setPurchaseConfirm({ type: 'emote', item: emote })}
+                      className={`relative transition-all overflow-hidden p-0 ${!isUnlocked ? 'cursor-pointer hover:scale-105' : 'cursor-pointer hover:scale-105'}`}
                     >
                       {emote.category === 'event' && (
                         <div className="absolute top-2 left-2 z-20 backdrop-blur-sm bg-fuchsia-600 border border-fuchsia-400 font-black uppercase text-[7px] tracking-widest px-1.5 py-0.5 rounded-sm text-white shadow-[0_0_10px_rgba(192,38,211,0.5)]">
@@ -1962,7 +1983,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           )}
                         </>
                       )}
-                      <div className={`w-full aspect-square overflow-hidden bg-gray-900 ${!isUnlocked && !canAfford ? 'grayscale opacity-60' : !isUnlocked && canAfford ? 'opacity-90' : ''}`}>
+                      <div className={`w-full aspect-[4/3] overflow-hidden bg-gray-900 ${!isUnlocked && !canAfford ? 'grayscale opacity-60' : !isUnlocked && canAfford ? 'opacity-90' : ''}`}>
                         {emote.videoUrl ? (
                           <OptimizedMedia
                             type="video"
@@ -2234,21 +2255,25 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
               </button>
 
               <div className="text-center mb-6">
-                <h3 className="text-xl font-black italic uppercase text-white mb-4">Confirmer l'achat</h3>
+                <h3 className="text-xl font-black italic uppercase text-white mb-4">
+                  {purchaseConfirm && ((purchaseConfirm.type === 'skin' && fanz.unlockedSkins?.includes(purchaseConfirm.item.id)) || (purchaseConfirm.type === 'emote' && fanz.unlockedEmotes?.includes(purchaseConfirm.item.id)) || (purchaseConfirm.type === 'card' && (purchaseConfirm.item.rarity === 'common' || (fanz.cardProgress && fanz.cardProgress[purchaseConfirm.item.id] !== undefined)))) ? "DÉTAILS" : "Confirmer l'achat"}
+                </h3>
                 
                 {/* Large Preview in Modal */}
-                <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden bg-gray-800/50 border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+                <div className="w-full max-w-[280px] aspect-[4/3] mx-auto mb-4 rounded-2xl overflow-hidden bg-gray-800 border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
                     <OptimizedMedia 
                       type={purchaseConfirm.item.videoUrl ? 'video' : 'image'} 
                       src={purchaseConfirm.item.videoUrl || purchaseConfirm.item.imageUrl || null} 
                       poster={purchaseConfirm.item.imageUrl} 
-                      className="w-full h-full object-contain" 
+                      className="w-full h-full object-cover" 
                       autoPlay
                       loop
                     />
                 </div>
 
-                <p className="text-sm text-gray-400">Êtes-vous sûr de vouloir acheter :</p>
+                {purchaseConfirm && !((purchaseConfirm.type === 'skin' && fanz.unlockedSkins?.includes(purchaseConfirm.item.id)) || (purchaseConfirm.type === 'emote' && fanz.unlockedEmotes?.includes(purchaseConfirm.item.id)) || (purchaseConfirm.type === 'card' && (purchaseConfirm.item.rarity === 'common' || (fanz.cardProgress && fanz.cardProgress[purchaseConfirm.item.id] !== undefined)))) && (
+                  <p className="text-sm text-gray-400">Êtes-vous sûr de vouloir acheter :</p>
+                )}
                 <p className="text-2xl font-black italic text-orange-500 mt-1 uppercase drop-shadow-md">{purchaseConfirm.item.name}</p>
                 
                 {purchaseConfirm.type === 'skin' && (
@@ -2285,33 +2310,44 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
               </div>
 
               <div className="flex flex-col gap-3">
-                {purchaseConfirm.item.price?.money > 0 && (
-                  <Button
-                    onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : purchaseConfirm.type === 'emote' ? handleBuyEmote(purchaseConfirm.item) : handleBuyCard(purchaseConfirm.item)}
-                    disabled={purchasing || (userProfile?.money || 0) < purchaseConfirm.item.price.money}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase text-lg py-5 shadow-lg shadow-green-900/50"
-                  >
-                    {purchasing ? 'Achat en cours...' : `Acheter pour ${purchaseConfirm.item.price.money} $`}
-                  </Button>
-                )}
-                
-                {purchaseConfirm.item.price?.gems > 0 && (
-                  <Button
-                    onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : purchaseConfirm.type === 'emote' ? handleBuyEmote(purchaseConfirm.item) : handleBuyCard(purchaseConfirm.item)}
-                    disabled={purchasing || (userProfile?.gems || 0) < purchaseConfirm.item.price.gems}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black uppercase text-lg py-5 shadow-lg shadow-blue-900/50"
-                  >
-                    {purchasing ? 'Achat en cours...' : `Acheter pour ${purchaseConfirm.item.price.gems} Gemmes`}
-                  </Button>
-                )}
+                {purchaseConfirm && ((purchaseConfirm.type === 'skin' && fanz.unlockedSkins?.includes(purchaseConfirm.item.id)) || (purchaseConfirm.type === 'emote' && fanz.unlockedEmotes?.includes(purchaseConfirm.item.id)) || (purchaseConfirm.type === 'card' && (purchaseConfirm.item.rarity === 'common' || (fanz.cardProgress && fanz.cardProgress[purchaseConfirm.item.id] !== undefined)))) ? (
+                  <>
+                    {purchaseConfirm.type === 'skin' && fanz.equippedSkin !== purchaseConfirm.item.id && (
+                      <Button onClick={() => { handleEquipSkin(purchaseConfirm.item.id); setPurchaseConfirm(null); }} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black uppercase text-lg py-5 shadow-lg shadow-orange-900/50">Équiper</Button>
+                    )}
+                    <Button onClick={() => setPurchaseConfirm(null)} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold uppercase mt-2">{purchaseConfirm.type === 'skin' && fanz.equippedSkin === purchaseConfirm.item.id ? 'Fermer (Équipé)' : 'Fermer'}</Button>
+                  </>
+                ) : (
+                  <>
+                    {purchaseConfirm.item.price?.money > 0 && (
+                      <Button
+                        onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : purchaseConfirm.type === 'emote' ? handleBuyEmote(purchaseConfirm.item) : handleBuyCard(purchaseConfirm.item)}
+                        disabled={purchasing || (userProfile?.money || 0) < purchaseConfirm.item.price.money}
+                        className="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase text-lg py-5 shadow-lg shadow-green-900/50"
+                      >
+                        {purchasing ? 'Achat en cours...' : `Acheter pour ${purchaseConfirm.item.price.money} $`}
+                      </Button>
+                    )}
+                    
+                    {purchaseConfirm.item.price?.gems > 0 && (
+                      <Button
+                        onClick={() => purchaseConfirm.type === 'skin' ? handleBuySkin(purchaseConfirm.item) : purchaseConfirm.type === 'emote' ? handleBuyEmote(purchaseConfirm.item) : handleBuyCard(purchaseConfirm.item)}
+                        disabled={purchasing || (userProfile?.gems || 0) < purchaseConfirm.item.price.gems}
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black uppercase text-lg py-5 shadow-lg shadow-blue-900/50"
+                      >
+                        {purchasing ? 'Achat en cours...' : `Acheter pour ${purchaseConfirm.item.price.gems} Gemmes`}
+                      </Button>
+                    )}
 
-                <Button
-                  onClick={() => setPurchaseConfirm(null)}
-                  disabled={purchasing}
-                  className="w-full bg-white/10 hover:bg-white/20 text-white font-bold uppercase mt-2"
-                >
-                  Annuler
-                </Button>
+                    <Button
+                      onClick={() => setPurchaseConfirm(null)}
+                      disabled={purchasing}
+                      className="w-full bg-white/10 hover:bg-white/20 text-white font-bold uppercase mt-2"
+                    >
+                      Annuler
+                    </Button>
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -2857,13 +2893,19 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                       }}
                       className="group relative aspect-square bg-gray-800 rounded-lg overflow-hidden border border-white/10 hover:border-cyan-500 transition-all"
                     >
-                      {action.image && (
-                        <img 
-                          src={getImageUrl(action.image)} 
-                          alt={action.name} 
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                        />
-                      )}
+                      {(() => {
+                        let resolvedImg = action.image;
+                        if (fanz.equippedSkin && action.skinOverrides && action.skinOverrides[fanz.equippedSkin]?.image) {
+                          resolvedImg = action.skinOverrides[fanz.equippedSkin].image;
+                        }
+                        return resolvedImg && (
+                          <img 
+                            src={getImageUrl(resolvedImg)} 
+                            alt={action.name} 
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                          />
+                        );
+                      })()}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-2">
                         <div className="text-[10px] font-black uppercase text-white truncate">{action.name}</div>
                       </div>

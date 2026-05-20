@@ -242,6 +242,8 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
     }
   };
 
+  const unreadChatsCount = chats.reduce((acc, chat) => acc + (chat.unreadCount?.[user.uid] || 0), 0);
+
   if (selectedFriend) {
     return (
       <ChatView 
@@ -271,9 +273,14 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
       <div className="flex gap-1 p-4 bg-[#111111]/50 border-b border-white/5">
         <button 
           onClick={() => setActiveTab('chats')}
-          className={`flex-1 px-1 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === 'chats' ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+          className={`relative flex-1 px-1 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === 'chats' ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
         >
           Discussions
+          {unreadChatsCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center text-white">
+              {unreadChatsCount}
+            </span>
+          )}
         </button>
         <button 
           onClick={() => setActiveTab('friends')}

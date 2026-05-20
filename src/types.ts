@@ -89,6 +89,8 @@ export interface LifeAction {
   name: string;
   image?: string;
   videoUrl?: string;
+  skinTheme?: string; 
+  skinOverrides?: Record<string, { image?: string; videoUrl?: string }>;
   targetStat?: keyof FanzStats; // Legacy, kept for compatibility
   xpGain?: number; // Legacy, kept for compatibility
   
@@ -345,6 +347,7 @@ export interface Card {
   fanzIds?: string[]; // For specific cards
   blockedFanzIds?: string[]; // Blocked Fanz templates
   skinId?: string; // If defined, available only when this skin is equipped
+  skinTheme?: string; // If defined, available if the skin name or ID contains this string (e.g., "viking")
   unlockRequirements?: CardUnlockRequirement[];
   price?: {
     money?: number;
@@ -436,6 +439,19 @@ export interface GlobalShopConfig {
     price: number;
     numberOfRewards: number;
     description: string;
+  }[];
+  realMoneyPacks?: {
+    id: string;
+    name: string;
+    priceEur: number;
+    rewards: {
+      type: 'gems' | 'money' | 'energy' | 'boost';
+      amount?: number;
+      boostId?: string;
+    }[];
+    image: string;
+    popular?: boolean;
+    bgColor?: string;
   }[];
   boosts?: {
     id: string;

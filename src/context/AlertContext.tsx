@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Zap, Coins, Gem, Flame, Star, Trophy, CheckCircle2, X, Activity, Users, Database } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { LOGOS } from '../constants';
+import { auth, db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export interface Reward {
   type: 'money' | 'gems' | 'boost' | 'xp' | 'energy' | 'card' | 'team' | 'fanz';
@@ -37,6 +39,17 @@ export function useAlert() {
 
 export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [alertQueue, setAlertQueue] = useState<GameAlert[]>([]);
+  const [dataSaver, setDataSaver] = useState(false);
+
+  React.useEffect(() => {
+    if (auth.currentUser) {
+      getDoc(doc(db, 'users', auth.currentUser.uid)).then(d => {
+        if (d.exists() && d.data().dataSaver) {
+          setDataSaver(true);
+        }
+      });
+    }
+  }, [alertQueue]);
 
   const showAlert = useCallback((alert: Omit<GameAlert, 'id'>) => {
     setAlertQueue(prev => [...prev, { ...alert, id: Math.random().toString(36).substring(7) }]);
@@ -53,14 +66,14 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
       {children}
       <AnimatePresence>
         {activeAlert && (
-          <FullScreenAlert key={activeAlert.id} alert={activeAlert} onClose={closeAlert} />
+          <FullScreenAlert key={activeAlert.id} alert={activeAlert} onClose={closeAlert} dataSaver={dataSaver} />
         )}
       </AnimatePresence>
     </AlertContext.Provider>
   );
 }
 
-function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => void }) {
+function FullScreenAlert({ alert, onClose, dataSaver }: { alert: GameAlert; onClose: () => void; dataSaver: boolean }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -70,7 +83,7 @@ function FullScreenAlert({ alert, onClose }: { alert: GameAlert; onClose: () => 
     >
       {/* Background Video or Image */}
       <div className="absolute inset-0 z-0">
-        {alert.videoUrl ? (
+        {alert.videoUrl && !dataSaver ? (
           <video
             key={getImageUrl(alert.videoUrl)}
             src={getImageUrl(alert.videoUrl)}

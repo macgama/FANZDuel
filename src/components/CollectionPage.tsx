@@ -126,12 +126,25 @@ export function CollectionPage({ user }: CollectionPageProps) {
     const allowedFanzList = fanzList.filter(fanz => {
         const isAllowed = !card.fanzIds || card.fanzIds.length === 0 || card.fanzIds.includes(fanz.templateId);
         const isBlocked = card.blockedFanzIds && card.blockedFanzIds.includes(fanz.templateId);
-        const ownsRequiredSkin = !card.skinId || (
+        let ownsRequiredSkin = !card.skinId || (
           fanz.unlockedSkins && (
             Array.isArray(fanz.unlockedSkins) ? fanz.unlockedSkins.includes(card.skinId) 
             : Object.keys(fanz.unlockedSkins).includes(card.skinId)
           )
         );
+        
+        if (card.skinTheme && fanz.unlockedSkins) {
+           const theme = card.skinTheme.toLowerCase();
+           const unlockedList = Array.isArray(fanz.unlockedSkins) ? fanz.unlockedSkins : Object.keys(fanz.unlockedSkins);
+           // Try to match the skin ID directly with the theme
+           const hasThemeSkin = unlockedList.some(skinId => {
+             if (skinId.toLowerCase().includes(theme)) return true;
+             // We can also fetch the skin name from templates, but we have `skins` array available in this component!
+             const skinObj = skins.find(s => s.id === skinId || s.uniqueId === `${fanz.templateId}-${skinId}`);
+             return skinObj && skinObj.name && skinObj.name.toLowerCase().includes(theme);
+           });
+           ownsRequiredSkin = ownsRequiredSkin && hasThemeSkin;
+        }
         return isAllowed && !isBlocked && ownsRequiredSkin;
     });
 
@@ -221,12 +234,12 @@ export function CollectionPage({ user }: CollectionPageProps) {
               const owned = ownedTemplates.has(template.id);
               const isInactive = template.isActive === false;
               return (
-                <div key={template.id} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col transition-all ${!owned ? (isInactive ? 'opacity-50 grayscale' : 'opacity-50 grayscale hover:grayscale-0') : 'outline outline-2 outline-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.2)]'}`}>
+                <div key={template.id} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col transition-all ${!owned ? (isInactive ? 'opacity-50 grayscale' : 'opacity-50 grayscale') : 'outline outline-2 outline-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.2)]'}`}>
                   <div className="aspect-square bg-[#0a0a0a] relative group">
-                    {template.video ? (
-                      <video src={getImageUrl(template.video)} className="w-full h-full object-cover cursor-pointer" autoPlay={owned && !isInactive} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
+                    {template.video && !user.dataSaver ? (
+                      <video src={getImageUrl(template.video)} className={`w-full h-full object-cover ${!owned || isInactive ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned && !isInactive} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
                     ) : (
-                      <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
+                      <img src={getImageUrl(template.image)} alt={template.name} className={`w-full h-full object-cover ${!owned || isInactive ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} data-viewer-video-url={template.video} />
                     )}
                     {owned && !isInactive && (
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -286,12 +299,12 @@ export function CollectionPage({ user }: CollectionPageProps) {
               .map(skin => {
               const owned = checkSkinOwned(skin);
               return (
-                <div key={skin.uniqueId} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-2 outline-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'}`}>
+                <div key={skin.uniqueId} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale' : 'outline outline-2 outline-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'}`}>
                   <div className="aspect-square bg-black relative group">
-                    {skin.videoUrl ? (
-                      <video src={getImageUrl(skin.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-title={skin.name} data-viewer-item-type="skin" />
+                    {skin.videoUrl && !user.dataSaver ? (
+                      <video src={getImageUrl(skin.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" />
                     ) : (
-                      <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" />
+                      <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" data-viewer-video-url={skin.videoUrl} />
                     )}
                     {owned && (
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -349,12 +362,12 @@ export function CollectionPage({ user }: CollectionPageProps) {
               .map(emote => {
               const owned = checkEmoteOwned(emote);
               return (
-                <div key={emote.uniqueId} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-2 outline-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]'}`}>
+                <div key={emote.uniqueId} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale' : 'outline outline-2 outline-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]'}`}>
                   <div className="aspect-square bg-black relative group flex items-center justify-center">
-                    {emote.videoUrl ? (
-                      <video src={getImageUrl(emote.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-title={emote.name} data-viewer-item-type="emote" />
+                    {emote.videoUrl && !user.dataSaver ? (
+                      <video src={getImageUrl(emote.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" />
                     ) : (
-                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" />
+                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" data-viewer-video-url={emote.videoUrl} />
                     )}
                     {owned && (
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -407,11 +420,11 @@ export function CollectionPage({ user }: CollectionPageProps) {
               .map(card => {
               const owned = checkCardOwned(card);
               return (
-                <div key={card.id} className={`aspect-[3/4] rounded-xl overflow-hidden relative flex flex-col group ${!owned ? 'bg-[#111] opacity-50 grayscale hover:grayscale-0' : 'bg-[#111] outline outline-2 outline-white/20 hover:outline-white/50 shadow-md'}`}>
-                  {card.videoUrl ? (
-                     <video src={getImageUrl(card.videoUrl)} className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500" autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
+                <div key={card.id} className={`aspect-[3/4] rounded-xl overflow-hidden relative flex flex-col group ${!owned ? 'bg-[#111] opacity-50 grayscale' : 'bg-[#111] outline outline-2 outline-white/20 hover:outline-white/50 shadow-md'}`}>
+                  {card.videoUrl && !user.dataSaver ? (
+                     <video src={getImageUrl(card.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer hover:scale-105 transition-transform duration-500'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
                   ) : (
-                     <img src={getImageUrl(card.imageUrl)} alt={card.name} className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
+                     <img src={getImageUrl(card.imageUrl)} alt={card.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer hover:scale-105 transition-transform duration-500'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} data-viewer-video-url={card.videoUrl} />
                   )}
                   {owned && (
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -473,12 +486,12 @@ export function CollectionPage({ user }: CollectionPageProps) {
               .map(action => {
               const owned = ownedActions.has(action.id);
               return (
-                <div key={action.id} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale hover:grayscale-0' : 'outline outline-2 outline-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]'}`}>
+                <div key={action.id} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale' : 'outline outline-2 outline-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]'}`}>
                   <div className="aspect-square bg-black relative group">
-                    {action.videoUrl ? (
-                       <video src={getImageUrl(action.videoUrl)} className="w-full h-full object-cover cursor-pointer" autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
+                    {action.videoUrl && !user.dataSaver ? (
+                       <video src={getImageUrl(action.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
                     ) : action.image ? (
-                       <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover cursor-pointer" data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
+                       <img src={getImageUrl(action.image)} alt={action.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={action.name} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} data-viewer-video-url={action.videoUrl} />
                     ) : (
                        <div className="w-full h-full flex items-center justify-center text-gray-700">
                          <PlayCircle className="w-8 h-8" />

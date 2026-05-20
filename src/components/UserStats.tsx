@@ -142,7 +142,7 @@ export function UserStats({ user, onBack }: UserStatsProps) {
               {favoriteTeamsInfo.length > 0 ? (
                 favoriteTeamsInfo.map(team => (
                   <div key={team.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 group hover:bg-white/10 transition-colors">
-                    <div className="w-12 h-12 bg-white rounded-full p-2 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 flex items-center justify-center shrink-0 drop-shadow-md">
                       <img src={getImageUrl(team.logo, 100)} alt="" className="w-8 h-8 object-contain" />
                     </div>
                     <div className="min-w-0">

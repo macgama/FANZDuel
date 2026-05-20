@@ -10,6 +10,7 @@ export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }
   const [localAction, setLocalAction] = useState<LifeAction>({ ...action });
   const [isDirty, setIsDirty] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showOverrides, setShowOverrides] = useState(false);
 
   useEffect(() => {
     setLocalAction({ ...action });
@@ -21,11 +22,22 @@ export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }
     setIsDirty(true);
   };
 
+  const handleOverrideChange = (skinId: string, field: string, value: string) => {
+    setLocalAction(prev => {
+      const overrides = { ...(prev.skinOverrides || {}) };
+      if (!overrides[skinId]) overrides[skinId] = {};
+      overrides[skinId] = { ...overrides[skinId], [field]: value };
+      return { ...prev, skinOverrides: overrides };
+    });
+    setIsDirty(true);
+  };
+
   return (
+    <>
     <tr className={`hover:bg-white/5 transition-colors group ${isDirty ? 'bg-orange-500/5' : ''}`}>
       <td className="px-2 py-2 align-middle border-b border-white/5">
         <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Image / URL Vidéo</label>
-        <div className="flex flex-col gap-1 items-center">
+        <div className="flex flex-col gap-1 items-center relative">
             <div className="w-12 h-12 rounded overflow-hidden bg-black/40 border border-white/10 shrink-0 mb-1">
                {localAction.videoUrl ? (
                  <video src={getImageUrl(localAction.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
@@ -37,6 +49,9 @@ export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }
             </div>
             <input title="Image URL" type="text" value={localAction.image || ''} onChange={e => handleChange('image', e.target.value)} className="w-24 text-[10px] p-1 bg-black text-white rounded border border-white/10" placeholder="Img URL" />
             <input title="Video URL" type="text" value={localAction.videoUrl || ''} onChange={e => handleChange('videoUrl', e.target.value)} className="w-24 text-[10px] p-1 bg-black text-white rounded border border-white/10" placeholder="Vid URL" />
+            {localAction.fanzTemplateId && (
+               <button onClick={() => setShowOverrides(!showOverrides)} className={`text-[9px] w-24 p-1 rounded font-bold uppercase ${showOverrides ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400 border border-white/10'}`}>Skins Overrides</button>
+            )}
         </div>
       </td>
       <td className="px-2 py-2 align-middle border-b border-white/5 min-w-[150px]">
@@ -149,5 +164,27 @@ export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }
         </div>
       </td>
     </tr>
+    {showOverrides && localAction.fanzTemplateId && (
+      <tr className="bg-black/40 border-b border-white/5">
+        <td colSpan={8} className="p-4">
+          <div className="flex flex-col gap-2 p-3 bg-gray-900 rounded-lg border border-white/10">
+            <h4 className="text-xs font-bold text-orange-500 uppercase tracking-widest mb-2">Overrides d'Images/Vidéos par Skin</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {fanzTemplates.find(f => f.id === localAction.fanzTemplateId)?.skins?.map((skin: any) => {
+                 const ov = localAction.skinOverrides?.[skin.id] || {};
+                 return (
+                   <div key={skin.id} className="flex flex-col gap-1 p-2 bg-black rounded border border-white/5">
+                     <span className="text-[10px] font-bold text-gray-300 truncate">{skin.name}</span>
+                     <input title="Image URL" type="text" value={ov.image || ''} onChange={e => handleOverrideChange(skin.id, 'image', e.target.value)} className="w-full text-[10px] p-1 bg-gray-800 text-white rounded border border-white/10 focus:border-orange-500" placeholder="Override d'Image URL" />
+                     <input title="Video URL" type="text" value={ov.videoUrl || ''} onChange={e => handleOverrideChange(skin.id, 'videoUrl', e.target.value)} className="w-full text-[10px] p-1 bg-gray-800 text-white rounded border border-white/10 focus:border-orange-500" placeholder="Override de Video URL" />
+                   </div>
+                 );
+              })}
+            </div>
+          </div>
+        </td>
+      </tr>
+    )}
+    </>
   );
 }

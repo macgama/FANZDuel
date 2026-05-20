@@ -76,7 +76,7 @@ async function startServer() {
   const duels: Record<string, {
     id: string;
     type: string;
-    status: 'waiting' | 'starting' | 'active' | 'finished';
+    status: 'waiting' | 'room_full' | 'starting' | 'active' | 'finished';
     progress: number;
     participants: any[];
     matchId?: number;
@@ -309,7 +309,7 @@ async function startServer() {
     console.log("A user connected:", socket.id);
 
     socket.on("join-duel", (params: any) => {
-      const { duelId: clientDuelId, user, fanz, type, matchId, team: chosenTeam, isPrivate, inviteCode, teamAId, teamBId, teamA, teamB, leagueId, season } = params;
+      const { duelId: clientDuelId, user, fanz, type, matchId, team: chosenTeam, isPrivate, inviteCode, teamAId, teamBId, teamA, teamB, leagueId, season, isBot } = params;
       
       // Check for reconnection
       if (clientDuelId && duels[clientDuelId]) {
@@ -318,6 +318,13 @@ async function startServer() {
         if (participant) {
           participant.socketId = socket.id;
           socket.join(clientDuelId);
+          if (!user.isBot && !params.isBot) {
+            socket.emit("duel-joined", { 
+              team: participant.team || 'A', 
+              duelId: existingDuel.id, 
+              participants: existingDuel.participants 
+            });
+          }
           io.to(clientDuelId).emit("duel-update", { 
             duelId: existingDuel.id,
             progress: existingDuel.progress, 
@@ -446,11 +453,13 @@ async function startServer() {
       }
 
       const participant = duel.participants.find(p => p.uid === user.uid);
-      socket.emit("duel-joined", { 
-        team: participant?.team || 'A', 
-        duelId: duel.id, 
-        participants: duel.participants 
-      });
+      if (!user.isBot && !isBot) {
+        socket.emit("duel-joined", { 
+          team: participant?.team || 'A', 
+          duelId: duel.id, 
+          participants: duel.participants 
+        });
+      }
 
       io.to(duelId).emit("duel-update", { 
         duelId: duel.id,
@@ -472,13 +481,28 @@ async function startServer() {
       }
       
       if (duel.status === 'waiting' && shouldStart) {
-        duel.status = 'starting';
-        const startTime = Date.now() + 5000;
-        io.to(duelId).emit("duel-starting", { startTime, duelId, duel: getSafeDuel(duel) });
-        
+        duel.status = 'room_full';
+        io.to(duelId).emit("duel-update", { 
+          duelId: duel.id,
+          progress: duel.progress, 
+          status: duel.status, 
+          participants: duel.participants,
+          scores: duel.scores
+        });
+
         duel.timer = setTimeout(() => {
-          duel.status = 'active';
-          io.to(duelId).emit("duel-started");
+          if (duels[duelId]) {
+            duels[duelId].status = 'starting';
+            const startTime = Date.now() + 5000;
+            io.to(duelId).emit("duel-starting", { startTime, duelId, duel: getSafeDuel(duels[duelId]) });
+            
+            duels[duelId].timer = setTimeout(() => {
+              if (duels[duelId]) {
+                duels[duelId].status = 'active';
+                io.to(duelId).emit("duel-started");
+              }
+            }, 5000) as any;
+          }
         }, 5000) as any;
       }
 
@@ -689,7 +713,7 @@ async function startServer() {
           participants: duel.participants,
           scores: duel.scores
         });
-        socket.to(duelId).emit("enemy-card-played", { team, card });
+        io.to(duelId).emit("enemy-card-played", { team, card, userId: uid });
       }
     });
 

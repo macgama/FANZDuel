@@ -57,8 +57,8 @@ export function MediaViewerProvider({ children }: { children: ReactNode }) {
         // Ensure we stop propagation if we successfully intercept an img click
         e.stopPropagation();
 
-        const type = target.tagName === 'VIDEO' ? 'video' : 'image';
-        const url = mediaElem.src;
+        const url = mediaElem.dataset.viewerVideoUrl ? getImageUrl(mediaElem.dataset.viewerVideoUrl) : mediaElem.src;
+        const type = mediaElem.dataset.viewerVideoUrl ? 'video' : (target.tagName === 'VIDEO' ? 'video' : 'image');
         const title = mediaElem.dataset.viewerTitle;
         const description = mediaElem.dataset.viewerDescription;
         const itemType = mediaElem.dataset.viewerItemType as any;

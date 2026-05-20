@@ -3059,6 +3059,15 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Prix (Points Boost)</label>
+                    <input
+                      type="number"
+                      value={editingCard.price?.boostPoints || 0}
+                      onChange={e => setEditingCard({...editingCard, price: { ...editingCard.price, boostPoints: Number(e.target.value) }})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">URL Image</label>
                     <div className="flex gap-4">
                       <input
@@ -3139,6 +3148,16 @@ export function AdminZone() {
                       </select>
                     </div>
                   )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Thème de Skin (Optionnel - Pour tous les Fanz)</label>
+                    <input
+                      type="text"
+                      value={editingCard.skinTheme || ''}
+                      onChange={e => setEditingCard({...editingCard, skinTheme: e.target.value})}
+                      placeholder="Ex: viking (applique la carte à tous les skins contenant ce mot)"
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    />
+                  </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">Fanz Bloqués (Optionnel)</label>
                     <input
@@ -3526,6 +3545,7 @@ export function AdminZone() {
                               card={card}
                               onSaved={fetchDuelCards}
                               onDeleted={() => handleDeleteDuelCard(card.id)}
+                              onEditFull={(card) => setEditingCard(card)}
                               fanzTemplates={fanzTemplates}
                             />
                           ))}
@@ -4704,6 +4724,168 @@ export function AdminZone() {
                   className="bg-black text-white hover:bg-gray-800"
                 >
                   <Plus className="w-4 h-4 mr-2" /> Ajouter un Boost
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Real Money Packs Management */}
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">Packs Argent Réel (Boutique)</h3>
+              <Button onClick={() => handleSaveShopConfig(shopConfig)} className="bg-green-600 hover:bg-green-700">
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder la config
+              </Button>
+            </div>
+            
+            <div className="space-y-6">
+              {(shopConfig.realMoneyPacks || []).map((pack: any, index: number) => (
+                <div key={index} className="flex flex-col gap-4 p-4 border rounded-lg bg-white/5 border-white/10">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">ID du pack</label>
+                      <input
+                        type="text"
+                        value={pack.id}
+                        onChange={e => {
+                          const newPacks = [...(shopConfig.realMoneyPacks || [])];
+                          newPacks[index].id = e.target.value;
+                          setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                        }}
+                        className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Nom affiché</label>
+                      <input
+                        type="text"
+                        value={pack.name}
+                        onChange={e => {
+                          const newPacks = [...(shopConfig.realMoneyPacks || [])];
+                          newPacks[index].name = e.target.value;
+                          setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                        }}
+                        className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Prix (€)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={pack.priceEur}
+                        onChange={e => {
+                          const newPacks = [...(shopConfig.realMoneyPacks || [])];
+                          newPacks[index].priceEur = parseFloat(e.target.value) || 0;
+                          setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                        }}
+                        className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Populaire ?</label>
+                      <select
+                        value={pack.popular ? 'yes' : 'no'}
+                        onChange={e => {
+                          const newPacks = [...(shopConfig.realMoneyPacks || [])];
+                          newPacks[index].popular = e.target.value === 'yes';
+                          setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                        }}
+                        className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white"
+                      >
+                        <option value="no" className="bg-black">Non</option>
+                        <option value="yes" className="bg-black">Oui</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Récompenses du pack</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="flex bg-black/50 rounded overflow-hidden border border-white/20">
+                        <span className="bg-white/10 px-2 py-2 text-xs flex items-center justify-center font-bold">Argent ($)</span>
+                        <input 
+                          type="number" 
+                          value={pack.rewards.find((r: any) => r.type === 'money')?.amount || 0}
+                          onChange={e => {
+                            const newPacks = [...(shopConfig.realMoneyPacks || [])];
+                            let rewards = [...newPacks[index].rewards];
+                            const moneyRew = rewards.find(r => r.type === 'money');
+                            if (moneyRew) moneyRew.amount = parseInt(e.target.value) || 0;
+                            else rewards.push({ type: 'money', amount: parseInt(e.target.value) || 0 });
+                            newPacks[index].rewards = rewards.filter(r => r.amount && r.amount > 0);
+                            setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                          }}
+                          className="w-full bg-transparent px-2 text-white" 
+                        />
+                      </div>
+                      <div className="flex bg-black/50 rounded overflow-hidden border border-white/20">
+                        <span className="bg-white/10 px-2 py-2 text-xs flex items-center justify-center font-bold">Gemmes</span>
+                        <input 
+                          type="number" 
+                          value={pack.rewards.find((r: any) => r.type === 'gems')?.amount || 0}
+                          onChange={e => {
+                            const newPacks = [...(shopConfig.realMoneyPacks || [])];
+                            let rewards = [...newPacks[index].rewards];
+                            const gemsRew = rewards.find(r => r.type === 'gems');
+                            if (gemsRew) gemsRew.amount = parseInt(e.target.value) || 0;
+                            else rewards.push({ type: 'gems', amount: parseInt(e.target.value) || 0 });
+                            newPacks[index].rewards = rewards.filter(r => r.amount && r.amount > 0);
+                            setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                          }}
+                          className="w-full bg-transparent px-2 text-white" 
+                        />
+                      </div>
+                      <div className="flex bg-black/50 rounded overflow-hidden border border-white/20">
+                        <span className="bg-white/10 px-2 py-2 text-xs flex items-center justify-center font-bold">Points Boost</span>
+                        <input 
+                          type="number" 
+                          value={pack.rewards.find((r: any) => r.type === 'boost')?.amount || 0}
+                          onChange={e => {
+                            const newPacks = [...(shopConfig.realMoneyPacks || [])];
+                            let rewards = [...newPacks[index].rewards];
+                            const boostRew = rewards.find(r => r.type === 'boost');
+                            if (boostRew) boostRew.amount = parseInt(e.target.value) || 0;
+                            else rewards.push({ type: 'boost', amount: parseInt(e.target.value) || 0 });
+                            newPacks[index].rewards = rewards.filter(r => r.amount && r.amount > 0);
+                            setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                          }}
+                          className="w-full bg-transparent px-2 text-white" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-2">
+                    <Button 
+                      onClick={() => {
+                        const newPacks = (shopConfig.realMoneyPacks || []).filter((_: any, i: number) => i !== index);
+                        setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                      }}
+                      variant="destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" /> Supprimer ce Pack
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button 
+                  onClick={() => {
+                    const newPacks = [...(shopConfig.realMoneyPacks || []), { 
+                      id: `pack-${Date.now()}`, 
+                      name: 'Nouveau Pack', 
+                      priceEur: 9.99, 
+                      rewards: [{ type: 'gems', amount: 100 }],
+                      image: '💎',
+                      bgColor: '#1e3a8a',
+                      popular: false
+                    }];
+                    setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
+                  }}
+                  variant="outline"
+                  className="bg-black text-white hover:bg-gray-800"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Ajouter un Pack
                 </Button>
               </div>
             </div>

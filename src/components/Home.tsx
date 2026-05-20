@@ -286,8 +286,15 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                 }
 
                 if (activeAction) {
-                  currentImageUrl = activeAction.image || currentImageUrl;
-                  currentVideoUrl = activeAction.videoUrl || currentVideoUrl;
+                  let resolvedImage = activeAction.image;
+                  let resolvedVideoUrl = activeAction.videoUrl;
+                  if (fanzData.equippedSkin && activeAction.skinOverrides && activeAction.skinOverrides[fanzData.equippedSkin]) {
+                    const override = activeAction.skinOverrides[fanzData.equippedSkin];
+                    if (override.image) resolvedImage = override.image;
+                    if (override.videoUrl) resolvedVideoUrl = override.videoUrl;
+                  }
+                  currentImageUrl = resolvedImage || currentImageUrl;
+                  currentVideoUrl = resolvedVideoUrl || currentVideoUrl;
                 }
 
                 const finalVideoUrl = getImageUrl(currentVideoUrl);
@@ -395,6 +402,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     };
 
     fetchMatches();
+    const intervalMatches = setInterval(fetchMatches, 60000);
     fetchLifeActions();
 
     const fetchActiveDuels = async () => {
@@ -426,6 +434,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     return () => {
       unsubs.forEach(un => un());
       clearInterval(interval);
+      clearInterval(intervalMatches);
     };
   }, []);
 

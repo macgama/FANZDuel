@@ -75,8 +75,10 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
         const leaguesRes = await footballApi.getLeaguesByTeam(teamId);
         setTeamLeagues(leaguesRes || []);
         const seasons = new Set<number>();
-        let closestSeason: number | null = null;
-        let minDistance = Infinity;
+        let closestLeagueSeason: number | null = null;
+        let minLeagueDistance = Infinity;
+        let closestAnySeason: number | null = null;
+        let minAnyDistance = Infinity;
         const todayDate = new Date();
 
         (leaguesRes || []).forEach((l: any) => {
@@ -92,11 +94,23 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
             } else {
               distance = todayDate.getTime() - end.getTime();
             }
-            if (distance < minDistance) {
-              minDistance = distance;
-              closestSeason = s.year;
-            } else if (distance === minDistance && s.year > (closestSeason || 0)) {
-               closestSeason = s.year; 
+
+            // Track closest for 'League' type specifically
+            if (l.league.type === 'League') {
+              if (distance < minLeagueDistance) {
+                minLeagueDistance = distance;
+                closestLeagueSeason = s.year;
+              } else if (distance === minLeagueDistance && s.year > (closestLeagueSeason || 0)) {
+                closestLeagueSeason = s.year;
+              }
+            }
+
+            // Track closest overall
+            if (distance < minAnyDistance) {
+              minAnyDistance = distance;
+              closestAnySeason = s.year;
+            } else if (distance === minAnyDistance && s.year > (closestAnySeason || 0)) {
+               closestAnySeason = s.year; 
             }
           });
         });
@@ -105,8 +119,10 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
         setAvailableSeasons(sortedSeasons);
         
         let actualSeason = sortedSeasons[0];
-        if (closestSeason !== null) {
-          actualSeason = closestSeason;
+        if (closestLeagueSeason !== null) {
+          actualSeason = closestLeagueSeason;
+        } else if (closestAnySeason !== null) {
+          actualSeason = closestAnySeason;
         }
         
         setActualCurrentSeason(actualSeason);
@@ -228,7 +244,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-white rounded-lg p-1.5 flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 flex items-center justify-center drop-shadow-md">
                 <img src={team.team.logo} alt="" className="w-full h-full object-contain" />
               </div>
               <div>
@@ -611,6 +627,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
+  const [matchEvents, setMatchEvents] = useState<Record<string, any[] | null>>({});
 
   // Group initial fixtures to know which leagues the team is in
   const groupedByLeague = React.useMemo(() => {
@@ -646,6 +663,51 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
       setSelectedLeagueId(targetId);
     }
   }, [sortedLeagues, selectedLeagueId, defaultLeagueId]);
+
+  useEffect(() => {
+    if (!selectedLeagueId) return;
+
+    const matchesToEnrich = fixtures.filter(f => 
+      f.league.id === selectedLeagueId && 
+      !matchEvents[f.fixture.id] && matchEvents[f.fixture.id] !== null &&
+      ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE', 'FT', 'AET', 'PEN'].includes(f.fixture.status.short)
+    );
+
+    if (matchesToEnrich.length === 0) return;
+
+    const fetchEvents = async () => {
+      const idsToFetch = matchesToEnrich.map(m => m.fixture.id);
+      try {
+        for (let i = 0; i < idsToFetch.length; i += 20) {
+          const chunk = idsToFetch.slice(i, i + 20);
+          if (i > 0) {
+            await new Promise(r => setTimeout(r, 1500));
+          }
+          try {
+            const detailedFixtures = await footballApi.getFixturesByIds(chunk);
+            const eventsMap: Record<string, any[]> = {};
+            if (detailedFixtures && detailedFixtures.length > 0) {
+              detailedFixtures.forEach((f: any) => {
+                eventsMap[f.fixture.id] = f.events || [];
+              });
+              setMatchEvents(prev => ({ ...prev, ...eventsMap }));
+            } else {
+              chunk.forEach(id => { eventsMap[id] = null as any; });
+              setMatchEvents(prev => ({ ...prev, ...eventsMap }));
+              break;
+            }
+          } catch (e) {
+            const eventsMap: Record<string, any[]> = {};
+            chunk.forEach(id => { eventsMap[id] = null as any; });
+            setMatchEvents(prev => ({ ...prev, ...eventsMap }));
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to fetch match events", e);
+      }
+    };
+    fetchEvents();
+  }, [fixtures, selectedLeagueId, matchEvents]);
 
   // Fetch Duels
   useEffect(() => {
@@ -783,7 +845,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
             {monthFixtures.map(match => (
               <SharedMatchCard
                 key={match.fixture.id}
-                match={match}
+                match={{ ...match, events: match.events || matchEvents[match.fixture.id] || [] }}
                 hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
                 matchScore={matchScores[match.fixture.id.toString()]}
                 onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}

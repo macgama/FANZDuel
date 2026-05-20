@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button } from './Layout';
-import { Swords, Users, Trophy, Clock, ChevronRight, Search, Filter, X, Share2 } from 'lucide-react';
+import { Swords, Users, Trophy, Clock, ChevronRight, Search, Filter, X, Share2, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Duel, UserProfile } from '../types';
 import { useAlert } from '../context/AlertContext';
@@ -8,6 +8,7 @@ import { footballApi } from '../services/footballApi';
 import { getImageUrl } from '../lib/utils';
 import { MrFanzHelp } from './MrFanzHelp';
 import { useSocket } from '../context/SocketContext';
+import { PublicProfileModal } from './PublicProfileModal';
 
 interface WaitingRoomProps {
   user: UserProfile;
@@ -26,6 +27,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
   const [filterType, setFilterType] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState('');
   const [matchDetailsCache, setMatchDetailsCache] = useState<Record<number, any>>({});
+  const [selectedProfileUid, setSelectedProfileUid] = useState<string | null>(null);
 
   const handleLeaveOrCancelDuel = (duel: any) => {
     if (socket) {
@@ -139,11 +141,12 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
 
     fetchDuels();
     fetchLiveFixtures();
-    const interval = setInterval(() => {
-      fetchDuels();
-      fetchLiveFixtures();
-    }, 10000); // Refresh every 10s instead of 5s
-    return () => clearInterval(interval);
+    const duelsInterval = setInterval(fetchDuels, 10000);
+    const liveInterval = setInterval(fetchLiveFixtures, 60000); // Rafraîchir les scores en direct toutes les minutes
+    return () => {
+      clearInterval(duelsInterval);
+      clearInterval(liveInterval);
+    };
   }, []);
 
   const filteredDuels = duels.filter(duel => {
@@ -277,6 +280,8 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
             {filteredDuels.map((duel) => {
               const maxPlayers = { '1v1': 2, '2v2': 4, '5v5': 10 }[duel.type as '1v1' | '2v2' | '5v5'];
               const isFull = maxPlayers ? duel.participants.length >= maxPlayers : false;
+              const liveMatchData = liveMatches.find((m: any) => m.fixture.id === duel.matchId);
+              const matchDetails = liveMatchData || matchDetailsCache[duel.matchId];
               
               return (
                 <motion.div
@@ -286,56 +291,52 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                   className="bg-[#1a1a1a] border border-white/5 rounded-2xl overflow-hidden hover:border-orange-500/30 transition-all group flex flex-col"
                 >
                   {/* Match Details Header (if available) */}
-                  {duel.matchId && duel.matchId !== 'global' && matchDetailsCache[duel.matchId] && (
-                    <div className="bg-white/5 px-4 py-2 flex items-center justify-between border-b border-white/5">
-                      <div className="flex items-center gap-2">
-                        <img src={matchDetailsCache[duel.matchId].teams.home.logo} alt="Home" className="w-5 h-5 object-contain" />
-                        <span className="text-[10px] font-bold text-white uppercase truncate max-w-[80px]">{matchDetailsCache[duel.matchId].teams.home.name}</span>
+                  {duel.matchId && duel.matchId !== 'global' && matchDetails && (
+                    <div className="bg-white/5 px-3 py-2 flex items-center justify-between border-b border-white/5 relative">
+                      <div className="flex items-center gap-2 flex-1">
+                        <img src={matchDetails.teams.home.logo} alt="Home" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
+                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase truncate">{matchDetails.teams.home.name}</span>
                       </div>
-                      <span className="text-[10px] font-black text-gray-500 italic px-2">VS</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-white uppercase truncate max-w-[80px] text-right">{matchDetailsCache[duel.matchId].teams.away.name}</span>
-                        <img src={matchDetailsCache[duel.matchId].teams.away.logo} alt="Away" className="w-5 h-5 object-contain" />
+                      
+                      <div className="flex flex-col items-center justify-center px-2 min-w-[50px] sm:min-w-[70px]">
+                        {liveMatchData || matchDetails.fixture?.status?.short === '1H' || matchDetails.fixture?.status?.short === '2H' || matchDetails.fixture?.status?.short === 'HT' ? (
+                           <>
+                             <span className="text-xs sm:text-sm font-black text-white">{matchDetails.goals?.home ?? 0} - {matchDetails.goals?.away ?? 0}</span>
+                             <span className="text-[8px] sm:text-[10px] font-bold text-red-500 animate-pulse">{matchDetails.fixture?.status?.elapsed}' live</span>
+                           </>
+                        ) : (
+                          <span className="text-[10px] font-black text-gray-500 italic">VS</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-1 justify-end">
+                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase truncate text-right">{matchDetails.teams.away.name}</span>
+                        <img src={matchDetails.teams.away.logo} alt="Away" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
                       </div>
                     </div>
                   )}
 
-                  <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-                    <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:bg-orange-500/10 transition-colors">
-                        <Trophy className={`w-5 h-5 sm:w-6 sm:h-6 ${isFull ? 'text-gray-600' : 'text-orange-500'}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                          <span className="text-sm font-black italic uppercase tracking-tighter text-white">{duel.type.replace('_', ' ')}</span>
-                          <span className="px-1.5 py-0.5 rounded bg-white/5 text-[8px] font-black text-gray-500 uppercase tracking-widest border border-white/5 truncate max-w-[80px] sm:max-w-none">
-                            ID: {duel.id.substring(0, 8)}
+                  <div className="p-3 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 relative w-full">
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black italic uppercase tracking-tighter text-white">{duel.type.replace('_', ' ')}</span>
+                        {duel.isPrivate && (
+                          <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[8px] font-black text-orange-500 uppercase tracking-widest border border-orange-500/30">
+                            PRIVÉ
                           </span>
-                          {duel.isPrivate && (
-                            <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[8px] font-black text-orange-500 uppercase tracking-widest border border-orange-500/30">
-                              PRIVÉ
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 uppercase">
-                            <Users className="w-3 h-3" />
-                            <span>{duel.participants.length} / {maxPlayers}</span>
-                          </div>
-                          {duel.matchId && (!matchDetailsCache[duel.matchId] || duel.matchId === 'global') && (
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500/60 uppercase">
-                              <Clock className="w-3 h-3" />
-                              <span className="truncate max-w-[100px]">Match #{duel.matchId}</span>
-                            </div>
-                          )}
-                        </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 uppercase mt-0.5">
+                        <Users className="w-3 h-3" />
+                        <span>{duel.participants.length} / {maxPlayers}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 w-full sm:w-auto justify-end">
+                    
+                    <div className="flex items-center gap-2 justify-end">
                       {duel.participants?.some((p: any) => p.uid === user?.uid) && (
                         <button 
                           onClick={() => handleLeaveOrCancelDuel(duel)}
-                          className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors border border-red-500/20"
+                          className="p-2 sm:p-2.5 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors border border-red-500/20"
                           title={duel.participants[0]?.uid === user?.uid ? "Annuler le duel" : "Quitter le duel"}
                         >
                           <X className="w-4 h-4" />
@@ -343,7 +344,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                       )}
                       <button 
                         onClick={() => handleShareDuel(duel)}
-                        className="p-2 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20"
+                        className="p-2 sm:p-2.5 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20"
                         title="Partager"
                       >
                         <Share2 className="w-4 h-4" />
@@ -351,19 +352,20 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                       <Button 
                         onClick={() => onJoinDuel(duel.id, duel.type, duel.matchId)}
                         disabled={isFull && !duel.participants?.some((p: any) => p.uid === user?.uid)}
-                        className="px-6 h-10 text-[10px] font-black uppercase tracking-widest italic"
+                        className="px-3 sm:px-4 h-9 sm:h-10 transition-colors flex items-center justify-center bg-orange-600 hover:bg-orange-500"
                       >
-                        {duel.participants?.some((p: any) => p.uid === user?.uid) ? 'REVENIR' : 'REJOINDRE'}
+                        <ArrowRight className="w-5 h-5 text-white" />
                       </Button>
                     </div>
                   </div>
                   
-                  {/* Participants Preview */}
-                  <div className="px-4 pb-4 flex gap-1.5 flex-wrap">
+                  {/* Compact Participants Preview */}
+                  <div className="px-3 sm:px-4 pb-3 flex gap-2 flex-wrap">
                     {duel.participants.map((p: any, i: number) => (
                       <div 
                         key={i} 
-                        className={`w-8 h-8 rounded-full border-2 border-[#1a1a1a] overflow-hidden bg-gray-800 flex items-center justify-center ${
+                        onClick={() => setSelectedProfileUid(p.uid)}
+                        className={`w-12 h-12 sm:w-14 sm:h-14 cursor-pointer hover:scale-105 transition-transform rounded-full border-2 border-[#1a1a1a] overflow-hidden bg-gray-800 flex items-center justify-center ${
                           p.team === 'A' ? 'ring-2 ring-orange-500' : 'ring-2 ring-blue-500'
                         }`}
                         title={`${p.pseudo} (${p.team})`}
@@ -372,17 +374,17 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                           <img 
                             src={p.fanz?.equippedSkinUrl ? getImageUrl(p.fanz.equippedSkinUrl) : (getImageUrl(p.fanz?.imageUrl) || p.photoURL)} 
                             alt="Avatar" 
-                            className="w-full h-full object-cover" 
+                            className="w-full h-full object-cover scale-110" 
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <span className="text-[10px] font-black text-white">{p.pseudo?.[0]}</span>
+                          <span className="text-xs sm:text-sm font-black text-white">{p.pseudo?.[0]}</span>
                         )}
                       </div>
                     ))}
                     {Array.from({ length: Math.max(0, (typeof maxPlayers === 'number' ? maxPlayers : 0) - duel.participants.length) }).map((_, i) => (
-                      <div key={`empty-${i}`} className="w-8 h-8 rounded-full border border-dashed border-white/10 bg-transparent flex items-center justify-center">
-                        <span className="text-[10px] text-white/5">+</span>
+                      <div key={`empty-${i}`} className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-dashed border-white/10 bg-transparent flex items-center justify-center">
+                        <span className="text-sm text-white/10">+</span>
                       </div>
                     ))}
                   </div>
@@ -392,6 +394,13 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
           </div>
         )}
       </div>
+      {selectedProfileUid && (
+        <PublicProfileModal 
+          targetUid={selectedProfileUid}
+          currentUser={user}
+          onClose={() => setSelectedProfileUid(null)}
+        />
+      )}
     </div>
   );
 }

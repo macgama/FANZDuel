@@ -249,7 +249,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                 className="bg-black/60 border-white/10 p-4 space-y-4 hover:border-orange-500/50 transition-all cursor-pointer group relative overflow-hidden"
               >
                 <div className="flex items-center gap-4 border-b border-white/5 pb-4">
-                  <div className="w-14 h-14 shrink-0 bg-white rounded-xl border border-white/10 flex items-center justify-center p-2 shadow-lg">
+                  <div className="w-14 h-14 shrink-0 flex items-center justify-center p-1 drop-shadow-xl">
                     {team.logo ? (
                       <img src={getImageUrl(team.logo, 100)} alt={team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                     ) : (

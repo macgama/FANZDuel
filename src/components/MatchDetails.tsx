@@ -304,7 +304,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         <div className="flex justify-between items-center mb-4 gap-2">
           {/* Home Team */}
           <div className="flex-1 flex flex-col items-center gap-1.5 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.home.id, details.league.season)}>
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center group-hover:scale-105 transition-transform drop-shadow-xl">
               <img src={getImageUrl(details.teams.home.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
             <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-xs text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full leading-tight">
@@ -342,7 +342,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
 
           {/* Away Team */}
           <div className="flex-1 flex flex-col items-center gap-1.5 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.away.id, details.league.season)}>
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center group-hover:scale-105 transition-transform drop-shadow-xl">
               <img src={getImageUrl(details.teams.away.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             </div>
             <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-xs text-white group-hover:text-blue-500 transition-colors line-clamp-2 w-full leading-tight">

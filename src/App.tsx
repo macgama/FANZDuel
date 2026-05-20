@@ -743,7 +743,7 @@ function AppContent() {
              <SidebarButton icon={<BarChart2 />} label="RANK" active={view==='rankings'} onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
              <SidebarButton 
                icon={<div className="relative"><Users />
-                 {profile.friendRequests && profile.friendRequests.length > 0 && (
+                 {unreadSocialCount > 0 && (
                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
                  )}
                </div>} 
@@ -1095,7 +1095,7 @@ function AppContent() {
                <SidebarButton icon={<BarChart2 className="w-5 h-5" />} label="RANK" active={view==='rankings'} onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
                <SidebarButton 
                  icon={<div className="relative"><Users className="w-5 h-5" />
-                   {profile.friendRequests && profile.friendRequests.length > 0 && (
+                   {unreadSocialCount > 0 && (
                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
                    )}
                  </div>} 

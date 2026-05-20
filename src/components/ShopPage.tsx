@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Store, Gem, Zap, Star, User, Shirt, Smile, TrendingUp, Shield, Flame, Sparkles, X } from 'lucide-react';
+import { Store, Gem, Zap, Star, User, Shirt, Smile, TrendingUp, Shield, Flame, Sparkles, X, Package } from 'lucide-react';
 import { Card, Button } from './Layout';
 import { UserProfile, FanzTemplate, Card as DuelCard, GlobalShopConfig } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -8,6 +8,7 @@ import { OptimizedMedia } from './OptimizedMedia';
 import { MrFanzHelp } from './MrFanzHelp';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, setDoc, getDoc } from 'firebase/firestore';
+import { LOGOS } from '../constants';
 
 interface ShopPageProps {
   profile: UserProfile;
@@ -15,27 +16,20 @@ interface ShopPageProps {
 }
 
 const CATEGORIES = [
-  { id: 'featured', title: 'À la une', icon: <Star className="w-4 h-4" /> },
+  { id: 'featured', title: 'Nouveautés', icon: <Star className="w-4 h-4" /> },
   { id: 'fanz', title: 'Fanz', icon: <User className="w-4 h-4" /> },
   { id: 'skins', title: 'Skins', icon: <Shirt className="w-4 h-4" /> },
   { id: 'emotes', title: 'Emotes', icon: <Smile className="w-4 h-4" /> },
   { id: 'cards', title: 'Cartes', icon: <Zap className="w-4 h-4" /> },
   { id: 'boosts', title: 'Boosts', icon: <TrendingUp className="w-4 h-4" /> },
-  { id: 'gems', title: 'Gemmes', icon: <Gem className="w-4 h-4" /> },
+  { id: 'packs', title: 'Packs', icon: <Package className="w-4 h-4" /> },
 ];
 
 // Mock Data for Boosts and Gems
 const MOCK_BOOSTS = [
-  { id: 'b1', name: 'Boost XP x2', duration: '24h', price: 100, currency: 'gems', icon: <TrendingUp className="w-8 h-8 text-blue-500" />, color: 'blue' },
-  { id: 'b2', name: 'Énergie Infinie', duration: '1h', price: 50, currency: 'gems', icon: <Zap className="w-8 h-8 text-yellow-500" />, color: 'yellow' },
-  { id: 'b3', name: 'Bouclier Anti-Malus', duration: '3 Matchs', price: 150, currency: 'gems', icon: <Shield className="w-8 h-8 text-green-500" />, color: 'green' },
-];
-
-const MOCK_GEMS = [
-  { id: 'g1', amount: 80, bonus: 0, price: '1.19€', image: '💎' },
-  { id: 'g2', amount: 500, bonus: 50, price: '5.99€', image: '💎💎' },
-  { id: 'g3', amount: 1200, bonus: 200, price: '11.99€', image: '💎💎💎', popular: true },
-  { id: 'g4', amount: 2500, bonus: 500, price: '23.99€', image: '👑' },
+  { id: 'b1', type: 'boost', name: 'Boost XP x2', duration: '24h', price: 100, currency: 'gems', icon: <TrendingUp className="w-8 h-8 text-blue-500" />, color: 'blue' },
+  { id: 'b2', type: 'boost', name: 'Énergie Infinie', duration: '1h', price: 50, currency: 'gems', icon: <Zap className="w-8 h-8 text-yellow-500" />, color: 'yellow' },
+  { id: 'b3', type: 'boost', name: 'Bouclier Anti-Malus', duration: '3 Matchs', price: 150, currency: 'gems', icon: <Shield className="w-8 h-8 text-green-500" />, color: 'green' },
 ];
 
 const RARITY_COLORS = {
@@ -58,6 +52,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
   const [skinItems, setSkinItems] = useState<any[]>([]);
   const [emoteItems, setEmoteItems] = useState<any[]>([]);
   const [cardItems, setCardItems] = useState<any[]>([]);
+  const [featuredItems, setFeaturedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [purchasing, setPurchasing] = useState(false);
@@ -212,6 +207,10 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         setSkinItems(skinsForSale);
         setEmoteItems(emotesForSale);
         setCardItems(cardsForSale);
+        
+        const allItemsForSale = [...fanzForSale, ...skinsForSale, ...emotesForSale, ...cardsForSale];
+        const shuffled = [...allItemsForSale].sort(() => 0.5 - Math.random());
+        setFeaturedItems(shuffled.slice(0, 4));
       } catch (err) {
         console.error("Error fetching shop items", err);
         handleFirestoreError(err, OperationType.GET, 'shop_items');
@@ -452,15 +451,15 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         setCardItems(prev => prev.filter(i => i.id !== selectedItem.id));
       } else if (selectedItem.type === 'boost') {
         const now = new Date();
-        if (selectedItem.id === 'b1') { // Boost XP x2 (24h)
+        if (selectedItem.id === 'b1' || selectedItem.name?.toLowerCase().includes('xp')) { // Boost XP x2 (24h)
           const currentUntil = profile.boostXpUntil ? new Date(profile.boostXpUntil) : now;
           const baseDate = currentUntil > now ? currentUntil : now;
           updates.boostXpUntil = new Date(baseDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
-        } else if (selectedItem.id === 'b2') { // Énergie Infinie (1h)
+        } else if (selectedItem.id === 'b2' || selectedItem.name?.toLowerCase().includes('infinie')) { // Énergie Infinie (1h)
           const currentUntil = profile.infiniteEnergyUntil ? new Date(profile.infiniteEnergyUntil) : now;
           const baseDate = currentUntil > now ? currentUntil : now;
           updates.infiniteEnergyUntil = new Date(baseDate.getTime() + 60 * 60 * 1000).toISOString();
-        } else if (selectedItem.id === 'b3') { // Bouclier Anti-Malus (3 Matchs)
+        } else if (selectedItem.id === 'b3' || selectedItem.name?.toLowerCase().includes('malus') || selectedItem.name?.toLowerCase().includes('bouclier')) { // Bouclier Anti-Malus (3 Matchs)
           updates.antiMalusMatches = (profile.antiMalusMatches || 0) + 3;
         }
       }
@@ -490,7 +489,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             <span className="flex items-center justify-center gap-1.5 flex-wrap">
               <span className="flex items-center gap-0.5">{item.fullPrice.money} <span>$</span></span>
               <span>+</span>
-              <span className="flex items-center gap-0.5">{item.fullPrice.gems} <Gem className="w-3 h-3" /></span>
+              <span className="flex items-center gap-0.5">{item.fullPrice.gems} <img src={LOGOS.gems} alt="" className="w-3 h-3 drop-shadow-md" /></span>
             </span>
           </Button>
         );
@@ -510,7 +509,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       )}>
         <span className="flex items-center justify-center gap-1">
           {price} 
-          {currency === 'gems' && <Gem className="w-3 h-3" />}
+          {currency === 'gems' && <img src={LOGOS.gems} alt="" className="w-3 h-3 drop-shadow-md" />}
           {currency === 'money' && <span>$</span>}
           {currency === 'boost' && <span>Boosts</span>}
         </span>
@@ -577,7 +576,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           </div>
           <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full">
             <span className="text-blue-400 font-black text-xs">{profile.gems || 0}</span>
-            <Gem className="w-3 h-3 text-blue-400" />
+            <img src={LOGOS.gems} alt="" className="w-3 h-3 drop-shadow-md" />
           </div>
         </div>
       </div>
@@ -652,7 +651,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                               onClick={() => purchasePackFerveur(pack)}
                               disabled={purchasing || (profile.gems || 0) < pack.price}
                               className="w-full mt-auto bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black uppercase text-base shadow-[0_0_20px_rgba(234,179,8,0.4)] border-none flex items-center justify-center gap-1.5 py-3">
-                              {purchasing && packAnimation !== 'idle' ? 'Ouverture...' : <>Acheter {pack.price} <Gem className="w-4 h-4 mx-0.5" /></>}
+                              {purchasing && packAnimation !== 'idle' ? 'Ouverture...' : <>Acheter {pack.price} <img src={LOGOS.gems} alt="" className="w-4 h-4 mx-0.5 object-contain" referrerPolicy="no-referrer" /></>}
                             </Button>
                           </div>
                         </Card>
@@ -664,8 +663,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 <section>
                   <h2 className="text-lg font-black italic uppercase tracking-tighter text-white mb-4">Nouveautés</h2>
                   <div className="grid grid-cols-2 gap-4">
-                    {fanzItems.length > 0 && renderItemCard(fanzItems[0], 'fanz')}
-                    {skinItems.length > 0 && renderItemCard(skinItems[0], 'skin')}
+                    {featuredItems.map(item => renderItemCard(item, item.type))}
                   </div>
                 </section>
               </>
@@ -731,44 +729,58 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                        else if (boost.color === 'green') IconComp = <Shield className={`w-8 h-8 text-green-500`} />;
                        else IconComp = <TrendingUp className="w-8 h-8 text-orange-500" />;
                     }
-                    return renderItemCard({ ...boost, icon: IconComp }, 'boost');
+                    return renderItemCard({ ...boost, type: 'boost', icon: IconComp }, 'boost');
                   })}
                 </div>
               </section>
             )}
 
-            {/* GEMS TAB */}
-            {activeTab === 'gems' && (
+            {/* PACKS TAB -> REAL MONEY PACKS */}
+            {activeTab === 'packs' && (
               <section className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  {MOCK_GEMS.map(gem => (
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} key={gem.id}>
+                  {(shopConfig?.realMoneyPacks || []).map(pack => (
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} key={pack.id}>
                       <Card className={cn(
                         "relative overflow-hidden border p-4 flex flex-col items-center text-center h-full",
-                        gem.popular ? "border-blue-500 bg-blue-900/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]" : "border-white/10 bg-white/5 hover:bg-white/10"
-                      )}>
-                        {gem.popular && (
+                         pack.popular ? "border-blue-500 bg-blue-900/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]" : "border-white/10 bg-white/5 hover:bg-white/10"
+                      )} style={{ backgroundColor: pack.bgColor, borderColor: pack.popular ? '#3b82f6' : undefined }}>
+                        {pack.popular && (
                           <div className="absolute top-0 inset-x-0 bg-blue-500 text-white text-[8px] font-black uppercase py-0.5 tracking-widest">
                             Le plus populaire
                           </div>
                         )}
-                        <div className={cn("text-4xl mb-3 drop-shadow-xl", gem.popular ? "mt-4" : "")}>
-                          {gem.image}
+                        <div className={cn("text-4xl mb-3 drop-shadow-xl", pack.popular ? "mt-4" : "mt-2")}>
+                          {pack.image || '🎁'}
                         </div>
-                        <h3 className="text-lg font-black italic text-white mb-1">{gem.amount}</h3>
-                        <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-4">
-                          {gem.bonus > 0 ? `+${gem.bonus} Bonus` : 'Gemmes'}
-                        </p>
-                        <Button className={cn(
+                        <h3 className="text-lg font-black italic text-white mb-1 leading-tight">{pack.name}</h3>
+                        <div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-4 opacity-80 min-h-[30px]">
+                          {pack.rewards.map(r => {
+                            if (r.type === 'gems') return `${r.amount} Gemmes`;
+                            if (r.type === 'money') return `${r.amount} $`;
+                            if (r.type === 'energy') return `${r.amount} Énergie`;
+                            if (r.type === 'boost') return `Boost`;
+                            return '';
+                          }).join(' + ')}
+                        </div>
+                        <Button 
+                          onClick={() => {
+                            // TODO: Add real payment intent
+                            alert(`Achat Stripe à implémenter : Pack ${pack.name} pour ${pack.priceEur}€`);
+                          }}
+                          className={cn(
                           "w-full font-black uppercase text-xs",
-                          gem.popular ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-white text-black hover:bg-gray-200"
+                          pack.popular ? "bg-blue-500 hover:bg-blue-600 text-white border-transparent" : "bg-white text-black hover:bg-gray-200 border-transparent"
                         )}>
-                          {gem.price}
+                          {pack.priceEur}€
                         </Button>
                       </Card>
                     </motion.div>
                   ))}
                 </div>
+                {(!shopConfig?.realMoneyPacks || shopConfig.realMoneyPacks.length === 0) && (
+                  <p className="text-center text-gray-500 py-8">Aucun pack disponible pour le moment.</p>
+                )}
               </section>
             )}
           </motion.div>
@@ -843,7 +855,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                   >
                     {purchasing ? 'Achat en cours...' : (
                       <>
-                        Acheter pour {selectedItem.fullPrice.money} $ + {selectedItem.fullPrice.gems} <Gem className="w-4 h-4 ml-0.5" />
+                        Acheter pour {selectedItem.fullPrice.money} $ + {selectedItem.fullPrice.gems} <img src={LOGOS.gems} alt="" className="w-4 h-4 drop-shadow-md ml-0.5" />
                       </>
                     )}
                   </Button>
