@@ -979,7 +979,7 @@ function AppContent() {
 
   if (user && !profile) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex flex-col pt-4">
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col pt-4">
         <Auth onAuthSuccess={() => {}} />
       </div>
     );

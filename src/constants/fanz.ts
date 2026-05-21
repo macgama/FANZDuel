@@ -41,8 +41,8 @@ uniqueSteps.forEach(pts => {
 
 export const ALL_FANZ: FanzTemplate[] = Array.from({ length: 100 }, (_, i) => {
   const paddedId = String(i + 1).padStart(3, '0');
-  const imageUrl = `https://thebestfan.online/img/public/fanz/imageFanz${paddedId}Skin000.png`;
-  const videoUrl = `https://thebestfan.online/img/public/fanz/videoFanz${paddedId}Skin000.mp4`;
+  const imageUrl = `/fanz/${paddedId}/imageFanz${paddedId}Skin000.png`;
+  const videoUrl = `/fanz/${paddedId}/videoFanz${paddedId}Skin000.mp4`;
 
   if (i === 0) {
     return {

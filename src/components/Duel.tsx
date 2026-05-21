@@ -149,7 +149,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
     const effect = duelConfig.statEffects.find(e => e.effectType === effectType);
     if (!effect) return 0;
     const statXp = (fanz.stats as any)[effect.statName] || 1;
-    const statLevel = Math.floor(statXp / 100) + 1;
+    const statLevel = Math.min(10, Math.floor(statXp / 100) + 1);
     return effect.baseValue + (statLevel * effect.multiplierPerLevel);
   };
 
@@ -790,7 +790,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     const effect = duelConfig.statEffects.find(e => e.effectType === effectType);
     if (!effect) return isMultiplier ? 1 : 0;
     const statXp = (fanz.stats as any)[effect.statName] || 1;
-    const statLevel = Math.floor(statXp / 100) + 1;
+    const statLevel = Math.min(10, Math.floor(statXp / 100) + 1);
     const val = effect.baseValue + (statLevel * effect.multiplierPerLevel);
     return isMultiplier ? Math.max(0.1, val) : val;
   };
@@ -998,7 +998,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               const effect = config.statEffects.find(e => e.effectType === type);
               if (!effect) return 0;
               const statXp = (stats as any)[effect.statName] || 1;
-              const statLevel = Math.floor(statXp / 100) + 1;
+              const statLevel = Math.min(10, Math.floor(statXp / 100) + 1);
               return effect.baseValue + (statLevel * effect.multiplierPerLevel);
             };
             const visD = getStatValue('button_visibility', fanzData.stats) || 3000;

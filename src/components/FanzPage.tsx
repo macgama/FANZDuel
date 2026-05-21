@@ -1,14 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { getImageUrl, cn } from '../lib/utils';
-import { db } from '../firebase';
-import { collection, query, where, onSnapshot, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
-import { Card, Button } from './Layout';
-import { FanzTemplate, Fanz, UserProfile, GlobalFervorConfig } from '../types';
-import { Trophy, Lock, Star, Info, Medal, Users, CheckCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { OptimizedMedia } from './OptimizedMedia';
-import { generateFervorPath } from '../utils/fervorPath';
-import { MrFanzHelp } from './MrFanzHelp';
+import React, { useState, useEffect } from "react";
+import { getImageUrl, cn } from "../lib/utils";
+import { db } from "../firebase";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  getDocs,
+  doc,
+  updateDoc,
+  getDoc,
+} from "firebase/firestore";
+import { Card, Button } from "./Layout";
+import { FanzTemplate, Fanz, UserProfile, GlobalFervorConfig } from "../types";
+import {
+  Trophy,
+  Lock,
+  Star,
+  Info,
+  Medal,
+  Users,
+  CheckCircle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { OptimizedMedia } from "./OptimizedMedia";
+import { generateFervorPath } from "../utils/fervorPath";
+import { MrFanzHelp } from "./MrFanzHelp";
 
 interface FanzPageProps {
   userProfile: UserProfile;
@@ -18,19 +35,24 @@ interface FanzPageProps {
 export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
   const [ownedFanz, setOwnedFanz] = useState<Map<string, Fanz>>(new Map()); // templateId -> Fanz object
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
-  const [fanzFervorConfig, setFanzFervorConfig] = useState<GlobalFervorConfig | undefined>(undefined);
+  const [fanzFervorConfig, setFanzFervorConfig] = useState<
+    GlobalFervorConfig | undefined
+  >(undefined);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all');
+  const [filter, setFilter] = useState<"all" | "owned" | "missing">("all");
 
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'fanz_templates'));
-        const templates = querySnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as FanzTemplate));
+        const querySnapshot = await getDocs(collection(db, "fanz_templates"));
+        const templates = querySnapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() }) as FanzTemplate,
+        );
         setFanzTemplates(templates);
 
-        const configDoc = await getDoc(doc(db, 'global_configs', 'fanz_fervor'));
+        const configDoc = await getDoc(
+          doc(db, "global_configs", "fanz_fervor"),
+        );
         if (configDoc.exists()) {
           setFanzFervorConfig(configDoc.data() as GlobalFervorConfig);
         }
@@ -40,33 +62,42 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
     };
     fetchTemplates();
 
-    const q = query(collection(db, 'fanz'), where('ownerUid', '==', userProfile.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fanzMap = new Map<string, Fanz>();
-      snapshot.forEach((doc) => {
-        const data = doc.data() as Fanz;
-        if (data.templateId) {
-          fanzMap.set(data.templateId, data);
-        }
-      });
-      setOwnedFanz(fanzMap);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error in FanzPage fanz listener:", error);
-      setLoading(false);
-    });
+    const q = query(
+      collection(db, "fanz"),
+      where("ownerUid", "==", userProfile.uid),
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const fanzMap = new Map<string, Fanz>();
+        snapshot.forEach((doc) => {
+          const data = doc.data() as Fanz;
+          if (data.templateId) {
+            fanzMap.set(data.templateId, data);
+          }
+        });
+        setOwnedFanz(fanzMap);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error in FanzPage fanz listener:", error);
+        setLoading(false);
+      },
+    );
 
     return () => unsubscribe();
   }, [userProfile.uid]);
 
   const globalFerveurPath = React.useMemo(() => {
     let calculatedMax = 0;
-    fanzTemplates.forEach(f => {
-      const fMax = f.ferveurConfig?.ranges?.[f.ferveurConfig.ranges.length - 1]?.max || 150000;
+    fanzTemplates.forEach((f) => {
+      const fMax =
+        f.ferveurConfig?.ranges?.[f.ferveurConfig.ranges.length - 1]?.max ||
+        150000;
       calculatedMax += fMax;
     });
     const maxPoints = calculatedMax > 0 ? calculatedMax : 150000;
-    
+
     if (fanzFervorConfig) {
       return generateFervorPath(maxPoints, fanzFervorConfig);
     }
@@ -74,8 +105,8 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
   }, [fanzFervorConfig, fanzTemplates]);
 
   const filteredFanz = fanzTemplates.filter((f) => {
-    if (filter === 'owned') return ownedFanz.has(f.id);
-    if (filter === 'missing') return !ownedFanz.has(f.id);
+    if (filter === "owned") return ownedFanz.has(f.id);
+    if (filter === "missing") return !ownedFanz.has(f.id);
     return true;
   });
 
@@ -86,7 +117,9 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
-        <p className="text-gray-500 font-bold animate-pulse">Chargement de votre musée...</p>
+        <p className="text-gray-500 font-bold animate-pulse">
+          Chargement de votre musée...
+        </p>
       </div>
     );
   }
@@ -101,44 +134,60 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
             <MrFanzHelp contextId="fanz" />
           </h1>
           <div className="flex flex-col gap-1.5 min-w-[140px]">
-              <div className="bg-white/5 border border-white/10 rounded-lg p-1.5 flex items-center justify-center gap-3">
-                <button 
-                  onClick={() => setFilter(filter === 'owned' ? 'all' : 'owned')}
-                  className={cn(
-                    "text-center transition-all",
-                    filter === 'owned' ? "opacity-100 scale-110" : "opacity-50 hover:opacity-100"
-                  )}
-                >
-                  <div className="text-sm font-black text-orange-500 leading-none">{ownedCount}</div>
-                  <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">Gagnés</div>
-                </button>
-                <div className="h-4 w-px bg-white/10"></div>
-                <button 
-                  onClick={() => setFilter(filter === 'missing' ? 'all' : 'missing')}
-                  className={cn(
-                    "text-center transition-all",
-                    filter === 'missing' ? "opacity-100 scale-110" : "opacity-50 hover:opacity-100"
-                  )}
-                >
-                  <div className="text-sm font-black text-gray-400 leading-none">{totalCount - ownedCount}</div>
-                  <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">À Gagner ou Acheter</div>
-                </button>
-              </div>
-              
-              {/* Progress Bar */}
-              <div className="relative h-3 bg-white/5 rounded-full overflow-hidden border border-white/10">
-                <div 
-                  className="absolute inset-y-0 left-0 bg-orange-500 transition-all duration-1000 flex items-center justify-center"
-                  style={{ width: `${Math.max(8, (ownedCount / totalCount) * 100)}%` }}
-                >
-                  <span className="text-[7px] font-black text-white px-1">
-                    {Math.round((ownedCount / totalCount) * 100)}%
-                  </span>
+            <div className="bg-white/5 border border-white/10 rounded-lg p-1.5 flex items-center justify-center gap-3">
+              <button
+                onClick={() => setFilter(filter === "owned" ? "all" : "owned")}
+                className={cn(
+                  "text-center transition-all",
+                  filter === "owned"
+                    ? "opacity-100 scale-110"
+                    : "opacity-50 hover:opacity-100",
+                )}
+              >
+                <div className="text-sm font-black text-orange-500 leading-none">
+                  {ownedCount}
                 </div>
+                <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
+                  Gagnés
+                </div>
+              </button>
+              <div className="h-4 w-px bg-white/10"></div>
+              <button
+                onClick={() =>
+                  setFilter(filter === "missing" ? "all" : "missing")
+                }
+                className={cn(
+                  "text-center transition-all",
+                  filter === "missing"
+                    ? "opacity-100 scale-110"
+                    : "opacity-50 hover:opacity-100",
+                )}
+              >
+                <div className="text-sm font-black text-gray-400 leading-none">
+                  {totalCount - ownedCount}
+                </div>
+                <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
+                  À Gagner ou Acheter
+                </div>
+              </button>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="relative h-3 bg-white/5 rounded-full overflow-hidden border border-white/10">
+              <div
+                className="absolute inset-y-0 left-0 bg-orange-500 transition-all duration-1000 flex items-center justify-center"
+                style={{
+                  width: `${Math.max(8, (ownedCount / totalCount) * 100)}%`,
+                }}
+              >
+                <span className="text-[7px] font-black text-white px-1">
+                  {Math.round((ownedCount / totalCount) * 100)}%
+                </span>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
       {/* Content */}
       <AnimatePresence mode="wait">
@@ -149,24 +198,34 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
           exit={{ opacity: 0, y: -20 }}
           className="space-y-12"
         >
-            {/* Owned Section */}
-            {(filter === 'all' || filter === 'owned') && ownedCount > 0 && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b border-white/10 pb-2">
-                  <h2 className="text-xl font-black italic uppercase tracking-wider">FANZ Gagnés</h2>
-                  <span className="text-xs font-bold px-2 py-0.5 bg-orange-500/20 text-orange-500 rounded-full">
-                    {ownedCount}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {fanzTemplates.filter(f => ownedFanz.has(f.id)).map((template) => (
-                    <FanzCard 
-                      key={template.id} 
-                      template={template} 
+          {/* Owned Section */}
+          {(filter === "all" || filter === "owned") && ownedCount > 0 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 border-b border-white/10 pb-2">
+                <h2 className="text-xl font-black italic uppercase tracking-wider">
+                  FANZ Gagnés
+                </h2>
+                <span className="text-xs font-bold px-2 py-0.5 bg-orange-500/20 text-orange-500 rounded-full">
+                  {ownedCount}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {fanzTemplates
+                  .filter((f) => ownedFanz.has(f.id))
+                  .map((template) => (
+                    <FanzCard
+                      key={template.id}
+                      template={template}
                       fanz={ownedFanz.get(template.id)}
-                      isOwned={true} 
-                      isActive={userProfile.activeFanzId === ownedFanz.get(template.id)?.id}
-                      onClick={() => onFanzClick && onFanzClick(ownedFanz.get(template.id)!.id)}
+                      isOwned={true}
+                      isActive={
+                        userProfile.activeFanzId ===
+                        ownedFanz.get(template.id)?.id
+                      }
+                      onClick={() =>
+                        onFanzClick &&
+                        onFanzClick(ownedFanz.get(template.id)!.id)
+                      }
                       userProfile={userProfile}
                       globalFerveurPath={globalFerveurPath}
                       onSetActive={async (e) => {
@@ -174,12 +233,8 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                         try {
                           const fanzToSet = ownedFanz.get(template.id);
                           if (fanzToSet) {
-                            const equippedSkinData = template.skins?.find(s => s.id === fanzToSet.equippedSkin);
-                            const skinImageUrl = equippedSkinData ? equippedSkinData.imageUrl : (fanzToSet.imageUrl || template.image);
-
-                            await updateDoc(doc(db, 'users', userProfile.uid), {
+                            await updateDoc(doc(db, "users", userProfile.uid), {
                               activeFanzId: fanzToSet.id,
-                              photoURL: skinImageUrl || null
                             });
                           }
                         } catch (error) {
@@ -188,44 +243,71 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                       }}
                     />
                   ))}
-                </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Missing Section */}
-            {(filter === 'all' || filter === 'missing') && (totalCount - ownedCount) > 0 && (
+          {/* Missing Section */}
+          {(filter === "all" || filter === "missing") &&
+            totalCount - ownedCount > 0 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b border-white/10 pb-2">
                   <Lock className="w-5 h-5 text-gray-500" />
-                  <h2 className="text-xl font-black italic uppercase tracking-wider text-gray-500">FANZ à Gagner ou Acheter</h2>
+                  <h2 className="text-xl font-black italic uppercase tracking-wider text-gray-500">
+                    FANZ à Gagner ou Acheter
+                  </h2>
                   <span className="text-xs font-bold px-2 py-0.5 bg-white/10 text-gray-500 rounded-full">
                     {totalCount - ownedCount}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {fanzTemplates.filter(f => !ownedFanz.has(f.id)).map((template) => (
-                    <FanzCard 
-                      key={template.id} 
-                      template={template} 
-                      isOwned={false} 
-                      userProfile={userProfile}
-                      globalFerveurPath={globalFerveurPath}
-                    />
-                  ))}
+                  {fanzTemplates
+                    .filter((f) => !ownedFanz.has(f.id))
+                    .map((template) => (
+                      <FanzCard
+                        key={template.id}
+                        template={template}
+                        isOwned={false}
+                        userProfile={userProfile}
+                        globalFerveurPath={globalFerveurPath}
+                      />
+                    ))}
                 </div>
               </div>
             )}
-          </motion.div>
+        </motion.div>
       </AnimatePresence>
     </div>
   );
 }
 
-function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onUnlock, userProfile, globalFerveurPath = [] }: { template: FanzTemplate; fanz?: Fanz; isOwned: boolean; isActive?: boolean; onClick?: () => void; onSetActive?: (e: React.MouseEvent) => void; onUnlock?: () => void; userProfile?: UserProfile; globalFerveurPath?: any[] }) {
+function FanzCard({
+  template,
+  fanz,
+  isOwned,
+  isActive,
+  onClick,
+  onSetActive,
+  onUnlock,
+  userProfile,
+  globalFerveurPath = [],
+}: {
+  template: FanzTemplate;
+  fanz?: Fanz;
+  isOwned: boolean;
+  isActive?: boolean;
+  onClick?: () => void;
+  onSetActive?: (e: React.MouseEvent) => void;
+  onUnlock?: () => void;
+  userProfile?: UserProfile;
+  globalFerveurPath?: any[];
+}) {
   const [isHovered, setIsHovered] = useState(false);
 
-  const equippedSkinData = template.skins?.find(s => s.id === fanz?.equippedSkin);
-  
+  const equippedSkinData = template.skins?.find(
+    (s) => s.id === fanz?.equippedSkin,
+  );
+
   let currentImageUrl = template.image;
   let currentVideoUrl = template.video;
 
@@ -244,11 +326,20 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
 
   const hasClaimableFerveur = React.useMemo(() => {
     if (!isOwned || !fanz) return false;
-    const fPath = template.ferveurPath?.length ? template.ferveurPath : (fanz.ferveurPath?.length ? fanz.ferveurPath : globalFerveurPath);
+    const fPath = template.ferveurPath?.length
+      ? template.ferveurPath
+      : fanz.ferveurPath?.length
+        ? fanz.ferveurPath
+        : globalFerveurPath;
     if (!fPath) return false;
-    return fPath.some(step => {
-      const slotId = step.isIntermediate ? `ferveur-inter-${step.id || step.pointsRequired}` : `ferveur-level-${step.level}`;
-      return (fanz.ferveurPoints || 0) >= step.pointsRequired && !fanz.claimedRewards?.includes(slotId);
+    return fPath.some((step) => {
+      const slotId = step.isIntermediate
+        ? `ferveur-inter-${step.id || step.pointsRequired}`
+        : `ferveur-level-${step.level}`;
+      return (
+        (fanz.ferveurPoints || 0) >= step.pointsRequired &&
+        !fanz.claimedRewards?.includes(slotId)
+      );
     });
   }, [isOwned, fanz, template.ferveurPath, globalFerveurPath]);
 
@@ -257,16 +348,18 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`relative group ${!isOwned ? '' : 'cursor-pointer'}`}
+      className={`relative group ${!isOwned ? "" : "cursor-pointer"}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={isOwned ? onClick : undefined}
     >
-      <Card className={`overflow-hidden p-0 border transition-all duration-500 ${
-        isOwned 
-          ? 'border-orange-500/30 hover:border-orange-500 shadow-lg hover:shadow-orange-500/20' 
-          : 'border-white/5 grayscale hover:grayscale-0 hover:border-orange-500/50'
-      }`}>
+      <Card
+        className={`overflow-hidden p-0 border transition-all duration-500 ${
+          isOwned
+            ? "border-orange-500/30 hover:border-orange-500 shadow-lg hover:shadow-orange-500/20"
+            : "border-white/5 grayscale hover:grayscale-0 hover:border-orange-500/50"
+        }`}
+      >
         <div className="aspect-[3/4] relative">
           {hasClaimableFerveur && (
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-20" />
@@ -282,22 +375,27 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
           ) : (
             <OptimizedMedia
               type="image"
-              src={currentImageUrl || ''}
+              src={currentImageUrl || ""}
               alt={equippedSkinData?.name || template.name}
               className="w-full h-full object-cover"
             />
           )}
-          
+
           {/* Overlay Gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
           {/* Rarity Badge */}
-          <div className={`absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded text-[7px] sm:text-[9px] font-black uppercase tracking-tighter z-10 ${
-            template.rarity === 'legendary' ? 'bg-yellow-500 text-black' :
-            template.rarity === 'epic' ? 'bg-purple-500 text-white' :
-            template.rarity === 'rare' ? 'bg-blue-500 text-white' :
-            'bg-gray-500 text-white'
-          }`}>
+          <div
+            className={`absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded text-[7px] sm:text-[9px] font-black uppercase tracking-tighter z-10 ${
+              template.rarity === "legendary"
+                ? "bg-yellow-500 text-black"
+                : template.rarity === "epic"
+                  ? "bg-purple-500 text-white"
+                  : template.rarity === "rare"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-500 text-white"
+            }`}
+          >
             {template.rarity}
           </div>
 
@@ -326,7 +424,9 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
           {!isOwned && template.isActive !== false && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity z-20">
               <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white/50" />
-              <span className="text-[8px] sm:text-[10px] font-black uppercase italic text-white/50 mt-1 text-center px-2">À GAGNER OU ACHETER</span>
+              <span className="text-[8px] sm:text-[10px] font-black uppercase italic text-white/50 mt-1 text-center px-2">
+                À GAGNER OU ACHETER
+              </span>
             </div>
           )}
 
@@ -348,9 +448,11 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
                   <span>{fanz.ferveurPoints} pts</span>
                 </div>
                 <div className="h-1 sm:h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                  <div 
+                  <div
                     className="h-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"
-                    style={{ width: `${Math.min(100, (fanz.ferveurPoints / ((globalFerveurPath.length > 0 ? globalFerveurPath : (template.ferveurPath || [])).find(l => l.level === fanz.ferveurLevel + 1)?.pointsRequired || 100)) * 100)}%` }}
+                    style={{
+                      width: `${Math.min(100, (fanz.ferveurPoints / ((globalFerveurPath.length > 0 ? globalFerveurPath : template.ferveurPath || []).find((l) => l.level === fanz.ferveurLevel + 1)?.pointsRequired || 100)) * 100)}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -360,7 +462,7 @@ function FanzCard({ template, fanz, isOwned, isActive, onClick, onSetActive, onU
             </h3>
             <div className="flex items-center justify-between">
               <span className="text-[7px] sm:text-[9px] font-bold text-gray-300 uppercase tracking-widest">
-                {isOwned ? 'Collectionné' : 'Verrouillé'}
+                {isOwned ? "Collectionné" : "Verrouillé"}
               </span>
               <Info className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-gray-400 cursor-help" />
             </div>
