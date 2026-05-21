@@ -375,6 +375,7 @@ export interface Mission {
   conditionType?: 'global' | 'country' | 'team' | 'league' | 'season' | 'fanz' | 'skin' | 'card';
   conditionValue?: string;
   conditionSeason?: string;
+  conditionLeague?: string;
 }
 
 export interface UserMissionProgress {
@@ -411,6 +412,7 @@ export interface Pass {
   conditionType?: 'global' | 'country' | 'team' | 'league' | 'season' | 'fanz' | 'skin' | 'card';
   conditionValue?: string;
   conditionSeason?: string;
+  conditionLeague?: string;
 }
 
 export interface WeeklyStreakConfig {

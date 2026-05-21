@@ -40,9 +40,10 @@ interface MatchDetailsProps {
   onDuelStatusChange?: (isActive: boolean) => void;
   onDuelIntent?: (callback: () => void) => void;
   onFanzClick?: (fanzId: string) => void;
+  onPlayerClick?: (playerId: number, season: number) => void;
 }
 
-export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick, initialTab = 'summary', initialDuelId, initialDuelType, onDuelStatusChange, onDuelIntent, onFanzClick }: MatchDetailsProps) {
+export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick, initialTab = 'summary', initialDuelId, initialDuelType, onDuelStatusChange, onDuelIntent, onFanzClick, onPlayerClick }: MatchDetailsProps) {
   const [details, setDetails] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [lineups, setLineups] = useState<any[]>([]);
@@ -537,7 +538,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           transition={{ duration: 0.2 }}
         >
           {activeTab === 'summary' && <SummaryTab events={events} teams={details.teams} status={details.fixture.status.short} />}
-          {activeTab === 'lineups' && <LineupsTab lineups={lineups} status={details.fixture.status.short} />}
+          {activeTab === 'lineups' && <LineupsTab lineups={lineups} status={details.fixture.status.short} season={details.league.season} onPlayerClick={onPlayerClick} />}
           {activeTab === 'stats' && <StatsTab stats={stats} teams={details.teams} status={details.fixture.status.short} />}
           {activeTab === 'duels' && <DuelsTab history={duelHistory} teams={details.teams} setSelectedDuelDetails={setSelectedDuelDetails} />}
         </motion.div>
@@ -737,7 +738,7 @@ function EventIcon({ type, detail }: { type: string; detail: string }) {
   }
 }
 
-function LineupsTab({ lineups, status }: { lineups: any[]; status: string }) {
+function LineupsTab({ lineups, status, season, onPlayerClick }: { lineups: any[]; status: string; season: number; onPlayerClick?: (id: number, season: number) => void }) {
   if (lineups.length === 0) {
     const isUpcoming = ['TBD', 'NS'].includes(status);
     const isCancelled = ['SUSP', 'INT', 'PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(status);
@@ -772,7 +773,7 @@ function LineupsTab({ lineups, status }: { lineups: any[]; status: string }) {
               <h4 className="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-2">Titulaires</h4>
               <div className="space-y-1.5">
                 {lineup.startXI.map((p: any) => (
-                  <PlayerRow key={p.player.id} player={p.player} />
+                  <PlayerRow key={p.player.id} player={p.player} season={season} onPlayerClick={onPlayerClick} />
                 ))}
               </div>
             </div>
@@ -781,7 +782,7 @@ function LineupsTab({ lineups, status }: { lineups: any[]; status: string }) {
               <h4 className="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-2">Remplaçants</h4>
               <div className="space-y-1.5">
                 {lineup.substitutes.map((p: any) => (
-                  <PlayerRow key={p.player.id} player={p.player} />
+                  <PlayerRow key={p.player.id} player={p.player} season={season} onPlayerClick={onPlayerClick} />
                 ))}
               </div>
             </div>
@@ -799,14 +800,17 @@ function LineupsTab({ lineups, status }: { lineups: any[]; status: string }) {
   );
 }
 
-function PlayerRow({ player }: { player: any }) {
+function PlayerRow({ player, season, onPlayerClick }: { player: any; season: number; onPlayerClick?: (id: number, season: number) => void }) {
   return (
-    <div className="flex items-center gap-2 p-1.5 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
+    <div 
+      className={`flex items-center gap-2 p-1.5 bg-white/5 rounded-lg border border-white/5 transition-colors ${onPlayerClick ? 'cursor-pointer hover:border-orange-500/50 hover:bg-white/10' : 'hover:border-white/10'}`}
+      onClick={() => onPlayerClick && onPlayerClick(player.id, season)}
+    >
       <div className="w-5 h-5 bg-gray-800 rounded flex items-center justify-center text-[9px] font-black text-gray-400">
         {player.number}
       </div>
       <div className="flex flex-col">
-        <span className="text-xs font-bold leading-tight">{player.name}</span>
+        <span className={`text-xs font-bold leading-tight ${onPlayerClick ? 'hover:text-orange-500' : ''}`}>{player.name}</span>
         <span className="text-[9px] text-gray-500 uppercase font-bold tracking-tighter leading-tight">{player.pos}</span>
       </div>
     </div>

@@ -1446,9 +1446,15 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           const xpMultiplier = (userData.boostXpUntil && new Date(userData.boostXpUntil) > new Date()) ? 2 : 1;
 
           // Progress missions
-          await progressMission(userData, 'duel_count', 1);
+          const missionContext = {
+            teamId: currentMyTeam === 'A' ? String(teamAId) : String(teamBId),
+            leagueId: String(safeLeagueId || ''),
+            season: String(safeSeason || '')
+          };
+          
+          await progressMission(userData, 'duel_count', 1, missionContext);
           if (isWin) {
-            await progressMission(userData, 'win_count', 1);
+            await progressMission(userData, 'win_count', 1, missionContext);
           }
 
           
@@ -1606,6 +1612,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   // If there is an explicit secondary season condition, enforce it
                   if (matchesCondition && pass.conditionSeason && pass.conditionSeason !== '') {
                     if (safeSeason !== pass.conditionSeason) {
+                      matchesCondition = false;
+                    }
+                  }
+
+                  // If there is an explicit secondary league condition, enforce it
+                  if (matchesCondition && pass.conditionLeague && pass.conditionLeague !== '') {
+                    if (safeLeagueId !== pass.conditionLeague) {
                       matchesCondition = false;
                     }
                   }

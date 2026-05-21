@@ -42,11 +42,12 @@ interface TeamDetailsProps {
   onBack: () => void;
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
+  onPlayerClick?: (playerId: number, season: number) => void;
   onMatchClick?: (matchId: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void;
   profile: UserProfile | null;
 }
 
-export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick, onLeagueClick, onMatchClick, profile }: TeamDetailsProps) {
+export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick, onLeagueClick, onPlayerClick, onMatchClick, profile }: TeamDetailsProps) {
   const [team, setTeam] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState(initialSeason);
   const [actualCurrentSeason, setActualCurrentSeason] = useState<number | null>(null);
@@ -517,11 +518,11 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'infos' && <InfosTab team={team} players={players} selectedLeagueId={selectedLeagueId} />}
+              {activeTab === 'infos' && <InfosTab team={team} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />}
               {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} profile={profile} selectedLeagueId={selectedLeagueId} />}
               {activeTab === 'standings' && <StandingsTab standings={standings} teamId={teamId} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />}
               {activeTab === 'competitions' && <CompetitionsTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
-              {activeTab === 'effectif' && <EffectifTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} />}
+              {activeTab === 'effectif' && <EffectifTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />}
               {activeTab === 'stats' && <StatsTab stats={selectedLeagueId === null ? aggregatedStats : stats} teamId={teamId} selectedSeason={selectedSeason} />}
               {activeTab === 'historique' && <HistoriqueTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
               {activeTab === 'tbfo' && effectiveLeagueId ? (
@@ -588,8 +589,8 @@ function CompetitionsTab({ leagues, onLeagueClick, selectedSeason }: { leagues: 
   );
 }
 
-function EffectifTab({ squad, players, selectedLeagueId }: { squad: any[], players: any[], selectedLeagueId: number | null }) {
-  return <PlayersTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} />;
+function EffectifTab({ squad, players, selectedLeagueId, selectedSeason, onPlayerClick }: { squad: any[], players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
+  return <PlayersTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />;
 }
 
 function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number }) {
@@ -647,7 +648,7 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: an
   );
 }
 
-function InfosTab({ team, players, selectedLeagueId }: { team: any, players: any[], selectedLeagueId: number | null }) {
+function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerClick }: { team: any, players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
   return (
     <div className="space-y-6">
       {team && (
@@ -676,14 +677,14 @@ function InfosTab({ team, players, selectedLeagueId }: { team: any, players: any
       {players.length > 0 && (
         <div className="pt-2">
           <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">Tops Joueurs</h3>
-          <TeamRankingsTab players={players} selectedLeagueId={selectedLeagueId} />
+          <TeamRankingsTab players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
         </div>
       )}
     </div>
   );
 }
 
-function TeamRankingsTab({ players, selectedLeagueId }: { players: any[], selectedLeagueId: number | null }) {
+function TeamRankingsTab({ players, selectedLeagueId, selectedSeason, onPlayerClick }: { players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
   if (players.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
@@ -721,15 +722,15 @@ function TeamRankingsTab({ players, selectedLeagueId }: { players: any[], select
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <TeamRankingList title="Buteurs" data={scorers} label="Buts" valKey="agg.goals" icon={<Goal className="w-3.5 h-3.5 text-green-500" />} />
-      <TeamRankingList title="Passeurs" data={assists} label="Passes" valKey="agg.assists" icon={<Activity className="w-3.5 h-3.5 text-blue-500" />} />
-      <TeamRankingList title="Cartons Jaunes" data={yellows} label="Jaunes" valKey="agg.yellow" icon={<Square className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />} />
-      <TeamRankingList title="Cartons Rouges" data={reds} label="Rouges" valKey="agg.red" icon={<Square className="w-3.5 h-3.5 text-red-500 fill-red-500" />} />
+      <TeamRankingList title="Buteurs" data={scorers} label="Buts" valKey="agg.goals" icon={<Goal className="w-3.5 h-3.5 text-green-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
+      <TeamRankingList title="Passeurs" data={assists} label="Passes" valKey="agg.assists" icon={<Activity className="w-3.5 h-3.5 text-blue-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
+      <TeamRankingList title="Cartons Jaunes" data={yellows} label="Jaunes" valKey="agg.yellow" icon={<Square className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
+      <TeamRankingList title="Cartons Rouges" data={reds} label="Rouges" valKey="agg.red" icon={<Square className="w-3.5 h-3.5 text-red-500 fill-red-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
     </div>
   );
 }
 
-function TeamRankingList({ title, data, label, valKey, icon }: { title: string; data: any[]; label: string; valKey: string; icon: React.ReactNode }) {
+function TeamRankingList({ title, data, label, valKey, icon, selectedSeason, onPlayerClick }: { title: string; data: any[]; label: string; valKey: string; icon: React.ReactNode; selectedSeason: number; onPlayerClick?: (id: number, season: number) => void }) {
   return (
     <div className="space-y-2">
       <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest flex items-center gap-1.5">
@@ -747,10 +748,14 @@ function TeamRankingList({ title, data, label, valKey, icon }: { title: string; 
           if (val === 0 && idx > 0) return null;
 
           return (
-            <Card key={p.player.id} className="flex items-center justify-between p-1.5">
+            <Card 
+              key={p.player.id} 
+              className={`flex items-center justify-between p-1.5 transition-colors ${onPlayerClick ? 'cursor-pointer hover:border-orange-500/50 hover:bg-white/10' : ''}`}
+              onClick={() => onPlayerClick && onPlayerClick(p.player.id, selectedSeason)}
+            >
               <div className="flex items-center gap-2">
                 <img src={p.player.photo} alt="" className="w-6 h-6 rounded-full border border-white/10" />
-                <span className="text-xs font-bold">{p.player.name}</span>
+                <span className={`text-xs font-bold ${onPlayerClick ? 'hover:text-orange-500' : ''}`}>{p.player.name}</span>
               </div>
               <div className="text-right">
                 <span className="text-sm font-black text-orange-500">{val}</span>
@@ -949,7 +954,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
   );
 }
 
-function PlayersTab({ squad, players, selectedLeagueId }: { squad?: any[], players: any[], selectedLeagueId: number | null }) {
+function PlayersTab({ squad, players, selectedLeagueId, selectedSeason, onPlayerClick }: { squad?: any[], players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
   const mergedPlayers = React.useMemo(() => {
     const map = new Map<number, any>();
     
@@ -1043,7 +1048,11 @@ function PlayersTab({ squad, players, selectedLeagueId }: { squad?: any[], playe
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {groupedByPos[pos].map((p: any) => (
-                 <Card key={p.id} className="flex gap-2 p-2 hover:bg-white/5 transition-colors">
+                 <Card 
+                   key={p.id} 
+                   className="flex gap-2 p-2 hover:bg-white/5 transition-colors cursor-pointer group"
+                   onClick={() => onPlayerClick && onPlayerClick(p.id, selectedSeason)}
+                 >
                    <div className="relative">
                      <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full border border-white/10 object-cover bg-white/5" />
                      {p.number && (
@@ -1130,7 +1139,7 @@ function StandingsTab({ standings, teamId, onTeamClick, selectedSeason }: { stan
   );
 }
 
-function StatsTab({ stats, teamId, selectedSeason }: { stats: any, teamId: number, selectedSeason: number }) {
+function StatsTab({ stats, teamId, selectedSeason, onPlayerClick }: { stats: any, teamId: number, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
   const [tbfoStats, setTbfoStats] = useState({
     duelsCount: 0,
     duels1v1: 0,

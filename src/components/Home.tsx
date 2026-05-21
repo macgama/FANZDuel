@@ -326,6 +326,9 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     // Fetch some live matches
     const fetchMatches = async () => {
       try {
+        // Clear previous listeners before fetching real-time scores again
+        unsubs.forEach(unsub => unsub());
+        unsubs = [];
         const liveFixtures = await footballApi.getLiveFixtures();
         
         // Fetch active leagues to filter

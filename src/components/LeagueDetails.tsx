@@ -35,11 +35,12 @@ interface LeagueDetailsProps {
   season: number;
   onBack: () => void;
   onTeamClick: (teamId: number, season: number) => void;
+  onPlayerClick?: (playerId: number, season: number) => void;
   onMatchClick?: (matchId: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void;
   profile?: any;
 }
 
-export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamClick, onMatchClick, profile }: LeagueDetailsProps) {
+export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamClick, onPlayerClick, onMatchClick, profile }: LeagueDetailsProps) {
   const [league, setLeague] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState(initialSeason);
   const [actualCurrentSeason, setActualCurrentSeason] = useState<number | null>(null);
@@ -329,7 +330,7 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
               {activeTab === 'standings' && <StandingsTab standings={standings} fixtures={fixtures} onTeamClick={onTeamClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} />}
               {activeTab === 'tbfo' && <TbfoRankingsTab leagueId={leagueId} selectedSeason={selectedSeason} onTeamClick={onTeamClick} teams={teams} />}
               {activeTab === 'knockouts' && <KnockoutsTab fixtures={fixtures} onTeamClick={onTeamClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} />}
-              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} />}
+              {activeTab === 'matches' && <MatchesTab fixtures={fixtures} standings={standings} onTeamClick={onTeamClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} />}
               {activeTab === 'rankings' && (
                 <RankingsTab 
                   scorers={topScorers} 
@@ -337,7 +338,11 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
                   yellowCards={topYellowCards} 
                   redCards={topRedCards} 
                   onTeamClick={onTeamClick}
+                  onPlayerClick={onPlayerClick}
                   selectedSeason={selectedSeason}
+                  fixtures={fixtures}
+                  leagueId={leagueId}
+                  teams={teams}
                 />
               )}
               {activeTab === 'teams' && <TeamsTab teams={teams} onTeamClick={onTeamClick} selectedSeason={selectedSeason} standings={standings} fixtures={fixtures} />}
@@ -496,7 +501,7 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
   );
 }
 
-function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; selectedSeason: number; profile?: any }) {
+function MatchesTab({ fixtures, standings, onTeamClick, onMatchClick, selectedSeason, profile }: { fixtures: any[]; standings?: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; selectedSeason: number; profile?: any }) {
   const [selectedRound, setSelectedRound] = useState<string>('');
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [activeDuels, setActiveDuels] = useState<any[]>([]);
@@ -729,54 +734,125 @@ function MatchesTab({ fixtures, onTeamClick, onMatchClick, selectedSeason, profi
         </select>
       </div>
 
-      {/* Horizontal Matches */}
-      <div className="relative group/scroll">
-        {currentMatchesCount > 1 && (
-          <>
-            <button 
-              onClick={() => scroll('left')}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => scroll('right')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </>
-        )}
+      {/* Matches Display */}
+      {(() => {
+        const matches = groupedByRound[selectedRound] || [];
+        
+        // Build teamToGroup map
+        const teamToGroup = new Map<number, string>();
+        if (standings) {
+          standings.forEach(s => {
+            if (s.team?.id && s.group) {
+              teamToGroup.set(s.team.id, s.group);
+            }
+          });
+        }
+        
+        const groupedMatches: Record<string, any[]> = {};
+        let hasGroups = false;
+        
+        matches.forEach((match: any) => {
+          const homeGroup = teamToGroup.get(match.teams.home.id);
+          const awayGroup = teamToGroup.get(match.teams.away.id);
+          const groupName = (homeGroup && homeGroup === awayGroup) ? homeGroup : 'Autres';
+          if (groupName !== 'Autres') hasGroups = true;
+          
+          if (!groupedMatches[groupName]) groupedMatches[groupName] = [];
+          groupedMatches[groupName].push(match);
+        });
+        
+        if (hasGroups) {
+          return (
+            <div className="space-y-6">
+              {Object.entries(groupedMatches)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([groupName, groupMatches]) => {
+                  if (groupMatches.length === 0) return null;
+                  return (
+                    <div key={groupName} className="space-y-3">
+                      {groupName !== 'Autres' && <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm pl-2 border-l-2 border-orange-500">{groupName.replace(/Group /i, 'Groupe ')}</h3>}
+                      <div className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory">
+                        <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch -ml-4 mr-4">
+                          {groupMatches.map((match: any) => {
+                            const matchWithEvents = {
+                              ...match,
+                              events: match.events || roundEvents[match.fixture.id] || []
+                            };
+                            return (
+                              <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${groupMatches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
+                                <SharedMatchCard
+                                  match={matchWithEvents}
+                                  hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
+                                  matchScore={matchScores[match.fixture.id.toString()]}
+                                  onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
+                                  onJoinDuel={() => {}}
+                                  onTeamClick={onTeamClick}
+                                  profile={profile}
+                                  showLeagueHeader={false}
+                                  showDate={true}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          );
+        }
 
-        <div 
-          ref={scrollContainerRef}
-          className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
-        >
-          <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch -ml-4 mr-4">
-            {(groupedByRound[selectedRound] || []).map((match: any) => {
-              const matchWithEvents = {
-                ...match,
-                events: match.events || roundEvents[match.fixture.id] || []
-              };
-              
-              return (
-              <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${currentMatchesCount > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
-                <SharedMatchCard
-                  match={matchWithEvents}
-                  hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
-                  matchScore={matchScores[match.fixture.id.toString()]}
-                  onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
-                  onJoinDuel={() => {}}
-                  onTeamClick={onTeamClick}
-                  profile={profile}
-                  showLeagueHeader={false}
-                  showDate={true}
-                />
+        return (
+          <div className="relative group/scroll">
+            {currentMatchesCount > 1 && (
+              <>
+                <button 
+                  onClick={() => scroll('left')}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => scroll('right')}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </>
+            )}
+
+            <div 
+              ref={scrollContainerRef}
+              className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
+            >
+              <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch -ml-4 mr-4">
+                {(groupedByRound[selectedRound] || []).map((match: any) => {
+                  const matchWithEvents = {
+                    ...match,
+                    events: match.events || roundEvents[match.fixture.id] || []
+                  };
+                  
+                  return (
+                  <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${currentMatchesCount > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
+                    <SharedMatchCard
+                      match={matchWithEvents}
+                      hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
+                      matchScore={matchScores[match.fixture.id.toString()]}
+                      onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
+                      onJoinDuel={() => {}}
+                      onTeamClick={onTeamClick}
+                      profile={profile}
+                      showLeagueHeader={false}
+                      showDate={true}
+                    />
+                  </div>
+                )})}
               </div>
-            )})}
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
     </div>
   );
 }
@@ -861,8 +937,39 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
   );
 }
 
-function RankingsTab({ scorers, assists, yellowCards, redCards, onTeamClick, selectedSeason }: { scorers: any[]; assists: any[]; yellowCards: any[]; redCards: any[]; onTeamClick: (id: number, season: number) => void; selectedSeason: number }) {
-  if (!scorers.length && !assists.length && !yellowCards.length && !redCards.length) {
+function RankingsTab({ scorers, assists, yellowCards, redCards, onTeamClick, onPlayerClick, selectedSeason, fixtures, leagueId, teams }: { scorers: any[]; assists: any[]; yellowCards: any[]; redCards: any[]; onTeamClick: (id: number, season: number) => void; onPlayerClick?: (id: number, season: number) => void; selectedSeason: number; fixtures: any[]; leagueId: number; teams?: any[] }) {
+  const getValidData = (data: any[] | null | undefined, statKey: string) => (data || []).filter(item => {
+    const stats = item.statistics && item.statistics.find((s: any) => s.league?.id === leagueId) || item.statistics?.[0];
+    if (!stats) return false;
+    
+    // Filter out players whose team did not actually participate in the tournament
+    // This handles a bug in api-sports where qualification stats are mixed into the main tournament
+    if (teams && teams.length > 0 && stats.team?.id) {
+      const teamInTournament = teams.some((t: any) => t.team.id === stats.team.id);
+      if (!teamInTournament) return false;
+    }
+
+    let value = 0;
+    if (statKey === 'goals') value = stats.goals?.total || 0;
+    if (statKey === 'assists') value = stats.goals?.assists || 0;
+    if (statKey === 'yellow') value = stats.cards?.yellow || 0;
+    if (statKey === 'red') value = stats.cards?.red || 0;
+    return value > 0;
+  });
+
+  const validScorers = getValidData(scorers, 'goals');
+  const validAssists = getValidData(assists, 'assists');
+  const validYellow = getValidData(yellowCards, 'yellow');
+  const validRed = getValidData(redCards, 'red');
+
+  const sCount = (scorers || []).length;
+  const aCount = (assists || []).length;
+  const yCount = (yellowCards || []).length;
+  const rCount = (redCards || []).length;
+
+  const hasStarted = fixtures && fixtures.some(f => ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'LIVE'].includes(f.fixture.status.short));
+
+  if (sCount === 0 && aCount === 0 && yCount === 0 && rCount === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
         Les classements individuels (buteurs, passeurs, etc.) ne sont malheureusement pas couverts par notre fournisseur de données pour cette compétition.
@@ -870,17 +977,33 @@ function RankingsTab({ scorers, assists, yellowCards, redCards, onTeamClick, sel
     );
   }
 
+  if (!hasStarted) {
+    return (
+      <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+        Les classements individuels seront disponibles une fois la compétition commencée.
+      </Card>
+    );
+  }
+
+  if (validScorers.length === 0 && validAssists.length === 0 && validYellow.length === 0 && validRed.length === 0) {
+    return (
+      <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
+        Les classements individuels seront disponibles une fois la compétition commencée.
+      </Card>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <RankingList title="Meilleurs Buteurs" data={scorers} statLabel="Buts" statKey="goals" icon={<Goal className="text-green-500" />} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />
-      <RankingList title="Meilleurs Passeurs" data={assists} statLabel="Passes" statKey="assists" icon={<Activity className="text-blue-500" />} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />
-      <RankingList title="Cartons Jaunes" data={yellowCards} statLabel="Jaunes" statKey="yellow" icon={<Square className="text-yellow-500 fill-yellow-500" />} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />
-      <RankingList title="Cartons Rouges" data={redCards} statLabel="Rouges" statKey="red" icon={<Square className="text-red-500 fill-red-500" />} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />
+      <RankingList title="Meilleurs Buteurs" data={validScorers} statLabel="Buts" statKey="goals" icon={<Goal className="text-green-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
+      <RankingList title="Meilleurs Passeurs" data={validAssists} statLabel="Passes" statKey="assists" icon={<Activity className="text-blue-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
+      <RankingList title="Cartons Jaunes" data={validYellow} statLabel="Jaunes" statKey="yellow" icon={<Square className="text-yellow-500 fill-yellow-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
+      <RankingList title="Cartons Rouges" data={validRed} statLabel="Rouges" statKey="red" icon={<Square className="text-red-500 fill-red-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
     </div>
   );
 }
 
-function RankingList({ title, data, statLabel, statKey, icon, onTeamClick, selectedSeason }: { title: string; data: any[]; statLabel: string; statKey: string; icon: React.ReactNode; onTeamClick: (id: number, season: number) => void; selectedSeason: number }) {
+function RankingList({ title, data, statLabel, statKey, icon, onTeamClick, onPlayerClick, selectedSeason, leagueId }: { title: string; data: any[]; statLabel: string; statKey: string; icon: React.ReactNode; onTeamClick: (id: number, season: number) => void; onPlayerClick?: (id: number, season: number) => void; selectedSeason: number; leagueId: number }) {
   if (data.length === 0) return null;
 
   return (
@@ -891,25 +1014,33 @@ function RankingList({ title, data, statLabel, statKey, icon, onTeamClick, selec
       </h3>
       <div className="space-y-1">
         {data.slice(0, 10).map((item, idx) => {
-          const stats = item.statistics[0];
+          const stats = item.statistics && item.statistics.find((s: any) => s.league?.id === leagueId) || item.statistics?.[0];
           let value = 0;
-          if (statKey === 'goals') value = stats.goals.total;
-          if (statKey === 'assists') value = stats.goals.assists || 0;
-          if (statKey === 'yellow') value = stats.cards.yellow;
-          if (statKey === 'red') value = stats.cards.red;
+          if (statKey === 'goals') value = stats.goals?.total || 0;
+          if (statKey === 'assists') value = stats.goals?.assists || 0;
+          if (statKey === 'yellow') value = stats.cards?.yellow || 0;
+          if (statKey === 'red') value = stats.cards?.red || 0;
 
           return (
             <Card 
               key={idx} 
               className="flex items-center justify-between p-1.5 hover:bg-white/5 transition-colors cursor-pointer group"
-              onClick={() => onTeamClick(item.statistics[0].team.id, selectedSeason)}
+              onClick={() => onPlayerClick && item.player?.id && onPlayerClick(item.player.id, selectedSeason)}
             >
               <div className="flex items-center gap-2">
                 <span className="w-3 text-[10px] font-black italic text-gray-600">{idx + 1}</span>
                 <img src={item.player.photo} alt="" className="w-8 h-8 rounded-full border border-white/10 group-hover:scale-110 transition-transform" />
                 <div className="min-w-0">
                   <h4 className="text-xs font-bold group-hover:text-orange-500 transition-colors truncate">{item.player.name}</h4>
-                  <p className="text-[8px] text-gray-500 uppercase font-bold truncate">{item.statistics[0].team.name}</p>
+                  <p 
+                    className="text-[8px] text-gray-500 uppercase font-bold truncate hover:text-white transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (stats.team?.id) onTeamClick(stats.team.id, selectedSeason);
+                    }}
+                  >
+                    {stats.team?.name || 'Inconnu'}
+                  </p>
                 </div>
               </div>
               <div className="text-right">

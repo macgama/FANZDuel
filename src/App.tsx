@@ -1,54 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { auth, db } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot, query, collection, where, writeBatch, getDocs, updateDoc } from 'firebase/firestore';
-import { Layout, Card, Button } from './components/Layout';
-import { cn } from './lib/utils';
-import { Auth } from './components/Auth';
-import { AdminZone } from './components/AdminZone';
-import { MatchesPage } from './components/MatchesPage';
-import { CompetitionsPage } from './components/CompetitionsPage';
-import { TeamsPage } from './components/TeamsPage';
-import { Header } from './components/Header';
-import { MatchDetails } from './components/MatchDetails';
-import { LeagueDetails } from './components/LeagueDetails';
-import { TeamDetails } from './components/TeamDetails';
-import { UserProfile, GlobalFervorConfig } from './types';
-import { FanzPage } from './components/FanzPage';
-import { FanzDetails } from './components/FanzDetails';
-import { LifeActionCard } from './components/LifeActionCard';
-import { WeeklyStreakModal } from './components/WeeklyStreakModal';
-import { WaitingRoom } from './components/WaitingRoom';
-import { SocialPage } from './components/SocialPage';
-import { FervorPathPage } from './components/FervorPathPage';
-import { FavoriteTeamsPage } from './components/FavoriteTeamsPage';
-import { LeaderboardPage } from './components/LeaderboardPage';
-import { Rankings } from './components/Rankings';
-import { PassPage } from './components/PassPage';
-import { MissionsPage } from './components/MissionsPage';
-import { format } from 'date-fns';
-import { footballApi } from './services/footballApi';
-import { Trophy, Activity, Database, Globe, Users, Star, X, LogOut, Settings, Menu, Swords, Store, Target, Ticket, Medal, Home as HomeIcon, AlertCircle, LayoutGrid, Layers, Briefcase, Search, Calendar, Sparkles, Wallet, BarChart2, PieChart } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { signOut } from 'firebase/auth';
+import React, { useState, useEffect } from "react";
+import { auth, db } from "./firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
+  query,
+  collection,
+  where,
+  writeBatch,
+  getDocs,
+  updateDoc,
+} from "firebase/firestore";
+import { Layout, Card, Button } from "./components/Layout";
+import { cn } from "./lib/utils";
+import { Auth } from "./components/Auth";
+import { AdminZone } from "./components/AdminZone";
+import { MatchesPage } from "./components/MatchesPage";
+import { CompetitionsPage } from "./components/CompetitionsPage";
+import { TeamsPage } from "./components/TeamsPage";
+import { Header } from "./components/Header";
+import { MatchDetails } from "./components/MatchDetails";
+import { LeagueDetails } from "./components/LeagueDetails";
+import { TeamDetails } from "./components/TeamDetails";
+import { UserProfile, GlobalFervorConfig } from "./types";
+import { FanzPage } from "./components/FanzPage";
+import { FanzDetails } from "./components/FanzDetails";
+import { LifeActionCard } from "./components/LifeActionCard";
+import { WeeklyStreakModal } from "./components/WeeklyStreakModal";
+import { WaitingRoom } from "./components/WaitingRoom";
+import { SocialPage } from "./components/SocialPage";
+import { FervorPathPage } from "./components/FervorPathPage";
+import { FavoriteTeamsPage } from "./components/FavoriteTeamsPage";
+import { LeaderboardPage } from "./components/LeaderboardPage";
+import { Rankings } from "./components/Rankings";
+import { PassPage } from "./components/PassPage";
+import { MissionsPage } from "./components/MissionsPage";
+import { format } from "date-fns";
+import { footballApi } from "./services/footballApi";
+import {
+  Trophy,
+  Activity,
+  Database,
+  Globe,
+  Users,
+  Star,
+  X,
+  LogOut,
+  Settings,
+  Menu,
+  Swords,
+  Store,
+  Target,
+  Ticket,
+  Medal,
+  Home as HomeIcon,
+  AlertCircle,
+  LayoutGrid,
+  Layers,
+  Briefcase,
+  Search,
+  Calendar,
+  Sparkles,
+  Wallet,
+  BarChart2,
+  PieChart,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { signOut } from "firebase/auth";
 
-import { AlertProvider } from './context/AlertContext';
-import { RewardProvider } from './context/RewardContext';
-import { SocketProvider } from './context/SocketContext';
-import { MediaViewerProvider } from './context/MediaViewerContext';
-import { GlobalSocketListener } from './components/GlobalSocketListener';
+import { AlertProvider } from "./context/AlertContext";
+import { RewardProvider } from "./context/RewardContext";
+import { SocketProvider } from "./context/SocketContext";
+import { MediaViewerProvider } from "./context/MediaViewerContext";
+import { GlobalSocketListener } from "./components/GlobalSocketListener";
 
-import { Home } from './components/Home';
-import { ShopPage } from './components/ShopPage';
+import { Home } from "./components/Home";
+import { ShopPage } from "./components/ShopPage";
 
-import { TransactionsPage } from './components/TransactionsPage';
-import { generateFervorPath } from './utils/fervorPath';
-import { StatsPage } from './components/StatsPage';
-import { Preloader } from './components/Preloader';
-import { LandingPage } from './components/LandingPage';
-import { MrFanzPage } from './components/MrFanzPage';
-import { MrFanzHelp } from './components/MrFanzHelp';
-import { CollectionPage } from './components/CollectionPage';
+import { TransactionsPage } from "./components/TransactionsPage";
+import { generateFervorPath } from "./utils/fervorPath";
+import { StatsPage } from "./components/StatsPage";
+import { PlayerDetails } from "./components/PlayerDetails";
+import { Preloader } from "./components/Preloader";
+import { LandingPage } from "./components/LandingPage";
+import { MrFanzPage } from "./components/MrFanzPage";
+import { MrFanzHelp } from "./components/MrFanzHelp";
+import { CollectionPage } from "./components/CollectionPage";
 
 export default function App() {
   return (
@@ -58,9 +97,29 @@ export default function App() {
   );
 }
 
-import { audioManager } from './lib/audio';
+import { audioManager } from "./lib/audio";
 
-type ViewType = 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'collection' | 'transactions' | 'waiting-room' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'duel' | 'favorite-teams' | 'leaderboard' | 'rankings' | 'stats' | 'mrfanz';
+type ViewType =
+  | "home"
+  | "admin"
+  | "matches"
+  | "competitions"
+  | "teams"
+  | "fanz"
+  | "collection"
+  | "transactions"
+  | "waiting-room"
+  | "social"
+  | "fervor-path"
+  | "shop"
+  | "missions"
+  | "pass"
+  | "duel"
+  | "favorite-teams"
+  | "leaderboard"
+  | "rankings"
+  | "stats"
+  | "mrfanz";
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -81,16 +140,16 @@ function AppContent() {
     const handleInteraction = () => {
       audioManager.playBGM();
     };
-    window.addEventListener('click', handleInteraction, { once: true });
-    window.addEventListener('touchstart', handleInteraction, { once: true });
+    window.addEventListener("click", handleInteraction, { once: true });
+    window.addEventListener("touchstart", handleInteraction, { once: true });
     return () => {
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('touchstart', handleInteraction);
+      window.removeEventListener("click", handleInteraction);
+      window.removeEventListener("touchstart", handleInteraction);
     };
   }, []);
 
-  const [view, _setView] = useState<ViewType>('home');
-  const viewHistory = React.useRef<ViewType[]>(['home']);
+  const [view, _setView] = useState<ViewType>("home");
+  const viewHistory = React.useRef<ViewType[]>(["home"]);
 
   const restorationAttempted = React.useRef(false);
 
@@ -99,110 +158,180 @@ function AppContent() {
       viewHistory.current.push(newView);
       _setView(newView);
       // Reset some states when navigating away from specific views
-      if (newView === 'home') {
+      if (newView === "home") {
         setSelectedMatchId(null);
         setSelectedLeague(null);
         setSelectedTeam(null);
         setSelectedFanzId(null);
+        setSelectedPlayer(null);
         setJoiningDuel(null);
         setIsDuelActive(false);
-        localStorage.removeItem('tbfo_current_duel');
+        localStorage.removeItem("tbfo_current_duel");
       }
     }
   };
 
-  const [selectedLeague, setSelectedLeague] = useState<{ id: number; season: number } | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<{ id: number; season: number } | null>(null);
+  const [selectedLeague, setSelectedLeague] = useState<{
+    id: number;
+    season: number;
+  } | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<{
+    id: number;
+    season: number;
+  } | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<{
+    id: number;
+    season: number;
+  } | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
-  const [selectedMatchTab, setSelectedMatchTab] = useState<'summary' | 'lineups' | 'stats' | 'duels'>('summary');
+  const [selectedMatchTab, setSelectedMatchTab] = useState<
+    "summary" | "lineups" | "stats" | "duels"
+  >("summary");
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [isDuelActive, setIsDuelActive] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [joiningDuel, setJoiningDuel] = useState<{ id: string; type: string; matchId: number } | null>(null);
+  const [joiningDuel, setJoiningDuel] = useState<{
+    id: string;
+    type: string;
+    matchId: number;
+  } | null>(null);
   const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
   const [unreadSocialCount, setUnreadSocialCount] = useState(0);
-  const [claimableAlerts, setClaimableAlerts] = useState({ missions: false, globalFervor: false, fanzFervor: false });
+  const [claimableAlerts, setClaimableAlerts] = useState({
+    missions: false,
+    globalFervor: false,
+    fanzFervor: false,
+  });
 
   // Compute claimable states for sidebar dots
   useEffect(() => {
     if (!profile?.uid) return;
-    
+
     let isMounted = true;
-    
-    const unMissions = onSnapshot(query(collection(db, 'missions'), where('isActive', '==', true)), (snap) => {
-      if (!isMounted) return;
-      const activeIds = snap.docs.map(d => d.id);
-      const hasMissionsAlert = activeIds.some(mId => {
-        const p = profile.missionsProgress?.[mId];
-        return p?.isCompleted && !p?.isClaimed;
-      });
-      setClaimableAlerts(prev => ({ ...prev, missions: hasMissionsAlert }));
-    }, () => {});
+
+    const unMissions = onSnapshot(
+      query(collection(db, "missions"), where("isActive", "==", true)),
+      (snap) => {
+        if (!isMounted) return;
+        const activeIds = snap.docs.map((d) => d.id);
+        const hasMissionsAlert = activeIds.some((mId) => {
+          const p = profile.missionsProgress?.[mId];
+          return p?.isCompleted && !p?.isClaimed;
+        });
+        setClaimableAlerts((prev) => ({ ...prev, missions: hasMissionsAlert }));
+      },
+      () => {},
+    );
 
     let lastGlobalConfig: any = null;
 
-    const unGlobalFervor = onSnapshot(doc(db, 'global_configs', 'fanz_fervor'), (snap) => {
-      if (!isMounted || !snap.exists()) return;
-      const config = snap.data();
-      lastGlobalConfig = config;
-      const currentPoints = profile.ferveurPoints || 0;
-      const path = generateFervorPath(currentPoints + 5000, config as GlobalFervorConfig);
-      const hasGlobalFervorAlert = path.some(level => {
-        const slotId = `ferveur-level-${level.level}`;
-        return currentPoints >= level.pointsRequired && !profile.claimedFervorRewards?.includes(slotId);
-      });
-      setClaimableAlerts(prev => ({ ...prev, globalFervor: hasGlobalFervorAlert }));
-    }, () => {});
-    
-    const unFanz = onSnapshot(query(collection(db, 'fanz'), where('ownerUid', '==', profile.uid)), async (snap) => {
-      if (!isMounted) return;
-      const fanzList = snap.docs.map(d => ({id: d.id, ...d.data()}));
-      
-      // Load templates to get specific mappings if needed, but we can just use generateFervorPath with either fanz config or global config
-      try {
-        const templatesSnap = await getDocs(collection(db, 'fanz_templates'));
-        const templatesList = templatesSnap.docs.map(d => ({id: d.id, ...d.data()}));
-        
-        // Compute total energy bonus from equipped skins
-      let totalSkinEnergyBonus = 0;
-      fanzList.forEach((fanz: any) => {
-        if (fanz.equippedSkin) {
-          const tpl: any = templatesList.find(t => t.id === fanz.templateId);
-          if (tpl && tpl.skins) {
-            const skin = tpl.skins.find((s: any) => s.id === fanz.equippedSkin);
-            if (skin && skin.energyBonus) {
-              totalSkinEnergyBonus += skin.energyBonus;
-            }
-          }
-        }
-      });
-      // Always update db so profile is in sync, App logic will pick it up
-      if ((profile.skinEnergyBonus || 0) !== totalSkinEnergyBonus) {
-        updateDoc(doc(db, 'users', profile.uid), { skinEnergyBonus: totalSkinEnergyBonus }).catch(console.error);
-      }
-
-      const hasFanzFervorAlert = fanzList.some((fanz: any) => {
-          const currentPts = fanz.ferveurPoints || 0;
-          const template: any = templatesList.find(t => t.id === fanz.templateId);
-          let path: any[] = [];
-          if (template?.ferveurPath && template.ferveurPath.length > 0) path = template.ferveurPath;
-          else if ((fanz as any)?.ferveurPath && (fanz as any).ferveurPath.length > 0) path = (fanz as any).ferveurPath;
-          else if (lastGlobalConfig) path = generateFervorPath(Math.max(150000, currentPts + 5000), lastGlobalConfig);
-          
-          return path.some((step: any) => {
-             const slotId = step.isIntermediate ? `ferveur-inter-${step.id || step.pointsRequired}` : `ferveur-level-${step.level}`;
-             return currentPts >= step.pointsRequired && !fanz.claimedRewards?.includes(slotId);
-          });
+    const unGlobalFervor = onSnapshot(
+      doc(db, "global_configs", "fanz_fervor"),
+      (snap) => {
+        if (!isMounted || !snap.exists()) return;
+        const config = snap.data();
+        lastGlobalConfig = config;
+        const currentPoints = profile.ferveurPoints || 0;
+        const path = generateFervorPath(
+          currentPoints + 5000,
+          config as GlobalFervorConfig,
+        );
+        const hasGlobalFervorAlert = path.some((level) => {
+          const slotId = `ferveur-level-${level.level}`;
+          return (
+            currentPoints >= level.pointsRequired &&
+            !profile.claimedFervorRewards?.includes(slotId)
+          );
         });
-        
-        if (isMounted) {
-          setClaimableAlerts(prev => ({ ...prev, fanzFervor: hasFanzFervorAlert }));
+        setClaimableAlerts((prev) => ({
+          ...prev,
+          globalFervor: hasGlobalFervorAlert,
+        }));
+      },
+      () => {},
+    );
+
+    const unFanz = onSnapshot(
+      query(collection(db, "fanz"), where("ownerUid", "==", profile.uid)),
+      async (snap) => {
+        if (!isMounted) return;
+        const fanzList = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        // Load templates to get specific mappings if needed, but we can just use generateFervorPath with either fanz config or global config
+        try {
+          const templatesSnap = await getDocs(collection(db, "fanz_templates"));
+          const templatesList = templatesSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+
+          // Compute total energy bonus from equipped skins
+          let totalSkinEnergyBonus = 0;
+          fanzList.forEach((fanz: any) => {
+            if (fanz.equippedSkin) {
+              const tpl: any = templatesList.find(
+                (t) => t.id === fanz.templateId,
+              );
+              if (tpl && tpl.skins) {
+                const skin = tpl.skins.find(
+                  (s: any) => s.id === fanz.equippedSkin,
+                );
+                if (skin && skin.energyBonus) {
+                  totalSkinEnergyBonus += skin.energyBonus;
+                }
+              }
+            }
+          });
+          // Always update db so profile is in sync, App logic will pick it up
+          if ((profile.skinEnergyBonus || 0) !== totalSkinEnergyBonus) {
+            updateDoc(doc(db, "users", profile.uid), {
+              skinEnergyBonus: totalSkinEnergyBonus,
+            }).catch(console.error);
+          }
+
+          const hasFanzFervorAlert = fanzList.some((fanz: any) => {
+            const currentPts = fanz.ferveurPoints || 0;
+            const template: any = templatesList.find(
+              (t) => t.id === fanz.templateId,
+            );
+            let path: any[] = [];
+            if (template?.ferveurPath && template.ferveurPath.length > 0)
+              path = template.ferveurPath;
+            else if (
+              (fanz as any)?.ferveurPath &&
+              (fanz as any).ferveurPath.length > 0
+            )
+              path = (fanz as any).ferveurPath;
+            else if (lastGlobalConfig)
+              path = generateFervorPath(
+                Math.max(150000, currentPts + 5000),
+                lastGlobalConfig,
+              );
+
+            return path.some((step: any) => {
+              const slotId = step.isIntermediate
+                ? `ferveur-inter-${step.id || step.pointsRequired}`
+                : `ferveur-level-${step.level}`;
+              return (
+                currentPts >= step.pointsRequired &&
+                !fanz.claimedRewards?.includes(slotId)
+              );
+            });
+          });
+
+          if (isMounted) {
+            setClaimableAlerts((prev) => ({
+              ...prev,
+              fanzFervor: hasFanzFervorAlert,
+            }));
+          }
+        } catch (err) {
+          // Handle error silently
         }
-      } catch (err) {
-        // Handle error silently
-      }
-    }, () => {});
+      },
+      () => {},
+    );
 
     return () => {
       isMounted = false;
@@ -223,15 +352,16 @@ function AppContent() {
 
     const checkFavoriteMatches = async () => {
       try {
-        const today = format(new Date(), 'yyyy-MM-dd');
+        const today = format(new Date(), "yyyy-MM-dd");
         const fixtures = await footballApi.getFixturesByDate(today);
-        const favoriteIds = profile.favoriteTeams.map(id => id.toString());
-        
-        const hasMatch = fixtures.some((f: any) => 
-          favoriteIds.includes(f.teams.home.id.toString()) || 
-          favoriteIds.includes(f.teams.away.id.toString())
+        const favoriteIds = profile.favoriteTeams.map((id) => id.toString());
+
+        const hasMatch = fixtures.some(
+          (f: any) =>
+            favoriteIds.includes(f.teams.home.id.toString()) ||
+            favoriteIds.includes(f.teams.away.id.toString()),
         );
-        
+
         setHasFavoriteMatchToday(hasMatch);
       } catch (err) {
         console.error("Failed to check favorite matches:", err);
@@ -251,11 +381,11 @@ function AppContent() {
   // Handle invite links
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const joinCode = params.get('join');
+    const joinCode = params.get("join");
     if (joinCode && profile && !restorationAttempted.current) {
       // Clear the query param so it doesn't try to join again on refresh
       window.history.replaceState({}, document.title, window.location.pathname);
-      
+
       const tryJoin = async () => {
         try {
           const cleanCode = joinCode.trim().toUpperCase();
@@ -263,9 +393,13 @@ function AppContent() {
           if (response.ok) {
             const duel = await response.json();
             if (duel && duel.id) {
-              setJoiningDuel({ id: duel.id, type: duel.type, matchId: duel.matchId });
+              setJoiningDuel({
+                id: duel.id,
+                type: duel.type,
+                matchId: duel.matchId,
+              });
               setSelectedMatchId(duel.matchId);
-              setView('matches');
+              setView("matches");
               setIsDuelActive(true);
             }
           }
@@ -280,19 +414,19 @@ function AppContent() {
   // Persistence: Restore duel on refresh
   useEffect(() => {
     if (profile && !isDuelActive && !restorationAttempted.current) {
-      const savedDuel = localStorage.getItem('tbfo_current_duel');
+      const savedDuel = localStorage.getItem("tbfo_current_duel");
       if (savedDuel) {
         try {
           const duelData = JSON.parse(savedDuel);
           console.log("[App] Restoring duel from persistence:", duelData);
           setJoiningDuel(duelData);
           setSelectedMatchId(duelData.matchId);
-          setSelectedMatchTab('summary');
-          setView('matches');
+          setSelectedMatchTab("summary");
+          setView("matches");
           setIsDuelActive(true);
         } catch (e) {
           console.error("Failed to restore duel:", e);
-          localStorage.removeItem('tbfo_current_duel');
+          localStorage.removeItem("tbfo_current_duel");
         }
       }
       restorationAttempted.current = true;
@@ -307,16 +441,20 @@ function AppContent() {
 
   useEffect(() => {
     if (!user) return;
-    
+
     const fetchWaitingDuels = async (retries = 3) => {
       try {
-        const res = await fetch('/api/duels', { headers: { 'Accept': 'application/json' } });
+        const res = await fetch("/api/duels", {
+          headers: { Accept: "application/json" },
+        });
         if (res.ok) {
-          const contentType = res.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
             const duels = await res.json();
             // Filter out duels where the current user is already a participant
-            const waitingCount = duels.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)).length;
+            const waitingCount = duels.filter(
+              (d: any) => !d.participants.find((p: any) => p.uid === user.uid),
+            ).length;
             setWaitingDuelsCount(waitingCount);
           } else {
             console.warn("Expected JSON from /api/duels, got", contentType);
@@ -325,7 +463,7 @@ function AppContent() {
           setTimeout(() => fetchWaitingDuels(retries - 1), 2000);
         }
       } catch (err: any) {
-        if (err?.message !== 'Failed to fetch') {
+        if (err?.message !== "Failed to fetch") {
           console.error("Failed to fetch waiting duels", err);
         }
         if (retries > 0) {
@@ -344,14 +482,17 @@ function AppContent() {
     if (!user?.uid) return;
 
     // Listen for chats with unread messages
-    const chatsQ = query(collection(db, 'chats'), where('participants', 'array-contains', user.uid));
+    const chatsQ = query(
+      collection(db, "chats"),
+      where("participants", "array-contains", user.uid),
+    );
     const unsubscribeChats = onSnapshot(chatsQ, (snapshot) => {
       let totalUnread = 0;
-      snapshot.docs.forEach(doc => {
+      snapshot.docs.forEach((doc) => {
         const data = doc.data();
-        totalUnread += (data.unreadCount?.[user.uid] || 0);
+        totalUnread += data.unreadCount?.[user.uid] || 0;
       });
-      
+
       // Also add friend requests count from profile
       const requestsCount = profile?.friendRequests?.length || 0;
       setUnreadSocialCount(totalUnread + requestsCount);
@@ -363,8 +504,12 @@ function AppContent() {
   const handleDuelIntent = async (callback: () => void) => {
     if (profile?.activeAction) {
       try {
-        const actionDoc = await getDoc(doc(db, 'life_actions', profile.activeAction.actionId));
-        const fanzDoc = await getDoc(doc(db, 'fanz', profile.activeAction.fanzId));
+        const actionDoc = await getDoc(
+          doc(db, "life_actions", profile.activeAction.actionId),
+        );
+        const fanzDoc = await getDoc(
+          doc(db, "fanz", profile.activeAction.fanzId),
+        );
         if (actionDoc.exists() && fanzDoc.exists()) {
           setActiveActionDetails({ id: actionDoc.id, ...actionDoc.data() });
           setActiveFanz({ id: fanzDoc.id, ...fanzDoc.data() });
@@ -384,7 +529,7 @@ function AppContent() {
   const handleBack = () => {
     if (selectedMatchId) {
       setSelectedMatchId(null);
-      setSelectedMatchTab('summary');
+      setSelectedMatchTab("summary");
       setJoiningDuel(null);
     } else if (selectedTeam) {
       setSelectedTeam(null);
@@ -392,38 +537,87 @@ function AppContent() {
       setSelectedLeague(null);
     } else if (selectedFanzId) {
       setSelectedFanzId(null);
+      setSelectedPlayer(null);
     } else if (viewHistory.current.length > 1) {
       viewHistory.current.pop();
       const previousView = viewHistory.current[viewHistory.current.length - 1];
       _setView(previousView);
-    } else if (view !== 'home') {
-      _setView('home');
+    } else if (view !== "home") {
+      _setView("home");
     }
   };
 
   const renderFooter = () => {
-    if (view === 'duel' || isDuelActive || view === 'admin') return null;
+    if (view === "duel" || isDuelActive || view === "admin") return null;
     return (
       <footer className="md:hidden shrink-0 h-16 sm:h-20 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-1 sm:px-8 z-50 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <button onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'fanz' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+        <button
+          onClick={() => {
+            setView("fanz");
+            setSelectedMatchId(null);
+            setSelectedTeam(null);
+            setSelectedLeague(null);
+            setSelectedFanzId(null);
+            setSelectedPlayer(null);
+          }}
+          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "fanz" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+        >
           <Star className="w-5 h-5 sm:w-7 sm:h-7" />
-          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Fanz</span>
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
+            Fanz
+          </span>
         </button>
-        <button onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'favorite-teams' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+        <button
+          onClick={() => {
+            setView("favorite-teams");
+            setSelectedMatchId(null);
+            setSelectedTeam(null);
+            setSelectedLeague(null);
+            setSelectedFanzId(null);
+            setSelectedPlayer(null);
+          }}
+          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "favorite-teams" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+        >
           <div className="relative">
             <Layers className="w-5 h-5 sm:w-7 sm:h-7" />
             {hasFavoriteMatchToday && (
               <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
             )}
           </div>
-          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Équipes</span>
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
+            Équipes
+          </span>
         </button>
-        <button onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'collection' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+        <button
+          onClick={() => {
+            setView("collection");
+            setSelectedMatchId(null);
+            setSelectedTeam(null);
+            setSelectedLeague(null);
+            setSelectedFanzId(null);
+            setSelectedPlayer(null);
+          }}
+          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "collection" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+        >
           <Database className="w-5 h-5 sm:w-7 sm:h-7" />
-          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Musée</span>
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
+            Musée
+          </span>
         </button>
-        <button onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-4 sm:-top-7 group">
-          <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#0a0a0a] shadow-xl transition-all duration-300 relative ${view === 'waiting-room' ? 'bg-orange-500 shadow-orange-500/50 scale-110' : 'bg-orange-600 shadow-orange-600/20 group-hover:scale-105'} ${waitingDuelsCount > 0 && view !== 'waiting-room' ? 'animate-[pulse_2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(249,115,22,0.6)]' : ''}`}>
+        <button
+          onClick={() => {
+            setView("waiting-room");
+            setSelectedMatchId(null);
+            setSelectedTeam(null);
+            setSelectedLeague(null);
+            setSelectedFanzId(null);
+            setSelectedPlayer(null);
+          }}
+          className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-all duration-300 relative -top-4 sm:-top-7 group"
+        >
+          <div
+            className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 border-[#0a0a0a] shadow-xl transition-all duration-300 relative ${view === "waiting-room" ? "bg-orange-500 shadow-orange-500/50 scale-110" : "bg-orange-600 shadow-orange-600/20 group-hover:scale-105"} ${waitingDuelsCount > 0 && view !== "waiting-room" ? "animate-[pulse_2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(249,115,22,0.6)]" : ""}`}
+          >
             <Swords className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             {waitingDuelsCount > 0 && (
               <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 rounded-full border-2 border-[#0a0a0a] flex items-center justify-center text-[9px] sm:text-[10px] font-black text-white shadow-lg">
@@ -431,19 +625,59 @@ function AppContent() {
               </div>
             )}
           </div>
-          <span className={`text-[9px] sm:text-xs font-black uppercase tracking-widest mt-0.5 sm:mt-1 ${view === 'waiting-room' ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : 'text-orange-600'}`}>Duel</span>
+          <span
+            className={`text-[9px] sm:text-xs font-black uppercase tracking-widest mt-0.5 sm:mt-1 ${view === "waiting-room" ? "text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]" : "text-orange-600"}`}
+          >
+            Duel
+          </span>
         </button>
-        <button onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'rankings' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+        <button
+          onClick={() => {
+            setView("rankings");
+            setSelectedMatchId(null);
+            setSelectedTeam(null);
+            setSelectedLeague(null);
+            setSelectedFanzId(null);
+            setSelectedPlayer(null);
+          }}
+          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "rankings" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+        >
           <Trophy className="w-5 h-5 sm:w-7 sm:h-7" />
-          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Rank</span>
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
+            Rank
+          </span>
         </button>
-        <button onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'social' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+        <button
+          onClick={() => {
+            setView("social");
+            setSelectedMatchId(null);
+            setSelectedTeam(null);
+            setSelectedLeague(null);
+            setSelectedFanzId(null);
+            setSelectedPlayer(null);
+          }}
+          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "social" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+        >
           <Users className="w-5 h-5 sm:w-7 sm:h-7" />
-          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Social</span>
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
+            Social
+          </span>
         </button>
-        <button onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === 'matches' ? 'text-white scale-110' : 'text-gray-500 hover:text-white'}`}>
+        <button
+          onClick={() => {
+            setView("matches");
+            setSelectedMatchId(null);
+            setSelectedTeam(null);
+            setSelectedLeague(null);
+            setSelectedFanzId(null);
+            setSelectedPlayer(null);
+          }}
+          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "matches" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+        >
           <Activity className="w-5 h-5 sm:w-7 sm:h-7" />
-          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">Live</span>
+          <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
+            Live
+          </span>
         </button>
       </footer>
     );
@@ -461,139 +695,181 @@ function AppContent() {
           currentUserRef.current = currentUser.uid;
         }
         if (unsubscribeSnapshot) unsubscribeSnapshot();
-        const docRef = doc(db, 'users', currentUser.uid);
-        
-        unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserProfile;
-            let needsUpdate = false;
-            let updatedData = { ...data };
+        const docRef = doc(db, "users", currentUser.uid);
 
-            // Check for energy refill (+5 per hour, max 100)
-            const lastRefillTime = new Date(data.lastEnergyRefill || new Date().toISOString()).getTime();
-            const nowTime = new Date().getTime();
-            const msPassed = nowTime - lastRefillTime;
-            const hoursPassed = Math.floor(msPassed / (1000 * 60 * 60));
+        unsubscribeSnapshot = onSnapshot(
+          docRef,
+          async (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data() as UserProfile;
+              let needsUpdate = false;
+              let updatedData = { ...data };
 
-            const maxEner = (data.maxEnergy || 100) + (data.skinEnergyBonus || 0);
-            if (hoursPassed >= 1 && data.energy < maxEner) {
-              const energyToAdd = hoursPassed * 5;
-              updatedData.energy = Math.min(maxEner, (data.energy || 0) + energyToAdd);
-              updatedData.lastEnergyRefill = new Date(lastRefillTime + hoursPassed * 3600000).toISOString();
-              needsUpdate = true;
-            }
+              // Check for energy refill (+5 per hour, max 100)
+              const lastRefillTime = new Date(
+                data.lastEnergyRefill || new Date().toISOString(),
+              ).getTime();
+              const nowTime = new Date().getTime();
+              const msPassed = nowTime - lastRefillTime;
+              const hoursPassed = Math.floor(msPassed / (1000 * 60 * 60));
 
-            // Check for admin role
-            if ((currentUser.email === 'gael.manigley@gmail.com') && data.role !== 'admin') {
-              updatedData.role = 'admin';
-              needsUpdate = true;
-            }
+              const maxEner =
+                (data.maxEnergy || 100) + (data.skinEnergyBonus || 0);
+              if (hoursPassed >= 1 && data.energy < maxEner) {
+                const energyToAdd = hoursPassed * 5;
+                updatedData.energy = Math.min(
+                  maxEner,
+                  (data.energy || 0) + energyToAdd,
+                );
+                updatedData.lastEnergyRefill = new Date(
+                  lastRefillTime + hoursPassed * 3600000,
+                ).toISOString();
+                needsUpdate = true;
+              }
 
-            // Date Strings
-            const today = new Date().toISOString().split('T')[0];
-            const lastLogin = data.lastLoginDate;
+              // Check for admin role
+              if (
+                currentUser.email === "gael.manigley@gmail.com" &&
+                data.role !== "admin"
+              ) {
+                updatedData.role = "admin";
+                needsUpdate = true;
+              }
 
-            // Mission Reset Logic
-            const lastDailyReset = data.lastDailyMissionReset; // YYYY-MM-DD
-            const lastWeeklyReset = data.lastWeeklyMissionReset; // YYYY-MM-DD (Date of the Monday of that week)
+              // Date Strings
+              const today = new Date().toISOString().split("T")[0];
+              const lastLogin = data.lastLoginDate;
 
-            // Calculate current week's Monday (ISO string YYYY-MM-DD)
-            const currentMonday = new Date();
-            const dayOfMonday = currentMonday.getDay();
-            const diffOfMonday = currentMonday.getDate() - dayOfMonday + (dayOfMonday === 0 ? -6 : 1); // adjust when day is sunday
-            const mondayDate = new Date(new Date().setDate(diffOfMonday)).toISOString().split('T')[0];
+              // Mission Reset Logic
+              const lastDailyReset = data.lastDailyMissionReset; // YYYY-MM-DD
+              const lastWeeklyReset = data.lastWeeklyMissionReset; // YYYY-MM-DD (Date of the Monday of that week)
 
-            let missionsToReset: string[] = [];
+              // Calculate current week's Monday (ISO string YYYY-MM-DD)
+              const currentMonday = new Date();
+              const dayOfMonday = currentMonday.getDay();
+              const diffOfMonday =
+                currentMonday.getDate() -
+                dayOfMonday +
+                (dayOfMonday === 0 ? -6 : 1); // adjust when day is sunday
+              const mondayDate = new Date(new Date().setDate(diffOfMonday))
+                .toISOString()
+                .split("T")[0];
 
-            if (lastDailyReset !== today) {
-              // Reset daily missions
-              const missionsSnap = await getDocs(query(collection(db, 'missions'), where('period', '==', 'daily')));
-              missionsSnap.docs.forEach(doc => missionsToReset.push(doc.id));
-              updatedData.lastDailyMissionReset = today;
-              needsUpdate = true;
-            }
+              let missionsToReset: string[] = [];
 
-            if (lastWeeklyReset !== mondayDate) {
-              // Reset weekly missions
-              const missionsSnap = await getDocs(query(collection(db, 'missions'), where('period', '==', 'weekly')));
-              missionsSnap.docs.forEach(doc => missionsToReset.push(doc.id));
-              updatedData.lastWeeklyMissionReset = mondayDate;
-              needsUpdate = true;
-            }
+              if (lastDailyReset !== today) {
+                // Reset daily missions
+                const missionsSnap = await getDocs(
+                  query(
+                    collection(db, "missions"),
+                    where("period", "==", "daily"),
+                  ),
+                );
+                missionsSnap.docs.forEach((doc) =>
+                  missionsToReset.push(doc.id),
+                );
+                updatedData.lastDailyMissionReset = today;
+                needsUpdate = true;
+              }
 
-            if (missionsToReset.length > 0 && data.missionsProgress) {
-              const newProgress = { ...data.missionsProgress };
-              missionsToReset.forEach(id => {
-                if (newProgress[id]) {
-                  delete newProgress[id];
-                }
-              });
-              updatedData.missionsProgress = newProgress;
-              needsUpdate = true;
-            }
+              if (lastWeeklyReset !== mondayDate) {
+                // Reset weekly missions
+                const missionsSnap = await getDocs(
+                  query(
+                    collection(db, "missions"),
+                    where("period", "==", "weekly"),
+                  ),
+                );
+                missionsSnap.docs.forEach((doc) =>
+                  missionsToReset.push(doc.id),
+                );
+                updatedData.lastWeeklyMissionReset = mondayDate;
+                needsUpdate = true;
+              }
 
-            // Weekly Streak Logic
-            if (!lastLogin) {
-              // First time login
-              updatedData.streak = 1;
-              updatedData.lastLoginDate = today;
-              updatedData.claimedStreakDays = [];
-              needsUpdate = true;
-              setShowStreakModal(true);
-            } else if (lastLogin !== today) {
-              const lastDate = new Date(lastLogin);
-              const todayDate = new Date(today);
-              const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              if (missionsToReset.length > 0 && data.missionsProgress) {
+                const newProgress = { ...data.missionsProgress };
+                missionsToReset.forEach((id) => {
+                  if (newProgress[id]) {
+                    delete newProgress[id];
+                  }
+                });
+                updatedData.missionsProgress = newProgress;
+                needsUpdate = true;
+              }
 
-              if (diffDays === 1) {
-                // Consecutive login
-                if (data.streak >= 7) {
+              // Weekly Streak Logic
+              if (!lastLogin) {
+                // First time login
+                updatedData.streak = 1;
+                updatedData.lastLoginDate = today;
+                updatedData.claimedStreakDays = [];
+                needsUpdate = true;
+                setShowStreakModal(true);
+              } else if (lastLogin !== today) {
+                const lastDate = new Date(lastLogin);
+                const todayDate = new Date(today);
+                const diffTime = Math.abs(
+                  todayDate.getTime() - lastDate.getTime(),
+                );
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                  // Consecutive login
+                  if (data.streak >= 7) {
+                    updatedData.streak = 1;
+                    updatedData.claimedStreakDays = [];
+                  } else {
+                    updatedData.streak = (data.streak || 0) + 1;
+                  }
+                } else {
+                  // Missed a day or more
                   updatedData.streak = 1;
                   updatedData.claimedStreakDays = [];
-                } else {
-                  updatedData.streak = (data.streak || 0) + 1;
+                }
+
+                updatedData.lastLoginDate = today;
+                needsUpdate = true;
+                setShowStreakModal(true);
+              } else {
+                // Already logged in today, check if reward claimed
+                if (!data.claimedStreakDays?.includes(data.streak || 1)) {
+                  setShowStreakModal(true);
+                }
+              }
+
+              if (needsUpdate) {
+                try {
+                  await setDoc(docRef, updatedData, { merge: true });
+                  // We set the profile here so they log in regardless of network timing
+                  setProfile(updatedData);
+                } catch (e: any) {
+                  console.error(
+                    "Failed to update user profile on snapshot:",
+                    e,
+                  );
+                  // Still log them in!
+                  setProfile(updatedData);
                 }
               } else {
-                // Missed a day or more
-                updatedData.streak = 1;
-                updatedData.claimedStreakDays = [];
-              }
-              
-              updatedData.lastLoginDate = today;
-              needsUpdate = true;
-              setShowStreakModal(true);
-            } else {
-              // Already logged in today, check if reward claimed
-              if (!data.claimedStreakDays?.includes(data.streak || 1)) {
-                setShowStreakModal(true);
-              }
-            }
-
-            if (needsUpdate) {
-              try {
-                await setDoc(docRef, updatedData, { merge: true });
-                // We set the profile here so they log in regardless of network timing
-                setProfile(updatedData);
-              } catch (e: any) {
-                console.error("Failed to update user profile on snapshot:", e);
-                // Still log them in!
                 setProfile(updatedData);
               }
             } else {
-              setProfile(updatedData);
+              setProfile(null);
             }
-          } else {
-            setProfile(null);
-          }
-          setLoading(false);
-        }, (error) => {
-          console.error("Profile snapshot error:", error);
-          if (error.message?.includes('Quota limit exceeded') || error.message?.includes('quota')) {
-            setQuotaExceeded(true);
-          }
-          setLoading(false);
-        });
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Profile snapshot error:", error);
+            if (
+              error.message?.includes("Quota limit exceeded") ||
+              error.message?.includes("quota")
+            ) {
+              setQuotaExceeded(true);
+            }
+            setLoading(false);
+          },
+        );
       } else {
         setProfile(null);
         setLoading(false);
@@ -614,7 +890,9 @@ function AppContent() {
     if (!user || !profile) return;
 
     const checkEnergy = async () => {
-      const lastRefillTime = new Date(profile.lastEnergyRefill || new Date().toISOString()).getTime();
+      const lastRefillTime = new Date(
+        profile.lastEnergyRefill || new Date().toISOString(),
+      ).getTime();
       const nowTime = new Date().getTime();
       const msPassed = nowTime - lastRefillTime;
       const hoursPassed = Math.floor(msPassed / (1000 * 60 * 60));
@@ -623,13 +901,19 @@ function AppContent() {
       if (hoursPassed >= 1 && profile.energy < maxE) {
         const energyToAdd = hoursPassed * 5;
         const newEnergy = Math.min(maxE, (profile.energy || 0) + energyToAdd);
-        const newRefillTime = new Date(lastRefillTime + hoursPassed * 3600000).toISOString();
+        const newRefillTime = new Date(
+          lastRefillTime + hoursPassed * 3600000,
+        ).toISOString();
 
-        const docRef = doc(db, 'users', user.uid);
-        await setDoc(docRef, {
-          energy: newEnergy,
-          lastEnergyRefill: newRefillTime
-        }, { merge: true });
+        const docRef = doc(db, "users", user.uid);
+        await setDoc(
+          docRef,
+          {
+            energy: newEnergy,
+            lastEnergyRefill: newRefillTime,
+          },
+          { merge: true },
+        );
       }
     };
 
@@ -642,12 +926,17 @@ function AppContent() {
       <Layout containerClassName="flex flex-col items-center justify-center p-8 text-center bg-[#0a0a0a]">
         <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 max-w-md">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-black uppercase italic text-white mb-4">Quota de lecture dépassé</h2>
+          <h2 className="text-2xl font-black uppercase italic text-white mb-4">
+            Quota de lecture dépassé
+          </h2>
           <p className="text-gray-400 mb-6">
-            L'application a atteint sa limite quotidienne de lectures Firestore. 
+            L'application a atteint sa limite quotidienne de lectures Firestore.
             Le service sera rétabli automatiquement demain.
           </p>
-          <Button onClick={() => window.location.reload()} className="bg-red-500 hover:bg-red-600">
+          <Button
+            onClick={() => window.location.reload()}
+            className="bg-red-500 hover:bg-red-600"
+          >
             Réessayer
           </Button>
         </div>
@@ -663,17 +952,21 @@ function AppContent() {
         </div>
         <div className="flex flex-col items-center gap-6 relative z-10 w-full max-w-xs">
           <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(249,115,22,0.15)] relative overflow-hidden">
-             <div className="absolute inset-0 bg-gradient-to-tr from-orange-500/20 to-transparent animate-pulse" />
-             <LayoutGrid className="w-10 h-10 text-orange-500 animate-[spin_4s_linear_infinite]" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-orange-500/20 to-transparent animate-pulse" />
+            <LayoutGrid className="w-10 h-10 text-orange-500 animate-[spin_4s_linear_infinite]" />
           </div>
           <div className="text-center w-full">
-            <h1 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2">THE BEST <span className="text-orange-500">FAN</span></h1>
+            <h1 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2">
+              THE BEST <span className="text-orange-500">FAN</span>
+            </h1>
             <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2 mt-4">
               <div className="h-full bg-orange-500 w-full animate-pulse opacity-50 relative">
-                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white w-full h-full -translate-x-full animate-[shimmer_1.5s_infinite]" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white w-full h-full -translate-x-full animate-[shimmer_1.5s_infinite]" />
               </div>
             </div>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] animate-pulse">Synchronisation...</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] animate-pulse">
+              Synchronisation...
+            </p>
           </div>
         </div>
       </div>
@@ -696,549 +989,1175 @@ function AppContent() {
     <>
       <AnimatePresence>
         {!assetsLoaded && profile && (
-          <Preloader 
-            uid={user.uid} 
-            onComplete={() => setAssetsLoaded(true)} 
-          />
+          <Preloader uid={user.uid} onComplete={() => setAssetsLoaded(true)} />
         )}
       </AnimatePresence>
 
       <Layout containerClassName="md:flex-row">
-        <GlobalSocketListener onDuelStarting={(duelId, duelData) => {
-          if (!isDuelActive) {
-            setCurrentDuel(duelData);
-            if (duelData && duelData.matchId) {
-              setView('matches');
-              setSelectedLeague(null);
-              setSelectedTeam(null);
-              setSelectedFanzId(null);
-              setSelectedMatchId(Number(duelData.matchId));
-              setJoiningDuel({ id: duelId, type: duelData.type, matchId: Number(duelData.matchId) });
-              setIsDuelActive(true);
+        <GlobalSocketListener
+          onDuelStarting={(duelId, duelData) => {
+            if (!isDuelActive) {
+              setCurrentDuel(duelData);
+              if (duelData && duelData.matchId) {
+                setView("matches");
+                setSelectedLeague(null);
+                setSelectedTeam(null);
+                setSelectedFanzId(null);
+                setSelectedPlayer(null);
+                setSelectedMatchId(Number(duelData.matchId));
+                setJoiningDuel({
+                  id: duelId,
+                  type: duelData.type,
+                  matchId: Number(duelData.matchId),
+                });
+                setIsDuelActive(true);
+              }
             }
-          }
-        }} />
+          }}
+        />
 
-      {profile && view !== 'duel' && !isDuelActive && view !== 'admin' && (
-        <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
-          <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start cursor-pointer hover:bg-white/5 transition-colors" onClick={() => { setView('home'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }}>
-            <img src="/img/logo2.png" alt="TBFO" className="w-8 h-8 rounded-lg outline outline-1 outline-white/10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <span className="hidden lg:block font-black italic text-[15px] uppercase tracking-wider text-white leading-none truncate">TheBestFan.Online</span>
-          </div>
-          <div className="flex flex-col gap-1 p-2 lg:p-4 flex-1 overflow-y-auto no-scrollbar">
-             <SidebarButton 
-               icon={<div className="relative"><Star />
-                 {claimableAlerts.fanzFervor && (
-                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
-                 )}
-               </div>} 
-               label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton 
-                icon={<div className="relative"><Layers />
-                  {hasFavoriteMatchToday && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
-                  )}
-                </div>} 
-                label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton icon={<Database />} label="MON MUSÉE" active={view==='collection'} onClick={() => { setView('collection'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton icon={<PieChart />} label="MES STATS" active={view==='stats'} onClick={() => { setView('stats'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton 
-                icon={<div className="relative"><Swords />
-                  {waitingDuelsCount > 0 && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-black text-white">{waitingDuelsCount}</div>
-                  )}
-                </div>} 
-                label="DUELS" active={view==='waiting-room'} onClick={() => { setView('waiting-room'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton icon={<BarChart2 />} label="RANK" active={view==='rankings'} onClick={() => { setView('rankings'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             <SidebarButton 
-               icon={<div className="relative"><Users />
-                 {unreadSocialCount > 0 && (
-                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
-                 )}
-               </div>} 
-               label="SOCIAL" active={view==='social'} onClick={() => { setView('social'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             
-             <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
-                 <SidebarButton icon={<Calendar />} label="SERIE HEBDO" active={false} onClick={() => { setShowStreakModal(true); }} />
-                 <SidebarButton 
-                   icon={<div className="relative"><Briefcase />
-                     {claimableAlerts.globalFervor && (
-                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
-                     )}
-                   </div>} 
-                   label="FERVEUR" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton 
-                   icon={<div className="relative"><Target />
-                     {claimableAlerts.missions && (
-                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
-                     )}
-                   </div>} 
-                   label="MISSIONS" active={view==='missions'} onClick={() => { setView('missions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Sparkles />} label="PASS" active={view==='pass'} onClick={() => { setView('pass'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Store />} label="BOUTIQUE" active={view==='shop'} onClick={() => { setView('shop'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton 
-                   icon={<div className="w-6 h-6 flex items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 overflow-hidden">
-                     <img src="https://thebestfan.online/img/public/mrfan/mrfan.png" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                   </div>} 
-                   label="GUIDE MRFANZ" 
-                   active={view==='mrfanz'} 
-                   onClick={() => { setView('mrfanz'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} 
-                 />
-             </div>
-
-             <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
-                 <SidebarButton icon={<Activity />} label="MATCHS DU JOUR" active={view==='matches'} onClick={() => { setView('matches'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-                 <SidebarButton icon={<Globe />} label="COMPETITIONS" active={view==='competitions'} onClick={() => { setView('competitions'); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-             </div>
-
-             {profile.role === 'admin' && (
-               <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
-                   <SidebarButton icon={<Settings />} label="ADMIN" active={view===('admin' as any)} onClick={() => { setView('admin' as any); setSelectedMatchId(null); setSelectedTeam(null); setSelectedLeague(null); setSelectedFanzId(null); }} />
-               </div>
-             )}
-
-             <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1">
-                <SidebarButton icon={<LogOut />} label="QUITTER" active={false} onClick={() => { setIsMenuOpen(false); _setView('home'); signOut(auth); }} isDanger />
-             </div>
-          </div>
-        </aside>
-      )}
-
-      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 bg-black/40">
-        {view === 'home' ? (
-          <Home 
-            profile={profile} 
-            claimableAlerts={claimableAlerts}
-            onNavigate={(v) => {
-              setView(v);
-              setSelectedLeague(null);
-              setSelectedTeam(null);
-              setSelectedMatchId(null);
-              setSelectedFanzId(null);
-            }} 
-            onMenuClick={() => {
-              console.log("Menu clicked from Home!");
-              setIsMenuOpen(true);
-            }}
-            onMatchClick={(id, tab = 'summary') => {
-              setSelectedMatchId(id);
-              setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
-              setJoiningDuel(null); // Clear joining flow if clicking a match normally
-              setView('matches');
-            }}
-            onLeagueClick={(id, season) => {
-              setSelectedLeague({ id, season });
-              setView('competitions'); 
-            }}
-            onTeamClick={(id, season) => {
-              setSelectedTeam({ id, season });
-              setView('teams');
-            }}
-            onJoinDuel={(id, isLive) => {
-              handleDuelIntent(() => {
-                setSelectedMatchId(id);
-                setView('matches');
-              });
-            }}
-            onOpenStreak={() => setShowStreakModal(true)}
-            onFanzClick={(fanzId) => {
-              setSelectedFanzId(fanzId);
-              setView('fanz');
-            }}
-          />
-        ) : (
-          <div className={cn(
-            "flex-1 flex flex-col overflow-hidden relative min-h-0 w-full shadow-2xl bg-[#0a0a0a]",
-            view !== 'admin' && "max-w-3xl mx-auto lg:border-x border-white/5"
-          )}>
-            {profile && view !== 'duel' && !isDuelActive && (
-              <Header 
-                profile={profile} 
-                variant={(view as string) === 'home' ? 'home' : 'subpage'}
-                onBackClick={(view as string) === 'home' ? undefined : handleBack}
-                onHomeClick={(view as string) === 'home' ? undefined : () => {
-                  setView('home');
-                  setSelectedLeague(null);
-                  setSelectedTeam(null);
-                  setSelectedMatchId(null);
-                  setSelectedFanzId(null);
-                }} 
-                onMenuClick={() => {
-                  console.log("Menu clicked from Header!");
-                  setIsMenuOpen(true);
+        {profile && view !== "duel" && !isDuelActive && view !== "admin" && (
+          <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
+            <div
+              className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start cursor-pointer hover:bg-white/5 transition-colors"
+              onClick={() => {
+                setView("home");
+                setSelectedMatchId(null);
+                setSelectedTeam(null);
+                setSelectedLeague(null);
+                setSelectedFanzId(null);
+                setSelectedPlayer(null);
+              }}
+            >
+              <img
+                src="/img/logo2.png"
+                alt="TBFO"
+                className="w-8 h-8 rounded-lg outline outline-1 outline-white/10"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
                 }}
-                onTransactionsClick={() => setView('transactions')}
-                onFervorClick={() => setView('fervor-path')}
-                unreadSocialCount={unreadSocialCount}
-                hasClaimableFervorAlert={claimableAlerts.globalFervor}
               />
-            )}
-            
-            <div className={cn(
-              "flex-1 overflow-y-auto pb-6", 
-              (!selectedFanzId && !selectedMatchId && !selectedLeague && !selectedTeam && !['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-4 md:px-6 pt-4", 
-              (selectedFanzId || selectedMatchId || selectedLeague || selectedTeam || ['matches', 'fervor-path', 'rankings', 'social', 'missions', 'pass', 'shop', 'favorite-teams', 'transactions'].includes(view as string)) && "px-0"
-            )}>
-              <div className="w-full h-full relative">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={view + (selectedMatchId || '') + (selectedTeam?.id || '') + (selectedLeague?.id || '') + (selectedFanzId || '')}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="w-full min-h-full"
-                >
-              {selectedMatchId ? (
-                <MatchDetails 
-                  fixtureId={selectedMatchId} 
-                  user={profile}
-                  initialTab={selectedMatchTab}
-                  initialDuelId={joiningDuel?.id}
-                  initialDuelType={joiningDuel?.type}
-                  onDuelStatusChange={setIsDuelActive}
-                  onDuelIntent={handleDuelIntent}
-                  onBack={() => {
+              <span className="hidden lg:block font-black italic text-[15px] uppercase tracking-wider text-white leading-none truncate">
+                TheBestFan.Online
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 p-2 lg:p-4 flex-1 overflow-y-auto no-scrollbar">
+              <SidebarButton
+                icon={
+                  <div className="relative">
+                    <Star />
+                    {claimableAlerts.fanzFervor && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                    )}
+                  </div>
+                }
+                label="MES FANZ"
+                active={view === "fanz"}
+                onClick={() => {
+                  setView("fanz");
+                  setSelectedMatchId(null);
+                  setSelectedTeam(null);
+                  setSelectedLeague(null);
+                  setSelectedFanzId(null);
+                  setSelectedPlayer(null);
+                }}
+              />
+              <SidebarButton
+                icon={
+                  <div className="relative">
+                    <Layers />
+                    {hasFavoriteMatchToday && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                    )}
+                  </div>
+                }
+                label="MES EQUIPES"
+                active={view === "favorite-teams"}
+                onClick={() => {
+                  setView("favorite-teams");
+                  setSelectedMatchId(null);
+                  setSelectedTeam(null);
+                  setSelectedLeague(null);
+                  setSelectedFanzId(null);
+                  setSelectedPlayer(null);
+                }}
+              />
+              <SidebarButton
+                icon={<Database />}
+                label="MON MUSÉE"
+                active={view === "collection"}
+                onClick={() => {
+                  setView("collection");
+                  setSelectedMatchId(null);
+                  setSelectedTeam(null);
+                  setSelectedLeague(null);
+                  setSelectedFanzId(null);
+                  setSelectedPlayer(null);
+                }}
+              />
+              <SidebarButton
+                icon={<PieChart />}
+                label="MES STATS"
+                active={view === "stats"}
+                onClick={() => {
+                  setView("stats");
+                  setSelectedMatchId(null);
+                  setSelectedTeam(null);
+                  setSelectedLeague(null);
+                  setSelectedFanzId(null);
+                  setSelectedPlayer(null);
+                }}
+              />
+              <SidebarButton
+                icon={
+                  <div className="relative">
+                    <Swords />
+                    {waitingDuelsCount > 0 && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-black text-white">
+                        {waitingDuelsCount}
+                      </div>
+                    )}
+                  </div>
+                }
+                label="DUELS"
+                active={view === "waiting-room"}
+                onClick={() => {
+                  setView("waiting-room");
+                  setSelectedMatchId(null);
+                  setSelectedTeam(null);
+                  setSelectedLeague(null);
+                  setSelectedFanzId(null);
+                  setSelectedPlayer(null);
+                }}
+              />
+              <SidebarButton
+                icon={<BarChart2 />}
+                label="RANK"
+                active={view === "rankings"}
+                onClick={() => {
+                  setView("rankings");
+                  setSelectedMatchId(null);
+                  setSelectedTeam(null);
+                  setSelectedLeague(null);
+                  setSelectedFanzId(null);
+                  setSelectedPlayer(null);
+                }}
+              />
+              <SidebarButton
+                icon={
+                  <div className="relative">
+                    <Users />
+                    {unreadSocialCount > 0 && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                    )}
+                  </div>
+                }
+                label="SOCIAL"
+                active={view === "social"}
+                onClick={() => {
+                  setView("social");
+                  setSelectedMatchId(null);
+                  setSelectedTeam(null);
+                  setSelectedLeague(null);
+                  setSelectedFanzId(null);
+                  setSelectedPlayer(null);
+                }}
+              />
+
+              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                <SidebarButton
+                  icon={<Calendar />}
+                  label="SERIE HEBDO"
+                  active={false}
+                  onClick={() => {
+                    setShowStreakModal(true);
+                  }}
+                />
+                <SidebarButton
+                  icon={
+                    <div className="relative">
+                      <Briefcase />
+                      {claimableAlerts.globalFervor && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                      )}
+                    </div>
+                  }
+                  label="FERVEUR"
+                  active={view === "fervor-path"}
+                  onClick={() => {
+                    setView("fervor-path");
                     setSelectedMatchId(null);
-                    setSelectedMatchTab('summary');
-                    setJoiningDuel(null);
+                    setSelectedTeam(null);
+                    setSelectedLeague(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
                   }}
-                  onTeamClick={(id, season) => {
-                    setSelectedTeam({ id, season });
+                />
+                <SidebarButton
+                  icon={
+                    <div className="relative">
+                      <Target />
+                      {claimableAlerts.missions && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                      )}
+                    </div>
+                  }
+                  label="MISSIONS"
+                  active={view === "missions"}
+                  onClick={() => {
+                    setView("missions");
                     setSelectedMatchId(null);
+                    setSelectedTeam(null);
+                    setSelectedLeague(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
                   }}
-                  onLeagueClick={(id, season) => {
-                    setSelectedLeague({ id, season });
+                />
+                <SidebarButton
+                  icon={<Sparkles />}
+                  label="PASS"
+                  active={view === "pass"}
+                  onClick={() => {
+                    setView("pass");
                     setSelectedMatchId(null);
+                    setSelectedTeam(null);
+                    setSelectedLeague(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
                   }}
-                  onFanzClick={(id) => {
+                />
+                <SidebarButton
+                  icon={<Store />}
+                  label="BOUTIQUE"
+                  active={view === "shop"}
+                  onClick={() => {
+                    setView("shop");
                     setSelectedMatchId(null);
-                    setSelectedFanzId(id);
+                    setSelectedTeam(null);
+                    setSelectedLeague(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
                   }}
                 />
-              ) : selectedTeam ? (
-                <TeamDetails 
-                  teamId={selectedTeam.id} 
-                  season={selectedTeam.season} 
-                  onBack={() => setSelectedTeam(null)} 
-                  onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
-                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
-                  onMatchClick={(id, tab = 'summary') => {
-                    setSelectedMatchId(id);
-                    setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
-                    setView('matches');
-                  }}
-                  profile={profile}
-                />
-              ) : selectedLeague ? (
-                <LeagueDetails 
-                  leagueId={selectedLeague.id} 
-                  season={selectedLeague.season} 
-                  onBack={() => setSelectedLeague(null)}
-                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
-                  onMatchClick={(id, tab = 'summary') => {
-                    setSelectedMatchId(id);
-                    setSelectedMatchTab(tab as 'summary' | 'lineups' | 'stats' | 'duels');
-                    setView('matches');
+                <SidebarButton
+                  icon={
+                    <div className="w-6 h-6 flex items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 overflow-hidden">
+                      <img
+                        src="https://thebestfan.online/img/public/mrfan/mrfan.png"
+                        className="w-5 h-5 object-contain"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    </div>
+                  }
+                  label="GUIDE MRFANZ"
+                  active={view === "mrfanz"}
+                  onClick={() => {
+                    setView("mrfanz");
+                    setSelectedMatchId(null);
+                    setSelectedTeam(null);
+                    setSelectedLeague(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
                   }}
                 />
-              ) : selectedFanzId ? (
-                <FanzDetails
-                  fanzId={selectedFanzId}
-                  userProfile={profile}
-                  onBack={() => setSelectedFanzId(null)}
-                />
-              ) : view === 'waiting-room' ? (
-                <WaitingRoom 
-                  user={profile} 
-                  onBack={() => setView('home')} 
-                  onJoinDuel={(id, type, matchId) => {
-                    handleDuelIntent(() => {
-                      setJoiningDuel({ id, type, matchId });
-                      setSelectedMatchId(matchId);
-                      setView('matches');
-                    });
-                  }}
-                  onMatchClick={(matchId) => {
-                    setSelectedMatchId(matchId);
-                    setSelectedMatchTab('summary');
-                    setView('matches');
+              </div>
+
+              <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                <SidebarButton
+                  icon={<Activity />}
+                  label="MATCHS DU JOUR"
+                  active={view === "matches"}
+                  onClick={() => {
+                    setView("matches");
+                    setSelectedMatchId(null);
+                    setSelectedTeam(null);
+                    setSelectedLeague(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
                   }}
                 />
-              ) : view === 'mrfanz' ? (
-                <MrFanzPage onBack={() => setView('home')} />
-              ) : view === 'admin' ? (
-                <AdminZone />
-              ) : view === 'matches' ? (
-                <MatchesPage 
-                  profile={profile}
-                  onMatchClick={(id, tab = 'summary') => {
-                    setSelectedMatchId(id);
-                    setSelectedMatchTab(tab);
-                  }}
-                  onJoinDuel={(id, isLive) => {
-                    handleDuelIntent(() => {
-                      setSelectedMatchId(id);
-                      setSelectedMatchTab('summary');
-                    });
-                  }}
-                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
-                  onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
-                />
-              ) : view === 'competitions' ? (
-                <CompetitionsPage 
-                  onLeagueClick={(id, season) => setSelectedLeague({ id, season })}
-                  profile={profile}
-                />
-              ) : view === 'teams' ? (
-                <TeamsPage 
-                  onTeamClick={(id, season) => setSelectedTeam({ id, season })}
-                />
-              ) : view === 'fanz' ? (
-                <FanzPage userProfile={profile} onFanzClick={(id) => setSelectedFanzId(id)} />
-              ) : view === 'collection' ? (
-                <CollectionPage user={profile} />
-              ) : view === 'transactions' ? (
-                <TransactionsPage profile={profile} onBack={() => setView('home')} />
-              ) : view === 'social' ? (
-                <SocialPage user={profile} onBack={() => setView('home')} />
-              ) : view === 'fervor-path' ? (
-                <FervorPathPage profile={profile} onBack={() => setView('home')} />
-              ) : view === 'favorite-teams' ? (
-                <FavoriteTeamsPage 
-                  profile={profile} 
-                  onBack={() => setView('home')} 
-                  onTeamClick={(id, season) => {
-                    setSelectedTeam({ id, season });
-                    setView('teams');
+                <SidebarButton
+                  icon={<Globe />}
+                  label="COMPETITIONS"
+                  active={view === "competitions"}
+                  onClick={() => {
+                    setView("competitions");
+                    setSelectedMatchId(null);
+                    setSelectedTeam(null);
+                    setSelectedLeague(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
                   }}
                 />
-              ) : view === 'leaderboard' ? (
-                <LeaderboardPage />
-              ) : view === 'rankings' ? (
-                <Rankings onBack={() => setView('home')} />
-              ) : view === 'shop' ? (
-                <ShopPage profile={profile} onBack={() => setView('home')} />
-              ) : view === 'missions' ? (
-                <MissionsPage profile={profile} onBack={() => setView('home')} />
-              ) : view === 'pass' ? (
-                <PassPage profile={profile} onBack={() => setView('home')} />
-              ) : view === 'stats' ? (
-                <StatsPage profile={profile} onBack={() => setView('home')} />
-              ) : null}
-                </motion.div>
-              </AnimatePresence>
+              </div>
+
+              {profile.role === "admin" && (
+                <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
+                  <SidebarButton
+                    icon={<Settings />}
+                    label="ADMIN"
+                    active={view === ("admin" as any)}
+                    onClick={() => {
+                      setView("admin" as any);
+                      setSelectedMatchId(null);
+                      setSelectedTeam(null);
+                      setSelectedLeague(null);
+                      setSelectedFanzId(null);
+                      setSelectedPlayer(null);
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1">
+                <SidebarButton
+                  icon={<LogOut />}
+                  label="QUITTER"
+                  active={false}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    _setView("home");
+                    signOut(auth);
+                  }}
+                  isDanger
+                />
               </div>
             </div>
-          </div>
+          </aside>
         )}
 
-        {showStreakModal && profile && (
-          <WeeklyStreakModal 
-            profile={profile} 
-            onClose={() => setShowStreakModal(false)} 
-          />
-        )}
-      </div>
-      
-      {/* Menu Modal */}
-      <AnimatePresence>
-        {isMenuOpen && profile && (
-          <motion.div 
-            key="side-menu"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="absolute inset-0 z-[100] bg-[#0a0a0a] flex flex-col"
-          >
-          <div className="p-3 shrink-0 flex items-center justify-between border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <img src="/img/logo2.png" alt="Logo" className="w-5 h-5 rounded" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-              <h2 className="text-sm font-black uppercase tracking-wider text-white">TheBestFan.Online</h2>
-            </div>
-            <button 
-              onClick={() => setIsMenuOpen(false)}
-              className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center border border-white/10"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto no-scrollbar p-1">
-            <div className="flex flex-col gap-0.5">
-               <SidebarButton 
-                 icon={<div className="relative"><Star className="w-5 h-5" />
-                   {claimableAlerts.fanzFervor && (
-                     <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
-                   )}
-                 </div>} 
-                 label="MES FANZ" active={view==='fanz'} onClick={() => { setView('fanz'); setIsMenuOpen(false); }} />
-               <SidebarButton 
-                  icon={
-                    <div className="relative">
-                      <Layers className="w-5 h-5" />
-                      {hasFavoriteMatchToday && (
-                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
-                      )}
-                    </div>
-                  } 
-                  label="MES EQUIPES" active={view==='favorite-teams'} onClick={() => { setView('favorite-teams'); setIsMenuOpen(false); }} />
-               <SidebarButton icon={<Database className="w-5 h-5" />} label="MON MUSÉE" active={view==='collection'} onClick={() => { setView('collection'); setIsMenuOpen(false); }} />
-               <SidebarButton icon={<PieChart className="w-5 h-5" />} label="MES STATS" active={view==='stats'} onClick={() => { setView('stats'); setIsMenuOpen(false); }} />
-               <SidebarButton 
-                  icon={
-                    <div className="relative">
-                      <Swords className="w-5 h-5" />
-                      {waitingDuelsCount > 0 && (
-                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a] flex items-center justify-center text-[7px] font-black text-white">
-                          {waitingDuelsCount}
-                        </div>
-                      )}
-                    </div>
-                  } 
-                  label="DUELS" 
-                  active={view==='waiting-room'}
-                  onClick={() => { setView('waiting-room'); setIsMenuOpen(false); }} 
-               />
-               <SidebarButton icon={<BarChart2 className="w-5 h-5" />} label="RANK" active={view==='rankings'} onClick={() => { setView('rankings'); setIsMenuOpen(false); }} />
-               <SidebarButton 
-                 icon={<div className="relative"><Users className="w-5 h-5" />
-                   {unreadSocialCount > 0 && (
-                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
-                   )}
-                 </div>} 
-                 label="SOCIAL" active={view==='social'} onClick={() => { setView('social'); setIsMenuOpen(false); }} />
-               
-               <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
-                 <SidebarButton icon={<Calendar className="w-5 h-5" />} label="SERIE HEBDO" active={false} onClick={() => { setShowStreakModal(true); setIsMenuOpen(false); }} />
-                 <SidebarButton 
-                   icon={<div className="relative"><Briefcase className="w-5 h-5" />
-                     {claimableAlerts.globalFervor && (
-                       <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
-                     )}
-                   </div>} 
-                   label="FERVEUR" active={view==='fervor-path'} onClick={() => { setView('fervor-path'); setIsMenuOpen(false); }} />
-                 <SidebarButton 
-                   icon={<div className="relative"><Target className="w-5 h-5" />
-                     {claimableAlerts.missions && (
-                       <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
-                     )}
-                   </div>} 
-                   label="MISSIONS" active={view==='missions'} onClick={() => { setView('missions'); setIsMenuOpen(false); }} />
-                 <SidebarButton icon={<Sparkles className="w-5 h-5" />} label="PASS" active={view==='pass'} onClick={() => { setView('pass'); setIsMenuOpen(false); }} />
-                 <SidebarButton icon={<Store className="w-5 h-5" />} label="BOUTIQUE" active={view==='shop'} onClick={() => { setView('shop'); setIsMenuOpen(false); }} />
-                 <SidebarButton 
-                   icon={<div className="w-5 h-5 flex items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 overflow-hidden">
-                     <img src="https://thebestfan.online/img/public/mrfan/mrfan.png" className="w-4 h-4 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                   </div>} 
-                   label="GUIDE MRFANZ" 
-                   active={view==='mrfanz'} 
-                   onClick={() => { setView('mrfanz'); setIsMenuOpen(false); }} 
-                 />
-               </div>
-
-               <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
-                 <SidebarButton icon={<Activity className="w-5 h-5" />} label="MATCHS DU JOUR" active={view==='matches'} onClick={() => { setView('matches'); setIsMenuOpen(false); }} />
-                 <SidebarButton icon={<Globe className="w-5 h-5" />} label="COMPETITIONS" active={view==='competitions'} onClick={() => { setView('competitions'); setIsMenuOpen(false); }} />
-               </div>
-
-               {profile.role === 'admin' && (
-                 <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
-                   <SidebarButton icon={<Settings className="w-5 h-5" />} label="ADMIN" active={view===('admin' as any)} onClick={() => { setView('admin' as any); setIsMenuOpen(false); }} />
-                 </div>
-               )}
-            </div>
-          </div>
-
-          <div className="p-3 mt-auto border-t border-white/10 shrink-0">
-            <button 
-              onClick={() => {
-                setIsMenuOpen(false);
-                _setView('home');
-                signOut(auth);
+        <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 bg-black/40">
+          {view === "home" ? (
+            <Home
+              profile={profile}
+              claimableAlerts={claimableAlerts}
+              onNavigate={(v) => {
+                setView(v);
+                setSelectedLeague(null);
+                setSelectedTeam(null);
+                setSelectedMatchId(null);
+                setSelectedFanzId(null);
+                setSelectedPlayer(null);
               }}
-              className="w-full flex items-center justify-center gap-2 p-2 bg-red-500/10 text-red-500 rounded-lg font-bold hover:bg-red-500/20 transition-colors text-xs uppercase"
-            >
-              <LogOut className="w-4 h-4" />
-              QUITTER
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-
-    {/* Active Action Modal */}
-    {showActiveActionModal && activeActionDetails && activeFanz && profile && (
-      <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
-        <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 w-full max-w-md overflow-hidden flex flex-col relative">
-          <button 
-            onClick={() => setShowActiveActionModal(false)} 
-            className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <div className="p-6">
-            <h3 className="text-xl font-black text-white uppercase italic mb-4 text-center">Action en cours</h3>
-            <p className="text-sm text-gray-400 text-center mb-6">Vous ne pouvez pas rejoindre ou créer un duel pendant qu'une action de vie est en cours.</p>
-            <LifeActionCard 
-              action={activeActionDetails} 
-              fanz={activeFanz} 
-              userProfile={profile} 
+              onMenuClick={() => {
+                console.log("Menu clicked from Home!");
+                setIsMenuOpen(true);
+              }}
+              onMatchClick={(id, tab = "summary") => {
+                setSelectedMatchId(id);
+                setSelectedMatchTab(
+                  tab as "summary" | "lineups" | "stats" | "duels",
+                );
+                setJoiningDuel(null); // Clear joining flow if clicking a match normally
+                setView("matches");
+              }}
+              onLeagueClick={(id, season) => {
+                setSelectedLeague({ id, season });
+                setView("competitions");
+              }}
+              onTeamClick={(id, season) => {
+                setSelectedTeam({ id, season });
+                setView("teams");
+              }}
+              onJoinDuel={(id, isLive) => {
+                handleDuelIntent(() => {
+                  setSelectedMatchId(id);
+                  setView("matches");
+                });
+              }}
+              onOpenStreak={() => setShowStreakModal(true)}
+              onFanzClick={(fanzId) => {
+                setSelectedFanzId(fanzId);
+                setView("fanz");
+              }}
             />
-          </div>
-        </div>
-      </div>
-    )}
+          ) : (
+            <div
+              className={cn(
+                "flex-1 flex flex-col overflow-hidden relative min-h-0 w-full shadow-2xl bg-[#0a0a0a]",
+                view !== "admin" &&
+                  "max-w-3xl mx-auto lg:border-x border-white/5",
+              )}
+            >
+              {profile && view !== "duel" && !isDuelActive && (
+                <Header
+                  profile={profile}
+                  variant={(view as string) === "home" ? "home" : "subpage"}
+                  onBackClick={
+                    (view as string) === "home" ? undefined : handleBack
+                  }
+                  onHomeClick={
+                    (view as string) === "home"
+                      ? undefined
+                      : () => {
+                          setView("home");
+                          setSelectedLeague(null);
+                          setSelectedTeam(null);
+                          setSelectedMatchId(null);
+                          setSelectedFanzId(null);
+                          setSelectedPlayer(null);
+                        }
+                  }
+                  onMenuClick={() => {
+                    console.log("Menu clicked from Header!");
+                    setIsMenuOpen(true);
+                  }}
+                  onTransactionsClick={() => {
+                    setView("transactions");
+                    setSelectedLeague(null);
+                    setSelectedTeam(null);
+                    setSelectedMatchId(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
+                  }}
+                  onFervorClick={() => {
+                    setView("fervor-path");
+                    setSelectedLeague(null);
+                    setSelectedTeam(null);
+                    setSelectedMatchId(null);
+                    setSelectedFanzId(null);
+                    setSelectedPlayer(null);
+                  }}
+                  unreadSocialCount={unreadSocialCount}
+                  hasClaimableFervorAlert={claimableAlerts.globalFervor}
+                />
+              )}
 
-    {renderFooter()}
-    </Layout>
+              <div
+                className={cn(
+                  "flex-1 overflow-y-auto pb-6",
+                  !selectedFanzId &&
+                    !selectedMatchId &&
+                    !selectedLeague &&
+                    !selectedTeam &&
+                    ![
+                      "matches",
+                      "fervor-path",
+                      "rankings",
+                      "social",
+                      "missions",
+                      "pass",
+                      "shop",
+                      "favorite-teams",
+                      "transactions",
+                    ].includes(view as string) &&
+                    "px-4 md:px-6 pt-4",
+                  (selectedFanzId ||
+                    selectedMatchId ||
+                    selectedLeague ||
+                    selectedTeam ||
+                    [
+                      "matches",
+                      "fervor-path",
+                      "rankings",
+                      "social",
+                      "missions",
+                      "pass",
+                      "shop",
+                      "favorite-teams",
+                      "transactions",
+                    ].includes(view as string)) &&
+                    "px-0",
+                )}
+              >
+                <div className="w-full h-full relative">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={
+                        view +
+                        (selectedMatchId || "") +
+                        (selectedTeam?.id || "") +
+                        (selectedLeague?.id || "") +
+                        (selectedFanzId || "")
+                      }
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="w-full min-h-full"
+                    >
+                      {selectedMatchId ? (
+                        <MatchDetails
+                          fixtureId={selectedMatchId}
+                          user={profile}
+                          initialTab={selectedMatchTab}
+                          initialDuelId={joiningDuel?.id}
+                          initialDuelType={joiningDuel?.type}
+                          onDuelStatusChange={setIsDuelActive}
+                          onDuelIntent={handleDuelIntent}
+                          onBack={() => {
+                            setSelectedMatchId(null);
+                            setSelectedMatchTab("summary");
+                            setJoiningDuel(null);
+                          }}
+                          onTeamClick={(id, season) => {
+                            setSelectedTeam({ id, season });
+                            setSelectedMatchId(null);
+                          }}
+                          onLeagueClick={(id, season) => {
+                            setSelectedLeague({ id, season });
+                            setSelectedMatchId(null);
+                          }}
+                          onPlayerClick={(id, season) => {
+                            setSelectedPlayer({ id, season });
+                            setSelectedMatchId(null);
+                          }}
+                          onFanzClick={(id) => {
+                            setSelectedMatchId(null);
+                            setSelectedFanzId(id);
+                          }}
+                        />
+                      ) : selectedPlayer ? (
+                        <PlayerDetails
+                          playerId={selectedPlayer.id}
+                          season={selectedPlayer.season}
+                          onBack={() => setSelectedPlayer(null)}
+                          onTeamClick={(id, season) =>
+                            setSelectedTeam({ id, season })
+                          }
+                          onLeagueClick={(id, season) =>
+                            setSelectedLeague({ id, season })
+                          }
+                        />
+                      ) : selectedTeam ? (
+                        <TeamDetails
+                          teamId={selectedTeam.id}
+                          season={selectedTeam.season}
+                          onBack={() => setSelectedTeam(null)}
+                          onLeagueClick={(id, season) =>
+                            setSelectedLeague({ id, season })
+                          }
+                          onTeamClick={(id, season) =>
+                            setSelectedTeam({ id, season })
+                          }
+                          onPlayerClick={(id, season) =>
+                            setSelectedPlayer({ id, season })
+                          }
+                          onMatchClick={(id, tab = "summary") => {
+                            setSelectedMatchId(id);
+                            setSelectedMatchTab(
+                              tab as "summary" | "lineups" | "stats" | "duels",
+                            );
+                            setView("matches");
+                          }}
+                          profile={profile}
+                        />
+                      ) : selectedLeague ? (
+                        <LeagueDetails
+                          leagueId={selectedLeague.id}
+                          season={selectedLeague.season}
+                          onBack={() => setSelectedLeague(null)}
+                          onTeamClick={(id, season) =>
+                            setSelectedTeam({ id, season })
+                          }
+                          onPlayerClick={(id, season) =>
+                            setSelectedPlayer({ id, season })
+                          }
+                          onMatchClick={(id, tab = "summary") => {
+                            setSelectedMatchId(id);
+                            setSelectedMatchTab(
+                              tab as "summary" | "lineups" | "stats" | "duels",
+                            );
+                            setView("matches");
+                          }}
+                        />
+                      ) : selectedFanzId ? (
+                        <FanzDetails
+                          fanzId={selectedFanzId}
+                          userProfile={profile}
+                          onBack={() => setSelectedFanzId(null)}
+                        />
+                      ) : view === "waiting-room" ? (
+                        <WaitingRoom
+                          user={profile}
+                          onBack={() => setView("home")}
+                          onJoinDuel={(id, type, matchId) => {
+                            handleDuelIntent(() => {
+                              setJoiningDuel({ id, type, matchId });
+                              setSelectedMatchId(matchId);
+                              setView("matches");
+                            });
+                          }}
+                          onMatchClick={(matchId) => {
+                            setSelectedMatchId(matchId);
+                            setSelectedMatchTab("summary");
+                            setView("matches");
+                          }}
+                        />
+                      ) : view === "mrfanz" ? (
+                        <MrFanzPage onBack={() => setView("home")} />
+                      ) : view === "admin" ? (
+                        <AdminZone />
+                      ) : view === "matches" ? (
+                        <MatchesPage
+                          profile={profile}
+                          onMatchClick={(id, tab = "summary") => {
+                            setSelectedMatchId(id);
+                            setSelectedMatchTab(tab);
+                          }}
+                          onJoinDuel={(id, isLive) => {
+                            handleDuelIntent(() => {
+                              setSelectedMatchId(id);
+                              setSelectedMatchTab("summary");
+                            });
+                          }}
+                          onTeamClick={(id, season) =>
+                            setSelectedTeam({ id, season })
+                          }
+                          onLeagueClick={(id, season) =>
+                            setSelectedLeague({ id, season })
+                          }
+                        />
+                      ) : view === "competitions" ? (
+                        <CompetitionsPage
+                          onLeagueClick={(id, season) =>
+                            setSelectedLeague({ id, season })
+                          }
+                          profile={profile}
+                        />
+                      ) : view === "teams" ? (
+                        <TeamsPage
+                          onTeamClick={(id, season) =>
+                            setSelectedTeam({ id, season })
+                          }
+                        />
+                      ) : view === "fanz" ? (
+                        <FanzPage
+                          userProfile={profile}
+                          onFanzClick={(id) => setSelectedFanzId(id)}
+                        />
+                      ) : view === "collection" ? (
+                        <CollectionPage user={profile} />
+                      ) : view === "transactions" ? (
+                        <TransactionsPage
+                          profile={profile}
+                          onBack={() => setView("home")}
+                        />
+                      ) : view === "social" ? (
+                        <SocialPage
+                          user={profile}
+                          onBack={() => setView("home")}
+                        />
+                      ) : view === "fervor-path" ? (
+                        <FervorPathPage
+                          profile={profile}
+                          onBack={() => setView("home")}
+                        />
+                      ) : view === "favorite-teams" ? (
+                        <FavoriteTeamsPage
+                          profile={profile}
+                          onBack={() => setView("home")}
+                          onTeamClick={(id, season) => {
+                            setSelectedTeam({ id, season });
+                            setView("teams");
+                          }}
+                        />
+                      ) : view === "leaderboard" ? (
+                        <LeaderboardPage />
+                      ) : view === "rankings" ? (
+                        <Rankings onBack={() => setView("home")} />
+                      ) : view === "shop" ? (
+                        <ShopPage
+                          profile={profile}
+                          onBack={() => setView("home")}
+                        />
+                      ) : view === "missions" ? (
+                        <MissionsPage
+                          profile={profile}
+                          onBack={() => setView("home")}
+                        />
+                      ) : view === "pass" ? (
+                        <PassPage
+                          profile={profile}
+                          onBack={() => setView("home")}
+                        />
+                      ) : view === "stats" ? (
+                        <StatsPage
+                          profile={profile}
+                          onBack={() => setView("home")}
+                        />
+                      ) : null}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showStreakModal && profile && (
+            <WeeklyStreakModal
+              profile={profile}
+              onClose={() => setShowStreakModal(false)}
+            />
+          )}
+        </div>
+
+        {/* Menu Modal */}
+        <AnimatePresence>
+          {isMenuOpen && profile && (
+            <motion.div
+              key="side-menu"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute inset-0 z-[100] bg-[#0a0a0a] flex flex-col"
+            >
+              <div className="p-3 shrink-0 flex items-center justify-between border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <img
+                    src="/img/logo2.png"
+                    alt="Logo"
+                    className="w-5 h-5 rounded"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <h2 className="text-sm font-black uppercase tracking-wider text-white">
+                    TheBestFan.Online
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsMenuOpen(false)}
+                  className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center border border-white/10"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar p-1">
+                <div className="flex flex-col gap-0.5">
+                  <SidebarButton
+                    icon={
+                      <div className="relative">
+                        <Star className="w-5 h-5" />
+                        {claimableAlerts.fanzFervor && (
+                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
+                        )}
+                      </div>
+                    }
+                    label="MES FANZ"
+                    active={view === "fanz"}
+                    onClick={() => {
+                      setView("fanz");
+                      setIsMenuOpen(false);
+                      setSelectedMatchId(null);
+                      setSelectedTeam(null);
+                      setSelectedLeague(null);
+                      setSelectedFanzId(null);
+                      setSelectedPlayer(null);
+                    }}
+                  />
+                  <SidebarButton
+                    icon={
+                      <div className="relative">
+                        <Layers className="w-5 h-5" />
+                        {hasFavoriteMatchToday && (
+                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
+                        )}
+                      </div>
+                    }
+                    label="MES EQUIPES"
+                    active={view === "favorite-teams"}
+                    onClick={() => {
+                      setView("favorite-teams");
+                      setIsMenuOpen(false);
+                      setSelectedMatchId(null);
+                      setSelectedTeam(null);
+                      setSelectedLeague(null);
+                      setSelectedFanzId(null);
+                      setSelectedPlayer(null);
+                    }}
+                  />
+                  <SidebarButton
+                    icon={<Database className="w-5 h-5" />}
+                    label="MON MUSÉE"
+                    active={view === "collection"}
+                    onClick={() => {
+                      setView("collection");
+                      setIsMenuOpen(false);
+                      setSelectedMatchId(null);
+                      setSelectedTeam(null);
+                      setSelectedLeague(null);
+                      setSelectedFanzId(null);
+                      setSelectedPlayer(null);
+                    }}
+                  />
+                  <SidebarButton
+                    icon={<PieChart className="w-5 h-5" />}
+                    label="MES STATS"
+                    active={view === "stats"}
+                    onClick={() => {
+                      setView("stats");
+                      setIsMenuOpen(false);
+                      setSelectedMatchId(null);
+                      setSelectedTeam(null);
+                      setSelectedLeague(null);
+                      setSelectedFanzId(null);
+                      setSelectedPlayer(null);
+                    }}
+                  />
+                  <SidebarButton
+                    icon={
+                      <div className="relative">
+                        <Swords className="w-5 h-5" />
+                        {waitingDuelsCount > 0 && (
+                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a] flex items-center justify-center text-[7px] font-black text-white">
+                            {waitingDuelsCount}
+                          </div>
+                        )}
+                      </div>
+                    }
+                    label="DUELS"
+                    active={view === "waiting-room"}
+                    onClick={() => {
+                      setView("waiting-room");
+                      setIsMenuOpen(false);
+                      setSelectedMatchId(null);
+                      setSelectedTeam(null);
+                      setSelectedLeague(null);
+                      setSelectedFanzId(null);
+                      setSelectedPlayer(null);
+                    }}
+                  />
+                  <SidebarButton
+                    icon={<BarChart2 className="w-5 h-5" />}
+                    label="RANK"
+                    active={view === "rankings"}
+                    onClick={() => {
+                      setView("rankings");
+                      setIsMenuOpen(false);
+                      setSelectedMatchId(null);
+                      setSelectedTeam(null);
+                      setSelectedLeague(null);
+                      setSelectedFanzId(null);
+                      setSelectedPlayer(null);
+                    }}
+                  />
+                  <SidebarButton
+                    icon={
+                      <div className="relative">
+                        <Users className="w-5 h-5" />
+                        {unreadSocialCount > 0 && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                        )}
+                      </div>
+                    }
+                    label="SOCIAL"
+                    active={view === "social"}
+                    onClick={() => {
+                      setView("social");
+                      setIsMenuOpen(false);
+                      setSelectedMatchId(null);
+                      setSelectedTeam(null);
+                      setSelectedLeague(null);
+                      setSelectedFanzId(null);
+                      setSelectedPlayer(null);
+                    }}
+                  />
+
+                  <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
+                    <SidebarButton
+                      icon={<Calendar className="w-5 h-5" />}
+                      label="SERIE HEBDO"
+                      active={false}
+                      onClick={() => {
+                        setShowStreakModal(true);
+                        setIsMenuOpen(false);
+                        setSelectedMatchId(null);
+                        setSelectedTeam(null);
+                        setSelectedLeague(null);
+                        setSelectedFanzId(null);
+                        setSelectedPlayer(null);
+                      }}
+                    />
+                    <SidebarButton
+                      icon={
+                        <div className="relative">
+                          <Briefcase className="w-5 h-5" />
+                          {claimableAlerts.globalFervor && (
+                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
+                          )}
+                        </div>
+                      }
+                      label="FERVEUR"
+                      active={view === "fervor-path"}
+                      onClick={() => {
+                        setView("fervor-path");
+                        setIsMenuOpen(false);
+                        setSelectedMatchId(null);
+                        setSelectedTeam(null);
+                        setSelectedLeague(null);
+                        setSelectedFanzId(null);
+                        setSelectedPlayer(null);
+                      }}
+                    />
+                    <SidebarButton
+                      icon={
+                        <div className="relative">
+                          <Target className="w-5 h-5" />
+                          {claimableAlerts.missions && (
+                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0a0a0a]" />
+                          )}
+                        </div>
+                      }
+                      label="MISSIONS"
+                      active={view === "missions"}
+                      onClick={() => {
+                        setView("missions");
+                        setIsMenuOpen(false);
+                        setSelectedMatchId(null);
+                        setSelectedTeam(null);
+                        setSelectedLeague(null);
+                        setSelectedFanzId(null);
+                        setSelectedPlayer(null);
+                      }}
+                    />
+                    <SidebarButton
+                      icon={<Sparkles className="w-5 h-5" />}
+                      label="PASS"
+                      active={view === "pass"}
+                      onClick={() => {
+                        setView("pass");
+                        setIsMenuOpen(false);
+                        setSelectedMatchId(null);
+                        setSelectedTeam(null);
+                        setSelectedLeague(null);
+                        setSelectedFanzId(null);
+                        setSelectedPlayer(null);
+                      }}
+                    />
+                    <SidebarButton
+                      icon={<Store className="w-5 h-5" />}
+                      label="BOUTIQUE"
+                      active={view === "shop"}
+                      onClick={() => {
+                        setView("shop");
+                        setIsMenuOpen(false);
+                        setSelectedMatchId(null);
+                        setSelectedTeam(null);
+                        setSelectedLeague(null);
+                        setSelectedFanzId(null);
+                        setSelectedPlayer(null);
+                      }}
+                    />
+                    <SidebarButton
+                      icon={
+                        <div className="w-5 h-5 flex items-center justify-center bg-orange-500/20 rounded-full border border-orange-500/30 overflow-hidden">
+                          <img
+                            src="https://thebestfan.online/img/public/mrfan/mrfan.png"
+                            className="w-4 h-4 object-contain"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        </div>
+                      }
+                      label="GUIDE MRFANZ"
+                      active={view === "mrfanz"}
+                      onClick={() => {
+                        setView("mrfanz");
+                        setIsMenuOpen(false);
+                        setSelectedMatchId(null);
+                        setSelectedTeam(null);
+                        setSelectedLeague(null);
+                        setSelectedFanzId(null);
+                        setSelectedPlayer(null);
+                      }}
+                    />
+                  </div>
+
+                  <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
+                    <SidebarButton
+                      icon={<Activity className="w-5 h-5" />}
+                      label="MATCHS DU JOUR"
+                      active={view === "matches"}
+                      onClick={() => {
+                        setView("matches");
+                        setIsMenuOpen(false);
+                        setSelectedMatchId(null);
+                        setSelectedTeam(null);
+                        setSelectedLeague(null);
+                        setSelectedFanzId(null);
+                        setSelectedPlayer(null);
+                      }}
+                    />
+                    <SidebarButton
+                      icon={<Globe className="w-5 h-5" />}
+                      label="COMPETITIONS"
+                      active={view === "competitions"}
+                      onClick={() => {
+                        setView("competitions");
+                        setIsMenuOpen(false);
+                        setSelectedMatchId(null);
+                        setSelectedTeam(null);
+                        setSelectedLeague(null);
+                        setSelectedFanzId(null);
+                        setSelectedPlayer(null);
+                      }}
+                    />
+                  </div>
+
+                  {profile.role === "admin" && (
+                    <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
+                      <SidebarButton
+                        icon={<Settings className="w-5 h-5" />}
+                        label="ADMIN"
+                        active={view === ("admin" as any)}
+                        onClick={() => {
+                          setView("admin" as any);
+                          setIsMenuOpen(false);
+                          setSelectedMatchId(null);
+                          setSelectedTeam(null);
+                          setSelectedLeague(null);
+                          setSelectedFanzId(null);
+                          setSelectedPlayer(null);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 mt-auto border-t border-white/10 shrink-0">
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    _setView("home");
+                    signOut(auth);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 p-2 bg-red-500/10 text-red-500 rounded-lg font-bold hover:bg-red-500/20 transition-colors text-xs uppercase"
+                >
+                  <LogOut className="w-4 h-4" />
+                  QUITTER
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Active Action Modal */}
+        {showActiveActionModal &&
+          activeActionDetails &&
+          activeFanz &&
+          profile && (
+            <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
+              <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 w-full max-w-md overflow-hidden flex flex-col relative">
+                <button
+                  onClick={() => setShowActiveActionModal(false)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-white z-10"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+                <div className="p-6">
+                  <h3 className="text-xl font-black text-white uppercase italic mb-4 text-center">
+                    Action en cours
+                  </h3>
+                  <p className="text-sm text-gray-400 text-center mb-6">
+                    Vous ne pouvez pas rejoindre ou créer un duel pendant qu'une
+                    action de vie est en cours.
+                  </p>
+                  <LifeActionCard
+                    action={activeActionDetails}
+                    fanz={activeFanz}
+                    userProfile={profile}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+        {renderFooter()}
+      </Layout>
     </>
   );
 }
 
-function SidebarButton({ active, onClick, icon, label, isDanger = false }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; isDanger?: boolean }) {
+function SidebarButton({
+  active,
+  onClick,
+  icon,
+  label,
+  isDanger = false,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  isDanger?: boolean;
+}) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={cn(
         "flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-2 lg:gap-4 p-3 lg:px-4 lg:py-3 rounded-xl transition-all font-black uppercase italic tracking-wider text-[10px] lg:text-sm w-full group",
-        active 
+        active
           ? "bg-orange-600 text-white shadow-lg shadow-orange-600/20"
-          : isDanger ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" : "text-gray-400 hover:text-white hover:bg-white/5"
+          : isDanger
+            ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+            : "text-gray-400 hover:text-white hover:bg-white/5",
       )}
     >
-      <div className={cn("w-6 h-6 flex items-center justify-center transition-transform", active ? "scale-110" : "group-hover:scale-110")}>
+      <div
+        className={cn(
+          "w-6 h-6 flex items-center justify-center transition-transform",
+          active ? "scale-110" : "group-hover:scale-110",
+        )}
+      >
         {icon}
       </div>
       <span className="truncate">{label}</span>
-      {active && <div className="absolute right-0 w-1 h-8 bg-white rounded-l-full hidden lg:block" />}
+      {active && (
+        <div className="absolute right-0 w-1 h-8 bg-white rounded-l-full hidden lg:block" />
+      )}
     </button>
   );
 }
 
-function MenuButton({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick: () => void }) {
+function MenuButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className="flex flex-col items-center justify-center gap-1.5 p-2 bg-[#1a1a1a] border border-white/5 rounded-xl hover:bg-white/10 hover:border-orange-500 transition-all group shrink-0"
     >
       <div className="w-8 h-8 bg-orange-500/10 text-orange-500 rounded-lg flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
         {icon}
       </div>
-      <span className="text-[10px] font-black uppercase tracking-tight text-center leading-none text-white truncate w-full">{label}</span>
+      <span className="text-[10px] font-black uppercase tracking-tight text-center leading-none text-white truncate w-full">
+        {label}
+      </span>
     </button>
   );
 }
 
-function NavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+function NavButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-bold uppercase italic text-xs tracking-wider ${
-        active 
-          ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' 
-          : 'text-gray-400 hover:text-white hover:bg-white/5'
+        active
+          ? "bg-orange-600 text-white shadow-lg shadow-orange-600/20"
+          : "text-gray-400 hover:text-white hover:bg-white/5"
       }`}
     >
       {icon}

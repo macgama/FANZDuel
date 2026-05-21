@@ -11,6 +11,8 @@ import { RewardSelector } from './RewardSelector';
 import { FanzSkinsTable, FanzEmotesTable, FanzFerveurTable } from './FanzItemsTable';
 import { AdminLifeActionRow } from './AdminLifeActionRow';
 import { AdminDuelCardRow } from './AdminDuelCardRow';
+import { AdminMissionsTable } from './AdminMissionsTable';
+import { AdminPassesTable } from './AdminPassesTable';
 import { BASE_CARDS } from '../constants/cards';
 import { ALL_FANZ } from '../constants/fanz';
 import { LOGOS } from '../constants';
@@ -35,6 +37,7 @@ export function AdminZone() {
   const [status, setStatus] = useState<{ type: 'info' | 'success' | 'error' | 'loading', message: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [leagueSort, setLeagueSort] = useState<{column: string, direction: 'asc'|'desc'}>({column: 'id', direction: 'asc'});
+  const [leagueActivationPrompt, setLeagueActivationPrompt] = useState<{ id: number, name: string } | null>(null);
 
   // Life Actions state
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
@@ -858,7 +861,6 @@ export function AdminZone() {
   };
 
   const handleDeleteStreakCycle = async (cycleId: string) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer ce cycle ?')) return;
     setLoading(true);
     try {
       await deleteDoc(doc(db, 'weekly_streak_cycles', cycleId));
@@ -1718,11 +1720,20 @@ export function AdminZone() {
   };
 
   const handleToggleCompetition = async (leagueId: number, currentStatus: boolean, leagueName: string) => {
+    if (!currentStatus) {
+      // Trying to activate -> open modal instead
+      setLeagueActivationPrompt({ id: leagueId, name: leagueName });
+      return;
+    }
+    // Deactivating
+    handleConfirmLeagueActivation(leagueId, leagueName, false, 'none');
+  };
+
+  const handleConfirmLeagueActivation = async (leagueId: number, leagueName: string, newStatus: boolean, createType: 'mission' | 'pass' | 'none') => {
+    setLeagueActivationPrompt(null);
     setLoading(true);
-    setStatus({ type: 'info', message: `${currentStatus ? 'Désactivation' : 'Activation'} de la compétition ${leagueName}...` });
+    setStatus({ type: 'info', message: `${newStatus ? 'Activation' : 'Désactivation'} de la compétition ${leagueName}...` });
     try {
-      const newStatus = !currentStatus;
-      
       const leagueRef = doc(db, 'leagues', leagueId.toString());
       await setDoc(leagueRef, { isActive: newStatus }, { merge: true });
       
@@ -1733,49 +1744,90 @@ export function AdminZone() {
         return l;
       }));
 
+      setStatus({ type: 'success', message: `Compétition ${leagueId} ${newStatus ? 'activée' : 'désactivée'}.` });
+      
       if (newStatus) {
-        const missionId = `mission-comp-${leagueId}`;
-        const passId = `pass-comp-${leagueId}`;
-        const batch = writeBatch(db);
+         if (createType === 'mission') {
+           setActiveTab('users');
+           setActiveUserSubTab('missions');
+           setEditingMission({
+             id: `mission-${Date.now()}`,
+             title: `Jouer dans ${leagueName}`,
+             description: `Fais 1 duel dans la compétition: ${leagueName}`,
+             type: 'duel_count',
+             target: 1,
+             reward: { type: 'money', amount: 100 },
+             isActive: true,
+             period: 'one_shot',
+             conditionType: 'league',
+             conditionValue: leagueId.toString(),
+           });
+         } else if (createType === 'pass') {
+           setActiveTab('users');
+           setActiveUserSubTab('passes');
+           setEditingPass({
+             id: `pass-${Date.now()}`,
+             name: `Pass ${leagueName}`,
+             description: `Gagne des points sur les matchs de ${leagueName}...`,
+             priceGems: 500,
+             startDate: new Date().toISOString(),
+             endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+             premiumPrice: { gems: 500 },
+             levels: Array.from({ length: 5 }, (_, i) => ({
+               level: i + 1,
+               pointsRequired: (i + 1) * 100,
+               freeReward: { type: 'money', amount: 50 },
+               premiumReward: { type: 'gems', amount: 20 }
+             })),
+             isActive: true,
+             conditionType: 'league',
+             conditionValue: leagueId.toString(),
+           });
+         }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setStatus({ type: 'error', message: `Erreur: ${err.message}` });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        // Mission
-        batch.set(doc(db, 'missions', missionId), {
-          id: missionId,
-          title: `Mission ${leagueName}`,
-          description: `Gagnez des matchs de la compétition ${leagueName}`,
-          type: 'duel',
-          target: 10,
-          reward: { type: 'money', amount: 500 },
-          isActive: true,
-          period: 'one_shot'
-        });
-
-        // Pass
-        batch.set(doc(db, 'passes', passId), {
-          id: passId,
-          name: `Pass ${leagueName}`,
-          description: `Récompenses exclusives pour la compétition ${leagueName}`,
-          imageUrl: '',
-          startDate: new Date().toISOString(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          levels: [
-            { level: 1, pointsRequired: 100, freeReward: { type: 'money', amount: 100 } },
-            { level: 2, pointsRequired: 200, freeReward: { type: 'gems', amount: 10 } }
-          ],
-          priceGems: 100,
-          isActive: true,
-          premiumPrice: { money: 1000 },
-          conditionType: 'league',
-          conditionValue: leagueId.toString()
-        });
-
+    const handleDisableAllLeagues = async () => {
+    // Disable all without prompt window.confirm since it's blocked in iframe
+    setLoading(true);
+    setStatus({ type: 'info', message: 'Désactivation de toutes les compétitions...' });
+    try {
+      // We will disable ALL leagues directly from Firestore to ensure everything is disabled
+      const leaguesSnap = await getDocs(collection(db, 'leagues'));
+      let batch = writeBatch(db);
+      let opsCount = 0;
+      let totalDisabled = 0;
+      
+      for (const docSnap of leaguesSnap.docs) {
+        if (docSnap.data().isActive === true) {
+          batch.update(docSnap.ref, { isActive: false });
+          opsCount++;
+          totalDisabled++;
+        }
+        
+        if (opsCount >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          opsCount = 0;
+        }
+      }
+      
+      if (opsCount > 0) {
         await batch.commit();
       }
-
-      setStatus({ type: 'success', message: `Compétition ${leagueName} ${newStatus ? 'activée' : 'désactivée'}.` });
-    } catch (err) {
-      console.error("Error toggling competition", err);
-      setStatus({ type: 'error', message: "Erreur lors de la mise à jour." });
+      
+      // Update local state
+      setLeagues(prev => prev.map(l => ({ ...l, league: { ...l.league, isActive: false } })));
+      setStatus({ type: 'success', message: `${totalDisabled} compétitions ont été désactivées avec succès.` });
+    } catch (error: any) {
+      console.error("Error in handleDisableAllLeagues:", error);
+      setStatus({ type: 'error', message: `Erreur: ${error.message}` });
     } finally {
       setLoading(false);
     }
@@ -1869,8 +1921,6 @@ export function AdminZone() {
   };
 
   const handleClearTransactions = async () => {
-    if (!window.confirm("Êtes-vous sûr de vouloir vider toutes les transactions ? Cette action est irréversible.")) return;
-    
     setLoading(true);
     setStatus({ type: 'info', message: 'Suppression des transactions...' });
     try {
@@ -2611,370 +2661,110 @@ export function AdminZone() {
           )}
 
           {activeUserSubTab === 'missions' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold">Système de Missions</h3>
-                <Button onClick={() => setEditingMission({
-                  id: `mission-${Date.now()}`,
-                  title: 'Nouvelle Mission',
-                  description: 'Description...',
-                  type: 'duel_count',
-                  target: 1,
-                  reward: { type: 'money', amount: 100 },
-                  isActive: true,
-                  period: 'daily'
-                })}>
-                  <Plus className="w-4 h-4 mr-2" /> Nouvelle Mission
-                </Button>
-              </div>
-
-              {editingMission && (
-                <Card className="p-6">
-                  <form onSubmit={handleSaveMission} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Titre</label>
-                        <input
-                          type="text"
-                          value={editingMission.title}
-                          onChange={e => setEditingMission({...editingMission, title: e.target.value})}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Type</label>
-                        <select
-                          value={editingMission.type}
-                          onChange={e => setEditingMission({...editingMission, type: e.target.value as any})}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="duel_count">Nombre de Duels</option>
-                          <option value="win_count">Nombre de Victoires</option>
-                          <option value="fanz_duel">Duel avec chaque FANZ</option>
-                          <option value="life_action">Actions LIFE réalisées</option>
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Périodicité</label>
-                        <select
-                          value={editingMission.period || 'daily'}
-                          onChange={e => setEditingMission({...editingMission, period: e.target.value as any})}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="daily">Quotidienne</option>
-                          <option value="weekly">Hebdomadaire</option>
-                          <option value="one_shot">Unique (One Shot)</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Condition Cible (Optionnel)</label>
-                        <select
-                          value={editingMission.conditionType || 'global'}
-                          onChange={e => setEditingMission({...editingMission, conditionType: e.target.value as any})}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="global">Général</option>
-                          <option value="country">Lié à un Pays</option>
-                          <option value="team">Lié à une Équipe</option>
-                          <option value="league">Lié à une Compétition</option>
-                          <option value="season">Lié à une Saison</option>
-                          <option value="fanz">Lié à un FANZ</option>
-                          <option value="skin">Lié à un type de Skin</option>
-                          <option value="card">Lié à une Carte Duel</option>
-                        </select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">ID / Valeur Cible</label>
-                        <input
-                          type="text"
-                          value={editingMission.conditionValue || ''}
-                          onChange={e => setEditingMission({...editingMission, conditionValue: e.target.value})}
-                          placeholder={editingMission.conditionType === 'team' ? 'ID equipe (ex: 85)' : 'Valeur...'}
-                          disabled={!editingMission.conditionType || editingMission.conditionType === 'global'}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 disabled:opacity-50"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Cible (Nombre répétitions)</label>
-                        <input
-                          type="number"
-                          value={editingMission.target}
-                          onChange={e => setEditingMission({...editingMission, target: Number(e.target.value)})}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <label className="text-sm font-medium text-gray-300">Récompense</label>
-                        <RewardSelector
-                          reward={editingMission.reward}
-                          onChange={reward => setEditingMission({ ...editingMission, reward })}
-                          fanzTemplates={fanzTemplates}
-                          lifeActions={lifeActions}
-                          duelCards={duelCards}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-3">
-                      <Button type="button" variant="outline" onClick={() => setEditingMission(null)}>Annuler</Button>
-                      <Button type="submit">Sauvegarder</Button>
-                    </div>
-                  </form>
-                </Card>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {missions.map(mission => (
-                  <Card key={mission.id} className="p-4 hover:border-blue-500 cursor-pointer bg-gray-900/40" onClick={() => setEditingMission(mission)}>
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-white">{mission.title}</h4>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${mission.isActive ? 'bg-green-900/30 text-green-400 border border-green-900' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
-                          {mission.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-900">
-                          {mission.period === 'weekly' ? 'Hebdo' : mission.period === 'one_shot' ? 'Unique' : 'Quotidienne'}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400 mb-3">{mission.description}</p>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-blue-400">Objectif: {mission.target}</span>
-                      <span className="font-bold text-orange-400">+{mission.reward.amount} {mission.reward.type}</span>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
+            <AdminMissionsTable 
+              missions={missions} 
+              onRefresh={fetchMissions} 
+            />
           )}
 
           {activeUserSubTab === 'passes' && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold">Système de Passes (Saisonniers)</h3>
-                <div className="flex gap-2">
-                  <Button onClick={() => setEditingPass({
-                    id: `pass-${Date.now()}`,
-                    name: 'Nouveau Pass',
-                    description: 'Description...',
-                    priceGems: 500,
-                    startDate: new Date().toISOString(),
-                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                    premiumPrice: { gems: 500 },
-                    levels: Array.from({ length: 5 }, (_, i) => ({
-                      level: i + 1,
-                      pointsRequired: (i + 1) * 100,
-                      freeReward: { type: 'money', amount: 50 },
-                      premiumReward: { type: 'gems', amount: 20 }
-                    })),
-                    isActive: true
-                  })}>
-                    <Plus className="w-4 h-4 mr-2" /> Nouveau Pass
-                  </Button>
-                </div>
-              </div>
-
               {editingPass && (
-                <Card className="p-6">
-                  <form onSubmit={handleSavePass} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Nom du Pass</label>
-                        <input
-                          type="text"
-                          value={editingPass.name}
-                          onChange={e => setEditingPass({...editingPass, name: e.target.value})}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Prix Premium (Argent)</label>
-                        <input
-                          type="number"
-                          value={editingPass.premiumPrice?.money || 0}
-                          onChange={e => setEditingPass({
-                            ...editingPass, 
-                            premiumPrice: { ...editingPass.premiumPrice, money: Number(e.target.value) }
-                          })}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Prix Premium (Gemmes)</label>
-                        <input
-                          type="number"
-                          value={editingPass.premiumPrice?.gems || 0}
-                          onChange={e => setEditingPass({
-                            ...editingPass, 
-                            priceGems: Number(e.target.value),
-                            premiumPrice: { ...editingPass.premiumPrice, gems: Number(e.target.value) }
-                          })}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Condition du Pass</label>
-                        <select
-                          value={editingPass.conditionType || 'global'}
-                          onChange={e => setEditingPass({...editingPass, conditionType: e.target.value as any})}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700"
-                        >
-                          <option value="global">Général (tous les duels)</option>
-                          <option value="country">Lié à un Pays</option>
-                          <option value="team">Lié à une Équipe</option>
-                          <option value="league">Lié à une Compétition</option>
-                          <option value="season">Lié à une Saison</option>
-                          <option value="fanz">Lié à un FANZ</option>
-                          <option value="skin">Lié à un type de Skin</option>
-                          <option value="card">Lié à une Carte Duel</option>
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Saison (Optionnelle)</label>
-                        <input
-                          type="text"
-                          value={editingPass.conditionSeason || ''}
-                          onChange={e => setEditingPass({...editingPass, conditionSeason: e.target.value})}
-                          placeholder="Ex: 2026"
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Valeur de la condition (ID / Nom)</label>
-                        <input
-                          type="text"
-                          value={editingPass.conditionValue || ''}
-                          onChange={e => setEditingPass({...editingPass, conditionValue: e.target.value})}
-                          placeholder={editingPass.conditionType === 'team' ? 'ID equipe (ex: 85)' : 'Valeur...'}
-                          disabled={!editingPass.conditionType || editingPass.conditionType === 'global'}
-                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 disabled:opacity-50"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 mt-4">
-                      <label className="text-sm font-medium text-gray-300">Description du Pass</label>
-                      <textarea
-                        value={editingPass.description || ''}
-                        onChange={e => setEditingPass({...editingPass, description: e.target.value})}
-                        className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 min-h-[80px]"
-                        placeholder="Description affichée aux joueurs..."
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="font-bold text-sm border-b border-gray-800 pb-2 text-white">Niveaux & Récompenses</h4>
-                      <div className="space-y-4">
-                        {(editingPass.levels || []).map((lvl, idx) => (
-                          <div key={idx} className="grid grid-cols-1 md:grid-cols-[100px_1fr_1fr_auto] gap-4 items-end p-4 bg-gray-900/50 rounded-lg border border-gray-800">
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-bold text-gray-500">NIVEAU {lvl.level}</label>
-                              <input
-                                type="number"
-                                value={lvl.pointsRequired}
-                                onChange={e => {
-                                  const newLevels = [...(editingPass.levels || [])];
-                                  newLevels[idx] = { ...lvl, pointsRequired: Number(e.target.value) };
+                <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
+                    <Card className="p-6 relative max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10 shadow-2xl">
+                      <Button variant="outline" size="sm" className="absolute top-4 right-4" onClick={() => setEditingPass(null)}>Fermer</Button>
+                      <h3 className="text-xl font-bold mb-4">Éditer les niveaux : {editingPass.name}</h3>
+                      <form onSubmit={(e) => { e.preventDefault(); handleSavePass(e as any); }} className="space-y-6">
+                        <div className="space-y-4">
+                          <h4 className="font-bold text-sm border-b border-gray-800 pb-2 text-white">Niveaux & Récompenses</h4>
+                          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                            {(editingPass.levels || []).map((lvl, idx) => (
+                              <div key={idx} className="grid grid-cols-1 md:grid-cols-[100px_1fr_1fr_auto] gap-4 items-end p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-bold text-gray-500">NIVEAU {lvl.level}</label>
+                                  <input
+                                    type="number"
+                                    value={lvl.pointsRequired}
+                                    onChange={e => {
+                                      const newLevels = [...(editingPass.levels || [])];
+                                      newLevels[idx] = { ...lvl, pointsRequired: Number(e.target.value) };
+                                      setEditingPass({ ...editingPass, levels: newLevels });
+                                    }}
+                                    className="w-full p-2 bg-black text-white rounded border border-gray-600 text-sm"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-bold text-gray-500">RECOMPENSE GRATUITE</label>
+                                  <RewardSelector
+                                    reward={lvl.freeReward}
+                                    onChange={reward => {
+                                      const newLevels = [...editingPass.levels];
+                                      newLevels[idx] = { ...lvl, freeReward: reward };
+                                      setEditingPass({ ...editingPass, levels: newLevels });
+                                    }}
+                                    fanzTemplates={fanzTemplates}
+                                    lifeActions={lifeActions}
+                                    duelCards={duelCards}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-bold text-gray-500">RECOMPENSE PREMIUM</label>
+                                  <RewardSelector
+                                    reward={lvl.premiumReward}
+                                    onChange={reward => {
+                                      const newLevels = [...editingPass.levels];
+                                      newLevels[idx] = { ...lvl, premiumReward: reward };
+                                      setEditingPass({ ...editingPass, levels: newLevels });
+                                    }}
+                                    fanzTemplates={fanzTemplates}
+                                    lifeActions={lifeActions}
+                                    duelCards={duelCards}
+                                  />
+                                </div>
+                                <Button type="button" variant="outline" size="sm" className="text-red-400 border-red-900 hover:bg-red-900/30 hover:text-white" onClick={() => {
+                                  let newLevels = (editingPass.levels || []).filter((_, i) => i !== idx);
+                                  newLevels = newLevels.map((l, i) => ({ ...l, level: i + 1 }));
                                   setEditingPass({ ...editingPass, levels: newLevels });
-                                }}
-                                className="w-full p-2 bg-gray-800 text-white rounded border border-gray-700 text-sm"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-bold text-gray-500">RECOMPENSE GRATUITE</label>
-                              <RewardSelector
-                                reward={lvl.freeReward}
-                                onChange={reward => {
-                                  const newLevels = [...editingPass.levels];
-                                  newLevels[idx] = { ...lvl, freeReward: reward };
-                                  setEditingPass({ ...editingPass, levels: newLevels });
-                                }}
-                                fanzTemplates={fanzTemplates}
-                                lifeActions={lifeActions}
-                                duelCards={duelCards}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-bold text-gray-500">RECOMPENSE PREMIUM</label>
-                              <RewardSelector
-                                reward={lvl.premiumReward}
-                                onChange={reward => {
-                                  const newLevels = [...editingPass.levels];
-                                  newLevels[idx] = { ...lvl, premiumReward: reward };
-                                  setEditingPass({ ...editingPass, levels: newLevels });
-                                }}
-                                fanzTemplates={fanzTemplates}
-                                lifeActions={lifeActions}
-                                duelCards={duelCards}
-                              />
-                            </div>
-                            <Button type="button" variant="outline" size="sm" className="text-red-400 border-red-900 hover:bg-red-900/30 hover:text-white" onClick={() => {
-                              let newLevels = (editingPass.levels || []).filter((_, i) => i !== idx);
-                              newLevels = newLevels.map((l, i) => ({ ...l, level: i + 1 }));
-                              setEditingPass({ ...editingPass, levels: newLevels });
+                                }}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => {
+                              let nextLevelNum = 1;
+                              if ((editingPass.levels || []).length > 0) {
+                                nextLevelNum = Math.max(...(editingPass.levels || []).map(l => l.level)) + 1;
+                              }
+                              const lastPoints = (editingPass.levels || [])[(editingPass.levels || []).length - 1]?.pointsRequired || 0;
+                              setEditingPass({
+                                ...editingPass,
+                                levels: [...(editingPass.levels || []), {
+                                  level: nextLevelNum,
+                                  pointsRequired: lastPoints + 100,
+                                  freeReward: { type: 'money', amount: 50 },
+                                  premiumReward: { type: 'gems', amount: 20 }
+                                }]
+                              });
                             }}>
-                              <Trash2 className="w-4 h-4" />
+                              <Plus className="w-4 h-4 mr-2" /> Ajouter un Niveau
                             </Button>
                           </div>
-                        ))}
-                        <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => {
-                          let nextLevelNum = 1;
-                          if ((editingPass.levels || []).length > 0) {
-                            nextLevelNum = Math.max(...(editingPass.levels || []).map(l => l.level)) + 1;
-                          }
-                          const lastPoints = (editingPass.levels || [])[(editingPass.levels || []).length - 1]?.pointsRequired || 0;
-                          setEditingPass({
-                            ...editingPass,
-                            levels: [...(editingPass.levels || []), {
-                              level: nextLevelNum,
-                              pointsRequired: lastPoints + 100,
-                              freeReward: { type: 'money', amount: 50 },
-                              premiumReward: { type: 'gems', amount: 20 }
-                            }]
-                          });
-                        }}>
-                          <Plus className="w-4 h-4 mr-2" /> Ajouter un Niveau
-                        </Button>
-                      </div>
-                    </div>
+                        </div>
 
-                    <div className="flex justify-end gap-3">
-                      <Button type="button" variant="outline" onClick={() => setEditingPass(null)}>Annuler</Button>
-                      <Button type="submit">Sauvegarder</Button>
-                    </div>
-                  </form>
-                </Card>
+                        <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                          <Button type="button" variant="outline" onClick={() => setEditingPass(null)}>Annuler</Button>
+                          <Button type="submit">Sauvegarder les Niveaux</Button>
+                        </div>
+                      </form>
+                    </Card>
+                </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {passes.map(pass => (
-                  <Card key={pass.id} className="p-4 hover:border-blue-500 cursor-pointer bg-gray-900/40" onClick={() => setEditingPass(pass)}>
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-white">{pass.name}</h4>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${pass.isActive ? 'bg-green-900/30 text-green-400 border border-green-900' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
-                        {pass.isActive ? 'Actif' : 'Inactif'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs mt-4">
-                      <span className="text-gray-400">{pass.levels.length} Niveaux</span>
-                      <span className="font-bold text-purple-400">
-                        {pass.premiumPrice?.money ? `${pass.premiumPrice.money} 💰 ` : ''}
-                        {pass.premiumPrice?.gems ? `${pass.premiumPrice.gems} 💎` : ''}
-                        {!pass.premiumPrice?.money && !pass.premiumPrice?.gems && `${pass.priceGems} 💎`}
-                      </span>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+              <AdminPassesTable 
+                passes={passes} 
+                onRefresh={fetchPasses} 
+                onEditFull={setEditingPass}
+              />
             </div>
           )}
         </div>
@@ -3209,7 +2999,32 @@ export function AdminZone() {
         </Card>
       )}
 
-      {activeTab === 'football' && (
+      
+      {leagueActivationPrompt && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+          <Card className="p-6 max-w-md w-full bg-gray-900 border-white/10 shadow-2xl relative space-y-6">
+            <h3 className="text-xl font-bold">Activer la compétition</h3>
+            <p className="text-gray-400">
+              Vous êtes sur le point d'activer <strong className="text-white">{leagueActivationPrompt.name}</strong>. Que souhaitez-vous créer avec cette compétition ?
+            </p>
+            <div className="space-y-3">
+              <Button className="w-full text-left justify-start font-bold border-blue-500/30 text-blue-400 hover:bg-blue-500/10" variant="outline" onClick={() => handleConfirmLeagueActivation(leagueActivationPrompt.id, leagueActivationPrompt.name, true, 'mission')}>
+                Créer une nouvelle MISSION liée
+              </Button>
+              <Button className="w-full text-left justify-start font-bold border-purple-500/30 text-purple-400 hover:bg-purple-500/10" variant="outline" onClick={() => handleConfirmLeagueActivation(leagueActivationPrompt.id, leagueActivationPrompt.name, true, 'pass')}>
+                Créer un nouveau PASS lié
+              </Button>
+              <Button className="w-full text-left justify-start bg-gray-800 hover:bg-gray-700 text-white border-transparent" variant="outline" onClick={() => handleConfirmLeagueActivation(leagueActivationPrompt.id, leagueActivationPrompt.name, true, 'none')}>
+                Rien, juste rendre visible
+              </Button>
+            </div>
+            <div className="flex justify-end pt-4 border-t border-white/10">
+              <Button variant="outline" onClick={() => setLeagueActivationPrompt(null)}>Annuler</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+{activeTab === 'football' && (
       <Card className="p-6 space-y-6">
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-2">
@@ -3244,6 +3059,15 @@ export function AdminZone() {
             {manualLeagueId ? 'Importer cet ID' : 'Actualiser la liste'}
           </Button>
 
+          
+          <Button
+            onClick={handleDisableAllLeagues}
+            disabled={loading}
+            className="flex items-center gap-2"
+            variant="outline"
+          >
+            Désactiver toutes
+          </Button>
           <Button
             onClick={handleActivateOngoingLeagues}
             disabled={loading}

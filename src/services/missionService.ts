@@ -2,10 +2,18 @@ import { db } from '../firebase';
 import { collection, getDocs, doc, updateDoc, increment, getDoc } from 'firebase/firestore';
 import { Mission, UserProfile } from '../types';
 
+export interface MissionProgressionContext {
+  teamId?: string;
+  leagueId?: string;
+  season?: string;
+  country?: string;
+}
+
 export const progressMission = async (
   userProfile: UserProfile,
   missionType: Mission['type'],
-  amount: number = 1
+  amount: number = 1,
+  context?: MissionProgressionContext
 ) => {
   if (!userProfile?.uid) return;
 
@@ -33,14 +41,40 @@ export const progressMission = async (
       const isAlreadyCompleted = freshUserData.missionsProgress?.[mission.id]?.isCompleted || false;
 
       if (!isAlreadyCompleted) {
-        const newValue = currentProgress + amount;
-        updates[`missionsProgress.${mission.id}.currentValue`] = increment(amount);
-        updates[`missionsProgress.${mission.id}.missionId`] = mission.id;
-        
-        if (newValue >= mission.target) {
-          updates[`missionsProgress.${mission.id}.isCompleted`] = true;
+        let matchesCondition = true;
+        const cType = mission.conditionType;
+        const cVal = mission.conditionValue?.toString();
+
+        if (cType && cType !== 'global') {
+          if (cType === 'league' && context?.leagueId && cVal !== context.leagueId) {
+            matchesCondition = false;
+          } else if (cType === 'team' && context?.teamId && cVal !== context.teamId) {
+            matchesCondition = false;
+          } else if (cType === 'season' && context?.season && cVal !== context.season && mission.conditionSeason !== context.season) {
+            matchesCondition = false;
+          } else if (cType === 'country' && context?.country && cVal !== context.country) {
+            matchesCondition = false;
+          }
         }
-        hasUpdates = true;
+
+        if (matchesCondition && mission.conditionSeason && mission.conditionSeason !== '' && context?.season && mission.conditionSeason !== context.season) {
+            matchesCondition = false;
+        }
+
+        if (matchesCondition && mission.conditionLeague && mission.conditionLeague !== '' && context?.leagueId && mission.conditionLeague !== context.leagueId) {
+            matchesCondition = false;
+        }
+
+        if (matchesCondition) {
+          const newValue = currentProgress + amount;
+          updates[`missionsProgress.${mission.id}.currentValue`] = increment(amount);
+          updates[`missionsProgress.${mission.id}.missionId`] = mission.id;
+          
+          if (newValue >= mission.target) {
+            updates[`missionsProgress.${mission.id}.isCompleted`] = true;
+          }
+          hasUpdates = true;
+        }
       }
     }
 

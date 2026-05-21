@@ -162,6 +162,16 @@ export const footballApi = {
     return data.response;
   },
 
+  async getPlayerDetails(playerId: number, season: number) {
+    const data = await fetchApi(`${BASE_URL}players?id=${playerId}&season=${season}`);
+    return data.response;
+  },
+
+  async getPlayerTeams(playerId: number) {
+    const data = await fetchApi(`${BASE_URL}players/teams?player=${playerId}`);
+    return data.response;
+  },
+
   async getPlayers(teamId: number, season: number, leagueId?: number) {
     let allPlayers: any[] = [];
     let page = 1;

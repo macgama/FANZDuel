@@ -18,6 +18,7 @@ export default defineConfig(({mode}) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api/],
+          maximumFileSizeToCacheInBytes: 5000000,
         },
         manifest: {
           id: '/',

@@ -107,7 +107,6 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
   };
 
   const handleDeleteLeague = async (id: number) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette compétition?")) return;
     try {
       await deleteDoc(doc(db, 'leagues', id.toString()));
       fetchLeagues(true);
