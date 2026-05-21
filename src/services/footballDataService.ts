@@ -70,7 +70,7 @@ export const footballDataService = {
           return snapshot.docs.map(d => {
             const data = d.data();
             return {
-              league: { id: data.id, name: data.name, type: data.type, logo: data.logo },
+              league: { id: data.id, name: data.name, type: data.type, logo: data.logo, isActive: data.isActive || false },
               country: { name: data.country, code: data.countryCode, flag: data.countryFlag },
               seasons: [{ year: data.season, current: true }] // Simplified
             };
@@ -96,7 +96,7 @@ export const footballDataService = {
               countryCode: l.country.code,
               countryFlag: l.country.flag,
               season: l.seasons?.sort((a: any, b: any) => b.year - a.year)[0]?.year || this.getCurrentSeasonYear()
-            });
+            }, { merge: true });
           });
           await batch.commit();
           await new Promise(resolve => setTimeout(resolve, 250));

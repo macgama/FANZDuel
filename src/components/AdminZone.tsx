@@ -4,7 +4,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where, getDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
 import { Card, Button } from './Layout';
 import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle, DuelConfig, FanzSkin, PassLevel } from '../types';
-import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog, List, LayoutGrid, ChevronUp, ChevronDown } from 'lucide-react';
+import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog, List, LayoutGrid, ChevronUp, ChevronDown, Copy } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { generateFervorPath } from '../utils/fervorPath';
 import { RewardSelector } from './RewardSelector';
@@ -1603,7 +1603,7 @@ export function AdminZone() {
           countryCode: item.country.code,
           countryFlag: item.country.flag,
           season: selectedSeason
-        });
+        }, { merge: true });
       }
       await batch.commit();
       setStatus({ type: 'success', message: `${data.length} compétition(s) importée(s) avec succès !` });
@@ -1690,6 +1690,70 @@ export function AdminZone() {
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `leagues/${leagueId}`);
       setStatus({ type: 'error', message: `Erreur lors de l'importation de la compétition ${leagueId}.` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleCompetition = async (leagueId: number, currentStatus: boolean, leagueName: string) => {
+    setLoading(true);
+    setStatus({ type: 'info', message: `${currentStatus ? 'Désactivation' : 'Activation'} de la compétition ${leagueName}...` });
+    try {
+      const newStatus = !currentStatus;
+      
+      const leagueRef = doc(db, 'leagues', leagueId.toString());
+      await setDoc(leagueRef, { isActive: newStatus }, { merge: true });
+      
+      setLeagues(prev => prev.map(l => {
+        if (l.league.id === leagueId) {
+          return { ...l, league: { ...l.league, isActive: newStatus } };
+        }
+        return l;
+      }));
+
+      if (newStatus) {
+        const missionId = `mission-comp-${leagueId}`;
+        const passId = `pass-comp-${leagueId}`;
+        const batch = writeBatch(db);
+
+        // Mission
+        batch.set(doc(db, 'missions', missionId), {
+          id: missionId,
+          title: `Mission ${leagueName}`,
+          description: `Gagnez des matchs de la compétition ${leagueName}`,
+          type: 'duel',
+          target: 10,
+          reward: { type: 'money', amount: 500 },
+          isActive: true,
+          period: 'one_shot'
+        });
+
+        // Pass
+        batch.set(doc(db, 'passes', passId), {
+          id: passId,
+          name: `Pass ${leagueName}`,
+          description: `Récompenses exclusives pour la compétition ${leagueName}`,
+          imageUrl: '',
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          levels: [
+            { level: 1, pointsRequired: 100, freeReward: { type: 'money', amount: 100 } },
+            { level: 2, pointsRequired: 200, freeReward: { type: 'gems', amount: 10 } }
+          ],
+          priceGems: 100,
+          isActive: true,
+          premiumPrice: { money: 1000 },
+          conditionType: 'league',
+          conditionValue: leagueId.toString()
+        });
+
+        await batch.commit();
+      }
+
+      setStatus({ type: 'success', message: `Compétition ${leagueName} ${newStatus ? 'activée' : 'désactivée'}.` });
+    } catch (err) {
+      console.error("Error toggling competition", err);
+      setStatus({ type: 'error', message: "Erreur lors de la mise à jour." });
     } finally {
       setLoading(false);
     }
@@ -3030,14 +3094,26 @@ export function AdminZone() {
                   </div>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => handleImportFullLeague(item.league.id)}
-                disabled={loading}
-                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-2"
-              >
-                <Download className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleToggleCompetition(item.league.id, !!item.league.isActive, item.league.name)}
+                  disabled={loading}
+                  className={`px-3 py-2 ${item.league.isActive ? 'text-green-500 border-green-500 hover:bg-green-500/10' : 'text-gray-500 border-gray-500 hover:bg-gray-500/10'}`}
+                  title={item.league.isActive ? "Désactiver" : "Activer"}
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleImportFullLeague(item.league.id)}
+                  disabled={loading}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-2"
+                  title="Importer"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

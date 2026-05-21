@@ -8,7 +8,7 @@ import { SocketProvider } from './context/SocketContext';
 import { registerSW } from 'virtual:pwa-register';
 
 // Register the PWA service worker
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   registerSW({ immediate: true });
 }
 

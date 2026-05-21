@@ -483,7 +483,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
                 <button 
                   onClick={() => setSelectedLeagueId(null)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors whitespace-nowrap min-w-0 flex-shrink-0 ${
-                    selectedLeagueId === null && activeTab !== 'standings'
+                    selectedLeagueId === null && (activeTab as string) !== 'standings'
                       ? 'bg-orange-500/10 border-orange-500 text-white' 
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                   }`}
@@ -496,7 +496,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
                   key={l.id}
                   onClick={() => setSelectedLeagueId(l.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors whitespace-nowrap min-w-0 flex-shrink-0 ${
-                    (selectedLeagueId === l.id) || (selectedLeagueId === null && effectiveLeagueId === l.id && activeTab === 'standings')
+                    (selectedLeagueId === l.id) || (selectedLeagueId === null && effectiveLeagueId === l.id && (activeTab as string) === 'standings')
                       ? 'bg-orange-500/10 border-orange-500 text-white' 
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                   }`}
