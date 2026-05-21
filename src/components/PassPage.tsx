@@ -342,7 +342,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
           </h1>
           <div className="flex gap-2">
             <Button
-              variant={activeTab === "active" ? "default" : "outline"}
+              variant={activeTab === "active" ? "primary" : "outline"}
               size="sm"
               onClick={() => setActiveTab("active")}
               className={`text-xs font-bold uppercase ${activeTab === "active" ? "bg-white text-black" : "border-white/10 text-gray-400"}`}
@@ -350,7 +350,7 @@ export function PassPage({ profile, onBack }: PassPageProps) {
               Actifs
             </Button>
             <Button
-              variant={activeTab === "archive" ? "default" : "outline"}
+              variant={activeTab === "archive" ? "primary" : "outline"}
               size="sm"
               onClick={() => setActiveTab("archive")}
               className={`text-xs font-bold uppercase ${activeTab === "archive" ? "bg-white text-black" : "border-white/10 text-gray-400"}`}

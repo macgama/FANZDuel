@@ -139,27 +139,7 @@ export function LandingPage() {
             animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             src={getImageUrl("/fanz/001/imageFanz001Skin000.png")}
-            className="absolute top-[15%] left-[5%] w-64 h-64 object-contain opacity-40 blur-[1px] drop-shadow-2xl"
-          />
-          <motion.video
-            autoPlay
-            loop
-            muted
-            playsInline
-            animate={{ y: [0, 20, 0], rotate: [0, -5, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            src={getOptimizedVideoUrl("/fanz/001/videoFanz001Skin000.mp4")}
-            className="absolute bottom-[20%] right-[5%] w-56 h-56 object-contain opacity-50 blur-[1px] -rotate-12 drop-shadow-2xl"
-          />
-          <motion.video
-            autoPlay
-            loop
-            muted
-            playsInline
-            animate={{ scale: [1, 1.1, 1], rotate: [12, 15, 12] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            src={getOptimizedVideoUrl("/fanz/001/videoFanz001Skin000Win.mp4")}
-            className="absolute top-[15%] right-[10%] w-48 h-48 object-contain opacity-40 drop-shadow-2xl"
+            className="absolute top-[15%] left-[5%] w-64 h-64 object-contain opacity-40 drop-shadow-2xl"
           />
         </div>
       </section>

@@ -10,7 +10,7 @@ import { Swords, ChevronLeft, EyeOff, Ghost, Minimize2, Move, ChevronUp, Shield,
 import { BASE_CARDS } from '../constants/cards';
 import { OptimizedMedia } from './OptimizedMedia';
 import { LOGOS } from '../constants';
-import { getImageUrl, getOptimizedVideoUrl } from '../lib/utils';
+import { getImageUrl, getOptimizedVideoUrl, safeLocalStorage } from '../lib/utils';
 import { audioManager } from '../lib/audio';
 import { useMediaViewer } from '../context/MediaViewerContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
@@ -598,7 +598,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   // Persistence: Store/Clear current duel
   useEffect(() => {
     if (duel.id) {
-      localStorage.setItem('tbfo_current_duel', JSON.stringify({
+      safeLocalStorage.setItem('tbfo_current_duel', JSON.stringify({
         id: duel.id,
         type: duel.type,
         matchId: parseInt(duel.matchId || '0')
@@ -608,12 +608,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
   const clearDuelPersistence = () => {
     console.log("[Duel] Clearing duel persistence");
-    localStorage.removeItem('tbfo_current_duel');
+    safeLocalStorage.removeItem('tbfo_current_duel');
   };
 
   const onExitHandler = (status?: string) => {
     if (status === 'background') {
-      localStorage.setItem('tbfo_background_duel', JSON.stringify({
+      safeLocalStorage.setItem('tbfo_background_duel', JSON.stringify({
         duelId: currentDuelIdRef.current,
         matchId: duel.matchId,
         type: duel.type,
@@ -621,7 +621,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       }));
     } else {
       clearDuelPersistence();
-      localStorage.removeItem('tbfo_background_duel');
+      safeLocalStorage.removeItem('tbfo_background_duel');
     }
     onExit();
   };
@@ -2578,12 +2578,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     <video src={getOptimizedVideoUrl(p.fanz.equippedSkinVideoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" data-viewer-ignore="true" />
                   ) : p.fanz?.videoUrl && p.fanz.videoUrl !== "undefined" && !user.dataSaver ? (
                     <video src={getOptimizedVideoUrl(p.fanz.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" data-viewer-ignore="true" />
+                  ) : p.photoURL && p.photoURL !== "undefined" && !p.photoURL.includes('imageFanz001Skin000') ? (
+                     <img src={getImageUrl(p.photoURL)} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover" />
                   ) : p.fanz?.equippedSkinUrl && p.fanz.equippedSkinUrl !== "undefined" ? (
                      <img src={getImageUrl(p.fanz.equippedSkinUrl)} className="absolute inset-0 w-full h-full object-cover" />
                   ) : p.fanz?.imageUrl && p.fanz.imageUrl !== "undefined" ? (
                      <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover" />
                   ) : p.photoURL && p.photoURL !== "undefined" ? (
-                     <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover" />
+                     <img src={getImageUrl(p.photoURL)} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover" />
                   ) : null}
                 </div>
               ))}
@@ -2601,12 +2603,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     <video src={getOptimizedVideoUrl(p.fanz.equippedSkinVideoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" data-viewer-ignore="true" />
                   ) : p.fanz?.videoUrl && p.fanz.videoUrl !== "undefined" && !user.dataSaver ? (
                     <video src={getOptimizedVideoUrl(p.fanz.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" data-viewer-ignore="true" />
+                  ) : p.photoURL && p.photoURL !== "undefined" && !p.photoURL.includes('imageFanz001Skin000') ? (
+                     <img src={getImageUrl(p.photoURL)} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
                   ) : p.fanz?.equippedSkinUrl && p.fanz.equippedSkinUrl !== "undefined" ? (
                      <img src={getImageUrl(p.fanz.equippedSkinUrl)} className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
                   ) : p.fanz?.imageUrl && p.fanz.imageUrl !== "undefined" ? (
                      <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
                   ) : p.photoURL && p.photoURL !== "undefined" ? (
-                     <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover" />
+                     <img src={getImageUrl(p.photoURL)} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
                   ) : null}
                 </div>
               ))}
@@ -2752,7 +2756,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       >
                         {p ? (
                           <>
-                            {p.fanz?.equippedSkinVideoUrl && p.fanz.equippedSkinVideoUrl !== "undefined" && !user.dataSaver ? (
+                            {p.photoURL && p.photoURL !== "undefined" && !p.photoURL.includes('imageFanz001Skin000') ? (
+                               <img src={getImageUrl(p.photoURL)} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0" />
+                            ) : p.fanz?.equippedSkinVideoUrl && p.fanz.equippedSkinVideoUrl !== "undefined" && !user.dataSaver ? (
                               <video src={getOptimizedVideoUrl(p.fanz.equippedSkinVideoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0" data-viewer-ignore="true" />
                             ) : p.fanz?.videoUrl && p.fanz.videoUrl !== "undefined" && !user.dataSaver ? (
                                <video src={getOptimizedVideoUrl(p.fanz.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0" data-viewer-ignore="true" />
@@ -2761,7 +2767,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                             ) : p.fanz?.imageUrl && p.fanz.imageUrl !== "undefined" ? (
                                <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover z-0" />
                             ) : p.photoURL && p.photoURL !== "undefined" && (
-                               <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0" />
+                               <img src={getImageUrl(p.photoURL)} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0" />
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-0" />
                             
@@ -2799,16 +2805,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       >
                         {p ? (
                           <>
-                            {p.fanz?.equippedSkinVideoUrl && p.fanz.equippedSkinVideoUrl !== "undefined" && !user.dataSaver ? (
+                            {p.photoURL && p.photoURL !== "undefined" && !p.photoURL.includes('imageFanz001Skin000') ? (
+                               <img src={getImageUrl(p.photoURL)} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0 scale-x-[-1]" />
+                            ) : p.fanz?.equippedSkinVideoUrl && p.fanz.equippedSkinVideoUrl !== "undefined" && !user.dataSaver ? (
                               <video src={getOptimizedVideoUrl(p.fanz.equippedSkinVideoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 scale-x-[-1]" data-viewer-ignore="true" />
                             ) : p.fanz?.videoUrl && p.fanz.videoUrl !== "undefined" && !user.dataSaver ? (
                                <video src={getOptimizedVideoUrl(p.fanz.videoUrl)} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 scale-x-[-1]" data-viewer-ignore="true" />
                             ) : p.fanz?.equippedSkinUrl && p.fanz.equippedSkinUrl !== "undefined" ? (
-                               <img src={getImageUrl(p.fanz.equippedSkinUrl)} className="absolute inset-0 w-full h-full object-cover z-0" />
+                               <img src={getImageUrl(p.fanz.equippedSkinUrl)} className="absolute inset-0 w-full h-full object-cover z-0 scale-x-[-1]" />
                             ) : p.fanz?.imageUrl && p.fanz.imageUrl !== "undefined" ? (
-                               <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover z-0" />
+                               <img src={getImageUrl(p.fanz.imageUrl)} className="absolute inset-0 w-full h-full object-cover z-0 scale-x-[-1]" />
                             ) : p.photoURL && p.photoURL !== "undefined" && (
-                               <img src={p.photoURL} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0" />
+                               <img src={getImageUrl(p.photoURL)} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover z-0 scale-x-[-1]" />
                             )}
                             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent z-0" />
                             <div className="relative z-10 flex flex-col items-center justify-start w-full p-2 h-full gap-1">

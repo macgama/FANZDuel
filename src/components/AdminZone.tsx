@@ -3104,8 +3104,8 @@ export function AdminZone() {
                 <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleLeagueSort('country')}>
                   <div className="flex items-center gap-1">Pays {leagueSort.column === 'country' ? (leagueSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
                 </th>
-                <th className="py-3 px-4">
-                  Saison
+                <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleLeagueSort('season')}>
+                  <div className="flex items-center gap-1">Saison {leagueSort.column === 'season' ? (leagueSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
                 </th>
                 <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleLeagueSort('status')}>
                   <div className="flex items-center gap-1">Statut {leagueSort.column === 'status' ? (leagueSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
@@ -3339,7 +3339,7 @@ export function AdminZone() {
                         className="flex-1 p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                         placeholder="https://..."
                       />
-                      {editingCard.videoUrl && (
+                      {editingCard.videoUrl && editingCard.videoUrl !== 'undefined' && (
                         <div className="w-10 h-10 rounded bg-gray-200 overflow-hidden flex-shrink-0">
                           <video 
                             key={getImageUrl(editingCard.videoUrl)}
@@ -3715,7 +3715,7 @@ export function AdminZone() {
                     {sortedDuelCards.map((card) => (
               <Card key={card.id} className="p-4 hover:border-blue-500 transition-colors cursor-pointer group" onClick={() => setEditingCard(card)}>
                 <div className="relative aspect-[3/4] rounded-lg overflow-hidden mb-3 bg-gray-100">
-                  {card.videoUrl ? (
+                  {card.videoUrl && card.videoUrl !== 'undefined' ? (
                     <video 
                       key={getImageUrl(card.videoUrl)}
                       src={getImageUrl(card.videoUrl)}

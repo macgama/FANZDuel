@@ -855,9 +855,19 @@ async function startServer() {
         console.error(`[Image Proxy Error] ${e.message} - URL: ${urlParam}`);
       }
 
-      // If it fails, redirect to original image to let the browser handle the 404
+      // Avoid raw redirects which might fail due to CORS or Hotlink protection.
+      // Instead, redirect to a highly reliable category-appropriate fallback image.
       if (typeof req.query.url === 'string') {
-        res.redirect(req.query.url);
+        const lowerUrl = req.query.url.toLowerCase();
+        if (lowerUrl.includes('emote') || lowerUrl.includes('social')) {
+          res.redirect('https://thebestfan.online/img/public/logo/imageSocial.png');
+        } else if (lowerUrl.includes('skin') || lowerUrl.includes('fanz') || lowerUrl.includes('myfan')) {
+          res.redirect('https://thebestfan.online/img/public/logo/imageMyfan.png');
+        } else if (lowerUrl.includes('action') || lowerUrl.includes('force')) {
+          res.redirect('https://thebestfan.online/img/public/logo/imageForce.png');
+        } else {
+          res.redirect('https://thebestfan.online/img/public/logo/imageMydeck.png');
+        }
       } else {
         res.status(500).send("Error processing image");
       }
@@ -876,8 +886,13 @@ async function startServer() {
     });
   });
 
-  // Football API Proxy with Caching
-  const footballCache: Record<string, { data: any; timestamp: number }> = {};
+  // Football API Proxy with Caching, Request Collapsing, and Stale Fallbacks
+  interface FootballCacheEntry {
+    data: any;
+    timestamp: number;
+  }
+  const footballCache: Record<string, FootballCacheEntry> = {};
+  const inFlightFootballRequests: Record<string, Promise<FootballCacheEntry | null>> = {};
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
   app.get("/api/football/*", async (req, res) => {
@@ -885,17 +900,35 @@ async function startServer() {
     const queryParams = req.query;
     const cacheKey = `${endpoint}?${JSON.stringify(queryParams)}`;
 
-    // Check cache
+    // Check memory cache
     const cached = footballCache[cacheKey];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       console.log(`[Football Proxy] Serving from cache: ${cacheKey}`);
       return res.json(cached.data);
     }
 
+    // Check if there is already an in-flight request for this exact query to collapse concurrent duplicate requests
+    if (inFlightFootballRequests[cacheKey]) {
+      console.log(`[Football Proxy] Request collapsing: Waiting for active in-flight request: ${cacheKey}`);
+      try {
+        const result = await inFlightFootballRequests[cacheKey];
+        if (result && result.data) {
+          console.log(`[Football Proxy] Collapsed request finished successfully. Serving from updated cache: ${cacheKey}`);
+          return res.json(result.data);
+        }
+      } catch (err: any) {
+        console.warn(`[Football Proxy] In-flight collapsed request failed for: ${cacheKey}`, err?.message);
+      }
+
+      // If collapsed request failed, fall back to stale cache if available
+      if (cached) {
+        console.log(`[Football Proxy] Collapsed request failed, serving stale cache for: ${cacheKey}`);
+        return res.json(cached.data);
+      }
+      return res.json({ get: endpoint, parameters: queryParams, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] });
+    }
+
     const url = `https://v3.football.api-sports.io/${endpoint}`;
-    
-    console.log(`[Football Proxy] Requesting: ${url}`, queryParams);
-    
     const apiKey = process.env.VITE_FOOTBALL_API_KEY;
     
     if (!apiKey) {
@@ -906,60 +939,100 @@ async function startServer() {
       });
     }
 
-    try {
-      const response = await axios.get(url, {
-        params: queryParams,
-        headers: {
-          "x-rapidapi-key": apiKey,
-          "x-apisports-key": apiKey,
-          "x-rapidapi-host": "v3.football.api-sports.io",
-        },
-        timeout: 15000 // 15 seconds timeout
-      });
+    console.log(`[Football Proxy] Fetching from upstream API: ${url}`, queryParams);
 
-      // Handle API-Sports specific errors that return 200 OK
-      if (response.data && response.data.errors && Object.keys(response.data.errors).length > 0) {
-        console.warn(`[Football Proxy] API returned errors:`, JSON.stringify(response.data.errors));
+    // Create the in-flight promise and track it
+    const fetchPromise = (async (): Promise<FootballCacheEntry | null> => {
+      try {
+        const response = await axios.get(url, {
+          params: queryParams,
+          headers: {
+            "x-rapidapi-key": apiKey,
+            "x-apisports-key": apiKey,
+            "x-rapidapi-host": "v3.football.api-sports.io",
+          },
+          timeout: 15000 // 15 seconds timeout
+        });
+
+        // Handle API-Sports 200 OK error bodies
+        if (response.data && response.data.errors && Object.keys(response.data.errors).length > 0) {
+          const errorsStr = JSON.stringify(response.data.errors);
+          console.warn(`[Football Proxy] Upstream API returned errors:`, errorsStr);
+          
+          const isRateLimit = errorsStr.toLowerCase().includes("rate limit") || 
+                              errorsStr.toLowerCase().includes("exceeded") || 
+                              errorsStr.toLowerCase().includes("requests");
+          
+          if (isRateLimit) {
+            const err: any = new Error("Rate exceeded");
+            err.isRateLimit = true;
+            throw err;
+          }
+          throw new Error(`Upstream API Error: ${errorsStr}`);
+        }
+
+        console.log(`[Football Proxy] Upstream success: ${url} - Status: ${response.status}`);
         
-        if (cached) {
-          console.log(`[Football Proxy] API error, serving stale cache for: ${cacheKey}`);
-          return res.json(cached.data);
+        const entry: FootballCacheEntry = {
+          data: response.data,
+          timestamp: Date.now()
+        };
+
+        // Update the cache
+        footballCache[cacheKey] = entry;
+        return entry;
+      } catch (error: any) {
+        const isRateLimit = error.isRateLimit ||
+                            error.response?.status === 429 ||
+                            error.response?.status === 403 ||
+                            String(error.response?.data || "").toLowerCase().includes("exceeded") ||
+                            String(error.response?.data || "").toLowerCase().includes("rate limit") ||
+                            String(error.message || "").toLowerCase().includes("rate exceeded") ||
+                            String(error.message || "").toLowerCase().includes("rate limit");
+
+        console.error(`[Football Proxy Error] for ${url}:`, {
+          status: error.response?.status,
+          message: error.message,
+          isRateLimit
+        });
+
+        if (isRateLimit) {
+          if (cached) {
+            console.log(`[Football Proxy] Rate limit hit. Returning cached stale entry for ${cacheKey}`);
+            return cached;
+          }
+          // Cache an empty success structure briefly to prevent infinite spamming
+          const fallbackEntry: FootballCacheEntry = {
+            data: { get: endpoint, parameters: queryParams, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] },
+            timestamp: Date.now() - (CACHE_TTL - 15000) // 15 seconds remainder TTL
+          };
+          footballCache[cacheKey] = fallbackEntry;
+          return fallbackEntry;
         }
-        // Return empty response to prevent app crash for ANY error
-        return res.json({ get: endpoint, parameters: queryParams, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] });
+
+        throw error;
+      } finally {
+        // Clean up from the map of active promises
+        delete inFlightFootballRequests[cacheKey];
       }
+    })();
 
-      console.log(`[Football Proxy] Success: ${url} - Status: ${response.status}`);
-      
-      // Cache the successful response
-      footballCache[cacheKey] = {
-        data: response.data,
-        timestamp: Date.now()
-      };
+    inFlightFootballRequests[cacheKey] = fetchPromise;
 
-      res.json(response.data);
+    try {
+      const result = await fetchPromise;
+      if (result) {
+        return res.json(result.data);
+      }
+      throw new Error("Empty fetch result");
     } catch (error: any) {
-      const status = error.response?.status || 500;
-      const errorData = error.response?.data || error.message;
-      console.error(`[Football Proxy] ERROR for ${req.url}:`, {
-        status,
-        message: error.message,
-        data: errorData
-      });
-      
-      if (status === 429 || status === 403) {
-        if (cached) {
-          console.log(`[Football Proxy] Rate limit hit (${status}), serving stale cache for: ${cacheKey}`);
-          return res.json(cached.data);
-        }
-        return res.json({ get: endpoint, parameters: queryParams, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] });
+      if (cached) {
+        console.log(`[Football Proxy] Ultimate fetch exception: serving stale cache for: ${cacheKey}`);
+        return res.json(cached.data);
       }
-      
-      res.status(status).json({ 
-        error: "Failed to fetch from football API",
-        message: error.message,
-        details: errorData
-      });
+      // Always return 200 OK with empty template rather than propagate 429/500 to frontend
+      console.warn(`[Football Proxy] Fetch exception with no cache. Returning empty fallback JSON format. Status: ${error.response?.status || 500}`);
+      return res.json({ get: endpoint, parameters: queryParams, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] });
     }
   });
 

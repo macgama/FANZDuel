@@ -1,9 +1,35 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { Flame, Star, Activity } from 'lucide-react';
+import { Flame, Star, Activity, CircleDot, ArrowRightLeft, MonitorPlay, X, AlertCircle, Clock } from 'lucide-react';
 import { cn, getImageUrl } from '../lib/utils';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { Card } from './ui/card';
+
+const getMatchStatusLabel = (status: any) => {
+  if (!status) return '';
+  const short = status.short;
+  switch (short) {
+    case '1H': return '1ère Mi-temps';
+    case 'HT': return 'Mi-temps';
+    case '2H': return '2ème Mi-temps';
+    case 'ET': return 'Prolongations';
+    case 'BT': return 'Pause avant Prol.';
+    case 'P': return 'Tirs au But';
+    case 'FT': return 'Terminé';
+    case 'AET': return 'Terminé (A.P.)';
+    case 'PEN': return 'Terminé (T.A.B.)';
+    case 'SUSP': return 'Suspendu';
+    case 'INT': return 'Interrompu';
+    case 'PST': return 'Reporté';
+    case 'CANC': return 'Annulé';
+    case 'ABD': return 'Abandonné';
+    case 'AWD': return 'Par forfait';
+    case 'WO': return 'Forfait';
+    case 'NS': return 'Non démarré';
+    case 'TBD': return 'À définir';
+    default: return status.long || short;
+  }
+};
 
 interface SharedMatchCardProps {
   match: any;
@@ -28,7 +54,7 @@ export function SharedMatchCard({
   onLeagueClick,
   profile,
   showLeagueHeader = false,
-  showDate = false
+  showDate = true
 }: SharedMatchCardProps) {
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(match.fixture.status.short);
   const isUpcoming = ['TBD', 'NS'].includes(match.fixture.status.short);
@@ -38,9 +64,59 @@ export function SharedMatchCard({
   const homeIsFav = favoriteIds.includes(match.teams.home.id.toString());
   const awayIsFav = favoriteIds.includes(match.teams.away.id.toString());
 
-  // Extract events if they exist
-  const homeEvents = match.events?.filter((e: any) => e.team.id === match.teams.home.id && (e.type === 'Goal' || e.type === 'Card')) || [];
-  const awayEvents = match.events?.filter((e: any) => e.team.id === match.teams.away.id && (e.type === 'Goal' || e.type === 'Card')) || [];
+  // Extract and translate details for events
+  const translateDetail = (type: string, detail: string) => {
+    if (!detail) return null;
+    const d = detail.toLowerCase();
+    if (type === 'Goal') {
+      if (d.includes('missed penalty')) return 'Penalty manqué';
+      if (d.includes('own goal')) return 'CSC';
+      if (d.includes('penalty')) return 'Penalty';
+      if (d.includes('cancelled')) return 'But annulé (VAR)';
+      return null;
+    }
+    if (type === 'Card') {
+      if (d.includes('second yellow')) return '2ème jaune';
+      if (d.includes('red')) return 'Rouge';
+      return null;
+    }
+    if (type === 'Var') {
+      if (d.includes('goal cancelled')) return 'But annulé';
+      if (d.includes('penalty confirmed')) return 'Penalty conf.';
+      if (d.includes('card review')) return 'Arbitre';
+      return detail;
+    }
+    return null;
+  };
+
+  const getEventIcon = (type: string, detail: string) => {
+    const d = detail?.toLowerCase() || '';
+    switch (type) {
+      case 'Goal':
+        if (d.includes('missed penalty')) {
+          return <X className="w-3 h-3 text-red-500 shrink-0" />;
+        }
+        return <CircleDot className="w-3 h-3 text-green-500 shrink-0" />;
+      case 'Card':
+        return (
+          <div 
+            className={cn(
+              "w-1.5 h-2.5 rounded-[1px] shrink-0", 
+              d.includes('yellow') ? "bg-yellow-500" : "bg-red-500"
+            )} 
+          />
+        );
+      case 'subst':
+        return <ArrowRightLeft className="w-3 h-3 text-blue-400 shrink-0 font-bold" />;
+      case 'Var':
+        return <MonitorPlay className="w-3 h-3 text-orange-400 shrink-0" />;
+      default:
+        return <AlertCircle className="w-3 h-3 text-gray-500 shrink-0" />;
+    }
+  };
+
+  const homeEvents = match.events?.filter((e: any) => e.team.id === match.teams.home.id && (e.type === 'Goal' || e.type === 'Card' || e.type === 'subst' || e.type === 'Var')) || [];
+  const awayEvents = match.events?.filter((e: any) => e.team.id === match.teams.away.id && (e.type === 'Goal' || e.type === 'Card' || e.type === 'subst' || e.type === 'Var')) || [];
 
   const scoreA = matchScore?.scoreA || 0;
   const scoreB = matchScore?.scoreB || 0;
@@ -128,21 +204,38 @@ export function SharedMatchCard({
               </div>
               
               {match.score?.penalty?.home != null && (
-                <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">
+                <div className="text-[10px] sm:text-[11px] font-black text-red-400 mt-1 uppercase tracking-wider bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 shadow-md">
                   ({match.score.penalty.home} - {match.score.penalty.away} TAB)
                 </div>
               )}
               
-              <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center gap-0.5">
+              <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center gap-0.5 shadow-sm">
                 <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase">
                   {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}` : match.fixture.status.short}
                 </span>
                 {match.fixture.status.elapsed && <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase animate-pulse">'</span>}
               </div>
+
+              {/* Precise converted status label */}
+              <span className={cn(
+                "text-[7px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm text-center mt-1.5",
+                ['ET', 'P', 'BT'].includes(match.fixture.status.short)
+                  ? "bg-[#ef4444] text-white animate-pulse"
+                  : isLive
+                    ? "bg-[#2a2a2a] text-gray-400"
+                    : "bg-orange-500/15 text-orange-400 border border-orange-500/20"
+              )}>
+                {getMatchStatusLabel(match.fixture.status)}
+              </span>
             </>
           ) : (
-            <div className="text-xs sm:text-sm font-bold text-white/80 bg-white/5 px-3 py-1.5 rounded border border-white/10 mt-6">
-              {format(new Date(match.fixture.date), 'HH:mm')}
+            <div className="flex flex-col items-center gap-1.5 mt-6">
+              <div className="text-xs sm:text-sm font-bold text-white/80 bg-white/5 px-3 py-1.5 rounded border border-white/10">
+                {format(new Date(match.fixture.date), 'HH:mm')}
+              </div>
+              <span className="text-[7.5px] sm:text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 text-center">
+                {getMatchStatusLabel(match.fixture.status)}
+              </span>
             </div>
           )}
         </div>
@@ -179,28 +272,72 @@ export function SharedMatchCard({
 
       {/* Match Events */}
       {(homeEvents.length > 0 || awayEvents.length > 0) && (
-        <div className="flex justify-between items-start text-[9px] sm:text-[10px] text-gray-300 px-2 mt-1 min-h-[30px] max-h-[60px] overflow-y-auto no-scrollbar gap-2">
-          <div className="flex-1 flex flex-col items-start gap-1">
-            {homeEvents.map((e: any, idx: number) => (
-              <div key={idx} className="flex items-center gap-1">
-                <span className="text-gray-500 w-4">{e.time.elapsed}'</span>
-                {e.type === 'Goal' ? <span>⚽</span> : 
-                 e.detail === 'Yellow Card' ? <div className="w-1.5 h-2.5 bg-yellow-500 rounded-[1px]" /> :
-                 <div className="w-1.5 h-2.5 bg-red-500 rounded-[1px]" />}
-                <span className="truncate max-w-[80px]">{e.player.name}</span>
-              </div>
-            ))}
+        <div className="flex justify-between items-start text-[9px] sm:text-[10px] text-gray-300 px-2 mt-1 min-h-[35px] max-h-[90px] overflow-y-auto no-scrollbar gap-2">
+          {/* Home team events */}
+          <div className="flex-1 flex flex-col items-start gap-1 min-w-0">
+            {homeEvents.map((e: any, idx: number) => {
+              const detailMsg = translateDetail(e.type, e.detail);
+              const showAssist = e.type === 'Goal' && e.assist.name && e.assist.name !== e.player.name && !e.detail?.toLowerCase().includes('penalty') && !e.detail?.toLowerCase().includes('own goal');
+              const showSubst = e.type === 'subst' && e.assist.name;
+              
+              return (
+                <div key={idx} className="flex flex-col items-start gap-0.5 w-full min-w-0">
+                  <div className="flex items-center gap-1.5 w-full min-w-0">
+                    <span className="text-gray-500 font-bold tabular-nums shrink-0">{e.time.elapsed}'</span>
+                    {getEventIcon(e.type, e.detail)}
+                    <span className="truncate font-bold text-white/95 shrink">{e.player.name}</span>
+                    {detailMsg && (
+                      <span className="text-[7px] leading-tight font-black text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded uppercase font-sans shrink-0 tracking-wider">
+                        {detailMsg}
+                      </span>
+                    )}
+                  </div>
+                  {showAssist && (
+                    <span className="text-[7px] sm:text-[8px] text-gray-500 italic pl-5 leading-none shrink-0 truncate max-w-full">
+                      Passe: {e.assist.name}
+                    </span>
+                  )}
+                  {showSubst && (
+                    <span className="text-[7px] sm:text-[8px] text-gray-500 italic pl-5 leading-none shrink-0 truncate max-w-full">
+                      Sortie: {e.assist.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="flex-1 flex flex-col items-end gap-1">
-            {awayEvents.map((e: any, idx: number) => (
-              <div key={idx} className="flex items-center gap-1 justify-end">
-                <span className="truncate max-w-[80px] text-right">{e.player.name}</span>
-                {e.type === 'Goal' ? <span>⚽</span> : 
-                 e.detail === 'Yellow Card' ? <div className="w-1.5 h-2.5 bg-yellow-500 rounded-[1px]" /> :
-                 <div className="w-1.5 h-2.5 bg-red-500 rounded-[1px]" />}
-                <span className="text-gray-500 w-4 text-right">{e.time.elapsed}'</span>
-              </div>
-            ))}
+          {/* Away team events */}
+          <div className="flex-1 flex flex-col items-end gap-1 min-w-0">
+            {awayEvents.map((e: any, idx: number) => {
+              const detailMsg = translateDetail(e.type, e.detail);
+              const showAssist = e.type === 'Goal' && e.assist.name && e.assist.name !== e.player.name && !e.detail?.toLowerCase().includes('penalty') && !e.detail?.toLowerCase().includes('own goal');
+              const showSubst = e.type === 'subst' && e.assist.name;
+              
+              return (
+                <div key={idx} className="flex flex-col items-end gap-0.5 w-full min-w-0">
+                  <div className="flex items-center gap-1.5 w-full min-w-0 justify-end">
+                    {detailMsg && (
+                      <span className="text-[7px] leading-tight font-black text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded uppercase font-sans shrink-0 tracking-wider">
+                        {detailMsg}
+                      </span>
+                    )}
+                    <span className="truncate font-bold text-white/95 text-right shrink">{e.player.name}</span>
+                    {getEventIcon(e.type, e.detail)}
+                    <span className="text-gray-500 font-bold tabular-nums shrink-0 text-right">{e.time.elapsed}'</span>
+                  </div>
+                  {showAssist && (
+                    <span className="text-[7px] sm:text-[8px] text-gray-500 italic pr-5 leading-none text-right shrink-0 truncate max-w-full">
+                      Passe: {e.assist.name}
+                    </span>
+                  )}
+                  {showSubst && (
+                    <span className="text-[7px] sm:text-[8px] text-gray-500 italic pr-5 leading-none text-right shrink-0 truncate max-w-full">
+                      Sortie: {e.assist.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

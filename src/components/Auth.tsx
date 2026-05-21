@@ -14,6 +14,7 @@ import { INITIAL_USER_DATA } from '../constants';
 import { footballApi } from '../services/footballApi';
 import { Search, ChevronLeft, Star } from 'lucide-react';
 import { useAlert } from '../context/AlertContext';
+import { safeSessionStorage } from '../lib/utils';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -130,6 +131,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
       let user = auth.currentUser;
       
       if (!user) {
+        safeSessionStorage.setItem('isCreatingAccount', 'true');
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         user = userCredential.user;
       }
@@ -282,6 +284,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
       }
     } finally {
       setLoading(false);
+      safeSessionStorage.removeItem('isCreatingAccount');
     }
   };
 

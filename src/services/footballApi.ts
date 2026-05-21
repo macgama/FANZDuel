@@ -18,6 +18,18 @@ async function fetchApi(url: string) {
         if (errorText) errorMessage = `${errorMessage} - ${errorText.substring(0, 100)}`;
       }
       console.error(`API Error (${response.status}): ${errorText}`);
+
+      // Handle 429 Rate limits and 403 authorization lockups gracefully rather than throwing screen-breaking exceptions
+      if (
+        response.status === 429 || 
+        response.status === 403 || 
+        errorText.toLowerCase().includes("rate limit") || 
+        errorText.toLowerCase().includes("rate exceeded")
+      ) {
+        console.warn(`[Football API] Handled rate limit status ${response.status} gracefully. Returning empty response scheme.`);
+        return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
+      }
+
       throw new Error(errorMessage);
     }
     const contentType = response.headers.get('content-type');
@@ -28,12 +40,26 @@ async function fetchApi(url: string) {
     if (data.errors && Object.keys(data.errors).length > 0) {
       const errorMsg = JSON.stringify(data.errors);
       console.error('API Data Errors:', errorMsg);
+
+      // Handle raw JSON errors about rate exceeded gracefully
+      const errStr = errorMsg.toLowerCase();
+      if (errStr.includes("rate") || errStr.includes("limit") || errStr.includes("exceeded")) {
+        console.warn(`[Football API] Handled JSON rate limit gracefully. Returning empty response scheme.`);
+        return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
+      }
+
       throw new Error(`API Data Error: ${errorMsg}`);
     }
     return data;
   } catch (error: any) {
     if (error?.message !== 'Failed to fetch') {
       console.error(`Fetch error for ${url}:`, error);
+    }
+    
+    // If rate limit error occurs inside the call stack, return empty list formatted correctly
+    const errText = String(error?.message || "").toLowerCase();
+    if (errText.includes("rate limit") || errText.includes("rate exceeded") || errText.includes("429")) {
+      return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
     }
     throw error;
   }

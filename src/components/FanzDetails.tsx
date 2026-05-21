@@ -1764,9 +1764,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                           step.reward.statName
                                         ) {
                                           const newStats = { ...fanz.stats };
-                                          newStats[step.reward.statName] =
-                                            (newStats[step.reward.statName] ||
-                                              0) + (step.reward.amount || 0);
+                                          const currentStat = newStats[step.reward.statName] || 0;
+                                          newStats[step.reward.statName] = Math.min(10, currentStat + (step.reward.amount || 0));
                                           updates.stats = newStats;
                                         }
                                         if (
@@ -3053,11 +3052,20 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   return (
                     <Card
                       key={`${skin.id}-${idx}`}
-                      onClick={() =>
-                        setPurchaseConfirm({ type: "skin", item: skin })
-                      }
-                      className={`relative overflow-hidden cursor-pointer transition-all hover:scale-105 p-0 ${rarityBorder} ${isEquipped ? "ring-2 ring-orange-500 bg-orange-500/10" : "bg-gray-800/50"}`}
+                      onClick={() => {
+                        if (skin.isActive === false && !isUnlocked) return;
+                        setPurchaseConfirm({ type: "skin", item: skin });
+                      }}
+                      className={`relative overflow-hidden transition-all p-0 ${skin.isActive === false && !isUnlocked ? "cursor-default" : "cursor-pointer hover:scale-105"} ${rarityBorder} ${isEquipped ? "ring-2 ring-orange-500 bg-orange-500/10" : "bg-gray-800/50"}`}
                     >
+                      {skin.isActive === false && !isUnlocked && (
+                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-30" onClick={(e) => e.stopPropagation()}>
+                          <Lock className="w-5 h-5 text-white/50 mb-1" />
+                          <div className="bg-orange-500 text-white text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg">
+                            Bientôt dispo
+                          </div>
+                        </div>
+                      )}
                       <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
                         {skin.category === "event" && (
                           <div className="backdrop-blur-sm bg-fuchsia-600 border border-fuchsia-400 font-black uppercase text-[7px] tracking-widest px-1.5 py-0.5 rounded-sm text-white shadow-[0_0_10px_rgba(192,38,211,0.5)]">
@@ -4037,8 +4045,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                     {/* Custom Choices from Admin */}
                     {rewardModal.rewardType === "choice" &&
                     rewardModal.choices &&
-                    rewardModal.choices.length > 0 ? (
-                      rewardModal.choices.map((choice, idx) => {
+                    rewardModal.choices.filter(c => c.type !== "action").length > 0 ? (
+                      rewardModal.choices.filter(c => c.type !== "action").map((choice, idx) => {
                         // Render custom choice block
                         let icon = <Trophy size={24} />;
                         let colorClass = "text-green-500 group-hover:scale-110";
@@ -4884,9 +4892,8 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             ];
                             const newStats = { ...fanz.stats };
                             const amount = rewardModal.amount || 100;
-                            newStats[key as keyof typeof statLabels] =
-                              (newStats[key as keyof typeof statLabels] || 0) +
-                              amount;
+                            const currentStat = newStats[key as keyof typeof statLabels] || 0;
+                            newStats[key as keyof typeof statLabels] = Math.min(10, currentStat + amount);
                             const newChoices = {
                               ...(fanz.claimedChoices || {}),
                               [rewardModal.slotId]: {

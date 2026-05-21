@@ -269,9 +269,9 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                       className="w-full h-full object-contain p-2" 
                     />
                   ) : nextLevel.reward?.type === 'card' && nextLevel.reward?.cardId ? (
-                    <img src={getImageUrl(cards.find(c => c.id === nextLevel.reward!.cardId)?.imageUrl)} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(cards.find(c => c.id === nextLevel.reward!.cardId)?.imageUrl)} className="w-full h-full object-cover" onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageMydeck.png') t.src = 'https://thebestfan.online/img/public/logo/imageMydeck.png'; }} />
                   ) : nextLevel.reward?.type === 'action' && nextLevel.reward?.actionId ? (
-                    <img src={getImageUrl(actions.find(a => a.id === nextLevel.reward!.actionId)?.image)} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(actions.find(a => a.id === nextLevel.reward!.actionId)?.image)} className="w-full h-full object-cover" onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageForce.png' && t.src !== 'https://thebestfan.online/img/public/logo/logoForce.png') t.src = 'https://thebestfan.online/img/public/logo/imageForce.png'; }} />
                   ) : (
                     <Gift className="w-8 h-8 sm:w-12 sm:h-12 text-orange-400" />
                   )}
@@ -434,11 +434,11 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                         </div>
                       ) : level.reward?.type === 'card' && level.reward?.cardId ? (
                         <div className="w-full h-full rounded-[inherit] overflow-hidden p-1 sm:p-2 bg-black/40">
-                          <img src={getImageUrl(cards.find(c => c.id === level.reward!.cardId)?.imageUrl)} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                          <img src={getImageUrl(cards.find(c => c.id === level.reward!.cardId)?.imageUrl)} className="w-full h-full object-cover rounded-[inherit] border border-white/20" onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageMydeck.png') t.src = 'https://thebestfan.online/img/public/logo/imageMydeck.png'; }} />
                         </div>
                       ) : level.reward?.type === 'action' && level.reward?.actionId ? (
                         <div className="w-full h-full rounded-[inherit] overflow-hidden p-1 sm:p-2 bg-black/40">
-                          <img src={getImageUrl(actions.find(a => a.id === level.reward!.actionId)?.image)} className="w-full h-full object-cover rounded-[inherit] border border-white/20" />
+                          <img src={getImageUrl(actions.find(a => a.id === level.reward!.actionId)?.image)} className="w-full h-full object-cover rounded-[inherit] border border-white/20" onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageForce.png' && t.src !== 'https://thebestfan.online/img/public/logo/logoForce.png') t.src = 'https://thebestfan.online/img/public/logo/imageForce.png'; }} />
                         </div>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">

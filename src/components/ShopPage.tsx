@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Store, Gem, Zap, Star, User, Shirt, Smile, TrendingUp, Shield, Flame, Sparkles, X, Package } from 'lucide-react';
+import { Store, Gem, Zap, Star, User, Shirt, Smile, TrendingUp, Shield, Flame, Sparkles, X, Package, Lock } from 'lucide-react';
 import { Card, Button } from './Layout';
 import { UserProfile, FanzTemplate, Card as DuelCard, GlobalShopConfig } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -124,7 +124,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           if (ownedFanzTemplateIds.includes(fanz.id)) {
             if (fanz.skins && Array.isArray(fanz.skins)) {
               fanz.skins.forEach(skin => {
-                if (skin.price && (skin.price.money || skin.price.gems) && !(profile.skins || []).includes(skin.id) && (skin.category !== 'event' || skin.isActive !== false)) {
+                if (skin.price && (skin.price.money || skin.price.gems) && !(profile.skins || []).includes(skin.id)) {
                   skinsForSale.push({
                     id: `${fanz.id}-${skin.id}`,
                     originalId: skin.id,
@@ -133,12 +133,13 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     category: skin.category,
                     fanz: fanz.name,
                     fanzId: fanz.id,
-                    rarity: 'epic', // Default rarity for skins if not specified
+                    rarity: skin.rarity || 'epic', // Default rarity for skins if not specified
                     price: skin.price.gems ? skin.price.gems : skin.price.money,
                     currency: skin.price.gems ? 'gems' : 'money',
                     fullPrice: skin.price,
                     image: skin.imageUrl ? getImageUrl(skin.imageUrl) : '👕',
-                    video: skin.videoUrl
+                    video: skin.videoUrl,
+                    isActive: skin.isActive !== false
                   });
                 }
               });
@@ -475,6 +476,17 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
   };
 
   const renderPriceButton = (price: number | string, currency: string, item?: any) => {
+    if (item && item.isActive === false) {
+      return (
+        <Button 
+          disabled
+          className="w-full font-black uppercase text-[10px] sm:text-xs mt-3 bg-gray-800 text-white/40 cursor-not-allowed border-gray-700 hover:bg-gray-800"
+        >
+          Bientôt dispo
+        </Button>
+      );
+    }
+
     // If the item has a full price object, we can render both if they exist
     if (item && item.fullPrice) {
       const hasMoney = item.fullPrice.money > 0;
@@ -522,7 +534,11 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
     const rarityLabel = RARITY_LABELS[item.rarity as keyof typeof RARITY_LABELS] || RARITY_LABELS.common;
 
     return (
-      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} key={item.id}>
+      <motion.div 
+        whileHover={item.isActive !== false ? { scale: 1.02 } : {}} 
+        whileTap={item.isActive !== false ? { scale: 0.98 } : {}} 
+        key={item.id}
+      >
         <Card className={cn(
           "relative overflow-hidden border p-4 flex flex-col items-center text-center h-full",
           `bg-gradient-to-b ${rarityColor} shadow-lg`
@@ -548,6 +564,15 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {type === 'emote' && (item.icon?.startsWith('http') || item.icon?.startsWith('/') || item.video ? <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.icon || null} poster={item.icon} className="w-full h-full object-contain p-2 relative z-10" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.icon}</div>)}
             {type === 'boost' && <div className="w-full h-full flex items-center justify-center relative z-10">{item.icon}</div>}
             {type === 'card' && (item.image?.startsWith('http') || item.image?.startsWith('/') || item.video ? <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.image || null} poster={item.image} className="w-full h-full object-cover relative z-10 scale-110" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.image}</div>)}
+            
+            {item.isActive === false && (
+              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-30">
+                <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white/50 mb-2" />
+                <div className="bg-orange-500 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg">
+                  Bientôt dispo
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="w-full flex flex-col flex-1 justify-end">

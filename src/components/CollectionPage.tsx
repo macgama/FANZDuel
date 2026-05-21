@@ -117,7 +117,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
           defeatVideoUrl: t.defeatVideoUrl,
           isActive: t.isActive
         };
-        const otherSkins = (t.skins || []).filter(s => s.category !== 'event' || s.isActive !== false).map(s => ({...s, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${s.id}`}));
+        const otherSkins = (t.skins || []).map(s => ({...s, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${s.id}`}));
         return [baseSkin, ...otherSkins];
       });
       const allEmotes = templates.flatMap(t => (t.emotes || []).filter(e => e.category !== 'event' || e.isActive !== false).map(e => ({...e, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${e.id}`})));
@@ -290,7 +290,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     {template.video && !user.dataSaver ? (
                       <video src={getImageUrl(template.video)} className={`w-full h-full object-cover ${!owned || isInactive ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned && !isInactive} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} />
                     ) : (
-                      <img src={getImageUrl(template.image)} alt={template.name} className={`w-full h-full object-cover ${!owned || isInactive ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} data-viewer-video-url={template.video} />
+                      <img src={getImageUrl(template.image)} alt={template.name} className={`w-full h-full object-cover ${!owned || isInactive ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={template.name} data-viewer-item-type="fanz" data-viewer-description={template.description} data-viewer-metadata={JSON.stringify({ stats: template.baseStats })} data-viewer-video-url={template.video} onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageMyfan.png') t.src = 'https://thebestfan.online/img/public/logo/imageMyfan.png'; }} />
                     )}
                     {owned && !isInactive && (
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -349,17 +349,23 @@ export function CollectionPage({ user }: CollectionPageProps) {
               })
               .map(skin => {
               const owned = checkSkinOwned(skin);
+              const isInactive = skin.isActive === false;
               return (
-                <div key={skin.uniqueId} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale' : 'outline outline-2 outline-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'}`}>
+                <div key={skin.uniqueId} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned || isInactive ? 'opacity-50 grayscale' : 'outline outline-2 outline-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'}`}>
                   <div className="aspect-square bg-black relative group">
                     {skin.videoUrl && !user.dataSaver ? (
-                      <video src={getImageUrl(skin.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" />
+                      <video src={getImageUrl(skin.videoUrl)} className={`w-full h-full object-cover ${!owned || isInactive ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned && !isInactive} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" />
                     ) : (
-                      <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" data-viewer-video-url={skin.videoUrl} />
+                      <img src={getImageUrl(skin.imageUrl)} alt={skin.name} className={`w-full h-full object-cover ${!owned || isInactive ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned || isInactive ? "true" : undefined} data-viewer-title={skin.name} data-viewer-item-type="skin" data-viewer-video-url={skin.videoUrl} onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageMyfan.png') t.src = 'https://thebestfan.online/img/public/logo/imageMyfan.png'; }} />
                     )}
-                    {owned && (
+                    {owned && !isInactive && (
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
                         <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                      </div>
+                    )}
+                    {isInactive && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
+                        <span className="text-[10px] sm:text-xs text-white font-black uppercase px-2 py-1 bg-black/80 rounded border border-white/20 -rotate-6 shadow-xl tracking-wider text-center">Bientôt dispo</span>
                       </div>
                     )}
                   </div>
@@ -418,7 +424,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     {emote.videoUrl && !user.dataSaver ? (
                       <video src={getImageUrl(emote.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" />
                     ) : (
-                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" data-viewer-video-url={emote.videoUrl} />
+                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={emote.name} data-viewer-item-type="emote" data-viewer-video-url={emote.videoUrl} onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageSocial.png') t.src = 'https://thebestfan.online/img/public/logo/imageSocial.png'; }} />
                     )}
                     {owned && (
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -475,7 +481,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                   {card.videoUrl && !user.dataSaver ? (
                      <video src={getImageUrl(card.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer hover:scale-105 transition-transform duration-500'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} />
                   ) : (
-                     <img src={getImageUrl(card.imageUrl)} alt={card.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer hover:scale-105 transition-transform duration-500'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} data-viewer-video-url={card.videoUrl} />
+                     <img src={getImageUrl(card.imageUrl)} alt={card.name} onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageMydeck.png') t.src = 'https://thebestfan.online/img/public/logo/imageMydeck.png'; }} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer hover:scale-105 transition-transform duration-500'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={card.name} data-viewer-item-type="card" data-viewer-metadata={JSON.stringify({ energyCost: card.energyCost, fervorValue: card.fervorValue, rarity: card.rarity })} data-viewer-video-url={card.videoUrl} />
                   )}
                   {owned && (
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20">
@@ -545,7 +551,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     {action.videoUrl && !user.dataSaver ? (
                        <video src={getImageUrl(action.videoUrl)} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} autoPlay={owned} muted loop playsInline data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={`${action.name} ${action.associatedSkinId && action.associatedSkinId !== '000' ? `(${action.fanzSkinName})` : ''}`} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} />
                     ) : action.image ? (
-                       <img src={getImageUrl(action.image)} alt={action.name} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={`${action.name} ${action.associatedSkinId && action.associatedSkinId !== '000' ? `(${action.fanzSkinName})` : ''}`} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} data-viewer-video-url={action.videoUrl} />
+                       <img src={getImageUrl(action.image)} alt={action.name} onError={(e) => { const t = e.currentTarget; if(t.src !== 'https://thebestfan.online/img/public/logo/imageForce.png' && t.src !== 'https://thebestfan.online/img/public/logo/logoForce.png') t.src = 'https://thebestfan.online/img/public/logo/imageForce.png'; }} className={`w-full h-full object-cover ${!owned ? 'cursor-default' : 'cursor-pointer'}`} data-viewer-enabled="true" data-viewer-ignore={!owned ? "true" : undefined} data-viewer-title={`${action.name} ${action.associatedSkinId && action.associatedSkinId !== '000' ? `(${action.fanzSkinName})` : ''}`} data-viewer-item-type="life_action" data-viewer-metadata={JSON.stringify({ xpReward: action.xpGain })} data-viewer-video-url={action.videoUrl} />
                     ) : (
                        <div className="w-full h-full flex items-center justify-center text-gray-700">
                          <PlayCircle className="w-8 h-8" />

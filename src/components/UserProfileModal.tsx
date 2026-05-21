@@ -27,6 +27,24 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   const [ownedTemplateIds, setOwnedTemplateIds] = useState<string[]>([]);
   const [ownedSkinIds, setOwnedSkinIds] = useState<string[]>([]);
 
+  // Teleport the Google Translate widget inside this modal's mount lifetime
+  useEffect(() => {
+    const translateEl = document.getElementById('google_translate_element');
+    const container = document.getElementById('google-translate-profile-container');
+    
+    if (translateEl && container) {
+      translateEl.classList.add('in-profile-modal');
+      container.appendChild(translateEl);
+    }
+    
+    return () => {
+      if (translateEl) {
+        translateEl.classList.remove('in-profile-modal');
+        document.body.appendChild(translateEl);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!profile.uid) return;
 
@@ -242,19 +260,31 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
               />
             </div>
 
-            <div>
-              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Langue</label>
-              <select 
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none appearance-none"
-              >
-                {LANGUAGES.map(lang => (
-                  <option key={lang.code} value={lang.code} className="bg-gray-900 text-white">
-                    {lang.label}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Langue Profil</label>
+                <select 
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 focus:border-orange-500 outline-none appearance-none cursor-pointer"
+                >
+                  {LANGUAGES.map(lang => (
+                    <option key={lang.code} value={lang.code} className="bg-gray-900 text-white">
+                      {lang.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Traducteur Google</label>
+                <div 
+                  id="google-translate-profile-container" 
+                  className="w-full h-[48px] bg-white/5 border border-white/10 rounded-lg px-3 py-1 flex items-center justify-between overflow-hidden"
+                >
+                  {/* Google translate container gets portaled here */}
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-4 py-3">

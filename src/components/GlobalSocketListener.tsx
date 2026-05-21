@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useSocket } from '../context/SocketContext';
+import { safeLocalStorage } from '../lib/utils';
 
 interface GlobalSocketListenerProps {
   onDuelStarting: (duelId: string, duelData: any) => void;
@@ -17,12 +18,12 @@ export const GlobalSocketListener: React.FC<GlobalSocketListenerProps> = ({ onDu
 
     const handleDuelUpdate = ({ duelId, status, participants }: { duelId: string, status: string, participants: any[] }) => {
       if (participants && participants.length > 1) {
-        const bgStr = localStorage.getItem('tbfo_background_duel');
+        const bgStr = safeLocalStorage.getItem('tbfo_background_duel');
         if (bgStr) {
           try {
             const bg = JSON.parse(bgStr);
             if (bg.duelId === duelId) {
-              localStorage.removeItem('tbfo_background_duel');
+              safeLocalStorage.removeItem('tbfo_background_duel');
               onDuelStarting(duelId, { matchId: bg.matchId, type: bg.type, isPrivate: bg.isPrivate });
             }
           } catch(e) {}

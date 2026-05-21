@@ -31,9 +31,9 @@ export function AdminDuelCardRow({ card, onSaved, onDeleted, onEditFull, fanzTem
         <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Mdias (Img, Vid, Son)</label>
         <div className="flex flex-col gap-1 items-center">
             <div className="w-12 h-16 rounded overflow-hidden bg-black/40 border border-white/10 shrink-0 mb-1 relative">
-               {localCard.videoUrl ? (
+               {localCard.videoUrl && localCard.videoUrl !== 'undefined' ? (
                  <video src={getImageUrl(localCard.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-               ) : localCard.imageUrl ? (
+               ) : localCard.imageUrl && localCard.imageUrl !== 'undefined' ? (
                  <img src={getImageUrl(localCard.imageUrl)} alt={localCard.name} className="w-full h-full object-cover" />
                ) : (
                  <div className="w-full h-full flex items-center justify-center"><Activity className="w-6 h-6 text-gray-400" /></div>

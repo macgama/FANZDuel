@@ -14,7 +14,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { Layout, Card, Button } from "./components/Layout";
-import { cn } from "./lib/utils";
+import { cn, safeLocalStorage, safeSessionStorage } from "./lib/utils";
 import { Auth } from "./components/Auth";
 import { AdminZone } from "./components/AdminZone";
 import { MatchesPage } from "./components/MatchesPage";
@@ -166,7 +166,7 @@ function AppContent() {
         setSelectedPlayer(null);
         setJoiningDuel(null);
         setIsDuelActive(false);
-        localStorage.removeItem("tbfo_current_duel");
+        safeLocalStorage.removeItem("tbfo_current_duel");
       }
     }
   };
@@ -204,6 +204,12 @@ function AppContent() {
     fanzFervor: false,
   });
 
+  // We need to store profile in a ref for use inside listeners without triggering re-runs
+  const profileRef = React.useRef(profile);
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
   // Compute claimable states for sidebar dots
   useEffect(() => {
     if (!profile?.uid) return;
@@ -216,7 +222,7 @@ function AppContent() {
         if (!isMounted) return;
         const activeIds = snap.docs.map((d) => d.id);
         const hasMissionsAlert = activeIds.some((mId) => {
-          const p = profile.missionsProgress?.[mId];
+          const p = profileRef.current?.missionsProgress?.[mId];
           return p?.isCompleted && !p?.isClaimed;
         });
         setClaimableAlerts((prev) => ({ ...prev, missions: hasMissionsAlert }));
@@ -232,7 +238,7 @@ function AppContent() {
         if (!isMounted || !snap.exists()) return;
         const config = snap.data();
         lastGlobalConfig = config;
-        const currentPoints = profile.ferveurPoints || 0;
+        const currentPoints = profileRef.current?.ferveurPoints || 0;
         const path = generateFervorPath(
           currentPoints + 5000,
           config as GlobalFervorConfig,
@@ -241,7 +247,7 @@ function AppContent() {
           const slotId = `ferveur-level-${level.level}`;
           return (
             currentPoints >= level.pointsRequired &&
-            !profile.claimedFervorRewards?.includes(slotId)
+            !profileRef.current?.claimedFervorRewards?.includes(slotId)
           );
         });
         setClaimableAlerts((prev) => ({
@@ -284,8 +290,8 @@ function AppContent() {
             }
           });
           // Always update db so profile is in sync, App logic will pick it up
-          if ((profile.skinEnergyBonus || 0) !== totalSkinEnergyBonus) {
-            updateDoc(doc(db, "users", profile.uid), {
+          if ((profileRef.current?.skinEnergyBonus || 0) !== totalSkinEnergyBonus) {
+            updateDoc(doc(db, "users", profileRef.current!.uid), {
               skinEnergyBonus: totalSkinEnergyBonus,
             }).catch(console.error);
           }
@@ -339,7 +345,7 @@ function AppContent() {
       unGlobalFervor();
       unFanz();
     };
-  }, [profile]);
+  }, [profile?.uid]);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [hasFavoriteMatchToday, setHasFavoriteMatchToday] = useState(false);
 
@@ -414,7 +420,7 @@ function AppContent() {
   // Persistence: Restore duel on refresh
   useEffect(() => {
     if (profile && !isDuelActive && !restorationAttempted.current) {
-      const savedDuel = localStorage.getItem("tbfo_current_duel");
+      const savedDuel = safeLocalStorage.getItem("tbfo_current_duel");
       if (savedDuel) {
         try {
           const duelData = JSON.parse(savedDuel);
@@ -426,7 +432,7 @@ function AppContent() {
           setIsDuelActive(true);
         } catch (e) {
           console.error("Failed to restore duel:", e);
-          localStorage.removeItem("tbfo_current_duel");
+          safeLocalStorage.removeItem("tbfo_current_duel");
         }
       }
       restorationAttempted.current = true;
@@ -690,8 +696,10 @@ function AppContent() {
       setUser(currentUser);
       if (currentUser) {
         if (currentUserRef.current !== currentUser.uid) {
-          setLoading(true);
-          loadingRef.current = true;
+          if (!safeSessionStorage.getItem("isCreatingAccount")) {
+            setLoading(true);
+            loadingRef.current = true;
+          }
           currentUserRef.current = currentUser.uid;
         }
         if (unsubscribeSnapshot) unsubscribeSnapshot();
@@ -701,6 +709,7 @@ function AppContent() {
           docRef,
           async (docSnap) => {
             if (docSnap.exists()) {
+              safeSessionStorage.removeItem("isCreatingAccount");
               const data = docSnap.data() as UserProfile;
               let needsUpdate = false;
               let updatedData = { ...data };
@@ -855,7 +864,12 @@ function AppContent() {
                 setProfile(updatedData);
               }
             } else {
-              setProfile(null);
+              if (safeSessionStorage.getItem("isCreatingAccount") && profile !== null) {
+                // Ignore the very first negative snapshot if we are creating an account
+              } else {
+                setProfile(null);
+                safeSessionStorage.removeItem("isCreatingAccount");
+              }
             }
             setLoading(false);
           },

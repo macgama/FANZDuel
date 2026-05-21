@@ -28,6 +28,32 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 
+const getMatchStatusLabel = (status: any) => {
+  if (!status) return '';
+  const short = status.short;
+  switch (short) {
+    case '1H': return '1ère Mi-temps';
+    case 'HT': return 'Mi-temps';
+    case '2H': return '2ème Mi-temps';
+    case 'ET': return 'Prolongations';
+    case 'BT': return 'Pause avant Prol.';
+    case 'P': return 'Tirs au But';
+    case 'FT': return 'Terminé';
+    case 'AET': return 'Terminé (A.P.)';
+    case 'PEN': return 'Terminé (T.A.B.)';
+    case 'SUSP': return 'Suspendu';
+    case 'INT': return 'Interrompu';
+    case 'PST': return 'Reporté';
+    case 'CANC': return 'Annulé';
+    case 'ABD': return 'Abandonné';
+    case 'AWD': return 'Par forfait';
+    case 'WO': return 'Forfait';
+    case 'NS': return 'Non démarré';
+    case 'TBD': return 'À définir';
+    default: return status.long || short;
+  }
+};
+
 interface MatchDetailsProps {
   fixtureId: number;
   user: UserProfile | null;
@@ -301,6 +327,12 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           </div>
         </div>
 
+        {/* Match Date and Time */}
+        <div className="flex justify-center items-center gap-1.5 text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 mb-4 pt-2 border-t border-white/5">
+          <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+          <span>{format(new Date(details.fixture.date), "dd/MM/yyyy • HH:mm")}</span>
+        </div>
+
         {/* Middle row: Teams & Score */}
         <div className="flex justify-between items-center mb-4 gap-2">
           {/* Home Team */}
@@ -324,19 +356,35 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
             </div>
             
             {details.score?.penalty?.home != null && (
-              <div className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">
+              <div className="text-[9px] sm:text-[10px] font-black text-red-400 mb-1.5 uppercase tracking-wider bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 shadow-md">
                 ({details.score.penalty.home} - {details.score.penalty.away} TAB)
               </div>
             )}
             
             {isLive ? (
-              <div className="px-2 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-500 font-black text-[9px] sm:text-xs flex items-center justify-center gap-0.5">
-                <span>{details.fixture.status.elapsed}{details.fixture.status.extra ? `+${details.fixture.status.extra}` : ''}</span>
-                <span className="animate-pulse">'</span>
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="px-2.5 py-0.5 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-500 font-black text-[9px] sm:text-xs flex items-center justify-center gap-0.5">
+                  <span>{details.fixture.status.elapsed}{details.fixture.status.extra ? `+${details.fixture.status.extra}` : ''}</span>
+                  <span className="animate-pulse">'</span>
+                </div>
+                {/* Status translation sub-text */}
+                <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm text-center ${
+                  ['ET', 'P', 'BT'].includes(details.fixture.status.short)
+                    ? "bg-[#ef4444] text-white animate-pulse"
+                    : "bg-[#2a2a2a] text-gray-400"
+                }`}>
+                  {getMatchStatusLabel(details.fixture.status)}
+                </span>
               </div>
             ) : (
-              <div className="px-2 py-0.5 bg-white/10 border border-white/10 rounded-full text-gray-400 font-black text-[8px] sm:text-[10px] uppercase">
-                {details.fixture.status.short}
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="px-2.5 py-0.5 bg-white/10 border border-white/10 rounded-full text-gray-400 font-black text-[8px] sm:text-[10px] uppercase">
+                  {details.fixture.status.short}
+                </div>
+                {/* Translated/Precise label for finished matches */}
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 text-center">
+                  {getMatchStatusLabel(details.fixture.status)}
+                </span>
               </div>
             )}
           </div>

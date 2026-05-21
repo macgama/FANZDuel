@@ -370,9 +370,9 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                         }`}
                         title={`${p.pseudo} (${p.team})`}
                       >
-                        {p.fanz?.equippedSkinUrl || p.fanz?.imageUrl || p.photoURL ? (
+                        {p.photoURL || p.fanz?.equippedSkinUrl || p.fanz?.imageUrl ? (
                           <img 
-                            src={p.fanz?.equippedSkinUrl ? getImageUrl(p.fanz.equippedSkinUrl) : (getImageUrl(p.fanz?.imageUrl) || p.photoURL)} 
+                            src={p.photoURL ? getImageUrl(p.photoURL) : (p.fanz?.equippedSkinUrl ? getImageUrl(p.fanz.equippedSkinUrl) : getImageUrl(p.fanz?.imageUrl))} 
                             alt="Avatar" 
                             className="w-full h-full object-cover scale-110" 
                             referrerPolicy="no-referrer"

@@ -5,11 +5,62 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Memory fallback for environments where localStorage/sessionStorage are disabled (like sandboxed iframes)
+const memoryStorage: Record<string, string> = {};
+
+export const safeLocalStorage = {
+  getItem(key: string): string | null {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return memoryStorage[`local_${key}`] || null;
+    }
+  },
+  setItem(key: string, value: string): void {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      memoryStorage[`local_${key}`] = value;
+    }
+  },
+  removeItem(key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      delete memoryStorage[`local_${key}`];
+    }
+  }
+};
+
+export const safeSessionStorage = {
+  getItem(key: string): string | null {
+    try {
+      return sessionStorage.getItem(key);
+    } catch {
+      return memoryStorage[`session_${key}`] || null;
+    }
+  },
+  setItem(key: string, value: string): void {
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {
+      memoryStorage[`session_${key}`] = value;
+    }
+  },
+  removeItem(key: string): void {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      delete memoryStorage[`session_${key}`];
+    }
+  }
+};
+
 // Video proxy or direct
 export function getOptimizedVideoUrl(
   path: string | null | undefined,
 ): string | undefined {
-  if (!path) return undefined;
+  if (!path || path === "undefined" || path === "null") return undefined;
 
   // Handle gs:// URLs (Legacy database records)
   let finalPath = path;
@@ -35,6 +86,23 @@ export function getOptimizedVideoUrl(
     !finalPath.startsWith("/fanz/")
   ) {
     finalPath = `/fanz/${finalPath.split("/fanz/")[1]}`;
+  }
+
+  // Handle public to img/public mapping
+  if (finalPath.includes("thebestfan.online/public/")) {
+    finalPath = finalPath.replace("thebestfan.online/public/", "thebestfan.online/img/public/");
+  }
+
+  // Handle Skin000 missing backward compatibility
+  if (finalPath.includes('imageFanz') || finalPath.includes('videoFanz')) {
+    if (
+      !finalPath.toLowerCase().includes('skin') && 
+      !finalPath.toLowerCase().includes('emote') &&
+      !finalPath.toLowerCase().includes('duel') &&
+      !finalPath.toLowerCase().includes('card')
+    ) {
+      finalPath = finalPath.replace(/\.(png|mp4|jpg|jpeg|webp)$/i, 'Skin000.$1');
+    }
   }
 
   // Insert the 3-digit folder structure if it's missing
@@ -65,7 +133,7 @@ export function getImageUrl(
   path: string | null | undefined,
   width: number = 800,
 ): string | undefined {
-  if (!path) return undefined;
+  if (!path || path === "undefined" || path === "null") return undefined;
 
   if (path.startsWith("/api/image-proxy")) {
     return path;
@@ -103,6 +171,23 @@ export function getImageUrl(
     !finalPath.startsWith("/fanz/")
   ) {
     finalPath = `/fanz/${finalPath.split("/fanz/")[1]}`;
+  }
+
+  // Handle public to img/public mapping for duel/logos etc.
+  if (finalPath.includes("thebestfan.online/public/")) {
+    finalPath = finalPath.replace("thebestfan.online/public/", "thebestfan.online/img/public/");
+  }
+
+  // Handle Skin000 missing backward compatibility
+  if (finalPath.includes('imageFanz') || finalPath.includes('videoFanz')) {
+    if (
+      !finalPath.toLowerCase().includes('skin') && 
+      !finalPath.toLowerCase().includes('emote') &&
+      !finalPath.toLowerCase().includes('duel') &&
+      !finalPath.toLowerCase().includes('card')
+    ) {
+      finalPath = finalPath.replace(/\.(png|mp4|jpg|jpeg|webp)$/i, 'Skin000.$1');
+    }
   }
 
   // Insert the 3-digit folder structure if it's missing (e.g. /fanz/imageFanz001Skin000.png -> /fanz/001/imageFanz001Skin000.png)

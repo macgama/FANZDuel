@@ -42,6 +42,32 @@ export function OptimizedMedia({
   const finalSrc = src ? getImageUrl(src, width) : '';
   const finalPoster = poster ? getImageUrl(poster, width) : undefined;
 
+  const getFallbackSrc = (originalSrc: string | null): string => {
+    if (!originalSrc) return 'https://thebestfan.online/img/public/logo/imageMydeck.png';
+    const lower = originalSrc.toLowerCase();
+    if (lower.includes('emote') || lower.includes('social')) {
+      return 'https://thebestfan.online/img/public/logo/imageSocial.png';
+    }
+    if (lower.includes('skin') || lower.includes('fanz') || lower.includes('myfan')) {
+      return 'https://thebestfan.online/img/public/logo/imageMyfan.png';
+    }
+    if (lower.includes('action') || lower.includes('force')) {
+      return 'https://thebestfan.online/img/public/logo/imageForce.png';
+    }
+    return 'https://thebestfan.online/img/public/logo/imageMydeck.png';
+  };
+
+  const [imgSrc, setImgSrc] = useState(finalSrc);
+  const [posterSrc, setPosterSrc] = useState(finalPoster);
+
+  useEffect(() => {
+    setImgSrc(finalSrc || '');
+  }, [finalSrc]);
+
+  useEffect(() => {
+    setPosterSrc(finalPoster);
+  }, [finalPoster]);
+
   useEffect(() => {
     if (type === 'video' && videoRef.current && !dataSaver) {
       if (isInView && autoPlay) {
@@ -58,20 +84,24 @@ export function OptimizedMedia({
     }
   }, [isInView, type, dataSaver, autoPlay]);
 
-  if (!finalSrc) {
+  if (!imgSrc) {
     return <div className={`bg-gray-800 ${className}`} />;
   }
 
   // In Data Saver mode, fallback to image if it's a video
   if (type === 'video' && dataSaver) {
-    if (finalPoster) {
+    if (posterSrc) {
       return (
         <img 
-          src={finalPoster} 
+          src={posterSrc} 
           alt={alt} 
           className={cn(className, "object-cover")} 
           loading="lazy"
           decoding="async"
+          onError={() => {
+            const fallback = getFallbackSrc(poster);
+            if (posterSrc !== fallback) setPosterSrc(fallback);
+          }}
         />
       );
     }
@@ -81,7 +111,7 @@ export function OptimizedMedia({
       <div ref={containerRef} className="w-full h-full relative">
         <video
           ref={videoRef}
-          src={finalSrc}
+          src={imgSrc}
           className={className}
           autoPlay={false}
           loop={false}
@@ -100,8 +130,8 @@ export function OptimizedMedia({
         {isInView ? (
           <video
             ref={videoRef}
-            src={finalSrc}
-            poster={finalPoster || undefined}
+            src={imgSrc}
+            poster={posterSrc || undefined}
             className={cn(className, "cursor-pointer")}
             autoPlay={autoPlay}
             loop={loop}
@@ -120,8 +150,16 @@ export function OptimizedMedia({
           />
         ) : (
           // Render poster or placeholder when out of view to save memory
-          finalPoster ? (
-            <img src={finalPoster} alt={alt} className={className} />
+          posterSrc ? (
+            <img 
+              src={posterSrc} 
+              alt={alt} 
+              className={className} 
+              onError={() => {
+                const fallback = getFallbackSrc(poster);
+                if (posterSrc !== fallback) setPosterSrc(fallback);
+              }}
+            />
           ) : (
             <div className={`bg-gray-800 ${className}`} />
           )
@@ -135,12 +173,16 @@ export function OptimizedMedia({
     <div ref={containerRef} className="w-full h-full">
       {isInView ? (
         <img
-          src={finalSrc}
+          src={imgSrc}
           alt={alt}
           className={className}
           loading="lazy"
           decoding="async"
           onLoad={() => setHasLoaded(true)}
+          onError={() => {
+            const fallback = getFallbackSrc(src);
+            if (imgSrc !== fallback) setImgSrc(fallback);
+          }}
         />
       ) : (
         <div className={`bg-gray-800 ${className}`} />

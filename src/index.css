@@ -74,3 +74,146 @@ select option {
   color: white;
 }
 
+/* ==========================================
+   Google Translate Discrete Dark Theme Styles
+   ========================================== */
+
+#google_translate_element {
+  position: fixed !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+}
+
+#google_translate_element.in-profile-modal {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+#google_translate_element.in-profile-modal .goog-te-gadget-simple {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 100% !important;
+  padding: 0 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+#google_translate_element.in-profile-modal .goog-te-menu-value {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+/* Style the widget container */
+.goog-te-gadget-simple {
+  background-color: rgba(24, 24, 27, 0.95) !important; /* Zinc 900 with high opacity */
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 9999px !important; /* Pill style */
+  padding: 4px 10px !important;
+  font-family: inherit !important;
+  color: #f4f4f5 !important; /* zinc-100 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  cursor: pointer !important;
+  line-height: 1.2 !important;
+  height: auto !important;
+}
+
+/* Hide all standard Google branding/logos/icons inside the simple bar */
+.goog-te-gadget-simple img, 
+.goog-te-gadget-icon,
+.goog-logo-link {
+  display: none !important;
+}
+
+/* Add a discrete custom translation icon / globe icon */
+.goog-te-gadget-simple::before {
+  content: "🌐" !important;
+  font-size: 11px !important;
+  margin-right: 2px !important;
+  display: inline-block !important;
+}
+
+/* Style the language select text */
+.goog-te-menu-value {
+  color: #e4e4e7 !important; /* zinc-200 */
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  text-decoration: none !important;
+}
+
+/* Hide Google's vertical dividers & indicator triangles */
+.goog-te-menu-value span {
+  border: none !important;
+  padding: 0 !important;
+  color: #e4e4e7 !important;
+}
+
+.goog-te-menu-value span:nth-child(3) {
+  display: none !important; /* Hides horizontal separator line */
+}
+
+.goog-te-menu-value span:nth-child(5) {
+  display: none !important; /* Hides google's arrow */
+}
+
+/* Add our own modern down arrow indicator */
+.goog-te-menu-value::after {
+  content: "▼" !important;
+  font-size: 7px !important;
+  color: #a1a1aa !important; /* zinc-400 */
+  margin-left: 5px !important;
+  opacity: 0.8 !important;
+}
+
+/* Disable Google Translate native frame shift & clean body top offset */
+body {
+  top: 0px !important;
+  position: static !important;
+}
+
+/* Absolute complete hiding of standard translate widgets & banner frames */
+iframe.goog-te-banner-frame,
+.goog-te-banner-frame,
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.goog-text-highlight {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* If Google's translation frame is opened, style the menu inside as dark is hard due to iframes */
+.goog-te-menu-frame {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  background-color: #18181b !important;
+}
+
+
