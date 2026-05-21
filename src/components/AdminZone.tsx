@@ -34,6 +34,7 @@ export function AdminZone() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'info' | 'success' | 'error' | 'loading', message: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [leagueSort, setLeagueSort] = useState<{column: string, direction: 'asc'|'desc'}>({column: 'id', direction: 'asc'});
 
   // Life Actions state
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
@@ -1581,18 +1582,39 @@ export function AdminZone() {
         return;
       }
       
+      // Fetch existing leagues from Firestore to preserve isActive status
+      const firestoreLeaguesSnapshot = await getDocs(collection(db, 'leagues'));
+      const firestoreLeagues = new Map();
+      firestoreLeaguesSnapshot.forEach(doc => {
+        firestoreLeagues.set(doc.id, doc.data());
+      });
+
+      const mergedData = data.map((item: any) => {
+        const firestoreData = firestoreLeagues.get(item.league.id.toString());
+        if (firestoreData && firestoreData.isActive !== undefined) {
+          return {
+            ...item,
+            league: {
+              ...item.league,
+              isActive: firestoreData.isActive
+            }
+          };
+        }
+        return item;
+      });
+
       // If manual ID, add to list if not already there
       if (manualLeagueId) {
         setLeagues(prev => {
-          const exists = prev.some(l => l.league.id === data[0].league.id);
-          return exists ? prev : [...prev, ...data];
+          const exists = prev.some(l => l.league.id === mergedData[0].league.id);
+          return exists ? prev : [...prev, ...mergedData];
         });
       } else {
-        setLeagues(data);
+        setLeagues(mergedData);
       }
       
       const batch = writeBatch(db);
-      for (const item of data) {
+      for (const item of mergedData) {
         const leagueRef = doc(db, 'leagues', item.league.id.toString());
         batch.set(leagueRef, {
           id: item.league.id,
@@ -1606,7 +1628,7 @@ export function AdminZone() {
         }, { merge: true });
       }
       await batch.commit();
-      setStatus({ type: 'success', message: `${data.length} compétition(s) importée(s) avec succès !` });
+      setStatus({ type: 'success', message: `${data.length} compétition(s) récupérée(s) (à activer pour les rendre visibles).` });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'leagues');
       setStatus({ type: 'error', message: "Erreur lors de l'importation. Vérifiez votre clé API." });
@@ -1754,6 +1776,93 @@ export function AdminZone() {
     } catch (err) {
       console.error("Error toggling competition", err);
       setStatus({ type: 'error', message: "Erreur lors de la mise à jour." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleActivateOngoingLeagues = async () => {
+    setLoading(true);
+    setStatus({ type: 'info', message: "Recherche et activation des compétitions en cours..." });
+    let activatedCount = 0;
+    try {
+      let batch = writeBatch(db);
+      let opsCount = 0;
+      
+      const newLeagues = [...leagues];
+      
+      for (let i = 0; i < leagues.length; i++) {
+        const item = leagues[i];
+        if (item.league.isActive) continue; // Skip already active
+        
+        const seasonInfo = item.seasons?.find((s: any) => s.year === selectedSeason);
+        if (!seasonInfo) continue;
+        
+        const now = new Date();
+        const start = new Date(seasonInfo.start);
+        const end = new Date(seasonInfo.end);
+        
+        if (now >= start && now <= end) { // Ongoing
+          const leagueRef = doc(db, 'leagues', item.league.id.toString());
+          batch.set(leagueRef, { isActive: true }, { merge: true });
+          newLeagues[i] = { ...item, league: { ...item.league, isActive: true } };
+          activatedCount++;
+          opsCount++;
+          
+          const missionId = `mission-comp-${item.league.id}`;
+          const passId = `pass-comp-${item.league.id}`;
+          
+          // Mission
+          batch.set(doc(db, 'missions', missionId), {
+            id: missionId,
+            title: `Mission ${item.league.name}`,
+            description: `Gagnez des matchs de la compétition ${item.league.name}`,
+            type: 'duel',
+            target: 10,
+            reward: { type: 'money', amount: 500 },
+            isActive: true,
+            period: 'one_shot'
+          });
+          opsCount++;
+
+          // Pass
+          batch.set(doc(db, 'passes', passId), {
+            id: passId,
+            name: `Pass ${item.league.name}`,
+            description: `Récompenses exclusives pour la compétition ${item.league.name}`,
+            imageUrl: '',
+            startDate: new Date().toISOString(),
+            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            levels: [
+              { level: 1, pointsRequired: 100, freeReward: { type: 'money', amount: 100 } },
+              { level: 2, pointsRequired: 200, freeReward: { type: 'gems', amount: 10 } }
+            ],
+            priceGems: 100,
+            isActive: true,
+            premiumPrice: { money: 1000 },
+            conditionType: 'league',
+            conditionValue: item.league.id.toString()
+          });
+          opsCount++;
+
+          if (opsCount >= 450) {
+            await batch.commit();
+            batch = writeBatch(db);
+            opsCount = 0;
+          }
+        }
+      }
+      
+      if (opsCount > 0) {
+        await batch.commit();
+      }
+      
+      setLeagues(newLeagues);
+      setStatus({ type: 'success', message: `${activatedCount} compétitions activées avec succès.` });
+
+    } catch(err) {
+      console.error(err);
+      setStatus({ type: 'error', message: "Erreur lors de l'activation des compétitions." });
     } finally {
       setLoading(false);
     }
@@ -1983,9 +2092,42 @@ export function AdminZone() {
     }
   };
 
+  const handleLeagueSort = (column: string) => {
+    setLeagueSort(prev => {
+      if (prev.column === column) {
+        return { column, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const getSeasonStatusValue = (item: any, selectedSeason: number) => {
+    const seasonInfo = item.seasons?.find((s: any) => s.year === selectedSeason);
+    if (!seasonInfo) return 4;
+    const now = new Date();
+    const start = new Date(seasonInfo.start);
+    const end = new Date(seasonInfo.end);
+    if (now < start) return 2;
+    if (now > end) return 3;
+    return 1;
+  };
+
   const filteredLeagues = leagues
     .filter(l => l.league.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.country.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => a.country.name.localeCompare(b.country.name));
+    .sort((a, b) => {
+      let valA, valB;
+      switch (leagueSort.column) {
+        case 'id': valA = a.league.id; valB = b.league.id; break;
+        case 'name': valA = a.league.name; valB = b.league.name; break;
+        case 'country': valA = a.country.name; valB = b.country.name; break;
+        case 'season': valA = getSeasonStatusValue(a, selectedSeason); valB = getSeasonStatusValue(b, selectedSeason); break;
+        case 'status': valA = a.league.isActive ? 1 : 0; valB = b.league.isActive ? 1 : 0; break;
+        default: valA = a.country.name; valB = b.country.name; break;
+      }
+      if (valA < valB) return leagueSort.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return leagueSort.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
 
   return (
     <div className="p-6 w-full mx-auto space-y-8">
@@ -2525,8 +2667,39 @@ export function AdminZone() {
                           <option value="one_shot">Unique (One Shot)</option>
                         </select>
                       </div>
+
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Cible (Nombre)</label>
+                        <label className="text-sm font-medium text-gray-300">Condition Cible (Optionnel)</label>
+                        <select
+                          value={editingMission.conditionType || 'global'}
+                          onChange={e => setEditingMission({...editingMission, conditionType: e.target.value as any})}
+                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="global">Général</option>
+                          <option value="country">Lié à un Pays</option>
+                          <option value="team">Lié à une Équipe</option>
+                          <option value="league">Lié à une Compétition</option>
+                          <option value="season">Lié à une Saison</option>
+                          <option value="fanz">Lié à un FANZ</option>
+                          <option value="skin">Lié à un type de Skin</option>
+                          <option value="card">Lié à une Carte Duel</option>
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">ID / Valeur Cible</label>
+                        <input
+                          type="text"
+                          value={editingMission.conditionValue || ''}
+                          onChange={e => setEditingMission({...editingMission, conditionValue: e.target.value})}
+                          placeholder={editingMission.conditionType === 'team' ? 'ID equipe (ex: 85)' : 'Valeur...'}
+                          disabled={!editingMission.conditionType || editingMission.conditionType === 'global'}
+                          className="w-full p-2 bg-gray-800 text-white rounded-lg border border-gray-700 disabled:opacity-50"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Cible (Nombre répétitions)</label>
                         <input
                           type="number"
                           value={editingMission.target}
@@ -2659,6 +2832,9 @@ export function AdminZone() {
                           <option value="team">Lié à une Équipe</option>
                           <option value="league">Lié à une Compétition</option>
                           <option value="season">Lié à une Saison</option>
+                          <option value="fanz">Lié à un FANZ</option>
+                          <option value="skin">Lié à un type de Skin</option>
+                          <option value="card">Lié à une Carte Duel</option>
                         </select>
                       </div>
                       <div className="space-y-2">
@@ -3067,6 +3243,16 @@ export function AdminZone() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             {manualLeagueId ? 'Importer cet ID' : 'Actualiser la liste'}
           </Button>
+
+          <Button
+            onClick={handleActivateOngoingLeagues}
+            disabled={loading}
+            className="flex items-center gap-2"
+            variant="secondary"
+          >
+            <CheckCircle className="w-4 h-4" />
+            Activer toutes les compétitions en cours
+          </Button>
         </div>
 
 
@@ -3081,41 +3267,100 @@ export function AdminZone() {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredLeagues.map((item) => (
-            <div key={item.league.id} className="p-4 border border-white/10 rounded-xl hover:bg-white/10 transition-colors flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img src={item.league.logo} alt={item.league.name} className="w-10 h-10 object-contain" />
-                <div>
-                  <div className="font-bold text-sm">{item.league.name}</div>
-                  <div className="text-xs text-gray-500 flex items-center gap-1">
-                    {item.country.flag && <img src={item.country.flag} alt="" className="w-4 h-3 object-cover rounded-sm" />}
-                    {item.country.name}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleToggleCompetition(item.league.id, !!item.league.isActive, item.league.name)}
-                  disabled={loading}
-                  className={`px-3 py-2 ${item.league.isActive ? 'text-green-500 border-green-500 hover:bg-green-500/10' : 'text-gray-500 border-gray-500 hover:bg-gray-500/10'}`}
-                  title={item.league.isActive ? "Désactiver" : "Activer"}
-                >
-                  <Eye className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => handleImportFullLeague(item.league.id)}
-                  disabled={loading}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-2"
-                  title="Importer"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-400">
+            <thead className="text-xs uppercase bg-black/40 text-gray-500">
+              <tr>
+                <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleLeagueSort('id')}>
+                  <div className="flex items-center gap-1">ID {leagueSort.column === 'id' ? (leagueSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleLeagueSort('name')}>
+                  <div className="flex items-center gap-1">Compétition {leagueSort.column === 'name' ? (leagueSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleLeagueSort('country')}>
+                  <div className="flex items-center gap-1">Pays {leagueSort.column === 'country' ? (leagueSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                </th>
+                <th className="py-3 px-4">
+                  Saison
+                </th>
+                <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleLeagueSort('status')}>
+                  <div className="flex items-center gap-1">Statut {leagueSort.column === 'status' ? (leagueSort.direction === 'asc' ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>) : null}</div>
+                </th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLeagues.map((item) => {
+                const seasonInfo = item.seasons?.find((s: any) => s.year === selectedSeason);
+                let isComing = false;
+                let isFinished = false;
+                let isOngoing = false;
+                if (seasonInfo) {
+                  const now = new Date();
+                  const start = new Date(seasonInfo.start);
+                  const end = new Date(seasonInfo.end);
+                  isComing = now < start;
+                  isFinished = now > end;
+                  isOngoing = !isComing && !isFinished;
+                }
+
+                return (
+                  <tr key={item.league.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
+                    <td className="py-3 px-4 font-mono text-gray-500">{item.league.id}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <img src={item.league.logo} alt={item.league.name} className="w-8 h-8 object-contain" />
+                        <span className="font-bold text-white">{item.league.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        {item.country.flag && <img src={item.country.flag} alt="" className="w-5 h-3.5 object-cover rounded-sm" />}
+                        <span>{item.country.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      {seasonInfo ? (
+                        <div className="flex flex-col gap-1 items-start">
+                          <div className="text-[10px] text-gray-400">
+                            <strong>{seasonInfo.year}</strong> : {seasonInfo.start} au {seasonInfo.end}
+                          </div>
+                          {isOngoing && <span className="text-[10px] bg-green-500/20 text-green-500 border border-green-500/30 px-1.5 py-0.5 rounded font-bold uppercase">En cours</span>}
+                          {isComing && <span className="text-[10px] bg-blue-500/20 text-blue-500 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold uppercase">À venir</span>}
+                          {isFinished && <span className="text-[10px] bg-gray-500/20 text-gray-400 border border-gray-500/30 px-1.5 py-0.5 rounded font-bold uppercase">Terminée</span>}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-gray-500">Saison {selectedSeason}</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <button
+                        onClick={() => handleToggleCompetition(item.league.id, !!item.league.isActive, item.league.name)}
+                        className={`text-[10px] font-black uppercase px-2 py-1 rounded transition-colors ${
+                          item.league.isActive ? 'bg-green-500/20 text-green-500 hover:bg-green-500/40' : 'bg-red-500/20 text-red-500 hover:bg-red-500/40'
+                        }`}
+                      >
+                        {item.league.isActive ? 'Visible' : 'Masquée'}
+                      </button>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleImportFullLeague(item.league.id)}
+                          disabled={loading}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 h-auto text-xs"
+                          title="Importer"
+                        >
+                          <Download className="w-3.5 h-3.5 mr-1" /> Importer
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </Card>
       )}

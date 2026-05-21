@@ -367,11 +367,14 @@ export interface Mission {
   id: string;
   title: string;
   description: string;
-  type: 'duel' | 'action' | 'social' | 'collection' | 'duel_count' | 'win_count' | 'fanz_duel' | 'life_action';
+  type: 'duel' | 'action' | 'social' | 'collection' | 'duel_count' | 'win_count' | 'fanz_duel' | 'life_action' | 'card_usage';
   target: number;
   reward: FerveurLevel['reward'];
   isActive: boolean;
   period?: 'daily' | 'weekly' | 'one_shot';
+  conditionType?: 'global' | 'country' | 'team' | 'league' | 'season' | 'fanz' | 'skin' | 'card';
+  conditionValue?: string;
+  conditionSeason?: string;
 }
 
 export interface UserMissionProgress {
@@ -405,7 +408,7 @@ export interface Pass {
   };
   skinRewardId?: string;
   skinReward?: FanzSkin;
-  conditionType?: 'global' | 'country' | 'team' | 'league' | 'season';
+  conditionType?: 'global' | 'country' | 'team' | 'league' | 'season' | 'fanz' | 'skin' | 'card';
   conditionValue?: string;
   conditionSeason?: string;
 }

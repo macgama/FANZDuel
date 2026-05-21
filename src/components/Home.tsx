@@ -327,8 +327,15 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     const fetchMatches = async () => {
       try {
         const liveFixtures = await footballApi.getLiveFixtures();
+        
+        // Fetch active leagues to filter
+        const leaguesSnap = await getDocs(query(collection(db, 'leagues'), where('isActive', '==', true)));
+        const activeLeagueIds = leaguesSnap.docs.map(doc => Number(doc.id));
+        
+        const filteredFixtures = liveFixtures.filter((f: any) => activeLeagueIds.includes(f.league.id));
+
         // Sort live matches alphabetically by country name, but put favorite teams first
-        liveFixtures.sort((a, b) => {
+        filteredFixtures.sort((a: any, b: any) => {
           const favoriteIds = profile.favoriteTeams?.map((id: any) => id.toString()) || [];
           const aIsFav = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
           const bIsFav = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
@@ -339,11 +346,11 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
           return countryA.localeCompare(countryB);
         });
         // Show all live matches
-        setLiveMatches(liveFixtures);
+        setLiveMatches(filteredFixtures);
         
         // Fetch scores for these matches via onSnapshot
-        if (liveFixtures.length > 0) {
-          const matchIds = liveFixtures.map((m: any) => m.fixture.id.toString());
+        if (filteredFixtures.length > 0) {
+          const matchIds = filteredFixtures.map((m: any) => m.fixture.id.toString());
           
           // Chunk matchIds into arrays of 10
           const chunkSize = 10;

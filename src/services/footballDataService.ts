@@ -57,53 +57,23 @@ export const footballDataService = {
   },
 
   /**
-   * Gets all leagues with Firestore caching.
+   * Gets all active leagues from Firestore.
    */
   async getLeagues(forceRefresh = false) {
-    const cacheKey = 'leagues_list';
     const path = 'leagues';
     try {
-      if (!forceRefresh) {
-        const snapshot = await getDocs(collection(db, path));
-        if (!snapshot.empty) {
-          // Reconstruct the format expected by the UI (which matches API response)
-          return snapshot.docs.map(d => {
-            const data = d.data();
-            return {
-              league: { id: data.id, name: data.name, type: data.type, logo: data.logo, isActive: data.isActive || false },
-              country: { name: data.country, code: data.countryCode, flag: data.countryFlag },
-              seasons: [{ year: data.season, current: true }] // Simplified
-            };
-          });
-        }
+      const snapshot = await getDocs(collection(db, path));
+      if (!snapshot.empty) {
+        return snapshot.docs.map(d => {
+          const data = d.data();
+          return {
+            league: { id: data.id, name: data.name, type: data.type, logo: data.logo, isActive: data.isActive || false },
+            country: { name: data.country, code: data.countryCode, flag: data.countryFlag },
+            seasons: [{ year: data.season, current: true }] 
+          };
+        }).filter(l => l.league.isActive === true);
       }
-
-      // Fetch from API
-      const leagues = await footballApi.getLeagues();
-      if (leagues && leagues.length > 0) {
-        const chunkSize = 50;
-        for (let i = 0; i < leagues.length; i += chunkSize) {
-          const chunk = leagues.slice(i, i + chunkSize);
-          const batch = writeBatch(db);
-          chunk.forEach((l: any) => {
-            const docRef = doc(db, path, l.league.id.toString());
-            batch.set(docRef, {
-              id: l.league.id,
-              name: l.league.name,
-              type: l.league.type,
-              logo: l.league.logo,
-              country: l.country.name,
-              countryCode: l.country.code,
-              countryFlag: l.country.flag,
-              season: l.seasons?.sort((a: any, b: any) => b.year - a.year)[0]?.year || this.getCurrentSeasonYear()
-            }, { merge: true });
-          });
-          await batch.commit();
-          await new Promise(resolve => setTimeout(resolve, 250));
-        }
-        await this.setLastUpdated(cacheKey);
-      }
-      return leagues || [];
+      return [];
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
       return [];

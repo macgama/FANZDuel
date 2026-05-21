@@ -138,10 +138,35 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
     return () => unsubs.forEach(un => un());
   }, [fixtures]);
 
+  const [activeLeagueIds, setActiveLeagueIds] = useState<number[]>([]);
+  const [leaguesLoaded, setLeaguesLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchActiveLeagues = async () => {
+      try {
+        const snapshot = await getDocs(query(collection(db, 'leagues'), where('isActive', '==', true)));
+        const ids = snapshot.docs.map(doc => Number(doc.id));
+        setActiveLeagueIds(ids);
+      } catch (err) {
+        console.error("Error fetching active leagues:", err);
+      } finally {
+        setLeaguesLoaded(true);
+      }
+    };
+    fetchActiveLeagues();
+  }, []);
+
   const filteredFixtures = useMemo(() => {
+    if (!leaguesLoaded) return [];
+    
     const favoriteIds = profile?.favoriteTeams?.map(id => id.toString()) || [];
     
     return fixtures.filter(f => {
+      // Only show matches from active leagues
+      if (!activeLeagueIds.includes(f.league.id)) {
+        return false;
+      }
+
       const matchesSearch = 
         f.league.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         f.teams.home.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -161,7 +186,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
       if (!aIsFav && bIsFav) return 1;
       return 0;
     });
-  }, [fixtures, searchTerm, statusFilter, profile?.favoriteTeams]);
+  }, [fixtures, searchTerm, statusFilter, profile?.favoriteTeams, activeLeagueIds]);
 
   // Enrich visible matches with events
   useEffect(() => {
