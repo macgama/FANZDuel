@@ -298,12 +298,13 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
               updates.doubleGainsUntil = new Date(baseDate.getTime() + 60 * 60 * 1000).toISOString();
               rewardAdded = true;
            } else if (type === 'skin' || type === 'emote' || type === 'xp' || type === 'card') {
-              if (userFanzs.length > 0) {
-                 const randomFanz = userFanzs[Math.floor(Math.random() * userFanzs.length)];
+               const activeUserFanzs = userFanzs.filter(rf => { const t = fanzTemplates.find(tem => tem.id === rf.templateId); return t && t.isActive !== false; });
+              if (activeUserFanzs.length > 0) {
+                 const randomFanz = activeUserFanzs[Math.floor(Math.random() * activeUserFanzs.length)];
                  const template = fanzTemplates.find(t => t.id === randomFanz.templateId);
                  
                  if (type === 'skin' && template?.skins) {
-                    const availableSkins = template.skins.filter((s:any) => !userSkins.includes(s.id));
+                    const availableSkins = template.skins.filter((s:any) => s.isActive !== false && !userSkins.includes(s.id));
                     if (availableSkins.length > 0) {
                        const skin = availableSkins[Math.floor(Math.random() * availableSkins.length)];
                        generatedRewards.push({ type, name: `Skin: ${skin.name}`, fanz: template.name, icon: '👕', image: skin.imageUrl ? getImageUrl(skin.imageUrl) : undefined });
@@ -312,7 +313,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                        rewardAdded = true;
                     }
                  } else if (type === 'emote' && template?.emotes) {
-                    const availableEmotes = template.emotes.filter((e:any) => !userEmotes.includes(e.id));
+                    const availableEmotes = template.emotes.filter((e:any) => e.isActive !== false && !userEmotes.includes(e.id));
                     if (availableEmotes.length > 0) {
                        const emote = availableEmotes[Math.floor(Math.random() * availableEmotes.length)];
                        generatedRewards.push({ type, name: `Emote: ${emote.name}`, fanz: template.name, icon: '😀', image: emote.imageUrl ? getImageUrl(emote.imageUrl) : undefined });
@@ -321,7 +322,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                        rewardAdded = true;
                     }
                  } else if (type === 'card') {
-                    const availableCards = allCards.filter(c => (c.fanzIds && c.fanzIds.includes(template!.id)) && !c.blockedFanzIds?.includes(template!.id) && !userCards.includes(c.id));
+                    const availableCards = allCards.filter(c => c.isActive !== false && (c.fanzIds && c.fanzIds.includes(template!.id)) && !c.blockedFanzIds?.includes(template!.id) && !userCards.includes(c.id));
                     if (availableCards.length > 0) {
                        const card = availableCards[Math.floor(Math.random() * availableCards.length)];
                        generatedRewards.push({ type, name: `Carte: ${card.name}`, fanz: template!.name, icon: '🃏', image: card.imageUrl ? getImageUrl(card.imageUrl) : undefined });

@@ -340,6 +340,7 @@ export interface CardUnlockRequirement {
 
 export interface Card {
   id: string;
+  isActive?: boolean;
   instanceId?: string; // For unique instances in hand
   name: string;
   type: 'bonus' | 'malus' | 'neutral';
