@@ -893,17 +893,84 @@ async function startServer() {
   }
   const footballCache: Record<string, FootballCacheEntry> = {};
   const inFlightFootballRequests: Record<string, Promise<FootballCacheEntry | null>> = {};
-  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes default fallback cache
+  
+  // Track finished fixtures in memory so we don't spam requests for completed matches
+  const finishedFixturesSet = new Set<string>();
+
+  function getCustomTTL(endpoint: string, queryParams: any): number {
+    // 1. Static/Slow-moving endpoints (leagues, teams, standings, players, squads etc.)
+    if (
+      endpoint.includes("leagues") ||
+      endpoint.includes("teams") ||
+      endpoint.includes("players") ||
+      endpoint.includes("venues")
+    ) {
+      return 12 * 60 * 60 * 1000; // 12 hours
+    }
+
+    if (endpoint.includes("standings")) {
+      return 2 * 60 * 60 * 1000; // 2 hours
+    }
+
+    // 2. Fixtures
+    if (endpoint.includes("fixtures")) {
+      // Live matches
+      if (queryParams.live === 'all' || queryParams.live) {
+        return 60 * 1000; // 60 seconds (quick update for active matches)
+      }
+
+      // Querying a specific fixture (by id or ids)
+      const fixtureId = queryParams.id || queryParams.fixture;
+      if (fixtureId) {
+        if (finishedFixturesSet.has(String(fixtureId))) {
+          return 24 * 60 * 60 * 1000; // 24 hours for completed matches
+        }
+      }
+
+      // Querying fixtures by date
+      if (queryParams.date) {
+        const dateStr = String(queryParams.date); // e.g., YYYY-MM-DD
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        if (dateStr < todayStr) {
+          return 24 * 60 * 60 * 1000; // 24 hours (past matches won't change)
+        } else if (dateStr > todayStr) {
+          return 4 * 60 * 60 * 1000; // 4 hours for future matches
+        } else {
+          return 60 * 1000; // 60 seconds for today's matches
+        }
+      }
+    }
+
+    // 3. Match details (events, lineups, statistics) using fixture ID
+    if (
+      endpoint.includes("fixtures/events") ||
+      endpoint.includes("fixtures/lineups") ||
+      endpoint.includes("fixtures/statistics")
+    ) {
+      const parentFixtureId = queryParams.fixture;
+      if (parentFixtureId && finishedFixturesSet.has(String(parentFixtureId))) {
+        return 24 * 60 * 60 * 1000; // 24 hours for finished match stats
+      }
+      return 3 * 60 * 1000; // 3 minutes standard dynamic details
+    }
+
+    return CACHE_TTL;
+  }
 
   app.get("/api/football/*", async (req, res) => {
     const endpoint = req.params[0].replace(/^\//, "");
     const queryParams = req.query;
     const cacheKey = `${endpoint}?${JSON.stringify(queryParams)}`;
 
+    // Calculate current TTL for checking
+    const currentTTL = getCustomTTL(endpoint, queryParams);
+
     // Check memory cache
     const cached = footballCache[cacheKey];
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      console.log(`[Football Proxy] Serving from cache: ${cacheKey}`);
+    if (cached && Date.now() - cached.timestamp < currentTTL) {
+      console.log(`[Football Proxy] Serving from cache: ${cacheKey} (TTL: ${currentTTL / 1000}s)`);
       return res.json(cached.data);
     }
 
@@ -973,6 +1040,17 @@ async function startServer() {
 
         console.log(`[Football Proxy] Upstream success: ${url} - Status: ${response.status}`);
         
+        // Scan response to detect and save finished fixtures
+        if (response.data && Array.isArray(response.data.response)) {
+          response.data.response.forEach((item: any) => {
+            const fId = item.fixture?.id;
+            const status = item.fixture?.status?.short;
+            if (fId && (status === "FT" || status === "AET" || status === "PEN")) {
+              finishedFixturesSet.add(String(fId));
+            }
+          });
+        }
+
         const entry: FootballCacheEntry = {
           data: response.data,
           timestamp: Date.now()
@@ -990,13 +1068,8 @@ async function startServer() {
                             String(error.message || "").toLowerCase().includes("rate exceeded") ||
                             String(error.message || "").toLowerCase().includes("rate limit");
 
-        console.error(`[Football Proxy Error] for ${url}:`, {
-          status: error.response?.status,
-          message: error.message,
-          isRateLimit
-        });
-
         if (isRateLimit) {
+          console.warn(`[Football Proxy Rate Limit] Upstream returned rate limit or quota exceeded for ${url}. Handled gracefully.`);
           if (cached) {
             console.log(`[Football Proxy] Rate limit hit. Returning cached stale entry for ${cacheKey}`);
             return cached;
@@ -1004,11 +1077,16 @@ async function startServer() {
           // Cache an empty success structure briefly to prevent infinite spamming
           const fallbackEntry: FootballCacheEntry = {
             data: { get: endpoint, parameters: queryParams, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] },
-            timestamp: Date.now() - (CACHE_TTL - 15000) // 15 seconds remainder TTL
+            timestamp: Date.now() - (currentTTL - 15000) // 15 seconds remainder TTL
           };
           footballCache[cacheKey] = fallbackEntry;
           return fallbackEntry;
         }
+
+        console.error(`[Football Proxy Error] for ${url}:`, {
+          status: error.response?.status,
+          message: error.message,
+        });
 
         throw error;
       } finally {

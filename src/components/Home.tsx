@@ -257,9 +257,13 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
   useEffect(() => {
     const updateActiveFanz = async () => {
       if (allFanz.length > 0) {
-        const fanzData = profile.activeFanzId 
+        const activeActionFanz = profile.activeAction?.fanzId 
+          ? allFanz.find(f => f.id === profile.activeAction.fanzId)
+          : null;
+
+        const fanzData = activeActionFanz || (profile.activeFanzId 
           ? allFanz.find(f => f.id === profile.activeFanzId) 
-          : (allFanz.find(f => f.id === profile.activeAction?.fanzId) || allFanz[0]);
+          : allFanz[0]);
 
         if (fanzData) {
           setActiveFanz(fanzData);
@@ -282,7 +286,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
 
                 if (equippedSkinData) {
                   currentImageUrl = equippedSkinData.imageUrl || currentImageUrl;
-                  currentVideoUrl = equippedSkinData.videoUrl || currentVideoUrl;
+                  currentVideoUrl = equippedSkinData.videoUrl || null; // Don't fallback to template video if skin has no video
                 }
 
                 if (activeAction) {
@@ -294,7 +298,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                     if (override.videoUrl) resolvedVideoUrl = override.videoUrl;
                   }
                   currentImageUrl = resolvedImage || currentImageUrl;
-                  currentVideoUrl = resolvedVideoUrl || currentVideoUrl;
+                  currentVideoUrl = resolvedVideoUrl || null; // Don't fallback to skin video if action has no video
                 }
 
                 const finalVideoUrl = getImageUrl(currentVideoUrl);
@@ -446,7 +450,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
       clearInterval(interval);
       clearInterval(intervalMatches);
     };
-  }, []);
+  }, [profile?.uid, JSON.stringify(profile?.favoriteTeams)]);
 
   const handleLogout = () => {
     signOut(auth);

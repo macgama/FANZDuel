@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import {
@@ -12,6 +12,7 @@ import {
   writeBatch,
   getDocs,
   updateDoc,
+  deleteField,
 } from "firebase/firestore";
 import { Layout, Card, Button } from "./components/Layout";
 import { cn, safeLocalStorage, safeSessionStorage } from "./lib/utils";
@@ -24,7 +25,7 @@ import { Header } from "./components/Header";
 import { MatchDetails } from "./components/MatchDetails";
 import { LeagueDetails } from "./components/LeagueDetails";
 import { TeamDetails } from "./components/TeamDetails";
-import { UserProfile, GlobalFervorConfig } from "./types";
+import { UserProfile, GlobalFervorConfig, FanzStats } from "./types";
 import { FanzPage } from "./components/FanzPage";
 import { FanzDetails } from "./components/FanzDetails";
 import { LifeActionCard } from "./components/LifeActionCard";
@@ -38,6 +39,9 @@ import { Rankings } from "./components/Rankings";
 import { PassPage } from "./components/PassPage";
 import { MissionsPage } from "./components/MissionsPage";
 import { format } from "date-fns";
+import { logTransaction } from "./services/transactionService";
+import { progressMission } from "./services/missionService";
+import { useAlert, Reward } from "./context/AlertContext";
 import { footballApi } from "./services/footballApi";
 import {
   Trophy,
@@ -383,6 +387,9 @@ function AppContent() {
   const [showActiveActionModal, setShowActiveActionModal] = useState(false);
   const [activeActionDetails, setActiveActionDetails] = useState<any>(null);
   const [activeFanz, setActiveFanz] = useState<any>(null);
+  const [activeFanzTemplate, setActiveFanzTemplate] = useState<any>(null);
+  const { showAlert } = useAlert();
+  const isCompletingGlobally = useRef(false);
 
   // Handle invite links
   useEffect(() => {
@@ -444,6 +451,206 @@ function AppContent() {
       setShowActiveActionModal(false);
     }
   }, [profile?.activeAction, showActiveActionModal]);
+
+  // 1. Fetch details of active action, fanz, and template whenever there is an active action
+  useEffect(() => {
+    if (profile?.activeAction) {
+      const { actionId, fanzId } = profile.activeAction;
+      let isSubscribed = true;
+
+      const loadAllDetails = async () => {
+        try {
+          const actionDoc = await getDoc(doc(db, "life_actions", actionId));
+          if (!isSubscribed) return;
+          const actionData = actionDoc.exists() ? { id: actionDoc.id, ...actionDoc.data() } : null;
+
+          const fanzDoc = await getDoc(doc(db, "fanz", fanzId));
+          if (!isSubscribed) return;
+          const fanzData = fanzDoc.exists() ? { id: fanzDoc.id, ...fanzDoc.data() } : null;
+
+          let templateData = null;
+          if (fanzData) {
+            const templateDoc = await getDoc(doc(db, "fanz_templates", (fanzData as any).templateId));
+            if (!isSubscribed) return;
+            templateData = templateDoc.exists() ? { id: templateDoc.id, ...templateDoc.data() } : null;
+          }
+
+          if (isSubscribed) {
+            setActiveActionDetails(actionData);
+            setActiveFanz(fanzData);
+            setActiveFanzTemplate(templateData);
+          }
+        } catch (err) {
+          console.error("Error auto-loading active action details:", err);
+        }
+      };
+
+      loadAllDetails();
+      return () => {
+        isSubscribed = false;
+      };
+    } else {
+      setActiveActionDetails(null);
+      setActiveFanz(null);
+      setActiveFanzTemplate(null);
+    }
+  }, [profile?.activeAction?.actionId, profile?.activeAction?.fanzId]);
+
+  // 2. Global Timer & Action Autocompleter
+  useEffect(() => {
+    if (!profile?.activeAction || !activeActionDetails || !activeFanz) {
+      return;
+    }
+
+    const { startTime, durationMinutes } = profile.activeAction;
+
+    const checkAndComplete = async () => {
+      const startMs = new Date(startTime).getTime();
+      const endMs = startMs + durationMinutes * 1000;
+      const nowMs = Date.now();
+
+      if (nowMs >= endMs && !isCompletingGlobally.current) {
+        isCompletingGlobally.current = true;
+        try {
+          const userRef = doc(db, 'users', profile.uid);
+          const fanzRef = doc(db, 'fanz', activeFanz.id);
+
+          const action = activeActionDetails;
+          const fanz = activeFanz;
+          const fanzTemplate = activeFanzTemplate;
+
+          let resolvedImage = action.image;
+          let resolvedVideoUrl = action.videoUrl;
+          if (fanz.equippedSkin && action.skinOverrides && action.skinOverrides[fanz.equippedSkin]) {
+            const override = action.skinOverrides[fanz.equippedSkin];
+            if (override.image) resolvedImage = override.image;
+            if (override.videoUrl) resolvedVideoUrl = override.videoUrl;
+          }
+
+          let moneyBonusMod = 0;
+          let gemsBonusMod = 0;
+          let boostBonusMod = 0;
+          let energyCostReduction = 0;
+          let moneyCostReduction = 0;
+          let gemsCostReduction = 0;
+          let boostCostReduction = 0;
+          if (fanzTemplate && fanz.equippedSkin) {
+            const skin = (fanzTemplate.skins || []).find((s: any) => s.id === fanz.equippedSkin);
+            if (skin) {
+              moneyBonusMod = skin.moneyBonus || 0;
+              gemsBonusMod = skin.gemsBonus || 0;
+              boostBonusMod = skin.boostBonus || 0;
+              energyCostReduction = skin.energyCostReduction || 0;
+              moneyCostReduction = skin.moneyCostReduction || 0;
+              gemsCostReduction = skin.gemsCostReduction || 0;
+              boostCostReduction = skin.boostCostReduction || 0;
+            }
+          }
+
+          const actionProgress = fanz.lifeActionProgress?.[action.id] || { level: 1, xp: 0 };
+          const currentLevel = actionProgress.level;
+          const scaleFactor = 1 + (currentLevel - 1) * 0.2;
+
+          const now = new Date();
+          const isXpBoostActive = profile.boostXpUntil && new Date(profile.boostXpUntil) > now;
+
+          const gainEnergy = Math.floor((action.energyGain || 0) * scaleFactor);
+          const gainMoney = Math.floor((action.moneyGain || 0) * scaleFactor * (1 + moneyBonusMod / 100));
+          const gainGems = Math.floor((action.gemsGain || 0) * scaleFactor * (1 + gemsBonusMod / 100));
+          const gainBoost = Math.floor((action.boostGain || 0) * scaleFactor * (1 + boostBonusMod / 100));
+          const gainXp = Math.floor((action.xpGain || 0) * scaleFactor);
+
+          const unlockedActions = profile.unlockedActions || [];
+          const newUnlockedActions = unlockedActions.includes(action.id) ? unlockedActions : [...unlockedActions, action.id];
+
+          // 1. Update User DB
+          await updateDoc(userRef, {
+            energy: Math.min(100, (profile.energy || 0) + gainEnergy),
+            money: (profile.money || 0) + gainMoney,
+            gems: (profile.gems || 0) + gainGems,
+            boostPoints: (profile.boostPoints || 0) + gainBoost,
+            activeAction: deleteField(),
+            unlockedActions: newUnlockedActions
+          });
+
+          // 2. Log transactions
+          if (gainEnergy > 0) await logTransaction(profile.uid, 'energy', gainEnergy, `Fin action: ${action.name}`);
+          if (gainMoney > 0) await logTransaction(profile.uid, 'money', gainMoney, `Fin action: ${action.name}`);
+          if (gainGems > 0) await logTransaction(profile.uid, 'gems', gainGems, `Fin action: ${action.name}`);
+          if (gainBoost > 0) await logTransaction(profile.uid, 'boost', gainBoost, `Fin action: ${action.name}`);
+
+          await progressMission(profile, 'life_action', 1);
+
+          // 3. Update Fanz DB
+          const newActionXp = actionProgress.xp + 10;
+          let newActionLevel = actionProgress.level;
+          const hasLeveledUp = newActionXp >= newActionLevel * 50;
+          if (hasLeveledUp) {
+            newActionLevel += 1;
+          }
+
+          const newFanzStats: any = { ...fanz.stats };
+          const xpMultiplier = isXpBoostActive ? 2 : 1;
+          if (action.targetStat) {
+            newFanzStats[action.targetStat] = (newFanzStats[action.targetStat] || 0) + gainXp * xpMultiplier;
+          }
+          if (action.xpGains) {
+            Object.entries(action.xpGains).forEach(([stat, gain]) => {
+              if (gain) {
+                newFanzStats[stat] = (newFanzStats[stat] || 0) + Math.floor((gain as number) * scaleFactor * xpMultiplier);
+              }
+            });
+          }
+
+          await updateDoc(fanzRef, {
+            stats: newFanzStats,
+            [`lifeActionProgress.${action.id}`]: {
+              level: newActionLevel,
+              xp: newActionXp
+            }
+          });
+
+          // 4. Show success reward alert
+          const rewards: Reward[] = [];
+          if (gainEnergy > 0) rewards.push({ type: 'energy', amount: gainEnergy, label: 'Énergie' });
+          if (gainMoney > 0) rewards.push({ type: 'money', amount: gainMoney, label: 'Argent' });
+          if (gainGems > 0) rewards.push({ type: 'gems', amount: gainGems, label: 'Gemmes' });
+          if (gainBoost > 0) rewards.push({ type: 'boost', amount: gainBoost, label: 'Boost' });
+          
+          if (action.targetStat && gainXp > 0) {
+            const xpAmount = gainXp * (isXpBoostActive ? 2 : 1);
+            rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${action.targetStat}${isXpBoostActive ? ' (x2)' : ''}`, stat: action.targetStat });
+          }
+          
+          if (action.xpGains) {
+            Object.entries(action.xpGains).forEach(([stat, gain]) => {
+              if (gain) {
+                const xpAmount = Math.floor((gain as number) * scaleFactor * (isXpBoostActive ? 2 : 1));
+                rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${stat}${isXpBoostActive ? ' (x2)' : ''}`, stat });
+              }
+            });
+          }
+
+          showAlert({
+            title: action.name,
+            subtitle: hasLeveledUp ? `Niveau ${newActionLevel} débloqué !` : "Activité terminée !",
+            videoUrl: resolvedVideoUrl,
+            imageUrl: resolvedImage,
+            rewards,
+            type: hasLeveledUp ? 'level-up' : 'success'
+          });
+
+        } catch (error) {
+          console.error("Error completing active action globally:", error);
+        } finally {
+          isCompletingGlobally.current = false;
+        }
+      }
+    };
+
+    const interval = setInterval(checkAndComplete, 1000);
+    return () => clearInterval(interval);
+  }, [profile?.activeAction?.startTime, profile?.activeAction?.durationMinutes, activeActionDetails, activeFanz, activeFanzTemplate]);
 
   useEffect(() => {
     if (!user) return;

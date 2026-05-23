@@ -28,14 +28,10 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
       
       if (statusFilter === 'live' && isSameDay(selectedDate, new Date())) {
         data = await footballApi.getLiveFixtures();
-        // Fetch events for live matches to get scorers
         if (data && data.length > 0) {
-          const liveEvents = await Promise.all(
-            data.slice(0, 10).map((f: any) => footballApi.getFixtureEvents(f.fixture.id).catch(() => []))
-          );
-          data = data.map((f: any, i: number) => ({
+          data = data.map((f: any) => ({
             ...f,
-            events: liveEvents[i] || []
+            events: f.events || undefined
           }));
         }
       } else {
@@ -57,37 +53,11 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
 
   useEffect(() => {
     fetchFixtures();
-    // Refresh live matches every minute if date is today
+    // Refresh matches every minute if date is today
     let interval: any;
     if (isSameDay(selectedDate, new Date())) {
-      interval = setInterval(async () => {
-        if (statusFilter === 'live') {
-          fetchFixtures(true);
-        } else {
-          // If viewing 'all', fetch live separately and merge
-          try {
-            const liveData = await footballApi.getLiveFixtures();
-            if (liveData && liveData.length > 0) {
-              setFixtures(prev => {
-                const newFixtures = [...prev];
-                let hasChanges = false;
-                liveData.forEach((liveMatch: any) => {
-                  const idx = newFixtures.findIndex(f => f.fixture.id === liveMatch.fixture.id);
-                  if (idx !== -1) {
-                    newFixtures[idx] = {
-                      ...newFixtures[idx],
-                      fixture: liveMatch.fixture,
-                      goals: liveMatch.goals,
-                      score: liveMatch.score
-                    };
-                    hasChanges = true;
-                  }
-                });
-                return hasChanges ? newFixtures : prev;
-              });
-            }
-          } catch (e) {}
-        }
+      interval = setInterval(() => {
+        fetchFixtures(true);
       }, 60000);
     }
     return () => clearInterval(interval);
@@ -494,7 +464,9 @@ function CountrySection({ country, activeDuels, matchScores, onMatchClick, onJoi
                             onClick={(tab) => onMatchClick(match.fixture.id, tab)}
                             onJoinDuel={(isLive) => onJoinDuel(match.fixture.id, isLive)}
                             onTeamClick={onTeamClick}
+                            onLeagueClick={onLeagueClick}
                             profile={profile}
+                            showLeagueHeader={true}
                           />
                         </div>
                       ))}
