@@ -3553,6 +3553,13 @@ export function AdminZone() {
                             <option value="steal_best_card">Saint Graal (Adverse) [Rien]</option>
                             <option value="discard_random_cards">Défausse Aléatoire (Soi) [Valeur]</option>
                             <option value="trade_stickers">Échange de Doubles (Tous) [Rien]</option>
+                            <option value="stun">Assommer (Adverse) [Durée]</option>
+                            <option value="heavy_ball_boost">Bonus Ballon en Cuir (Soi) [Durée]</option>
+                            <option value="throat_tackle">Tacle à la Gorge (Adverse) [Valeur]</option>
+                            <option value="mammoth_charge">Charge de Mammouth (Détruit Boucliers) [Rien]</option>
+                            <option value="mascot_bone_drum">Tambour en Os de Mascotte (Adverse -50% Clics) [Durée]</option>
+                            <option value="scarves_wall">Mur d'Écharpes (Soi -50% Dégâts) [Durée]</option>
+                            <option value="virage_host">L'Ost du Virage (Soi +1 Supporter) [Valeur]</option>
                           </select>
                         </div>
                         <div className="w-24 space-y-1">

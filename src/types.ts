@@ -317,7 +317,14 @@ export type CardEffectType =
   | 'mascot_bazooka'
   | 'steal_best_card'
   | 'discard_random_cards'
-  | 'trade_stickers';
+  | 'trade_stickers'
+  | 'stun'
+  | 'heavy_ball_boost'
+  | 'throat_tackle'
+  | 'mammoth_charge'
+  | 'mascot_bone_drum'
+  | 'scarves_wall'
+  | 'virage_host';
 
 export interface CardEffect {
   type: CardEffectType;

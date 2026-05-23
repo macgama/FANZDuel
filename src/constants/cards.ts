@@ -528,5 +528,82 @@ export const BASE_CARDS: Card[] = [
     effects: [{ type: 'hypnosis', duration: 4 }],
     imageUrl: 'https://thebestfan.online/public/duel/base_hypnosis.png',
     fanzIds: []
+  },
+  {
+    id: 'base_lourd_ballon_cuir',
+    name: "Le Lourd Ballon en Cuir",
+    description: "S'équipe sur un supporter. Confère un bonus d'attaque, mais a 50% de chances d'\"Assommer\" la cible adverse (qui passe son prochain tour) tellement le ballon gorgé d'eau est lourd.",
+    rarity: 'epic',
+    type: 'bonus',
+    energyCost: 5,
+    fervorValue: 0,
+    effects: [
+      { type: 'heavy_ball_boost', duration: 12 },
+      { type: 'stun', duration: 5 }
+    ],
+    imageUrl: 'https://thebestfan.online/public/duel/base_heavy_ball.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_tacle_gorge',
+    name: "Tacle à la Gorge (Sans la VAR !)",
+    description: "Une attaque physique pure et dure. Inflige de lourds dégâts directs et ignore l'armure de l'adversaire. \"À l'époque, l'arbitre laissait jouer !\"",
+    rarity: 'epic',
+    type: 'malus',
+    energyCost: 6,
+    fervorValue: 25,
+    effects: [
+      { type: 'throat_tackle', value: 25 }
+    ],
+    imageUrl: 'https://thebestfan.online/public/duel/base_throat_tackle.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_charge_mammouth',
+    name: "Charge de Mammouth",
+    description: "Un envahissement de terrain bestial. Détruit instantanément tous les Boucliers ou cartes de défense posées par l'adversaire sur sa ligne de front.",
+    rarity: 'epic',
+    type: 'malus',
+    energyCost: 5,
+    fervorValue: 10,
+    effects: [{ type: 'mammoth_charge' }],
+    imageUrl: 'https://thebestfan.online/public/duel/base_mammoth_charge.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_tambour_os_mascotte',
+    name: "Tambour en Os de Mascotte",
+    description: "Un bruit assourdissant qui 'Intimide' l'adversaire, réduisant sa puissance d'attaque/clic de 50% pendant 8 secondes.",
+    rarity: 'rare',
+    type: 'malus',
+    energyCost: 4,
+    fervorValue: 0,
+    effects: [{ type: 'mascot_bone_drum', duration: 8 }],
+    imageUrl: 'https://thebestfan.online/public/duel/base_mascot_bone_drum.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_mur_echarpes_boucliers',
+    name: "Mur d'Écharpes et de Boucliers",
+    description: "La tribune se transforme en forteresse. Pendant 12 secondes, tous les dégâts d'énergie ou debuffs subis sont divisés par deux.",
+    rarity: 'epic',
+    type: 'bonus',
+    energyCost: 6,
+    fervorValue: 0,
+    effects: [{ type: 'scarves_wall', duration: 12 }],
+    imageUrl: 'https://thebestfan.online/public/duel/base_scarves_wall.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_ost_du_virage',
+    name: "L'Ost du Virage",
+    description: "Le cor de ralliement sonne. Permet d'invoquer immédiatement un supporter commun supplémentaire depuis ta pioche pour faire le surnombre.",
+    rarity: 'rare',
+    type: 'bonus',
+    energyCost: 4,
+    fervorValue: 5,
+    effects: [{ type: 'virage_host', value: 1 }],
+    imageUrl: 'https://thebestfan.online/public/duel/base_virage_host.png',
+    fanzIds: []
   }
 ];

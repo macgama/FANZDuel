@@ -828,6 +828,22 @@ async function startServer() {
         return res.status(400).send("Missing url parameter");
       }
 
+      // Prevent directory requests which return 403 and pollute logs
+      const cleanTarget = targetUrl.trim();
+      const lowerTarget = cleanTarget.toLowerCase();
+      if (
+        lowerTarget === "https://thebestfan.online/img/public" ||
+        lowerTarget === "https://thebestfan.online/img/public/" ||
+        lowerTarget === "https://thebestfan.online/img/public/duel" ||
+        lowerTarget === "https://thebestfan.online/img/public/duel/" ||
+        lowerTarget.endsWith("/public") ||
+        lowerTarget.endsWith("/public/") ||
+        lowerTarget.endsWith("/duel") ||
+        lowerTarget.endsWith("/duel/")
+      ) {
+        return res.redirect('https://thebestfan.online/img/public/logo/imageMydeck.png');
+      }
+
       // Fetch the original image
       const response = await axios.get(targetUrl, { 
         responseType: 'arraybuffer',

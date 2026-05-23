@@ -821,6 +821,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [isConfetti, setIsConfetti] = useState(false);
   const [isGoldenGoal, setIsGoldenGoal] = useState(false);
   const [isHypnotized, setIsHypnotized] = useState(false);
+  const [isStunned, setIsStunned] = useState(false);
+  const [isHeavyBallPower, setIsHeavyBallPower] = useState(false);
+  const [isIntimidated, setIsIntimidated] = useState(false);
+  const [isWallOfShieldsActive, setIsWallOfShieldsActive] = useState(false);
   const [lastEnemyCard, setLastEnemyCard] = useState<GameCard | null>(null);
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
 
@@ -1735,7 +1739,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
 
       const isMalus = (enhancedCard.effects || []).some(e => 
-        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card'].includes(e.type)
+        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card', 'stun', 'mammoth_charge', 'mascot_bone_drum'].includes(e.type)
       );
       
       if (!enhancedCard.videoUrl || enhancedCard.videoUrl === "undefined" || user.dataSaver) {
@@ -1747,20 +1751,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       addFloatingEffect(`⚠️ ${enhancedCard.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
       if (isMalus) {
-        if (isImmune || (user.antiMalusMatches || 0) > 0) {
-          addFloatingEffect('🛡️ Bouclier Anti-Malus Actif!', window.innerWidth / 2, 150, 'text-green-300 font-black');
-          return;
-        }
-        if (hasMirror) {
-          setHasMirror(false);
-          addFloatingEffect('✨ Miroir: Attaque renvoyée!', window.innerWidth / 2, 150, 'text-purple-400 font-black');
-          socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam || 'A', card, reflected: true });
-          return;
-        }
-        if (hasShield) {
-          setHasShield(false);
-          addFloatingEffect('🛡️ Bouclier: Attaque bloquée!', window.innerWidth / 2, 150, 'text-blue-300 font-black');
-          return;
+        const carriesMammothCharge = (enhancedCard.effects || []).some(e => e.type === 'mammoth_charge');
+        if (!carriesMammothCharge) {
+          if (isImmune || (user.antiMalusMatches || 0) > 0) {
+            addFloatingEffect('🛡️ Bouclier Anti-Malus Actif!', window.innerWidth / 2, 150, 'text-green-300 font-black');
+            return;
+          }
+          if (hasMirror) {
+            setHasMirror(false);
+            addFloatingEffect('✨ Miroir: Attaque renvoyée!', window.innerWidth / 2, 150, 'text-purple-400 font-black');
+            socket?.emit('play-card', { duelId: currentDuelIdRef.current, team: myTeam || 'A', card, reflected: true });
+            return;
+          }
+          if (hasShield) {
+            setHasShield(false);
+            addFloatingEffect('🛡️ Bouclier: Attaque bloquée!', window.innerWidth / 2, 150, 'text-blue-300 font-black');
+            return;
+          }
         }
       }
 
@@ -1772,7 +1779,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         // Duration reduction: duration / resistance (if resistance is > 1)
         // Or duration * resistance (if resistance is < 1)
         // Let's assume the stat returns a multiplier where 1.0 is neutral, > 1 is better resistance
-        const getEffectiveDuration = (base: number, res: number) => (base * 1000) / Math.max(0.1, res);
+        const getEffectiveDuration = (base: number, res: number) => {
+          let durationMs = (base * 1000) / Math.max(0.1, res);
+          if (isWallOfShieldsActive) {
+            durationMs = durationMs / 2;
+          }
+          return durationMs;
+        };
+
+        const getEffectiveValue = (baseVal: number) => {
+          if (isWallOfShieldsActive) {
+            return Math.ceil(baseVal / 2);
+          }
+          return baseVal;
+        };
 
         switch (effect.type) {
           case 'blur_view':
@@ -1801,8 +1821,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             addFloatingEffect('🙈 Score Caché!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'drain_energy':
-            setExcitement(prev => Math.max(0, prev - (effect.value || 0)));
-            addFloatingEffect(`⚡ -${effect.value} Énergie!`, window.innerWidth / 2, 200, 'text-red-400');
+            setExcitement(prev => Math.max(0, prev - getEffectiveValue(effect.value || 0)));
+            addFloatingEffect(`⚡ -${getEffectiveValue(effect.value || 0)} Énergie!`, window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'discard_enemy_cards':
             setHand(prev => {
@@ -1844,8 +1864,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             addFloatingEffect('🔒 Cartes Bloquées!', window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'steal_energy':
-            setExcitement(prev => Math.max(0, prev - (effect.value || 0)));
-            addFloatingEffect(`⚡ -${effect.value} Énergie Volée!`, window.innerWidth / 2, 200, 'text-red-400');
+            setExcitement(prev => Math.max(0, prev - getEffectiveValue(effect.value || 0)));
+            addFloatingEffect(`⚡ -${getEffectiveValue(effect.value || 0)} Énergie Volée!`, window.innerWidth / 2, 200, 'text-red-400');
             break;
           case 'fog_of_war':
             setIsFogOfWar(true);
@@ -1883,13 +1903,32 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               return newHand;
             });
             setTimeout(drawCard, 2000);
-            setExcitement(prev => Math.max(0, prev - (effect.value || 1)));
+            setExcitement(prev => Math.max(0, prev - getEffectiveValue(effect.value || 1)));
             addFloatingEffect('🍼 DRAME DE LA TÉTINE ! (-1 Carte, -1 PA)', window.innerWidth / 2, 200, 'text-blue-500 font-black scale-125 drop-shadow-md z-[200]');
             break;
           case 'mascot_bazooka':
             setHand(prev => prev.filter(c => c.name.toLowerCase().includes("enfant de la mascotte")));
             setTimeout(() => drawCard(true, 3), 100);
             addFloatingEffect('🎁 BAZOOKA À GOODIES ! (Défausse + 3 Cartes)', window.innerWidth / 2, 250, 'text-pink-500 font-black scale-125 drop-shadow-md z-[200]');
+            break;
+          case 'stun':
+            setIsStunned(true);
+            setTimeout(() => setIsStunned(false), getEffectiveDuration(effect.duration || 5, mentalResistance));
+            addFloatingEffect('😵 ASSOMMÉ ! (Saut de tour)', window.innerWidth / 2, 200, 'text-red-500 font-black scale-150 animate-bounce');
+            break;
+          case 'throat_tackle':
+            addFloatingEffect('🦵 TACLE À LA GORGE ! ("L\'arbitre laisse jouer !")', window.innerWidth / 2, 200, 'text-orange-500 font-black scale-150');
+            setExcitement(prev => Math.max(0, prev - getEffectiveValue(3)));
+            break;
+          case 'mammoth_charge':
+            setHasShield(false);
+            setHasMirror(false);
+            addFloatingEffect('🦣 CHARGE DE MAMMOUTH ! (Boucliers Brisés !)', window.innerWidth / 2, 200, 'text-red-600 font-black scale-150 animate-bounce z-[200]');
+            break;
+          case 'mascot_bone_drum':
+            setIsIntimidated(true);
+            setTimeout(() => setIsIntimidated(false), getEffectiveDuration(effect.duration || 8, mentalResistance));
+            addFloatingEffect('🥁 TAMBOUR EN OS ! (Intimidé: Clics -50% !)', window.innerWidth / 2, 200, 'text-purple-500 font-black scale-125 animate-pulse z-[200]');
             break;
         }
       });
@@ -1972,7 +2011,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   // Only cards should trigger invisible button now
 
   const handleAction = (e: React.MouseEvent) => {
-    if (winner || isButtonHidden || isButtonFrozen) return;
+    if (winner || isButtonHidden || isButtonFrozen || isStunned) return;
     
     // Find the user's actual team
     const myParticipant = participants.find(p => p.uid === user.uid);
@@ -1981,6 +2020,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     let currentMultiplier = multiplier;
     if (isFlare) {
       currentMultiplier *= 3;
+    }
+    if (isHeavyBallPower) {
+      currentMultiplier *= 1.8;
+    }
+    if (isIntimidated) {
+      currentMultiplier *= 0.5;
+      addFloatingEffect('🥁 Intimidé ! (-50%)', e.clientX, e.clientY - 20, 'text-purple-400 font-bold scale-90');
     }
     if (isGoldenGoal) {
       currentMultiplier *= 15;
@@ -2041,7 +2087,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       }
     }
     
-    if (winner || status !== 'active' || excitement < actualCost || isCardLocked) return;
+    if (winner || status !== 'active' || excitement < actualCost || isCardLocked || isStunned) return;
     
     // Remove from hand and deduct excitement immediately
     setHand(prev => prev.filter(c => c.id !== card.id));
@@ -2066,11 +2112,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     const charismaBonus = 1 + (rawCharismaBonus - 1) * 0.2;
     const creativityBonus = getStatEffectValue('card_cost_reduction');
 
+    const hasStunEffect = card.effects?.some(eff => eff.type === 'stun');
+    let finalEffects = card.effects || [];
+    if (hasStunEffect) {
+      const isStunTriggered = Math.random() < 0.5;
+      if (isStunTriggered) {
+        addFloatingEffect('💥 CIBLE ASSOMMÉE !', x, y - 100, 'text-red-500 font-extrabold scale-125 z-[210]');
+      } else {
+        addFloatingEffect('💨 Ballon dévié (Manqué...)', x, y - 100, 'text-gray-400 font-semibold z-[210]');
+        finalEffects = (card.effects || []).filter(eff => eff.type !== 'stun');
+      }
+    }
+
     const boostedCard: GameCard = {
       ...card,
       energyCost: Math.max(1, Math.round(card.energyCost * (1 - creativityBonus))),
       fervorValue: card.fervorValue ? Math.round(card.fervorValue * levelBonus * charismaBonus) : card.fervorValue,
-      effects: (card.effects || []).map(e => ({
+      effects: finalEffects.map(e => ({
         ...e,
         value: e.value ? Math.round(e.value * levelBonus * charismaBonus) : e.value,
         duration: e.duration ? Math.round(e.duration * levelBonus * charismaBonus) : e.duration
@@ -2180,6 +2238,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         addFloatingEffect(`+${amount} Carte(s)!`, x, y - 30, 'text-blue-300 font-black');
       }
 
+      if (effect.type === 'heavy_ball_boost') {
+        setIsHeavyBallPower(true);
+        setTimeout(() => setIsHeavyBallPower(false), (effect.duration || 12) * 1000);
+        addFloatingEffect('⚽ Lourd Ballon équipé ! (+80% Force)', x, y - 30, 'text-orange-400 font-extrabold');
+      }
+
       if (effect.type === 'double_points') {
         setIsDoublePoints(true);
         setTimeout(() => setIsDoublePoints(false), (effect.duration || 5) * 1000);
@@ -2192,6 +2256,25 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       if (effect.type === 'mirror') {
         setHasMirror(true);
         addFloatingEffect('Miroir Actif!', x, y - 30, 'text-purple-400');
+      }
+      if (effect.type === 'scarves_wall') {
+        setIsWallOfShieldsActive(true);
+        setTimeout(() => setIsWallOfShieldsActive(false), (effect.duration || 12) * 1000);
+        addFloatingEffect('🛡️ Mur d\'Écharpes Actif ! (-50% Dégâts)', x, y - 30, 'text-blue-400 font-extrabold scale-110 animate-pulse');
+      }
+      if (effect.type === 'virage_host') {
+        const amount = effect.value || 1;
+        drawCard(true, amount);
+        const commonCards = allCards.filter(c => c.rarity === 'common');
+        if (commonCards.length > 0) {
+          const randomCommon = commonCards[Math.floor(Math.random() * commonCards.length)];
+          setHand(prev => {
+            const newHand = [...prev];
+            newHand.push({ ...randomCommon, instanceId: Math.random().toString(36).substr(2, 9) });
+            return newHand;
+          });
+        }
+        addFloatingEffect('📯 Ost du Virage ! (+Surnombre)', x, y - 30, 'text-green-400 font-black animate-bounce');
       }
       if (effect.type === 'energy_regen_boost') {
         setIsEnergyRegenBoosted(true);
@@ -2994,25 +3077,33 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         <div className="relative mt-2">
           <motion.button 
             onClick={handleAction}
-            disabled={!!winner || isButtonFrozen}
+            disabled={!!winner || isButtonFrozen || isStunned}
             animate={{ 
               x: buttonPosition.x, 
               y: buttonPosition.y,
               scale: isButtonShrunk ? 0.5 : isButtonHidden ? 0 : 1,
               opacity: isButtonHidden ? 0 : 1,
-              filter: isButtonFrozen ? 'hue-rotate(180deg) brightness(1.2)' : 'none'
+              filter: isButtonFrozen ? 'hue-rotate(180deg) brightness(1.2)' : isStunned ? 'brightness(0.6) blur(1px)' : 'none'
             }}
-            className={`w-40 h-40 sm:w-48 sm:h-48 rounded-full border-8 border-white/10 shadow-2xl flex flex-col items-center justify-center transition-transform active:scale-95 disabled:opacity-50 relative z-10 ${isButtonFrozen ? 'bg-blue-400' : 'bg-orange-600 hover:bg-orange-700'}`}
+            className={`w-40 h-40 sm:w-48 sm:h-48 rounded-full border-8 border-white/10 shadow-2xl flex flex-col items-center justify-center transition-transform active:scale-95 disabled:opacity-50 relative z-10 ${isButtonFrozen ? 'bg-blue-400' : isStunned ? 'bg-red-900 border-red-500' : isHeavyBallPower ? 'bg-orange-850 hover:bg-orange-900 border-yellow-400 animate-pulse' : 'bg-orange-600 hover:bg-orange-700'}`}
           >
             {isButtonFrozen ? (
               <>
                 <Snowflake className="w-12 h-12 text-white animate-pulse" />
                 <span className="font-black italic text-xl uppercase mt-2">GELÉ !</span>
               </>
+            ) : isStunned ? (
+              <>
+                <span className="text-3xl animate-spin" style={{ animationDuration: '3s' }}>😵</span>
+                <span className="font-black italic text-sm uppercase mt-2 text-red-400">ASSOMMÉ !</span>
+              </>
             ) : (
               <>
                 <span className="font-black italic text-2xl uppercase">Cliquer</span>
-                <span className="text-xs uppercase font-bold opacity-70">Ferveur +0.5%</span>
+                <span className="text-xs uppercase font-bold opacity-70">
+                  {isHeavyBallPower ? 'Ferveur +0.9%' : 'Ferveur +0.5%'}
+                </span>
+                {isHeavyBallPower && <span className="text-[9px] font-bold text-yellow-400 animate-pulse mt-1">🎈 BALLON LOURD</span>}
               </>
             )}
           </motion.button>
@@ -3059,6 +3150,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           {(isImmune || (user.antiMalusMatches || 0) > 0) && <div className="flex items-center gap-1 text-[10px] font-bold text-green-400 uppercase">🛡️ Immunisé{(user.antiMalusMatches || 0) > 0 ? ' (Boost)' : ''}</div>}
           {isCriticalStrike && <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase">💥 Coup Critique</div>}
           {isMomentum && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-300 uppercase">💨 Momentum</div>}
+          {isStunned && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase animate-pulse">😵 Assommé</div>}
+          {isHeavyBallPower && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-400 uppercase animate-pulse">⚽ Ballon Lourd</div>}
+          {isIntimidated && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-400 uppercase animate-pulse">🥁 Intimidé</div>}
+          {isWallOfShieldsActive && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-400 uppercase animate-pulse">🛡️ Mur d'Écharpes</div>}
         </div>
         
         {/* Trade Stickers Confirm Block */}

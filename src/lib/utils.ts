@@ -62,6 +62,23 @@ export function getOptimizedVideoUrl(
 ): string | undefined {
   if (!path || path === "undefined" || path === "null") return undefined;
 
+  // Prevent directory paths returning 403 or being invalid
+  const trimmedLower = path.trim().toLowerCase();
+  if (
+    trimmedLower === "public" || 
+    trimmedLower === "public/" || 
+    trimmedLower === "public/duel" || 
+    trimmedLower === "public/duel/" ||
+    trimmedLower === "duel" ||
+    trimmedLower === "duel/" ||
+    trimmedLower.endsWith("/public") ||
+    trimmedLower.endsWith("/public/") ||
+    trimmedLower.endsWith("/duel") ||
+    trimmedLower.endsWith("/duel/")
+  ) {
+    return undefined;
+  }
+
   // Handle gs:// URLs (Legacy database records)
   let finalPath = path;
 
@@ -134,6 +151,23 @@ export function getImageUrl(
   width: number = 800,
 ): string | undefined {
   if (!path || path === "undefined" || path === "null") return undefined;
+
+  // Prevent directory paths returning 403
+  const trimmedLower = path.trim().toLowerCase();
+  if (
+    trimmedLower === "public" || 
+    trimmedLower === "public/" || 
+    trimmedLower === "public/duel" || 
+    trimmedLower === "public/duel/" ||
+    trimmedLower === "duel" ||
+    trimmedLower === "duel/" ||
+    trimmedLower.endsWith("/public") ||
+    trimmedLower.endsWith("/public/") ||
+    trimmedLower.endsWith("/duel") ||
+    trimmedLower.endsWith("/duel/")
+  ) {
+    return 'https://thebestfan.online/img/public/logo/imageMydeck.png';
+  }
 
   if (path.startsWith("/api/image-proxy")) {
     return path;
