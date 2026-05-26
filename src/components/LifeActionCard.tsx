@@ -190,7 +190,16 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       const fanzRef = doc(db, 'fanz', fanz.id);
 
       const unlockedActions = userProfile.unlockedActions || [];
-      const newUnlockedActions = unlockedActions.includes(action.id) ? unlockedActions : [...unlockedActions, action.id];
+      const skinSpecificActionId = action.id + '-' + (fanz.equippedSkin || '000');
+      let newUnlockedActions = [...unlockedActions];
+      if (!newUnlockedActions.includes(skinSpecificActionId)) {
+        newUnlockedActions.push(skinSpecificActionId);
+      }
+      if (!fanz.equippedSkin || fanz.equippedSkin === '000') {
+        if (!newUnlockedActions.includes(action.id)) {
+          newUnlockedActions.push(action.id);
+        }
+      }
 
       // Update User
       await updateDoc(userRef, {
@@ -285,7 +294,16 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       const fanzRef = doc(db, 'fanz', fanz.id);
 
       const unlockedActions = userProfile.unlockedActions || [];
-      const newUnlockedActions = unlockedActions.includes(action.id) ? unlockedActions : [...unlockedActions, action.id];
+      const skinSpecificActionId = action.id + '-' + (fanz.equippedSkin || '000');
+      let newUnlockedActions = [...unlockedActions];
+      if (!newUnlockedActions.includes(skinSpecificActionId)) {
+        newUnlockedActions.push(skinSpecificActionId);
+      }
+      if (!fanz.equippedSkin || fanz.equippedSkin === '000') {
+        if (!newUnlockedActions.includes(action.id)) {
+          newUnlockedActions.push(action.id);
+        }
+      }
 
       // Update User (Gems + Rewards + clear active action)
       await updateDoc(userRef, {

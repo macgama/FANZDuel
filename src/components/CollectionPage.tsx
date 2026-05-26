@@ -135,6 +135,15 @@ export function CollectionPage({ user }: CollectionPageProps) {
 
   const checkSkinOwned = (skin: any) => ownedSkins.has(skin.uniqueId) || ownedSkins.has(skin.id);
   const checkEmoteOwned = (emote: any) => ownedEmotes.has(emote.uniqueId) || ownedEmotes.has(emote.id);
+  
+  const checkActionOwned = (action: any) => {
+    const isSkinOverride = !!(action.skinOverrides && Object.keys(action.skinOverrides).length > 0);
+    const hasSpecificUnlock = ownedActions.has(action.id + '-' + (action.associatedSkinId || '000'));
+    const ownedAction = hasSpecificUnlock || (!isSkinOverride && ownedActions.has(action.id)) || (isSkinOverride && action.associatedSkinId === '000' && ownedActions.has(action.id));
+    const ownedSkin = !action.associatedSkinId || ownedSkins.has(`${action.fanzTemplateId}-${action.associatedSkinId}`);
+    return ownedAction && ownedSkin;
+  };
+
   const checkCardOwned = (card: any) => {
     if (ownedCards.has(card.id)) return true;
 
@@ -222,11 +231,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
   const validOwnedEmotes = emotes.filter(checkEmoteOwned).length;
   const validOwnedCards = cards.filter(checkCardOwned).length;
   
-  const validOwnedExpandedActions = expandedActions.filter(a => {
-    const ownedAction = ownedActions.has(a.id);
-    const ownedSkin = !a.associatedSkinId || ownedSkins.has(`${a.fanzTemplateId}-${a.associatedSkinId}`);
-    return ownedAction && ownedSkin;
-  }).length;
+  const validOwnedExpandedActions = expandedActions.filter(checkActionOwned).length;
 
   const tabs = [
     { id: 'fanz', label: 'FANZ', count: validOwnedTemplates + '/' + fanzTemplates.length },
@@ -520,13 +525,8 @@ export function CollectionPage({ user }: CollectionPageProps) {
                 return a.fanzTemplateId === filterCollectionFanz;
               })
               .sort((a, b) => {
-                const aOwnedAction = ownedActions.has(a.id);
-                const aOwnedSkin = !a.associatedSkinId || ownedSkins.has(`${a.fanzTemplateId}-${a.associatedSkinId}`);
-                const aOwned = aOwnedAction && aOwnedSkin;
-
-                const bOwnedAction = ownedActions.has(b.id);
-                const bOwnedSkin = !b.associatedSkinId || ownedSkins.has(`${b.fanzTemplateId}-${b.associatedSkinId}`);
-                const bOwned = bOwnedAction && bOwnedSkin;
+                const aOwned = checkActionOwned(a);
+                const bOwned = checkActionOwned(b);
 
                 if (aOwned !== bOwned) return aOwned ? -1 : 1;
                 
@@ -541,9 +541,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                 return (a.associatedSkinId || '').localeCompare(b.associatedSkinId || '');
               })
               .map(action => {
-              const ownedAction = ownedActions.has(action.id);
-              const ownedSkin = !action.associatedSkinId || ownedSkins.has(`${action.fanzTemplateId}-${action.associatedSkinId}`);
-              const owned = ownedAction && ownedSkin;
+              const owned = checkActionOwned(action);
 
               return (
                 <div key={action.uniqueItemKey} className={`bg-[#111] rounded-xl overflow-hidden relative flex flex-col ${!owned ? 'opacity-50 grayscale' : 'outline outline-2 outline-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]'}`}>

@@ -561,7 +561,16 @@ function AppContent() {
           const gainXp = Math.floor((action.xpGain || 0) * scaleFactor);
 
           const unlockedActions = profile.unlockedActions || [];
-          const newUnlockedActions = unlockedActions.includes(action.id) ? unlockedActions : [...unlockedActions, action.id];
+          const skinSpecificActionId = action.id + '-' + (fanz.equippedSkin || '000');
+          let newUnlockedActions = [...unlockedActions];
+          if (!newUnlockedActions.includes(skinSpecificActionId)) {
+            newUnlockedActions.push(skinSpecificActionId);
+          }
+          if (!fanz.equippedSkin || fanz.equippedSkin === '000') {
+            if (!newUnlockedActions.includes(action.id)) {
+              newUnlockedActions.push(action.id);
+            }
+          }
 
           // 1. Update User DB
           await updateDoc(userRef, {
