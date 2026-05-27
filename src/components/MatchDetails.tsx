@@ -310,6 +310,8 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   }
 
   const hasScore = totalScore > 0;
+  const isHomeWinner = hasScore && scoreHome > scoreAway;
+  const isAwayWinner = hasScore && scoreAway > scoreHome;
 
   return (
     <div className="space-y-2 pb-20 px-2 sm:px-4">
@@ -337,15 +339,33 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         <div className="flex justify-between items-center mb-4 gap-2">
           {/* Home Team */}
           <div className="flex-1 flex flex-col items-center gap-1.5 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.home.id, details.league.season)}>
-            <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center group-hover:scale-105 transition-transform drop-shadow-xl">
-              <img src={getImageUrl(details.teams.home.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-            </div>
-            <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-xs text-white group-hover:text-orange-500 transition-colors line-clamp-2 w-full leading-tight">
+            {isHomeWinner ? (
+              <div className="relative w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center transition-all duration-300 rounded-full bg-black/30 p-1 border-2 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)] group-hover:scale-105">
+                <img src={getImageUrl(details.teams.home.logo, 100)} alt="" className="w-4/5 h-4/5 object-contain" referrerPolicy="no-referrer" />
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-black text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-0.5 whitespace-nowrap z-10 animate-pulse border border-yellow-300/20">
+                  <Trophy className="w-2 h-2 fill-black shrink-0" />
+                  <span>GAGNANT</span>
+                </div>
+              </div>
+            ) : (
+              <div className={`w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center transition-all drop-shadow-xl ${isAwayWinner ? 'opacity-40 group-hover:opacity-60 grayscale-[30%] scale-95' : 'group-hover:scale-105'}`}>
+                <img src={getImageUrl(details.teams.home.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              </div>
+            )}
+            <span className={`font-black text-center uppercase tracking-tight text-[10px] sm:text-xs transition-colors line-clamp-2 w-full leading-tight ${
+              isHomeWinner ? 'text-orange-400 font-extrabold sm:text-xs' : isAwayWinner ? 'text-gray-500 font-medium' : 'text-white group-hover:text-orange-500'
+            }`}>
               {details.teams.home.name}
             </span>
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-[#2a2a2a] border border-orange-500/20 rounded-full mt-0.5">
-              <span className="text-orange-500 text-[9px] sm:text-[10px]">🔥</span>
-              <span className="text-orange-500 font-black text-[9px] sm:text-[10px]">{hasScore ? scoreHome : '0'}</span>
+            <div className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full transition-all duration-300 mt-0.5 ${
+              isHomeWinner 
+                ? 'bg-gradient-to-r from-orange-600 to-orange-500 border border-orange-400/30 text-white shadow-lg shadow-orange-500/10 scale-105' 
+                : isAwayWinner 
+                ? 'bg-[#2a2a2a]/40 border border-white/5 text-gray-500 scale-95 opacity-50'
+                : 'bg-[#2a2a2a] border border-orange-500/20 text-orange-500'
+            }`}>
+              <span className={isAwayWinner ? 'opacity-30' : ''}>🔥</span>
+              <span className="font-black text-[9px] sm:text-[10px]">{hasScore ? scoreHome : '0'}{isHomeWinner ? ' PTS' : ''}</span>
             </div>
           </div>
 
@@ -391,15 +411,33 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
 
           {/* Away Team */}
           <div className="flex-1 flex flex-col items-center gap-1.5 cursor-pointer group min-w-0" onClick={() => onTeamClick(details.teams.away.id, details.league.season)}>
-            <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center group-hover:scale-105 transition-transform drop-shadow-xl">
-              <img src={getImageUrl(details.teams.away.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-            </div>
-            <span className="font-black text-center uppercase tracking-tight text-[10px] sm:text-xs text-white group-hover:text-blue-500 transition-colors line-clamp-2 w-full leading-tight">
+            {isAwayWinner ? (
+              <div className="relative w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center transition-all duration-300 rounded-full bg-black/30 p-1 border-2 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)] group-hover:scale-105">
+                <img src={getImageUrl(details.teams.away.logo, 100)} alt="" className="w-4/5 h-4/5 object-contain" referrerPolicy="no-referrer" />
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-black text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-0.5 whitespace-nowrap z-10 animate-pulse border border-yellow-300/20">
+                  <Trophy className="w-2 h-2 fill-black shrink-0" />
+                  <span>GAGNANT</span>
+                </div>
+              </div>
+            ) : (
+              <div className={`w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center transition-all drop-shadow-xl ${isHomeWinner ? 'opacity-40 group-hover:opacity-60 grayscale-[30%] scale-95' : 'group-hover:scale-105'}`}>
+                <img src={getImageUrl(details.teams.away.logo, 100)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              </div>
+            )}
+            <span className={`font-black text-center uppercase tracking-tight text-[10px] sm:text-xs transition-colors line-clamp-2 w-full leading-tight ${
+              isAwayWinner ? 'text-blue-400 font-extrabold sm:text-xs' : isHomeWinner ? 'text-gray-500 font-medium' : 'text-white group-hover:text-blue-500'
+            }`}>
               {details.teams.away.name}
             </span>
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-[#2a2a2a] border border-blue-500/20 rounded-full mt-0.5">
-              <span className="text-blue-500 text-[9px] sm:text-[10px]">🔥</span>
-              <span className="text-blue-500 font-black text-[9px] sm:text-[10px]">{hasScore ? scoreAway : '0'}</span>
+            <div className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full transition-all duration-300 mt-0.5 ${
+              isAwayWinner 
+                ? 'bg-gradient-to-r from-blue-600 to-blue-500 border border-blue-400/30 text-white shadow-lg shadow-blue-500/10 scale-105' 
+                : isHomeWinner 
+                ? 'bg-[#2a2a2a]/40 border border-white/5 text-gray-500 scale-95 opacity-50'
+                : 'bg-[#2a2a2a] border border-blue-500/20 text-blue-500'
+            }`}>
+              <span className={isHomeWinner ? 'opacity-30' : ''}>🔥</span>
+              <span className="font-black text-[9px] sm:text-[10px]">{hasScore ? scoreAway : '0'}{isAwayWinner ? ' PTS' : ''}</span>
             </div>
           </div>
         </div>
@@ -731,38 +769,179 @@ function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; 
       <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-3">Historique des Duels</h3>
       
       <div className="space-y-2">
-        {history.map((duel, idx) => (
-          <div 
-            key={duel.id || idx} 
-            className="bg-white/5 border border-white/10 rounded-xl p-3 cursor-pointer hover:bg-white/10 transition-colors"
-            onClick={() => setSelectedDuelDetails(duel.id)}
-          >
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-[8px] font-black text-orange-500 uppercase tracking-wider bg-orange-500/10 px-1.5 py-0.5 rounded">
-                {duel.type || 'Duel'}
-              </span>
-              <span className="text-[8px] font-bold text-gray-500 italic">
-                {duel.timestamp?.seconds ? new Date(duel.timestamp.seconds * 1000).toLocaleDateString() : ''}
-              </span>
-            </div>
-            
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1 flex flex-col items-center min-w-0">
-                <span className="text-base font-black text-white">{duel.scoreA || 0}</span>
-                <span className="text-[7px] font-bold text-gray-500 uppercase truncate w-full text-center">{teams.home.name}</span>
+        {history.map((duel, idx) => {
+          const scoreA = duel.scoreA || 0;
+          const scoreB = duel.scoreB || 0;
+          const isHomeWinner = scoreA > scoreB;
+          const isAwayWinner = scoreB > scoreA;
+
+          let typeLabel = duel.type || 'Duel';
+          if (duel.type === 'war_of_kops') typeLabel = 'Guerre des KOPs';
+          else if (duel.type === '1v1') typeLabel = 'Combat 1v1';
+          else if (duel.type === '2v2') typeLabel = 'Duel 2v2';
+          else if (duel.type === '5v5') typeLabel = 'Duel 5v5';
+          else if (duel.type === 'training') typeLabel = 'Entraînement';
+
+          // Format Date elegantly
+          let formattedDate = '';
+          if (duel.timestamp?.seconds) {
+            formattedDate = format(new Date(duel.timestamp.seconds * 1000), "d MMM yyyy 'à' HH:mm", { locale: fr });
+          } else if (duel.timestamp) {
+            formattedDate = format(new Date(duel.timestamp), "d MMM yyyy 'à' HH:mm", { locale: fr });
+          }
+
+          return (
+            <div 
+              key={duel.id || idx} 
+              className={`group border rounded-2xl p-4 cursor-pointer transition-all duration-300 relative overflow-hidden ${
+                isHomeWinner 
+                  ? 'bg-gradient-to-r from-orange-950/20 via-orange-500/5 to-white/[0.02] border-orange-500/20 hover:border-orange-500/50 hover:shadow-[0_0_20px_rgba(249,115,22,0.15)]' 
+                  : isAwayWinner 
+                  ? 'bg-gradient-to-l from-blue-950/20 via-blue-500/5 to-white/[0.02] border-blue-500/20 hover:border-blue-500/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                  : 'bg-white/[0.03] border-white/5 hover:border-white/10 hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]'
+              } hover:-translate-y-0.5`}
+              onClick={() => setSelectedDuelDetails(duel.id)}
+            >
+              {/* Radial glow background for winners */}
+              {isHomeWinner && (
+                <div className="absolute top-1/2 left-0 -translate-y-1/2 w-32 h-32 bg-orange-500/10 rounded-full blur-[40px] pointer-events-none -z-10 transition-transform duration-500 group-hover:scale-125" />
+              )}
+              {isAwayWinner && (
+                <div className="absolute top-1/2 right-0 -translate-y-1/2 w-32 h-32 bg-blue-500/10 rounded-full blur-[40px] pointer-events-none -z-10 transition-transform duration-500 group-hover:scale-125" />
+              )}
+
+              {/* Decorative side accent lines */}
+              {isHomeWinner && (
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-orange-400 via-amber-500 to-orange-600 shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+              )}
+              {isAwayWinner && (
+                <div className="absolute top-0 right-0 w-1.5 h-full bg-gradient-to-b from-blue-400 via-indigo-500 to-blue-600 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+              )}
+
+              <div className="flex justify-between items-center mb-3.5">
+                <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  duel.type === 'war_of_kops'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    : isHomeWinner
+                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                    : isAwayWinner
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                    : 'bg-white/10 text-white/70 border border-white/10'
+                }`}>
+                  {typeLabel}
+                </span>
+                <span className="text-[8px] font-bold text-gray-400 group-hover:text-gray-300 transition-colors">
+                  {formattedDate}
+                </span>
               </div>
               
-              <div className="flex flex-col items-center px-2">
-                <div className="h-0.5 w-6 bg-white/10" />
-              </div>
-              
-              <div className="flex-1 flex flex-col items-center min-w-0">
-                <span className="text-base font-black text-white">{duel.scoreB || 0}</span>
-                <span className="text-[7px] font-bold text-gray-500 uppercase truncate w-full text-center">{teams.away.name}</span>
+              <div className="flex items-center justify-between gap-3">
+                {/* Left (Home Team) */}
+                <div className={`flex-1 flex items-center gap-3 min-w-0 transition-opacity duration-300 ${
+                  isAwayWinner ? 'opacity-30 group-hover:opacity-40' : 'opacity-100'
+                }`}>
+                  <div className="relative shrink-0">
+                    {/* Ring aura around home logo if winner */}
+                    {isHomeWinner && (
+                      <div className="absolute inset-0 rounded-full bg-orange-500/25 blur-sm scale-110 animate-pulse pointer-events-none" />
+                    )}
+                    {teams.home?.logo && (
+                      <div className={`w-10 h-10 rounded-full bg-black/40 p-1.5 flex items-center justify-center border transition-all duration-300 ${
+                        isHomeWinner ? 'border-orange-500/50 scale-105 shadow-[0_0_12px_rgba(249,115,22,0.2)]' : 'border-white/5'
+                      }`}>
+                        <img 
+                          src={getImageUrl(teams.home.logo)} 
+                          alt={teams.home.name} 
+                          className="w-7 h-7 object-contain transition-transform duration-300 group-hover:scale-105" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      </div>
+                    )}
+                    {isHomeWinner && (
+                      <div className="absolute -top-1 -left-1 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full p-1 shadow-lg border border-black animate-bounce">
+                        <Trophy className="w-2.5 h-2.5 text-black fill-yellow-400" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-[10px] uppercase truncate transition-colors duration-300 ${isHomeWinner ? 'text-orange-400 font-extrabold' : 'text-gray-300 font-semibold'}`}>
+                      {teams.home.name}
+                    </div>
+                    <div className="text-[7px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Hôte</div>
+                  </div>
+
+                  <div className="flex flex-col items-center">
+                    <div className={`text-xl tabular-nums transition-all leading-none ${
+                        isHomeWinner 
+                          ? 'text-orange-400 font-black scale-110 drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]' 
+                          : 'text-white font-bold'
+                    }`}>
+                      {scoreA}
+                    </div>
+                    {isHomeWinner && (
+                      <span className="text-[7px] font-black text-amber-400 uppercase tracking-widest mt-1 animate-pulse">Victoire</span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Separator */}
+                <div className="flex flex-col items-center justify-center shrink-0 px-2 select-none">
+                  <span className="text-[8px] font-black tracking-widest text-gray-600 group-hover:text-gray-500 transition-colors">VS</span>
+                </div>
+                
+                {/* Right (Away Team) */}
+                <div className={`flex-1 flex items-center justify-end gap-3 min-w-0 transition-opacity duration-300 ${
+                  isHomeWinner ? 'opacity-30 group-hover:opacity-40' : 'opacity-100'
+                }`}>
+                  <div className="flex flex-col items-center">
+                    <div className={`text-xl tabular-nums transition-all leading-none ${
+                        isAwayWinner 
+                          ? 'text-blue-400 font-black scale-110 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]' 
+                          : 'text-white font-bold'
+                    }`}>
+                      {scoreB}
+                    </div>
+                    {isAwayWinner && (
+                      <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest mt-1 animate-pulse">Victoire</span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0 text-right">
+                    <div className={`text-[10px] uppercase truncate transition-colors duration-300 ${isAwayWinner ? 'text-blue-400 font-extrabold' : 'text-gray-300 font-semibold'}`}>
+                      {teams.away.name}
+                    </div>
+                    <div className="text-[7px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Visiteur</div>
+                  </div>
+
+                  <div className="relative shrink-0">
+                    {/* Ring aura around away logo if winner */}
+                    {isAwayWinner && (
+                      <div className="absolute inset-0 rounded-full bg-blue-500/25 blur-sm scale-110 animate-pulse pointer-events-none" />
+                    )}
+                    {teams.away?.logo && (
+                      <div className={`w-10 h-10 rounded-full bg-black/40 p-1.5 flex items-center justify-center border transition-all duration-300 ${
+                        isAwayWinner ? 'border-blue-500/50 scale-105 shadow-[0_0_12px_rgba(59,130,246,0.2)]' : 'border-white/5'
+                      }`}>
+                        <img 
+                          src={getImageUrl(teams.away.logo)} 
+                          alt={teams.away.name} 
+                          className="w-7 h-7 object-contain transition-transform duration-300 group-hover:scale-105" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      </div>
+                    )}
+                    {isAwayWinner && (
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full p-1 shadow-lg border border-black animate-bounce">
+                        <Trophy className="w-2.5 h-2.5 text-black fill-yellow-400" />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

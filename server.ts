@@ -155,9 +155,13 @@ async function startServer() {
       proportionalPointsB: scoreB - (winner === 'B' ? 10 : 0)
     };
 
+    const allParticipants = duel.type === 'war_of_kops' && duel.historicalParticipants ? Object.values(duel.historicalParticipants) : duel.participants;
+
     // Check if the duel contains real opponents or just bots against real users
-    const isBotMatch = duel.participants.some(p => p.team === 'A' && !p.isBot) === false ||
-                       duel.participants.some(p => p.team === 'B' && !p.isBot) === false;
+    const isBotMatch = duel.type === 'war_of_kops'
+      ? !allParticipants.some(p => !p.isBot)
+      : (allParticipants.some(p => p.team === 'A' && !p.isBot) === false ||
+         allParticipants.some(p => p.team === 'B' && !p.isBot) === false);
 
     io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB, details, isBotMatch });
 
@@ -298,11 +302,70 @@ async function startServer() {
             updatedAt: new Date().toISOString()
           }, { merge: true });
 
+          // Save to match_scores in Firestore so it lists in match summary (Match Details duels history tab)
+          if (duel.matchId) {
+            const matchIdStr = duel.matchId.toString();
+            await db.collection('match_scores').doc(duel.id).set({
+              matchId: matchIdStr,
+              scoreA: Number(scoreA),
+              scoreB: Number(scoreB),
+              timestamp: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            // Save to fixture_results for detailed historic tracking
+            const matchSeason = duel.season || currentYear;
+            const safeLeagueId = duel.leagueId || 'global';
+            await db.collection('fixture_results').doc(duel.id).set({
+              fixtureId: matchIdStr,
+              leagueId: safeLeagueId,
+              season: matchSeason,
+              duelId: duel.id,
+              type: duel.type,
+              teamHome: {
+                id: duel.teamAId || '',
+                name: duel.teamA || '',
+                score: Number(scoreA)
+              },
+              teamAway: {
+                id: duel.teamBId || '',
+                name: duel.teamB || '',
+                score: Number(scoreB)
+              },
+              winnerVirtualTeam: winner,
+              users: simplifiedParticipants.reduce((acc: any, p: any) => {
+                acc[p.uid] = {
+                  pseudo: p.pseudo || 'Unknown',
+                  virtualTeam: p.team,
+                  teamSide: p.team === 'A' ? 'Home' : 'Away',
+                  realTeamName: p.team === 'A' ? (duel.teamA || '') : (duel.teamB || ''),
+                  score: p.team === 'A' ? Number(scoreA) : Number(scoreB)
+                };
+                return acc;
+              }, {}),
+              timestamp: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            console.log(`[Server] Saved match_scores and fixture_results for duel ${duel.id}`);
+          }
+
         } catch (err) {
           console.error("[Server] Error updating db for finished duel", err);
         }
       })();
     }
+  }
+
+  function checkAndFinishWarOfKopsDuels(matchId: string | number) {
+    if (!matchId) return;
+    const matchIdStr = matchId.toString();
+    Object.values(duels).forEach(duel => {
+      if (duel.type === 'war_of_kops' && duel.matchId?.toString() === matchIdStr && duel.status !== 'finished') {
+        console.log(`[Server] Automatically finishing War of Kops duel ${duel.id} because match ${matchId} is finished.`);
+        // Winner is team A if progress >= 50, otherwise B
+        const winner = duel.progress >= 50 ? "A" : "B";
+        finishDuel(duel.id, winner);
+      }
+    });
   }
 
   io.on("connection", (socket) => {
@@ -1063,6 +1126,7 @@ async function startServer() {
             const status = item.fixture?.status?.short;
             if (fId && (status === "FT" || status === "AET" || status === "PEN")) {
               finishedFixturesSet.add(String(fId));
+              checkAndFinishWarOfKopsDuels(fId);
             }
           });
         }

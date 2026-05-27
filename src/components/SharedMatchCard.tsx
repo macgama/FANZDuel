@@ -122,6 +122,8 @@ export function SharedMatchCard({
   const scoreB = matchScore?.scoreB || 0;
   const totalScore = scoreA + scoreB;
   const hasScore = totalScore > 0;
+  const isHomeWinner = (isLive || isFinished) && hasScore && scoreA > scoreB;
+  const isAwayWinner = (isLive || isFinished) && hasScore && scoreB > scoreA;
   
   let dominanceA = 50;
   let dominanceB = 50;
@@ -166,7 +168,10 @@ export function SharedMatchCard({
       <div className="flex justify-between items-start mt-2">
         {/* Home Team */}
         <div 
-          className="flex flex-col items-center gap-2 flex-1 cursor-pointer group/team min-w-0"
+          className={cn(
+            "flex flex-col items-center gap-2 flex-1 cursor-pointer group/team min-w-0 transition-all duration-300",
+            isAwayWinner ? "opacity-35 grayscale-[20%] scale-95" : isHomeWinner ? "scale-105" : ""
+          )}
           onClick={(e) => {
             e.stopPropagation();
             if (onTeamClick && match.teams.home) {
@@ -174,21 +179,40 @@ export function SharedMatchCard({
             }
           }}
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center group-hover/team:scale-105 transition-transform relative">
+          <div className={cn(
+            "w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center transition-all duration-300 relative rounded-full",
+            isHomeWinner && "bg-orange-500/15 ring-2 ring-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.4)]"
+          )}>
             <img src={getImageUrl(match.teams.home.logo, 100)} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" referrerPolicy="no-referrer" />
             {homeIsFav && (
-              <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
+              <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500 z-10">
                 <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
               </div>
             )}
+            {isHomeWinner && (
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-500 text-black text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-yellow-300 uppercase tracking-widest flex items-center gap-0.5 pointer-events-none whitespace-nowrap z-20">
+                🏆 {isLive ? "MÈNE" : "GAGNANT"}
+              </div>
+            )}
           </div>
-          <span className={cn("font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover/team:text-orange-500 transition-colors line-clamp-2 w-full px-1", homeIsFav && "text-orange-500")}>
+          <span className={cn(
+            "font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover/team:text-orange-500 transition-colors line-clamp-2 w-full px-1", 
+            homeIsFav ? "text-orange-500" : "text-white",
+            isHomeWinner && "text-orange-500 font-extrabold scale-105"
+          )}>
             {match.teams.home.name}
           </span>
           {(isLive || isFinished) && (
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
-              <Flame className="w-3 h-3 text-orange-500" />
-              <span className="text-[10px] sm:text-xs font-black text-orange-500">{hasScore ? scoreA + ' PTS' : '0 PTS'}</span>
+            <div className={cn(
+              "rounded-full px-2.5 py-1 flex items-center gap-1 mt-1 transition-all duration-300",
+              isHomeWinner 
+                ? "bg-gradient-to-r from-orange-500/20 to-orange-600/30 border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.4)] scale-110" 
+                : isAwayWinner 
+                  ? "bg-gray-800/20 border border-gray-800/10 opacity-30 scale-90"
+                  : "bg-orange-500/10 border border-orange-500/20"
+            )}>
+              <Flame className={cn("w-3 h-3 text-orange-500", isHomeWinner && "animate-bounce")} />
+              <span className={cn("text-[10px] sm:text-xs font-black text-orange-500", isHomeWinner && "text-[11px] sm:text-sm")}>{hasScore ? scoreA + ' PTS' : '0 PTS'}</span>
             </div>
           )}
         </div>
@@ -198,9 +222,9 @@ export function SharedMatchCard({
           {isFinished || isLive ? (
             <>
               <div className="text-3xl sm:text-4xl font-black tracking-tighter flex items-center gap-1">
-                <span className={isLive ? 'text-orange-500' : ''}>{match.goals.home ?? 0}</span>
+                <span className={cn(isLive ? 'text-orange-500' : 'text-white', isAwayWinner && 'opacity-60')}>{match.goals.home ?? 0}</span>
                 <span className="text-orange-500">:</span>
-                <span className={isLive ? 'text-orange-500' : ''}>{match.goals.away ?? 0}</span>
+                <span className={cn(isLive ? 'text-orange-500' : 'text-white', isHomeWinner && 'opacity-60')}>{match.goals.away ?? 0}</span>
               </div>
               
               {match.score?.penalty?.home != null && (
@@ -242,7 +266,10 @@ export function SharedMatchCard({
 
         {/* Away Team */}
         <div 
-          className="flex flex-col items-center gap-2 flex-1 cursor-pointer group/team min-w-0"
+          className={cn(
+            "flex flex-col items-center gap-2 flex-1 cursor-pointer group/team min-w-0 transition-all duration-300",
+            isHomeWinner ? "opacity-35 grayscale-[20%] scale-95" : isAwayWinner ? "scale-105" : ""
+          )}
           onClick={(e) => {
             e.stopPropagation();
             if (onTeamClick && match.teams.away) {
@@ -250,21 +277,40 @@ export function SharedMatchCard({
             }
           }}
         >
-          <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center group-hover/team:scale-105 transition-transform relative">
+          <div className={cn(
+            "w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center transition-all duration-300 relative rounded-full",
+            isAwayWinner && "bg-blue-500/15 ring-2 ring-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.4)]"
+          )}>
             <img src={getImageUrl(match.teams.away.logo, 100)} alt="" className="w-10 h-10 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" referrerPolicy="no-referrer" />
             {awayIsFav && (
-              <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500">
+              <div className="absolute -top-1 -right-1 bg-black rounded-full p-0.5 border border-orange-500 z-10">
                 <Star className="w-3 h-3 text-orange-500 fill-orange-500" />
               </div>
             )}
+            {isAwayWinner && (
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-teal-400 to-blue-500 text-white text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-blue-300 uppercase tracking-widest flex items-center gap-0.5 pointer-events-none whitespace-nowrap z-20">
+                🏆 {isLive ? "MÈNE" : "GAGNANT"}
+              </div>
+            )}
           </div>
-          <span className={cn("font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover/team:text-blue-500 transition-colors line-clamp-2 w-full px-1", awayIsFav && "text-blue-500")}>
+          <span className={cn(
+            "font-black text-[10px] sm:text-xs text-center uppercase leading-tight h-8 flex items-center justify-center group-hover/team:text-blue-500 transition-colors line-clamp-2 w-full px-1", 
+            awayIsFav ? "text-blue-500" : "text-white",
+            isAwayWinner && "text-blue-500 font-extrabold scale-105"
+          )}>
             {match.teams.away.name}
           </span>
           {(isLive || isFinished) && (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-1 flex items-center gap-1 mt-1">
-              <Flame className="w-3 h-3 text-blue-500" />
-              <span className="text-[10px] sm:text-xs font-black text-blue-500">{hasScore ? scoreB + ' PTS' : '0 PTS'}</span>
+            <div className={cn(
+              "rounded-full px-2.5 py-1 flex items-center gap-1 mt-1 transition-all duration-300",
+              isAwayWinner 
+                ? "bg-gradient-to-r from-blue-500/20 to-blue-600/30 border-2 border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.4)] scale-110" 
+                : isHomeWinner 
+                  ? "bg-gray-800/20 border border-gray-800/10 opacity-30 scale-90"
+                  : "bg-blue-500/10 border border-blue-500/20"
+            )}>
+              <Flame className={cn("w-3 h-3 text-blue-500", isAwayWinner && "animate-bounce")} />
+              <span className={cn("text-[10px] sm:text-xs font-black text-blue-500", isAwayWinner && "text-[11px] sm:text-sm")}>{hasScore ? scoreB + ' PTS' : '0 PTS'}</span>
             </div>
           )}
         </div>
