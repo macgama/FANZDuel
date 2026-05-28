@@ -3255,6 +3255,24 @@ export function AdminZone() {
                     </select>
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">Catégorie</label>
+                    <select
+                      value={editingCard.category || ''}
+                      onChange={e => setEditingCard({...editingCard, category: e.target.value})}
+                      className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
+                    >
+                      <option value="">Aucune</option>
+                      <option value="Objet">Objet</option>
+                      <option value="Action">Action</option>
+                      <option value="Chant">Chant</option>
+                      <option value="Sort">Sort</option>
+                      <option value="Piège">Piège</option>
+                      <option value="Compagnon">Compagnon</option>
+                      <option value="Consommable">Consommable</option>
+                      <option value="Environnement">Environnement</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-500">Coût Excitation</label>
                     <input
                       type="number"
@@ -3560,6 +3578,22 @@ export function AdminZone() {
                             <option value="mascot_bone_drum">Tambour en Os de Mascotte (Adverse -50% Clics) [Durée]</option>
                             <option value="scarves_wall">Mur d'Écharpes (Soi -50% Dégâts) [Durée]</option>
                             <option value="virage_host">L'Ost du Virage (Soi +1 Supporter) [Valeur]</option>
+                            <option value="chainsaw_megaphone">Mégaphone-Tronçonneuse (Détruit Bouclier + Recul) [Rien]</option>
+                            <option value="burning_seats">Pluie de Sièges Enflammés (Dégâts Zone + Défausse) [Rien]</option>
+                            <option value="var_temporelle">VAR Temporelle (Rembobine au Tour Précédent) [Rien]</option>
+                            <option value="tifo_holographique">Tifo Holographique 3D (Absorbe & Renvoie Dégâts) [Rien]</option>
+                            <option value="capo_megaphone">Mégaphone du Capo (Ferveur du Plateau Doublée) [Durée]</option>
+                            <option value="craquage_massif">Craquage Massif (Zone + Brouillard Inciblable) [Durée]</option>
+                            <option value="var_illusion">VAR Miracle / Illusion (Contre & Annule l'effet adverse) [Rien]</option>
+                            <option value="grimoire_chants">Grimoire des Chants Oubliés (Génère un Chant aléatoire) [Rien]</option>
+                            <option value="buvette_grail">Graal de la Buvette (Corde soignée / bonus) [Rien]</option>
+                            <option value="luminescent_standard">Étendard Luminescent (Immunité Totale des cartes adjacentes) [Durée]</option>
+                            <option value="locker_room_curse">La Malédiction des Vestiaires (Piège ferveur adverse) [Rien]</option>
+                            <option value="pumpkin_fog">Fumigène Citrouille Toxique (Brouillard de combat) [Durée]</option>
+                            <option value="clapping_odin">Le Clapping d'Odin (Bonus x3 clics de la tribune) [Durée]</option>
+                            <option value="corne_drakkar">Corne de Brume de Drakkar (Silence Chants & Sorts) [Durée]</option>
+                            <option value="steal_object_card">Abordage du Parcage Visiteur (Vole Objet du Deck/Main) [Rien]</option>
+                            <option value="parrot_taunt">Perroquet Insolent (Provoc / détournement d'attention) [Durée]</option>
                           </select>
                         </div>
                         <div className="w-24 space-y-1">

@@ -48,19 +48,30 @@ export function AdminDuelCardRow({ card, onSaved, onDeleted, onEditFull, fanzTem
         </div>
       </td>
       <td className="px-2 py-2 align-middle border-b border-white/5 min-w-[150px]">
-        <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Nom / ID / Type</label>
+        <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Nom / ID / Type & Catégorie</label>
         <input type="text" value={localCard.name || ''} onChange={e => handleChange('name', e.target.value)} className="w-full text-sm font-bold p-1 bg-black text-white rounded border border-white/10 mb-1" />
-        <div className="flex gap-2">
-            <select value={localCard.type} onChange={e => handleChange('type', e.target.value as any)} className="w-1/2 text-[10px] p-1 bg-gray-900 text-white rounded border border-white/10">
+        <div className="grid grid-cols-3 gap-1">
+            <select value={localCard.type} onChange={e => handleChange('type', e.target.value as any)} className="text-[10px] p-1 bg-gray-900 text-white rounded border border-white/10" title="Type">
               <option value="bonus">Bonus</option>
               <option value="malus">Malus</option>
               <option value="neutral">Neutre</option>
             </select>
-            <select value={localCard.rarity} onChange={e => handleChange('rarity', e.target.value as any)} className="w-1/2 text-[10px] p-1 bg-gray-900 text-white rounded border border-white/10">
+            <select value={localCard.rarity} onChange={e => handleChange('rarity', e.target.value as any)} className="text-[10px] p-1 bg-gray-900 text-white rounded border border-white/10" title="Rareté">
               <option value="common">Commune</option>
               <option value="rare">Rare</option>
               <option value="epic">Épique</option>
               <option value="legendary">Légendaire</option>
+            </select>
+            <select value={localCard.category || ''} onChange={e => handleChange('category', e.target.value || undefined)} className="text-[10px] p-1 bg-gray-900 text-white rounded border border-white/10" title="Catégorie">
+              <option value="">Aucune</option>
+              <option value="Objet">Objet</option>
+              <option value="Action">Action</option>
+              <option value="Chant">Chant</option>
+              <option value="Sort">Sort</option>
+              <option value="Piège">Piège</option>
+              <option value="Compagnon">Compagnon</option>
+              <option value="Consommable">Consommable</option>
+              <option value="Environnement">Environnement</option>
             </select>
         </div>
         <div className="text-[10px] text-gray-500 font-mono mt-1">{localCard.id}</div>
