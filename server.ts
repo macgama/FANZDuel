@@ -97,6 +97,7 @@ async function startServer() {
     isPrivate?: boolean;
     inviteCode?: string;
     historicalParticipants?: Record<string, any>;
+    lastActionCards?: any;
   }> = {};
 
   // Helper to get a JSON-safe version of a duel (removing circular timers/intervals)
@@ -726,6 +727,15 @@ async function startServer() {
         }
         const uid = participant ? participant.uid : 'unknown';
         
+        // Keep progress snapshot before resolving play card for VAR Temporelle
+        if (!(duel as any).progressHistory) {
+          (duel as any).progressHistory = [];
+        }
+        (duel as any).progressHistory.push(duel.progress);
+        if ((duel as any).progressHistory.length > 15) {
+          (duel as any).progressHistory.shift();
+        }
+
         // Server-Side Card Validation
         const baseCard = loadedCards.find((c: any) => c.id === card.id);
         if (!baseCard) {
@@ -749,6 +759,16 @@ async function startServer() {
           duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
         }
 
+        if (baseCard.category === 'Action') {
+          if (!duel.lastActionCards) duel.lastActionCards = { A: null, B: null };
+          duel.lastActionCards[team] = {
+            id: card.id,
+            name: card.name,
+            fervorValue: card.fervorValue || 0,
+            pushRopeValue: card.effects?.find((e: any) => e.type === 'push_rope')?.value || 0
+          };
+        }
+
         card.effects.forEach((effect: any) => {
           if (effect.type === 'push_rope' && effect.value && !card.fervorValue) {
             const maxEffectAllowed = Math.max(50, (baseCard.effects?.find((e: any) => e.type === 'push_rope')?.value || 0) * 4); // More balanced limit
@@ -759,8 +779,45 @@ async function startServer() {
             const delta = (team === "A" ? effect.value : -effect.value) / resistance;
             duel.progress = Math.min(100, Math.max(0, duel.progress + delta));
           }
+          if (effect.type === 'var_illusion') {
+            const opponentTeam = team === 'A' ? 'B' : 'A';
+            if (duel.lastActionCards && duel.lastActionCards[opponentTeam]) {
+              const oppCard = duel.lastActionCards[opponentTeam];
+              const reverseFervor = (opponentTeam === 'A' ? -oppCard.fervorValue : oppCard.fervorValue) / resistance;
+              const reversePush = (opponentTeam === 'A' ? -oppCard.pushRopeValue : oppCard.pushRopeValue) / resistance;
+              duel.progress = Math.min(100, Math.max(0, duel.progress + reverseFervor + reversePush));
+              duel.lastActionCards[opponentTeam] = null; // clear after revert
+            }
+          }
           if (effect.type === 'invert_rope') {
             duel.progress = 100 - duel.progress;
+          }
+          if (effect.type === 'buvette_grail') {
+            if (team === 'A') {
+              if (duel.progress < 50) {
+                duel.progress = 50;
+              } else {
+                duel.progress = Math.min(100, duel.progress + 15);
+              }
+            } else if (team === 'B') {
+              if (duel.progress > 50) {
+                duel.progress = 50;
+              } else {
+                duel.progress = Math.max(0, duel.progress - 15);
+              }
+            }
+          }
+          if (effect.type === 'var_temporelle') {
+            const history = (duel as any).progressHistory;
+            if (history && history.length > 2) {
+              const targetProg = history[history.length - 3]; // Rewind to start of previous turn (2 steps back)
+              duel.progress = targetProg;
+              (duel as any).progressHistory = history.slice(0, -2);
+            } else if (history && history.length > 1) {
+              duel.progress = history[0];
+            } else {
+              duel.progress = 50;
+            }
           }
         });
         
@@ -788,8 +845,8 @@ async function startServer() {
       socket.to(duelId).emit("swap-hands-complete", { newHand: hand });
     });
 
-    socket.on("steal-card-init", ({ duelId, team }) => {
-      socket.to(duelId).emit("steal-card-request", { fromTeam: team });
+    socket.on("steal-card-init", ({ duelId, team, filterCategory }) => {
+      socket.to(duelId).emit("steal-card-request", { fromTeam: team, filterCategory });
     });
 
     socket.on("steal-card-response", ({ duelId, team, card }) => {

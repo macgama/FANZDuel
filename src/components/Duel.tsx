@@ -825,6 +825,39 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [isHeavyBallPower, setIsHeavyBallPower] = useState(false);
   const [isIntimidated, setIsIntimidated] = useState(false);
   const [isWallOfShieldsActive, setIsWallOfShieldsActive] = useState(false);
+  const [isOdinClappingActive, setIsOdinClappingActive] = useState(false);
+  const [isEnemyOdinClappingActive, setIsEnemyOdinClappingActive] = useState(false);
+  const [odinClickBonus, setOdinClickBonus] = useState(0);
+  const [isDeafened, setIsDeafened] = useState(false);
+  const [isParrotTauntActive, setIsParrotTauntActive] = useState(false);
+  const [isEnemyParrotTauntActive, setIsEnemyParrotTauntActive] = useState(false);
+  const [isBlind, setIsBlind] = useState(false);
+  const [isEnemyBlind, setIsEnemyBlind] = useState(false);
+  const [isLockerRoomCursed, setIsLockerRoomCursed] = useState(false);
+  const [hasLockerRoomCurseTrap, setHasLockerRoomCurseTrap] = useState(false);
+  const [isLuminescentStandardActive, setIsLuminescentStandardActive] = useState(false);
+  const [isEnemyLuminescentStandardActive, setIsEnemyLuminescentStandardActive] = useState(false);
+  const [playedHistory, setPlayedHistory] = useState<GameCard[]>([]);
+  const [isGrimoirePickerOpen, setIsGrimoirePickerOpen] = useState(false);
+  const [grimoireEligibleCards, setGrimoireEligibleCards] = useState<GameCard[]>([]);
+  const [isVarOverlayActive, setIsVarOverlayActive] = useState(false);
+  const [isBurningSeatsOverlayActive, setIsBurningSeatsOverlayActive] = useState(false);
+  const [isTifoHolographiqueActive, setIsTifoHolographiqueActive] = useState(false);
+  const [isEnemyTifoHolographiqueActive, setIsEnemyTifoHolographiqueActive] = useState(false);
+  const [isCapoMegaphoneActive, setIsCapoMegaphoneActive] = useState(false);
+  const [isEnemyCapoMegaphoneActive, setIsEnemyCapoMegaphoneActive] = useState(false);
+  const [isCraquageMassifActive, setIsCraquageMassifActive] = useState(false);
+  const [isEnemyCraquageMassifActive, setIsEnemyCraquageMassifActive] = useState(false);
+  const [stateSnapshots, setStateSnapshots] = useState<{
+    progress: number;
+    excitement: number;
+    hand: GameCard[];
+    hasShield: boolean;
+    isLuminescentStandardActive: boolean;
+    isTifoHolographiqueActive: boolean;
+    isCapoMegaphoneActive: boolean;
+    isCraquageMassifActive: boolean;
+  }[]>([]);
   const [lastEnemyCard, setLastEnemyCard] = useState<GameCard | null>(null);
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
 
@@ -833,6 +866,22 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       const audio = new Audio(getImageUrl(url));
       audio.play().catch(e => console.log('Audio play failed', e));
     }
+  };
+
+  const saveSnapshot = (currentHand: GameCard[], currentExcitement: number) => {
+    setStateSnapshots(prev => {
+      const snap = {
+        progress: progress,
+        excitement: currentExcitement,
+        hand: [...currentHand],
+        hasShield: hasShield,
+        isLuminescentStandardActive: isLuminescentStandardActive,
+        isTifoHolographiqueActive: isTifoHolographiqueActive,
+        isCapoMegaphoneActive: isCapoMegaphoneActive,
+        isCraquageMassifActive: isCraquageMassifActive,
+      };
+      return [...prev.slice(-11), snap];
+    });
   };
 
   // Emotes State
@@ -1739,7 +1788,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
 
       const isMalus = (enhancedCard.effects || []).some(e => 
-        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card', 'stun', 'mammoth_charge', 'mascot_bone_drum'].includes(e.type)
+        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card', 'stun', 'mammoth_charge', 'mascot_bone_drum', 'corne_drakkar', 'pumpkin_fog', 'locker_room_curse', 'chainsaw_megaphone', 'burning_seats'].includes(e.type)
       );
       
       if (!enhancedCard.videoUrl || enhancedCard.videoUrl === "undefined" || user.dataSaver) {
@@ -1750,9 +1799,40 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
       addFloatingEffect(`⚠️ ${enhancedCard.name}`, window.innerWidth / 2, 100, 'text-red-500 font-black scale-125');
 
+      if (card.lockerRoomCurseTriggered) {
+        addFloatingEffect("🪤 Piège déclenché : La Malédiction des Vestiaires ! (Rendement -50%)", window.innerWidth / 2, 180, "text-red-500 font-extrabold scale-110 drop-shadow-[0_0_10px_rgba(239,68,68,0.7)] z-[200] animate-bounce");
+      }
+
+      const isAggressiveVal = isMalus || (enhancedCard.fervorValue && enhancedCard.fervorValue >= 5);
+      if (isAggressiveVal && isTifoHolographiqueActive) {
+        setIsTifoHolographiqueActive(false);
+        addFloatingEffect('🤖 TIFO HOLOGRAPHIQUE 3D : Énergie laser absorbée !', window.innerWidth / 2, 130, 'text-cyan-400 font-extrabold scale-110 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)] z-[210]');
+        
+        const reflectionFervor = (enhancedCard.fervorValue || 10) * 0.5;
+        socket?.emit('click-ferveur', { duelId: currentDuelIdRef.current, team: currentMyTeam || 'A', multiplier: reflectionFervor * 2 });
+        addFloatingEffect(`💥 ONDE DE CHOC HOLO : Renvoyé +${reflectionFervor.toFixed(1)}% ferveur !`, window.innerWidth / 2, 170, 'text-cyan-300 font-black animate-pulse z-[210]');
+        
+        const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+        const revertDelta = (enhancedCard.fervorValue || 10) / resistance;
+        setProgress(prev => {
+          const revertSign = currentMyTeam === 'A' ? 1 : -1;
+          return Math.min(100, Math.max(0, prev + revertDelta * revertSign));
+        });
+        return;
+      }
+
       if (isMalus) {
-        const carriesMammothCharge = (enhancedCard.effects || []).some(e => e.type === 'mammoth_charge');
-        if (!carriesMammothCharge) {
+        const carriesShieldBreaker = (enhancedCard.effects || []).some(e => ['mammoth_charge', 'chainsaw_megaphone', 'burning_seats'].includes(e.type));
+        if (!carriesShieldBreaker) {
+          if (isLuminescentStandardActive) {
+            addFloatingEffect('✨ Étendard Luminescent : Altération neutre !', window.innerWidth / 2, 150, 'text-yellow-400 font-extrabold scale-110 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]');
+            return;
+          }
+          if (isParrotTauntActive) {
+            setIsParrotTauntActive(false);
+            addFloatingEffect('🦜 Perroquet Insolent : PROVOCATION ! Attaque absorbée !', window.innerWidth / 2, 150, 'text-green-400 font-extrabold scale-110');
+            return;
+          }
           if (isImmune || (user.antiMalusMatches || 0) > 0) {
             addFloatingEffect('🛡️ Bouclier Anti-Malus Actif!', window.innerWidth / 2, 150, 'text-green-300 font-black');
             return;
@@ -1923,12 +2003,110 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           case 'mammoth_charge':
             setHasShield(false);
             setHasMirror(false);
-            addFloatingEffect('🦣 CHARGE DE MAMMOUTH ! (Boucliers Brisés !)', window.innerWidth / 2, 200, 'text-red-600 font-black scale-150 animate-bounce z-[200]');
+            setIsOdinClappingActive(false);
+            setOdinClickBonus(0);
+            addFloatingEffect('🦣 CHARGE DE MAMMOUTH ! (Boucliers Brisés & Chants détruits !)', window.innerWidth / 2, 200, 'text-red-600 font-black scale-150 animate-bounce z-[200]');
+            break;
+          case 'chainsaw_megaphone':
+            setHasShield(false);
+            addFloatingEffect('⚙️ MÉGAPHONE-TRONÇONNEUSE ! Armure détruite et gros dégâts !', window.innerWidth / 2, 200, 'text-red-500 font-extrabold scale-125 animate-pulse z-[202]');
+            break;
+          case 'burning_seats':
+            setIsBurningSeatsOverlayActive(true);
+            setTimeout(() => setIsBurningSeatsOverlayActive(false), 3000);
+            setHasShield(false);
+            setHasMirror(false);
+            setIsLuminescentStandardActive(false);
+            setIsEnemyLuminescentStandardActive(false);
+            setIsParrotTauntActive(false);
+            setIsEnemyParrotTauntActive(false);
+            setIsOdinClappingActive(false);
+            setIsEnemyOdinClappingActive(false);
+            setOdinClickBonus(0);
+            
+            // Discard 1 card unless protected
+            const bIndex = handRef.current.findIndex(c => c.id === 'base_luminescent_standard');
+            const vIndices: number[] = [];
+            handRef.current.forEach((card, idx) => {
+              if (card.id === 'base_luminescent_standard') return;
+              if (bIndex !== -1 && Math.abs(bIndex - idx) === 1) return;
+              vIndices.push(idx);
+            });
+            
+            if (vIndices.length > 0) {
+              const discardIdx = vIndices[Math.floor(Math.random() * vIndices.length)];
+              const discardedCard = handRef.current[discardIdx];
+              setHand(prev => prev.filter((_, idx) => idx !== discardIdx));
+              setTimeout(drawCard, 2000);
+              addFloatingEffect(`🔥 SIÈGE EN FEU : Carbonise ta carte ${discardedCard.name} !`, window.innerWidth / 2, 240, 'text-orange-500 font-black scale-110');
+            } else {
+              addFloatingEffect(`🛡️ SIÈGES EN FEU : Toutes tes cartes en main sont immunisées par l'Étendard !`, window.innerWidth / 2, 240, 'text-yellow-400 font-bold');
+            }
+            break;
+          case 'clapping_odin':
+            setIsEnemyOdinClappingActive(true);
+            setTimeout(() => setIsEnemyOdinClappingActive(false), (effect.duration || 15) * 1000);
+            addFloatingEffect("👏 L'ennemi lance le Clapping d'Odin !", window.innerWidth / 2, 200, 'text-yellow-400 font-extrabold animate-bounce');
+            break;
+          case 'corne_drakkar':
+            setIsDeafened(true);
+            setTimeout(() => setIsDeafened(false), getEffectiveDuration(effect.duration || 10, mentalResistance));
+            addFloatingEffect("🔇 Sourd ! Chants et Sorts bloqués !", window.innerWidth / 2, 200, "text-red-400 font-extrabold animate-pulse");
+            break;
+          case 'parrot_taunt':
+            setIsEnemyParrotTauntActive(true);
+            setTimeout(() => setIsEnemyParrotTauntActive(false), (effect.duration || 15) * 1000);
+            addFloatingEffect("🦜 Le perroquet adverse provoque tes supporters !", window.innerWidth / 2, 200, 'text-green-400 font-extrabold animate-bounce');
+            break;
+          case 'steal_object_card':
+            // Handled via separate steal-card-request socket sequence
             break;
           case 'mascot_bone_drum':
             setIsIntimidated(true);
             setTimeout(() => setIsIntimidated(false), getEffectiveDuration(effect.duration || 8, mentalResistance));
             addFloatingEffect('🥁 TAMBOUR EN OS ! (Intimidé: Clics -50% !)', window.innerWidth / 2, 200, 'text-purple-500 font-black scale-125 animate-pulse z-[200]');
+            break;
+          case 'pumpkin_fog':
+            setIsBlind(true);
+            setTimeout(() => setIsBlind(false), getEffectiveDuration(effect.duration || 12, mentalResistance));
+            addFloatingEffect('🎃 CUCURBITACÉE TOXIQUE ! (Aveuglé: 50% échecs !)', window.innerWidth / 2, 200, 'text-orange-500 font-extrabold scale-125 animate-pulse z-[200]');
+            break;
+          case 'locker_room_curse':
+            setIsLockerRoomCursed(true);
+            addFloatingEffect('❓ Un piège adverse mystérieux a été posé face cachée dans tes vestiaires !', window.innerWidth / 2, 200, 'text-purple-400 font-extrabold scale-110 drop-shadow-md z-[200]');
+            break;
+          case 'luminescent_standard':
+            setIsEnemyLuminescentStandardActive(true);
+            setTimeout(() => setIsEnemyLuminescentStandardActive(false), (effect.duration || 15) * 1000);
+            addFloatingEffect("✨ L'ennemi a érigé son Étendard Luminescent ! (Immunisé)", window.innerWidth / 2, 200, 'text-yellow-400 font-extrabold animate-pulse');
+            break;
+          case 'buvette_grail':
+            addFloatingEffect("🍺 L'adversaire boit au Graal de la Buvette ! (Corde soignée)", window.innerWidth / 2, 200, 'text-yellow-500 font-extrabold scale-110');
+            break;
+          case 'var_illusion':
+            setIsVarOverlayActive(true);
+            setTimeout(() => setIsVarOverlayActive(false), 3000);
+            addFloatingEffect("📺 VAR : L'adversaire dénonce un hors-jeu imaginaire (Contré) !", window.innerWidth / 2, 200, 'text-red-500 font-extrabold scale-125 z-[202]');
+            break;
+          case 'grimoire_chants':
+            addFloatingEffect("📖 L'adversaire consulte son Grimoire des Chants Oubliés !", window.innerWidth / 2, 200, 'text-yellow-400 font-extrabold');
+            break;
+          case 'var_temporelle':
+            addFloatingEffect("📺 ARBITRAGE VIDÉO 4D : L'adversaire rembobine le match !", window.innerWidth / 2, 200, 'text-red-500 font-extrabold scale-125 z-[210] animate-pulse');
+            break;
+          case 'tifo_holographique':
+            setIsEnemyTifoHolographiqueActive(true);
+            addFloatingEffect("🤖 TIFO HOLOGRAPHIQUE 3D : L'adversaire projette son écran laser !", window.innerWidth / 2, 200, 'text-cyan-400 font-extrabold animate-pulse');
+            break;
+          case 'capo_megaphone':
+            setIsEnemyCapoMegaphoneActive(true);
+            setTimeout(() => setIsEnemyCapoMegaphoneActive(false), (effect.duration || 15) * 1000);
+            addFloatingEffect("📢 MÉGAPHONE DU CAPO : Ferveur adverse doublée !", window.innerWidth / 2, 200, 'text-yellow-400 font-black scale-110');
+            break;
+          case 'craquage_massif':
+            setIsEnemyCraquageMassifActive(true);
+            setTimeout(() => setIsEnemyCraquageMassifActive(false), (effect.duration || 10) * 1000);
+            addFloatingEffect("🔥 CRAQUAGE MASSIF-FUMIGÈNES ! Tribune ennemie masquée !", window.innerWidth / 2, 200, 'text-red-500 font-black animate-pulse z-[210]');
             break;
         }
       });
@@ -1955,21 +2133,64 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     };
     socket.on('swap-hands-complete', handleSwapHandsComplete);
 
-    const handleStealCardRequest = ({ fromTeam }: { fromTeam: string }) => {
+    const handleStealCardRequest = ({ fromTeam, filterCategory }: { fromTeam: string, filterCategory?: string }) => {
       const myParticipant = participantsRef.current.find(p => p.uid === user.uid);
       const myTeam = myParticipant?.team || 'A';
       if (fromTeam !== myTeam) {
+        if (isCraquageMassifActive) {
+          addFloatingEffect("💨 BROUILLARD ROUGE : Tes supporters sont masqués ! Impossible de voler !", window.innerWidth / 2, 250, 'text-red-400 font-extrabold scale-110 drop-shadow-md z-[200]');
+          socket.emit('steal-card-response', { duelId: currentDuelIdRef.current, team: myTeam, card: null });
+          return;
+        }
+
         if (handRef.current.length > 0) {
-           const bestCard = handRef.current.reduce((prev, curr) => (prev.fervorValue || 0) > (curr.fervorValue || 0) ? prev : curr);
-           setHand(prev => prev.filter(c => c.instanceId !== bestCard.instanceId));
-           socket.emit('steal-card-response', { duelId: currentDuelIdRef.current, team: myTeam, card: bestCard });
-           addFloatingEffect('😭 Meilleure Carte Volée!', window.innerWidth / 2, 250, 'text-red-500 font-black scale-125 drop-shadow-md z-[200]');
+           // Standard immunity rule
+           const standardIndex = handRef.current.findIndex(c => c.id === 'base_luminescent_standard');
+           const stealableCards = handRef.current.filter((c, idx) => {
+             if (c.id === 'base_luminescent_standard') return false; // L'étendard itself is immune
+             if (standardIndex !== -1 && Math.abs(standardIndex - idx) === 1) return false; // adjacent cards are immune
+             return true;
+           });
+
+           if (stealableCards.length === 0 && handRef.current.some(c => c.id === 'base_luminescent_standard' || (standardIndex !== -1 && Math.abs(standardIndex - handRef.current.indexOf(c)) === 1))) {
+             addFloatingEffect("✨ L'Étendard Luminescent protège tes tribunes ! Vol Échoué !", window.innerWidth / 2, 250, 'text-yellow-400 font-extrabold scale-110 drop-shadow-md z-[200]');
+             socket.emit('steal-card-response', { duelId: currentDuelIdRef.current, team: myTeam, card: null });
+             return;
+           }
+
+           const cardsToPool = stealableCards.length > 0 ? stealableCards : handRef.current;
+
+           let targetCard: GameCard | null = null;
+           if (filterCategory) {
+             const matchingCards = cardsToPool.filter(c => 
+               c.category === filterCategory || 
+               c.name.toLowerCase().includes(filterCategory.toLowerCase())
+             );
+             if (matchingCards.length > 0) {
+               targetCard = matchingCards.reduce((prev, curr) => (prev.fervorValue || 0) > (curr.fervorValue || 0) ? prev : curr);
+             }
+           }
+           if (!targetCard) {
+             targetCard = cardsToPool.reduce((prev, curr) => (prev.fervorValue || 0) > (curr.fervorValue || 0) ? prev : curr);
+           }
+           
+           if (targetCard) {
+             const cardToSteal = targetCard;
+             setHand(prev => prev.filter(c => c.instanceId !== cardToSteal.instanceId));
+             socket.emit('steal-card-response', { duelId: currentDuelIdRef.current, team: myTeam, card: cardToSteal });
+             const messageText = filterCategory === 'Objet' ? '🏴‍☠️ Objet volé par Abordage !' : '😭 Meilleure Carte Volée!';
+             addFloatingEffect(messageText, window.innerWidth / 2, 250, 'text-red-500 font-black scale-125 drop-shadow-md z-[200]');
+           }
         }
       }
     };
     socket.on('steal-card-request', handleStealCardRequest);
 
-    const handleStealCardComplete = ({ stolenCard }: { stolenCard: GameCard }) => {
+    const handleStealCardComplete = ({ stolenCard }: { stolenCard: GameCard | null }) => {
+       if (!stolenCard) {
+         addFloatingEffect("🛡️ Tentative de Vol bloquée par l'immunité adverse !", window.innerWidth / 2, 250, 'text-yellow-400 font-black scale-125 drop-shadow-md z-[200]');
+         return;
+       }
        setHand(prev => {
          let newHand = [...prev];
          newHand.push({ ...stolenCard, instanceId: Math.random().toString(36).substr(2, 9) });
@@ -2013,16 +2234,25 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const handleAction = (e: React.MouseEvent) => {
     if (winner || isButtonHidden || isButtonFrozen || isStunned) return;
     
+    if (isBlind && Math.random() < 0.5) {
+      addFloatingEffect('💨 Raté ! Aveuglé par la Citrouille !', e.clientX, e.clientY - 20, 'text-orange-500 font-extrabold scale-110 animate-pulse');
+      audioManager.playCardSelect?.();
+      return;
+    }
+    
     // Find the user's actual team
     const myParticipant = participants.find(p => p.uid === user.uid);
     const myTeam = myParticipant?.team || 'A';
     
-    let currentMultiplier = multiplier;
+    let currentMultiplier = multiplier + odinClickBonus;
     if (isFlare) {
       currentMultiplier *= 3;
     }
     if (isHeavyBallPower) {
       currentMultiplier *= 1.8;
+    }
+    if (isCapoMegaphoneActive) {
+      currentMultiplier *= 2;
     }
     if (isIntimidated) {
       currentMultiplier *= 0.5;
@@ -2088,9 +2318,24 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     }
     
     if (winner || status !== 'active' || excitement < actualCost || isCardLocked || isStunned) return;
-    
+
+    // Save snapshot of state for potential "VAR Temporelle" rewind
+    saveSnapshot(hand, excitement);
+
+    const isChantOrSort = card.name.toLowerCase().startsWith('chant') || 
+                          card.name.toLowerCase().startsWith('sort') || 
+                          card.category === 'Chant' || 
+                          card.category === 'Sort';
+    if (isDeafened && isChantOrSort) {
+      const x = e ? e.clientX : window.innerWidth / 2;
+      const y = e ? e.clientY - 50 : window.innerHeight / 2;
+      addFloatingEffect('🔇 Sourd ! Impossible de jouer de Chant ou de Sort.', x, y, 'text-red-400 font-extrabold scale-110');
+      return;
+    }
+
     // Remove from hand and deduct excitement immediately
     setHand(prev => prev.filter(c => c.id !== card.id));
+    setPlayedHistory(prev => [...prev, card]);
     setExcitement(prev => Math.max(0, prev - actualCost));
     setTimeout(drawCard, 3000);
 
@@ -2124,15 +2369,50 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       }
     }
 
+    let calculatedFervor = card.fervorValue ? Math.round(card.fervorValue * levelBonus * charismaBonus) : card.fervorValue;
+    if (isCapoMegaphoneActive && card.id !== 'base_capo_megaphone') {
+      if (calculatedFervor) {
+        calculatedFervor *= 2;
+        addFloatingEffect("📣 EFFET MÉGAPHONE x2 !", x, y - 80, "text-yellow-400 font-extrabold scale-110 animate-bounce");
+      }
+    }
+
+    let mappedEffects = finalEffects.map(e => {
+      let val = e.value ? Math.round(e.value * levelBonus * charismaBonus) : e.value;
+      if (isCapoMegaphoneActive && card.id !== 'base_capo_megaphone' && e.type === 'push_rope' && val) {
+        val *= 2;
+      }
+      return {
+        ...e,
+        value: val,
+        duration: e.duration ? Math.round(e.duration * levelBonus * charismaBonus) : e.duration
+      };
+    });
+
+    let isTrapTriggered = false;
+    if (isLockerRoomCursed) {
+      isTrapTriggered = true;
+      setIsLockerRoomCursed(false);
+      
+      if (calculatedFervor) {
+        calculatedFervor = Math.round(calculatedFervor * 0.5);
+      }
+      mappedEffects = mappedEffects.map(e => {
+        if (e.type === 'push_rope' && e.value) {
+          return { ...e, value: Math.round(e.value * 0.5) };
+        }
+        return e;
+      });
+      addFloatingEffect("🪤 PIÈGE ADVERSE DÉCLENCHÉ ! Malédiction des Vestiaires (Ferveur -50%)", x, y - 80, "text-red-500 font-extrabold scale-110 drop-shadow-md z-[200]");
+      audioManager.playImpact?.();
+    }
+
     const boostedCard: GameCard = {
       ...card,
       energyCost: Math.max(1, Math.round(card.energyCost * (1 - creativityBonus))),
-      fervorValue: card.fervorValue ? Math.round(card.fervorValue * levelBonus * charismaBonus) : card.fervorValue,
-      effects: finalEffects.map(e => ({
-        ...e,
-        value: e.value ? Math.round(e.value * levelBonus * charismaBonus) : e.value,
-        duration: e.duration ? Math.round(e.duration * levelBonus * charismaBonus) : e.duration
-      }))
+      fervorValue: calculatedFervor,
+      effects: mappedEffects,
+      lockerRoomCurseTriggered: isTrapTriggered
     };
 
     // XP Gain and Leveling (Async, Non-blocking)
@@ -2262,6 +2542,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setTimeout(() => setIsWallOfShieldsActive(false), (effect.duration || 12) * 1000);
         addFloatingEffect('🛡️ Mur d\'Écharpes Actif ! (-50% Dégâts)', x, y - 30, 'text-blue-400 font-extrabold scale-110 animate-pulse');
       }
+      if (effect.type === 'clapping_odin') {
+        setIsOdinClappingActive(true);
+        setOdinClickBonus(0);
+        addFloatingEffect("👏 Odin Clapping : Rythme lancé !", x, y - 30, 'text-yellow-400 font-extrabold animate-bounce');
+      }
+      if (effect.type === 'corne_drakkar') {
+        addFloatingEffect("📯 Corne de Brume de Drakkar !", x, y - 30, 'text-blue-400 font-extrabold');
+      }
       if (effect.type === 'virage_host') {
         const amount = effect.value || 1;
         drawCard(true, amount);
@@ -2327,6 +2615,76 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         addFloatingEffect('✨ Vol du Saint Graal !', x, y - 80, 'text-yellow-400 font-bold');
         socket?.emit('steal-card-init', { duelId: currentDuelIdRef.current, team: myTeam });
       }
+      if (effect.type === 'steal_object_card') {
+        addFloatingEffect("🏴‍☠️ Abordage ! Cargo d\'objets en vue...", x, y - 80, 'text-yellow-500 font-bold animate-pulse');
+        socket?.emit('steal-card-init', { duelId: currentDuelIdRef.current, team: myTeam, filterCategory: 'Objet' });
+      }
+      if (effect.type === 'parrot_taunt') {
+        setIsParrotTauntActive(true);
+        setTimeout(() => setIsParrotTauntActive(false), (effect.duration || 15) * 1000);
+        addFloatingEffect('🦜 Perroquet Insolent : PROVOCATION ACTIVÉE ! (15s)', x, y - 30, 'text-green-400 font-black animate-bounce scale-110 z-[200]');
+      }
+      if (effect.type === 'pumpkin_fog') {
+        setIsEnemyBlind(true);
+        setTimeout(() => setIsEnemyBlind(false), (effect.duration || 12) * 1000);
+        addFloatingEffect("🎃 Fumigène Citrouille Toxique lancée !", x, y - 30, 'text-orange-500 font-extrabold animate-bounce scale-110');
+      }
+      if (effect.type === 'locker_room_curse') {
+        setHasLockerRoomCurseTrap(true);
+        addFloatingEffect("🪤 Piège Mystérieux Posé Face Cachée ! (Vestiaires d'en face)", x, y - 30, 'text-purple-400 font-extrabold scale-110 animate-pulse');
+      }
+      if (effect.type === 'luminescent_standard') {
+        setIsLuminescentStandardActive(true);
+        setTimeout(() => setIsLuminescentStandardActive(false), (effect.duration || 15) * 1000);
+        addFloatingEffect("✨ L'Étendard Luminescent brille sur ta tribune ! (15s)", x, y - 30, 'text-yellow-400 font-extrabold animate-bounce scale-110 z-[200]');
+      }
+      if (effect.type === 'buvette_grail') {
+        if (myTeam === 'A') {
+          if (progress < 50) setProgress(50);
+          else setProgress(prev => Math.min(100, prev + 15));
+        } else {
+          if (progress > 50) setProgress(50);
+          else setProgress(prev => Math.max(0, prev - 15));
+        }
+        addFloatingEffect("🍺 Le Graal de la Buvette ! Suppression de la déroute (50%) !", x, y - 40, 'text-yellow-500 font-extrabold animate-pulse scale-110');
+      }
+      if (effect.type === 'var_illusion') {
+        const hasCountered = lastEnemyCard && (lastEnemyCard.category === 'Action' || lastEnemyCard.name.toLowerCase().includes('action'));
+        if (hasCountered) {
+          setIsVarOverlayActive(true);
+          setTimeout(() => setIsVarOverlayActive(false), 3000);
+          
+          const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+          const val = lastEnemyCard.fervorValue || lastEnemyCard.effects?.find(e => e.type === 'push_rope')?.value || 0;
+          // Revert: opponent B pulled progress down (so we add back positive delta for A). Opponent A pulled progress up (we subtract delta for B)
+          const delta = (myTeam === 'A' ? val : -val) / resistance;
+          setProgress(prev => Math.min(100, Math.max(0, prev + delta)));
+          addFloatingEffect(`📺 VAR : Décision inversée ! Hors-jeu de l'adversaire (${lastEnemyCard.name})`, x, y - 50, 'text-red-500 font-extrabold scale-110 drop-shadow-md z-[202]');
+          setLastEnemyCard(null);
+        } else {
+          addFloatingEffect("🤷‍♂️ VAR : Aucun hors-jeu ou carte action adverse à vérifier !", x, y - 50, 'text-gray-400 font-bold');
+        }
+      }
+      if (effect.type === 'grimoire_chants') {
+        const eligible = playedHistory.filter(c => 
+          c.category === 'Chant' || 
+          c.category === 'Sort' ||
+          c.name.toLowerCase().startsWith('chant') ||
+          c.name.toLowerCase().startsWith('sort')
+        );
+        // Eliminate duplicates by card ID to make a polished clean picker list
+        const uniqueEligibleMap = new Map<string, GameCard>();
+        eligible.forEach(c => uniqueEligibleMap.set(c.id, c));
+        const uniqueEligible = Array.from(uniqueEligibleMap.values());
+
+        if (uniqueEligible.length > 0) {
+          setGrimoireEligibleCards(uniqueEligible);
+          setIsGrimoirePickerOpen(true);
+          addFloatingEffect("📖 Grimoire ouvert...", x, y - 40, 'text-yellow-400 font-bold');
+        } else {
+          addFloatingEffect("📖 Défausse vide (aucun Chant ou Sort) !", x, y - 40, 'text-gray-400 font-bold');
+        }
+      }
       if (effect.type === 'blessing') {
         setIsBlessed(true);
         setTimeout(() => setIsBlessed(false), (effect.duration || 10) * 1000);
@@ -2366,6 +2724,74 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setTimeout(() => drawCard(false, nbCardsToDiscard), 2000);
         addFloatingEffect(`🃏 ${nbCardsToDiscard} Carte(s) Défaussée(s)!`, x, y - 80, 'text-red-500 font-black scale-125 drop-shadow-md z-[200]');
       }
+      if (effect.type === 'chainsaw_megaphone') {
+        setExcitement(prev => Math.max(0, prev - 1));
+        addFloatingEffect('💥 RECUL : -1 PA d\'excitation !', x, y - 60, 'text-red-500 font-extrabold animate-bounce');
+      }
+      if (effect.type === 'burning_seats') {
+        setIsBurningSeatsOverlayActive(true);
+        setTimeout(() => setIsBurningSeatsOverlayActive(false), 3000);
+        
+        setHasShield(false);
+        setHasMirror(false);
+        setIsLuminescentStandardActive(false);
+        setIsEnemyLuminescentStandardActive(false);
+        setIsParrotTauntActive(false);
+        setIsEnemyParrotTauntActive(false);
+        setIsOdinClappingActive(false);
+        setIsEnemyOdinClappingActive(false);
+        setOdinClickBonus(0);
+        
+        const standardIndex = hand.findIndex(c => c.id === 'base_luminescent_standard');
+        const vulnerableIndices: number[] = [];
+        hand.forEach((card, idx) => {
+          if (card.id === 'base_luminescent_standard') return;
+          if (standardIndex !== -1 && Math.abs(standardIndex - idx) === 1) return;
+          vulnerableIndices.push(idx);
+        });
+        
+        if (vulnerableIndices.length > 0) {
+          const randomIndexToDiscard = vulnerableIndices[Math.floor(Math.random() * vulnerableIndices.length)];
+          const discardedCard = hand[randomIndexToDiscard];
+          setHand(prev => prev.filter((_, idx) => idx !== randomIndexToDiscard));
+          setTimeout(drawCard, 2000);
+          addFloatingEffect(`🔥 SIÈGES EN FEU : Votre carte ${discardedCard.name} part en fumée !`, window.innerWidth / 2, 240, 'text-orange-500 font-black scale-110');
+        } else {
+          addFloatingEffect(`🛡️ PROTECT : Vos cartes en main sont immunisées par l'Étendard !`, window.innerWidth / 2, 240, 'text-yellow-400 font-bold');
+        }
+      }
+      if (effect.type === 'var_temporelle') {
+        const history = stateSnapshots;
+        if (history && history.length > 1) {
+          const target = history[Math.max(0, history.length - 2)];
+          setProgress(target.progress);
+          setExcitement(target.excitement);
+          setHand(target.hand);
+          setHasShield(target.hasShield);
+          setIsLuminescentStandardActive(target.isLuminescentStandardActive);
+          setIsTifoHolographiqueActive(target.isTifoHolographiqueActive);
+          setIsCapoMegaphoneActive(target.isCapoMegaphoneActive);
+          setIsCraquageMassifActive(target.isCraquageMassifActive);
+          setStateSnapshots(history.slice(0, -2));
+          addFloatingEffect("📺 ARBITRAGE VIDÉO 4D : Le match est rembobiné !", x, y - 50, 'text-red-500 font-extrabold scale-125 z-[210] animate-pulse');
+        } else {
+          addFloatingEffect("📺 VAR : Pas assez d'historique pour rembobiner !", x, y - 50, 'text-gray-400 font-bold');
+        }
+      }
+      if (effect.type === 'tifo_holographique') {
+        setIsTifoHolographiqueActive(true);
+        addFloatingEffect("🛡️ TIFO HOLOGRAPHIQUE 3D : Mascotte géante déployée ! (Écran laser actif)", x, y - 40, 'text-cyan-400 font-extrabold animate-pulse');
+      }
+      if (effect.type === 'capo_megaphone') {
+        setIsCapoMegaphoneActive(true);
+        setTimeout(() => setIsCapoMegaphoneActive(false), (effect.duration || 15) * 1000);
+        addFloatingEffect("📢 MÉGAPHONE DU CAPO : Énergie et chants de tribune doublés !", x, y - 45, 'text-yellow-400 font-black scale-110 animate-bounce');
+      }
+      if (effect.type === 'craquage_massif') {
+        setIsCraquageMassifActive(true);
+        setTimeout(() => setIsCraquageMassifActive(false), (effect.duration || 10) * 1000);
+        addFloatingEffect("🔥 CRAQUAGE MASSIF : Tribune inciblable par l'ennemi !", x, y - 50, 'text-red-500 font-black scale-125 animate-bounce z-[210]');
+      }
     });
 
     if (boostedCard.fervorValue) {
@@ -2404,6 +2830,76 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     }, 500);
     return () => clearInterval(interval);
   }, [isEnergyRegenBoosted, duelConfig, fanz, status, maxExcitement]);
+
+  // Odin's Clapping rhythmic effect
+  useEffect(() => {
+    if (!isOdinClappingActive || status !== 'active' || winner || !socket || !duel.id) return;
+
+    let clapCount = 0;
+    const clapIntervals = [3500, 2500, 1500, 1000, 500]; // Accelerating rhythm!
+    let timer: any = null;
+
+    const triggerClap = () => {
+      clapCount++;
+      
+      // Play soft click/impact sound
+      audioManager.playCardSelect?.();
+
+      // Permanent bonus to click power (for the duration of the clapping)
+      setOdinClickBonus(prev => prev + 1.2);
+
+      // Support automatic rope pushing (power) representing "supporters" ferveur contribution
+      const myParticipant = participants.find(p => p.uid === user.uid);
+      const myTeam = myParticipant?.team || 'A';
+      socket.emit('click-ferveur', { 
+        duelId: duel.id, 
+        team: myTeam, 
+        multiplier: 1.5 * clapCount, 
+        userId: user.uid 
+      });
+
+      const x = window.innerWidth / 2 + (Math.random() * 105 - 50);
+      const y = window.innerHeight / 2 + (Math.random() * 105 - 50);
+      addFloatingEffect(
+        `👏 CLAP ! (+${(1.5 * clapCount).toFixed(0)} Ferveur Auto)`, 
+        x, 
+        y, 
+        'text-yellow-400 font-extrabold scale-110 drop-shadow-md'
+      );
+
+      if (clapCount < clapIntervals.length) {
+        timer = setTimeout(triggerClap, clapIntervals[clapCount]);
+      } else {
+        // Final devastating, accelerated beat!
+        socket.emit('click-ferveur', { 
+          duelId: duel.id, 
+          team: myTeam, 
+          multiplier: 10, 
+          userId: user.uid 
+        });
+        
+        addFloatingEffect(
+          '⚡ RYTHME DÉVASTATEUR d\'ODIN ! ⚡ (Click +8 Actif !)', 
+          window.innerWidth / 2, 
+          window.innerHeight / 3, 
+          'text-red-500 font-black scale-150 animate-bounce drop-shadow-[0_0_12px_rgba(239,68,68,0.9)] z-[200]'
+        );
+
+        // Retain the epic +8 click power bonus for 5s of devastation
+        setOdinClickBonus(8);
+        timer = setTimeout(() => {
+          setIsOdinClappingActive(false);
+          setOdinClickBonus(0);
+        }, 5000);
+      }
+    };
+
+    timer = setTimeout(triggerClap, clapIntervals[0]);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isOdinClappingActive, status, winner, participants, user.uid, socket, duel.id]);
 
   // Flare (Fumigènes) random event
   useEffect(() => {
@@ -2543,6 +3039,124 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             </motion.div>
           )}
         </AnimatePresence>
+        {/* Luminescent Standard Overlay */}
+        <AnimatePresence>
+          {isLuminescentStandardActive && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 pointer-events-none"
+            >
+              <motion.div 
+                animate={{ opacity: [0.1, 0.25, 0.1] }}
+                transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                className="absolute inset-0 bg-gradient-to-t from-yellow-500/5 via-transparent to-yellow-400/10"
+              />
+              <div className="absolute top-2 left-6 bg-yellow-950/95 border border-yellow-500/50 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_0_15px_rgba(234,179,8,0.4)]">
+                <span className="text-xs animate-pulse">✨</span>
+                <span className="text-[10px] font-extrabold text-yellow-400 tracking-wider uppercase">Étendard Actif</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Pumpkin Toxic Fog Overlay */}
+        <AnimatePresence>
+          {isBlind && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 pointer-events-none bg-orange-600/25 mix-blend-color-burn"
+            >
+              <motion.div 
+                animate={{ scale: [1, 1.15, 0.95, 1.1, 1], opacity: [0.4, 0.7, 0.35, 0.6, 0.4] }}
+                transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
+                className="absolute inset-0 bg-radial from-orange-500/40 via-transparent to-orange-950/60 blur-xl"
+              />
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-orange-950/90 border border-orange-500/50 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.4)]">
+                <span className="animate-spin text-xs">🎃</span>
+                <span className="text-[10px] font-extrabold text-orange-400 tracking-wider uppercase animate-pulse">Brouillard de Citrouille Toxique</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* VAR Illusion Overlay */}
+        <AnimatePresence>
+          {isVarOverlayActive && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 pointer-events-none"
+            >
+              <div className="relative flex flex-col items-center p-6 border-2 border-red-500 bg-red-950/20 rounded-2xl max-w-[90%] text-center shadow-[0_0_30px_rgba(239,68,68,0.4)] overflow-hidden">
+                <motion.div 
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.8, 1, 0.8] }}
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                  className="text-6xl mb-4"
+                >
+                  📺
+                </motion.div>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.15),transparent_60%)] -z-10" />
+                <h3 className="text-2xl font-black text-red-500 tracking-wider mb-2 uppercase select-none">
+                  ILLUSION DE LA VAR
+                </h3>
+                <p className="text-red-200/80 text-xs font-semibold uppercase tracking-widest animate-pulse">
+                  🚫 HORS-JEU IMAGINAIRE !
+                </p>
+                <p className="text-gray-400 text-[10px] mt-3 uppercase tracking-wider">
+                  La dernière action adverse est annulée
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Burning Seats Overlay */}
+        <AnimatePresence>
+          {isBurningSeatsOverlayActive && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/85 pointer-events-none overflow-hidden"
+            >
+              {/* Falling blazing chairs simulation */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.2),transparent_70%)]" />
+              
+              <div className="relative flex flex-col items-center p-6 border-2 border-orange-500 bg-orange-950/20 rounded-2xl max-w-[90%] text-center shadow-[0_0_35px_rgba(249,115,22,0.5)]">
+                <motion.div 
+                  animate={{ y: [-15, 10, -15], scale: [1, 1.1, 1] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                  className="text-6xl mb-4"
+                >
+                  🔥🪑🔥
+                </motion.div>
+                <h3 className="text-2xl font-black text-orange-500 tracking-wider mb-2 uppercase select-none animate-pulse">
+                  PLUIE DE SIÈGES ENFLAMMÉS !
+                </h3>
+                <p className="text-orange-200/90 text-xs font-bold uppercase tracking-widest leading-relaxed">
+                  Dégâts de zone imminents !
+                </p>
+                <p className="text-gray-400 text-[10px] mt-2 uppercase tracking-wider">
+                  Tous les bonus, compagnons et armures du plateau réduits en cendres
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-bounce" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-bounce delay-100" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-bounce delay-200" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Fog of War Overlay */}
         <AnimatePresence>
           {isFogOfWar && (
@@ -2553,6 +3167,46 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               className="absolute inset-0 z-40 bg-black/80 backdrop-blur-xl pointer-events-none flex items-center justify-center mix-blend-saturation"
             >
               <span className="text-white/20 font-black text-6xl tracking-widest uppercase rotate-45 mix-blend-overlay">CHAOS</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Tifo Holographique laser projection */}
+        <AnimatePresence>
+          {(isTifoHolographiqueActive || isEnemyTifoHolographiqueActive) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.25 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 pointer-events-none mix-blend-color-dodge overflow-hidden"
+              style={{
+                background: "radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 80%)",
+                backgroundImage: "linear-gradient(rgba(18,187,222,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(18,187,222,0.1) 1px, transparent 1px)",
+                backgroundSize: "20px 20px"
+              }}
+            >
+              <div className="absolute top-1/4 left-1/2 -translate-x-1/2 flex flex-col items-center animate-pulse">
+                <div className="w-48 h-48 rounded-full border-4 border-cyan-400 animate-spin opacity-40" style={{ animationDuration: '10s' }} />
+                <span className="text-cyan-400 text-xs font-black tracking-widest uppercase mt-4 animate-bounce">CYBER-MASCOTTE ACTIVÉE</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Craquage Massif Red Fog of Fumigènes */}
+        <AnimatePresence>
+          {(isCraquageMassifActive || isEnemyCraquageMassifActive) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.65 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 pointer-events-none overflow-hidden mix-blend-screen"
+              style={{
+                background: "radial-gradient(circle at 50% 100%, rgba(239,68,68,0.4) 0%, rgba(220,38,38,0.2) 50%, transparent 100%)",
+              }}
+            >
+              <div className="absolute inset-0 bg-red-600/10 backdrop-blur-[1px] animate-pulse" />
+              <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-red-600/30 to-transparent blur-md animate-bounce" style={{ animationDuration: '4s' }} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -3154,6 +3808,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           {isHeavyBallPower && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-400 uppercase animate-pulse">⚽ Ballon Lourd</div>}
           {isIntimidated && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-400 uppercase animate-pulse">🥁 Intimidé</div>}
           {isWallOfShieldsActive && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-400 uppercase animate-pulse">🛡️ Mur d'Écharpes</div>}
+          {isOdinClappingActive && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500 uppercase animate-pulse">👏 Clapping Odin (+{odinClickBonus.toFixed(1)} Pwr)</div>}
+          {isEnemyOdinClappingActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase animate-pulse">👏 Clapping Ennemi</div>}
+          {isDeafened && <div className="flex items-center gap-1 text-[10px] font-bold text-red-400 uppercase animate-pulse">🔇 Assourdi (Bloqué)</div>}
+          {isParrotTauntActive && <div className="flex items-center gap-1 text-[10px] font-bold text-green-400 uppercase animate-pulse">🦜 Perroquet (Provoc)</div>}
+          {isEnemyParrotTauntActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-400 uppercase animate-pulse">🦜 Perroquet Ennemi</div>}
+          {isBlind && <div className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase animate-pulse">🎃 Aveuglé (Citrouille)</div>}
+          {isEnemyBlind && <div className="flex items-center gap-1 text-[10px] font-bold text-red-400 uppercase">🎃 Ennemi Aveuglé</div>}
+          {isLockerRoomCursed && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-400 uppercase animate-pulse">❓ Peur au Ventre</div>}
+          {hasLockerRoomCurseTrap && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-500 uppercase">🪤 Piège Vestiaires</div>}
+          {isLuminescentStandardActive && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-400 uppercase animate-pulse">✨ Étendard Actif (Immunisé)</div>}
+          {isEnemyLuminescentStandardActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-400 uppercase">✨ Étendard Ennemi</div>}
+          {isTifoHolographiqueActive && <div className="flex items-center gap-1 text-[10px] font-bold text-cyan-400 uppercase animate-pulse"><Shield size={12} /> Tifo Holographique</div>}
+          {isEnemyTifoHolographiqueActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-400 uppercase">🤖 Tifo Laser Ennemi</div>}
+          {isCapoMegaphoneActive && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500 uppercase animate-bounce">📢 Mégaphone du Capo</div>}
+          {isEnemyCapoMegaphoneActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase animate-pulse">📢 Capo Mégaphone Ennemi</div>}
+          {isCraquageMassifActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase animate-pulse">🔥 Fumi actifs (Inciblable)</div>}
+          {isEnemyCraquageMassifActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 uppercase">🔥 Fumi Ennemis Actifs</div>}
         </div>
         
         {/* Trade Stickers Confirm Block */}
@@ -3197,11 +3868,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         {/* Cards Hand */}
         <div className="flex gap-1.5 sm:gap-2 justify-center w-full px-1 sm:px-2 shrink-0">
           <AnimatePresence>
-            {hand.map(card => {
+            {hand.map((card, index) => {
               const userCard = fanz?.cardProgress?.[card.id] || { level: 1, xp: 0 };
               const xpForNextLevel = userCard.level * 10;
               const xpProgress = (userCard.xp / xpForNextLevel) * 100;
               const actualCost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
+
+              const standardIndex = hand.findIndex(c => c.id === 'base_luminescent_standard');
+              const isAdjacentToStandard = standardIndex !== -1 && Math.abs(standardIndex - index) === 1;
 
               return (
                 <motion.div
@@ -3213,12 +3887,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   whileHover={{ y: -5 }}
                   onClick={(e) => {
                     if (isTradingStickers) {
-                      const id = card.instanceId || card.id;
-                      if (selectedStickers.includes(id)) {
-                        setSelectedStickers(prev => prev.filter(s => s !== id));
-                      } else if (selectedStickers.length < 3) {
-                        setSelectedStickers(prev => [...prev, id]);
-                      }
+                       const id = card.instanceId || card.id;
+                       if (selectedStickers.includes(id)) {
+                         setSelectedStickers(prev => prev.filter(s => s !== id));
+                       } else if (selectedStickers.length < 3) {
+                         setSelectedStickers(prev => [...prev, id]);
+                       }
                     } else {
                       playCard(card, e);
                     }
@@ -3226,9 +3900,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   className={`flex-1 max-w-[85px] h-[115px] sm:h-[135px] rounded-lg border-2 flex flex-col cursor-pointer transition-all relative overflow-hidden ${
                     isTradingStickers 
                       ? (selectedStickers.includes(card.instanceId || card.id) ? 'border-blue-500 shadow-[0_0_15px_blue] scale-110 z-20' : 'border-gray-600')
-                      : (excitement >= actualCost ? 'border-yellow-500 bg-yellow-600/10 scale-100 hover:scale-105' : 'border-gray-600 scale-95 hover:scale-100')
+                      : (isAdjacentToStandard 
+                          ? 'border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.7)] scale-100 bg-yellow-400/5'
+                          : (excitement >= actualCost ? 'border-yellow-500 bg-yellow-600/10 scale-100 hover:scale-105' : 'border-gray-600 scale-95 hover:scale-100'))
                   }`}
                 >
+                  {isAdjacentToStandard && (
+                    <div className="absolute top-0 right-0 bg-yellow-500 text-yellow-950 font-black text-[7px] px-1 rounded-bl border-l border-b border-yellow-400/50 animate-pulse z-10 leading-normal">
+                      🛡️ IMMUNISÉ
+                    </div>
+                  )}
                   {/* Overlay for unplayable state */}
                   {(!isTradingStickers && excitement < actualCost) && (
                     <div className="absolute inset-0 bg-black/60 z-10 pointer-events-none" />
@@ -3554,6 +4235,73 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Grimoire des Chants Oubliés Picker Modal */}
+      <AnimatePresence>
+        {isGrimoirePickerOpen && (
+          <div className="absolute inset-0 bg-black/90 z-50 flex flex-col justify-center items-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-[380px] bg-amber-950/25 border-2 border-amber-600/60 rounded-xl p-5 flex flex-col items-center gap-4 shadow-[0_0_25px_rgba(217,119,6,0.35)] relative overflow-hidden text-center"
+            >
+              {/* Background magic particles */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(217,119,6,0.1),transparent_70%)] pointer-events-none" />
+              <div className="absolute -top-12 -left-12 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
+              <div className="absolute -bottom-12 -right-12 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
+
+              <div className="text-4xl animate-bounce">📖</div>
+              <h3 className="text-lg font-black text-amber-400 tracking-wider uppercase">
+                GRIMOIRE DES CHANTS OUBLIÉS
+              </h3>
+              <p className="text-xs text-amber-200/70">
+                Choisissez une carte Chant ou Sort de votre défausse à rajouter dans votre main :
+              </p>
+
+              <div className="w-full max-h-[180px] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-800 pr-1 flex flex-col gap-2 my-2">
+                {grimoireEligibleCards.map((card) => {
+                  return (
+                    <button
+                      key={card.id + '_' + Math.random()}
+                      onClick={() => {
+                        setHand(prev => {
+                          if (prev.length >= 5) {
+                            addFloatingEffect("⚠️ Main pleine (max 5 cartes) !", window.innerWidth / 2, 200, "text-red-400 font-bold");
+                            return prev;
+                          }
+                          return [...prev, { ...card, instanceId: Math.random().toString(36).substr(2, 9) }];
+                        });
+                        setIsGrimoirePickerOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between p-2.5 rounded-lg bg-amber-950/40 hover:bg-amber-900/60 border border-amber-600/30 hover:border-amber-500/60 text-left transition-colors cursor-pointer group pointer-events-auto"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-amber-300 group-hover:text-amber-200 transition-colors">
+                          {card.name}
+                        </span>
+                        <span className="text-[9px] text-amber-200/50 uppercase font-semibold">
+                          {card.category} • Coût: {card.energyCost}⚡
+                        </span>
+                      </div>
+                      <span className="text-xs text-amber-400 font-extrabold group-hover:translate-x-1 transition-transform">
+                        Récupérer ➜
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setIsGrimoirePickerOpen(false)}
+                className="px-4 py-1.5 rounded bg-zinc-850 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-650 text-[11px] font-bold text-zinc-300 tracking-wider uppercase transition-colors pointer-events-auto"
+              >
+                Fermer
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

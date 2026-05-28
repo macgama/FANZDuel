@@ -177,7 +177,10 @@ export function CollectionPage({ user }: CollectionPageProps) {
     if (isActionSkinInactive(action)) return false;
     const isSkinOverride = !!(action.skinOverrides && Object.keys(action.skinOverrides).length > 0);
     const hasSpecificUnlock = ownedActions.has(action.id + '-' + (action.associatedSkinId || '000'));
-    const ownedAction = hasSpecificUnlock || (!isSkinOverride && ownedActions.has(action.id)) || (isSkinOverride && action.associatedSkinId === '000' && ownedActions.has(action.id));
+    
+    const isBaseSkin = !action.associatedSkinId || action.associatedSkinId === '000';
+    const ownedAction = hasSpecificUnlock || (isBaseSkin && ownedActions.has(action.id));
+
     const ownedSkin = !action.associatedSkinId || ownedSkins.has(`${action.fanzTemplateId}-${action.associatedSkinId}`);
     return ownedAction && ownedSkin;
   };

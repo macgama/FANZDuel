@@ -4768,14 +4768,20 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                 {rewardModal.step === "action-selection" && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-2">
                     {lifeActions
-                      .filter(
-                        (a) =>
-                          (!a.fanzTemplateId ||
-                            a.fanzTemplateId === fanz.templateId) &&
-                          (!a.skinId || a.skinId === fanz.equippedSkin) &&
-                          !(fanz.unlockedActions || []).includes(a.id) &&
-                          !(userProfile.unlockedActions || []).includes(a.id),
-                      )
+                      .filter((a) => {
+                        if (a.fanzTemplateId && a.fanzTemplateId !== fanz.templateId) return false;
+                        if (a.skinId && a.skinId !== fanz.equippedSkin) return false;
+                        
+                        const skinSpecificId = a.id + '-' + (a.skinId || '000');
+                        const isBase = !a.skinId || a.skinId === '000';
+                        const fanzUnlocked = fanz.unlockedActions || [];
+                        const userUnlocked = userProfile.unlockedActions || [];
+                        
+                        const isUnlocked = fanzUnlocked.includes(skinSpecificId) || 
+                                           userUnlocked.includes(skinSpecificId) || 
+                                           (isBase && (fanzUnlocked.includes(a.id) || userUnlocked.includes(a.id)));
+                        return !isUnlocked;
+                      })
                       .reduce((acc, action) => {
                         const existingIdx = acc.findIndex(
                           (a) => a.name === action.name,

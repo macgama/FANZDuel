@@ -324,7 +324,23 @@ export type CardEffectType =
   | 'mammoth_charge'
   | 'mascot_bone_drum'
   | 'scarves_wall'
-  | 'virage_host';
+  | 'virage_host'
+  | 'clapping_odin'
+  | 'corne_drakkar'
+  | 'steal_object_card'
+  | 'parrot_taunt'
+  | 'pumpkin_fog'
+  | 'locker_room_curse'
+  | 'luminescent_standard'
+  | 'buvette_grail'
+  | 'var_illusion'
+  | 'grimoire_chants'
+  | 'chainsaw_megaphone'
+  | 'burning_seats'
+  | 'var_temporelle'
+  | 'tifo_holographique'
+  | 'capo_megaphone'
+  | 'craquage_massif';
 
 export interface CardEffect {
   type: CardEffectType;
@@ -345,6 +361,7 @@ export interface Card {
   name: string;
   type: 'bonus' | 'malus' | 'neutral';
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  category?: string; // e.g. 'Chant', 'Sort', 'Objet'
   energyCost: number;
   fervorValue: number; // Value added to rope progress
   description: string;
@@ -352,6 +369,7 @@ export interface Card {
   imageUrl?: string;
   videoUrl?: string;
   soundUrl?: string;
+  lockerRoomCurseTriggered?: boolean;
   fanzIds?: string[]; // For specific cards
   blockedFanzIds?: string[]; // Blocked Fanz templates
   skinId?: string; // If defined, available only when this skin is equipped
