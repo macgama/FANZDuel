@@ -527,9 +527,9 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'infos' && <InfosTab team={team} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />}
+              {activeTab === 'infos' && <InfosTab team={team} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} fixtures={fixtures} />}
               {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} profile={profile} selectedLeagueId={selectedLeagueId} />}
-              {activeTab === 'standings' && <StandingsTab standings={standings} teamId={teamId} onTeamClick={onTeamClick} selectedSeason={selectedSeason} />}
+              {activeTab === 'standings' && <StandingsTab standings={standings} teamId={teamId} onTeamClick={onTeamClick} selectedSeason={selectedSeason} fixtures={fixtures} effectiveLeagueId={effectiveLeagueId} />}
               {activeTab === 'competitions' && <CompetitionsTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
               {activeTab === 'effectif' && <EffectifTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />}
               {activeTab === 'stats' && <StatsTab stats={selectedLeagueId === null ? aggregatedStats : stats} teamId={teamId} selectedSeason={selectedSeason} />}
@@ -657,7 +657,19 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: an
   );
 }
 
-function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerClick }: { team: any, players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
+function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerClick, fixtures }: { team: any, players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void, fixtures: any[] }) {
+  const nowMs = Date.now();
+  const leagueFixtures = selectedLeagueId 
+    ? fixtures.filter((f: any) => f.league?.id === selectedLeagueId)
+    : fixtures;
+
+  const hasAnyStartedMatch = leagueFixtures.some((f: any) => 
+    ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture?.status?.short) ||
+    (f.fixture?.date && new Date(f.fixture.date).getTime() < nowMs)
+  );
+
+  const competitionNotStartedYet = leagueFixtures.length > 0 ? !hasAnyStartedMatch : false;
+
   return (
     <div className="space-y-6">
       {team && (
@@ -686,14 +698,14 @@ function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerCli
       {players.length > 0 && (
         <div className="pt-2">
           <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">Tops Joueurs</h3>
-          <TeamRankingsTab players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
+          <TeamRankingsTab players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
         </div>
       )}
     </div>
   );
 }
 
-function TeamRankingsTab({ players, selectedLeagueId, selectedSeason, onPlayerClick }: { players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
+function TeamRankingsTab({ players, selectedLeagueId, selectedSeason, onPlayerClick, competitionNotStartedYet }: { players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void, competitionNotStartedYet: boolean }) {
   if (players.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
@@ -731,49 +743,67 @@ function TeamRankingsTab({ players, selectedLeagueId, selectedSeason, onPlayerCl
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <TeamRankingList title="Buteurs" data={scorers} label="Buts" valKey="agg.goals" icon={<Goal className="w-3.5 h-3.5 text-green-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
-      <TeamRankingList title="Passeurs" data={assists} label="Passes" valKey="agg.assists" icon={<Activity className="w-3.5 h-3.5 text-blue-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
-      <TeamRankingList title="Cartons Jaunes" data={yellows} label="Jaunes" valKey="agg.yellow" icon={<Square className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
-      <TeamRankingList title="Cartons Rouges" data={reds} label="Rouges" valKey="agg.red" icon={<Square className="w-3.5 h-3.5 text-red-500 fill-red-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />
+      <TeamRankingList title="Buteurs" data={scorers} label="Buts" valKey="agg.goals" icon={<Goal className="w-3.5 h-3.5 text-green-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
+      <TeamRankingList title="Passeurs" data={assists} label="Passes" valKey="agg.assists" icon={<Activity className="w-3.5 h-3.5 text-blue-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
+      <TeamRankingList title="Cartons Jaunes" data={yellows} label="Jaunes" valKey="agg.yellow" icon={<Square className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
+      <TeamRankingList title="Cartons Rouges" data={reds} label="Rouges" valKey="agg.red" icon={<Square className="w-3.5 h-3.5 text-red-500 fill-red-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
     </div>
   );
 }
 
-function TeamRankingList({ title, data, label, valKey, icon, selectedSeason, onPlayerClick }: { title: string; data: any[]; label: string; valKey: string; icon: React.ReactNode; selectedSeason: number; onPlayerClick?: (id: number, season: number) => void }) {
+function TeamRankingList({ title, data, label, valKey, icon, selectedSeason, onPlayerClick, competitionNotStartedYet }: { title: string; data: any[]; label: string; valKey: string; icon: React.ReactNode; selectedSeason: number; onPlayerClick?: (id: number, season: number) => void; competitionNotStartedYet: boolean }) {
+  const getVal = (p: any) => {
+    if (valKey === 'agg.goals') return p.agg.goals;
+    if (valKey === 'agg.assists') return p.agg.assists;
+    if (valKey === 'agg.yellow') return p.agg.yellow;
+    if (valKey === 'agg.red') return p.agg.red;
+    return 0;
+  };
+
+  const hasNoData = data.length === 0 || data.every(p => getVal(p) === 0);
+
   return (
     <div className="space-y-2">
       <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest flex items-center gap-1.5">
         {icon}
         {title}
       </h3>
-      <div className="space-y-1">
-        {data.map((p, idx) => {
-          let val = 0;
-          if (valKey === 'agg.goals') val = p.agg.goals;
-          if (valKey === 'agg.assists') val = p.agg.assists;
-          if (valKey === 'agg.yellow') val = p.agg.yellow;
-          if (valKey === 'agg.red') val = p.agg.red;
+      
+      {hasNoData ? (
+        <Card className="py-6 px-4 bg-black/25 border border-white/5 flex flex-col items-center justify-center text-center gap-1">
+          <span className="text-[10px] font-bold text-gray-400">
+            {competitionNotStartedYet ? "La compétition n'a pas encore commencé" : (
+              valKey === 'agg.goals' ? "L'équipe n'a pas marqué" :
+              valKey === 'agg.assists' ? "L'équipe n'a pas fait de passe décisive" :
+              "L'équipe n'a pas eu de carton"
+            )}
+          </span>
+        </Card>
+      ) : (
+        <div className="space-y-1">
+          {data.map((p, idx) => {
+            const val = getVal(p);
+            if (val === 0 && idx > 0) return null;
 
-          if (val === 0 && idx > 0) return null;
-
-          return (
-            <Card 
-              key={p.player.id} 
-              className={`flex items-center justify-between p-1.5 transition-colors ${onPlayerClick ? 'cursor-pointer hover:border-orange-500/50 hover:bg-white/10' : ''}`}
-              onClick={() => onPlayerClick && onPlayerClick(p.player.id, selectedSeason)}
-            >
-              <div className="flex items-center gap-2">
-                <img src={p.player.photo} alt="" className="w-6 h-6 rounded-full border border-white/10" />
-                <span className={`text-xs font-bold ${onPlayerClick ? 'hover:text-orange-500' : ''}`}>{p.player.name}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-sm font-black text-orange-500">{val}</span>
-                <p className="text-[7px] uppercase font-bold text-gray-500">{label}</p>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+            return (
+              <Card 
+                key={p.player.id} 
+                className={`flex items-center justify-between p-1.5 transition-colors ${onPlayerClick ? 'cursor-pointer hover:border-orange-500/50 hover:bg-white/10' : ''}`}
+                onClick={() => onPlayerClick && onPlayerClick(p.player.id, selectedSeason)}
+              >
+                <div className="flex items-center gap-2">
+                  <img src={p.player.photo} alt="" className="w-6 h-6 rounded-full border border-white/10" />
+                  <span className={`text-xs font-bold ${onPlayerClick ? 'hover:text-orange-500' : ''}`}>{p.player.name}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-black text-orange-500">{val}</span>
+                  <p className="text-[7px] uppercase font-bold text-gray-500">{label}</p>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1102,7 +1132,38 @@ function PlayersTab({ squad, players, selectedLeagueId, selectedSeason, onPlayer
   );
 }
 
-function StandingsTab({ standings, teamId, onTeamClick, selectedSeason }: { standings: any[]; teamId: number; onTeamClick: (id: number, season: number) => void; selectedSeason: number }) {
+function StandingsTab({ standings, teamId, onTeamClick, selectedSeason, fixtures, effectiveLeagueId }: { standings: any[]; teamId: number; onTeamClick: (id: number, season: number) => void; selectedSeason: number; fixtures?: any[]; effectiveLeagueId?: number | null }) {
+  const nowMs = Date.now();
+  const leagueFixtures = fixtures && effectiveLeagueId 
+    ? fixtures.filter((f: any) => f.league?.id === effectiveLeagueId)
+    : (fixtures || []);
+
+  const hasAnyStartedMatch = leagueFixtures.some((f: any) => 
+    ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture?.status?.short) ||
+    (f.fixture?.date && new Date(f.fixture.date).getTime() < nowMs)
+  );
+
+  const competitionNotStartedYet = leagueFixtures.length > 0 ? !hasAnyStartedMatch : false;
+  const allPlayedAreZero = standings.length > 0 && standings.every((s: any) => (s.all?.played || 0) === 0);
+
+  if (competitionNotStartedYet) {
+    return (
+      <Card className="py-8 text-center text-gray-400 text-xs font-bold italic flex flex-col items-center justify-center gap-2 border border-white/10 bg-black/40">
+        <span className="text-orange-500 font-black uppercase text-sm">La compétition n'a pas encore commencé</span>
+        <span>Les matchs de cette saison débuteront prochainement.</span>
+      </Card>
+    );
+  }
+
+  if (allPlayedAreZero) {
+    return (
+      <Card className="py-8 text-center text-gray-400 text-xs font-bold italic flex flex-col items-center justify-center gap-2 border border-white/10 bg-black/40">
+        <span className="text-[11px] text-orange-500 font-black uppercase">Classement non disponible</span>
+        <span className="text-[10px]">Aucun match n'a encore été disputé pour cette compétition.</span>
+      </Card>
+    );
+  }
+
   if (standings.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">

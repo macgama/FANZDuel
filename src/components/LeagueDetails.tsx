@@ -374,6 +374,33 @@ function TabButton({ active, onClick, icon, label, highlight }: { active: boolea
 }
 
 function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selectedSeason }: { standings: any[]; fixtures?: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number }) {
+  const nowMs = Date.now();
+  const hasAnyStartedMatch = fixtures ? fixtures.some((f: any) => 
+    ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture?.status?.short) ||
+    (f.fixture?.date && new Date(f.fixture.date).getTime() < nowMs)
+  ) : false;
+
+  const competitionNotStartedYet = fixtures && fixtures.length > 0 ? !hasAnyStartedMatch : false;
+  const allPlayedAreZero = standings.length > 0 && standings.every((s: any) => (s.all?.played || 0) === 0);
+
+  if (competitionNotStartedYet) {
+    return (
+      <Card className="py-8 text-center text-gray-400 text-xs font-bold italic flex flex-col items-center justify-center gap-2 border border-white/10 bg-black/40">
+        <span className="text-orange-500 font-black uppercase text-sm">La compétition n'a pas encore commencé</span>
+        <span>Les matchs de cette saison débuteront prochainement.</span>
+      </Card>
+    );
+  }
+
+  if (allPlayedAreZero) {
+    return (
+      <Card className="py-8 text-center text-gray-400 text-xs font-bold italic flex flex-col items-center justify-center gap-2 border border-white/10 bg-black/40">
+        <span className="text-[11px] text-orange-500 font-black uppercase">Classement non disponible</span>
+        <span className="text-[10px]">Aucun match n'a encore été disputé pour cette compétition.</span>
+      </Card>
+    );
+  }
+
   if (standings.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
