@@ -181,7 +181,7 @@ function AppContent() {
   } | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<{
     id: number;
-    season: number;
+    season?: number;
   } | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<{
     id: number;

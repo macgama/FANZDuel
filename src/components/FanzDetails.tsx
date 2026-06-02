@@ -73,6 +73,20 @@ import { OptimizedMedia } from "./OptimizedMedia";
 import { useReward } from "../context/RewardContext";
 import { generateFervorPath } from "../utils/fervorPath";
 
+const isAllowedByRank = (rarity: string | undefined, rank: number): boolean => {
+  const r = rarity || 'common';
+  if (rank >= 1 && rank <= 3) {
+    return r === 'common';
+  }
+  if (rank >= 4 && rank <= 6) {
+    return r === 'common' || r === 'rare';
+  }
+  if (rank >= 7 && rank <= 8) {
+    return r === 'common' || r === 'rare' || r === 'epic';
+  }
+  return true;
+};
+
 interface FanzDetailsProps {
   fanzId: string;
   userProfile: UserProfile;
@@ -1648,6 +1662,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                           emoteId: step.reward.emoteId,
                                           actionId: step.reward.actionId,
                                           step: "initial",
+                                          rankNum: step.level,
                                         });
                                         return;
                                       }
@@ -1765,7 +1780,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                         ) {
                                           const newStats = { ...fanz.stats };
                                           const currentStat = newStats[step.reward.statName] || 0;
-                                          newStats[step.reward.statName] = Math.min(10, currentStat + (step.reward.amount || 0));
+                                          newStats[step.reward.statName] = Math.min(900, currentStat + (step.reward.amount || 0));
                                           updates.stats = newStats;
                                         }
                                         if (
@@ -4239,8 +4254,11 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                               c.id.startsWith("base_") ||
                               metRequirements;
 
+                            const rank = rewardModal.rankNum || fanz.rank || 1;
+                            const isRarityAllowed = isAllowedByRank(c.rarity, rank);
+
                             return (
-                              isAllowed && !isBlocked && !isAlreadyUnlocked
+                              isAllowed && !isBlocked && !isAlreadyUnlocked && isRarityAllowed
                             );
                           }).length > 0 && (
                             <button
@@ -4269,10 +4287,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                         {(rewardModal.rewardType === "choice" ||
                           rewardModal.rewardType === "skin") &&
                           allSkins.filter(
-                            (s) =>
-                              s.fanzId === fanz.templateId &&
-                              !(userProfile.skins || []).includes(s.id) &&
-                              !(fanz.unlockedSkins || []).includes(s.id),
+                            (s) => {
+                              const isTemplateMatch = s.fanzId === fanz.templateId;
+                              const isNotOwned = !(userProfile.skins || []).includes(s.id) &&
+                                !(fanz.unlockedSkins || []).includes(s.id);
+                              const rank = rewardModal.rankNum || fanz.rank || 1;
+                              const isRarityAllowed = isAllowedByRank(s.rarity, rank);
+                              return isTemplateMatch && isNotOwned && isRarityAllowed;
+                            }
                           ).length > 0 && (
                             <button
                               onClick={() =>
@@ -4525,7 +4547,9 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           c.id.startsWith("base_") ||
                           metRequirements;
 
-                        return isAllowed && !isBlocked && !isAlreadyUnlocked;
+                        const rank = rewardModal.rankNum || fanz.rank || 1;
+                        const isRarityAllowed = isAllowedByRank(c.rarity, rank);
+                        return isAllowed && !isBlocked && !isAlreadyUnlocked && isRarityAllowed;
                       })
                       .map((card) => (
                         <button
@@ -4603,10 +4627,14 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-2">
                     {allSkins
                       .filter(
-                        (s) =>
-                          s.fanzId === fanz.templateId &&
-                          !(userProfile.skins || []).includes(s.id) &&
-                          !(fanz.unlockedSkins || []).includes(s.id),
+                        (s) => {
+                          const isTemplateMatch = s.fanzId === fanz.templateId;
+                          const isNotOwned = !(userProfile.skins || []).includes(s.id) &&
+                            !(fanz.unlockedSkins || []).includes(s.id);
+                          const rank = rewardModal.rankNum || fanz.rank || 1;
+                          const isRarityAllowed = isAllowedByRank(s.rarity, rank);
+                          return isTemplateMatch && isNotOwned && isRarityAllowed;
+                        }
                       )
                       .map((skin, idx) => (
                         <button
@@ -4899,7 +4927,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             const newStats = { ...fanz.stats };
                             const amount = rewardModal.amount || 100;
                             const currentStat = newStats[key as keyof typeof statLabels] || 0;
-                            newStats[key as keyof typeof statLabels] = Math.min(10, currentStat + amount);
+                            newStats[key as keyof typeof statLabels] = Math.min(900, currentStat + amount);
                             const newChoices = {
                               ...(fanz.claimedChoices || {}),
                               [rewardModal.slotId]: {

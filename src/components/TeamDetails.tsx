@@ -38,7 +38,7 @@ import { UserProfile } from '../types';
 
 interface TeamDetailsProps {
   teamId: number;
-  season: number;
+  season?: number;
   onBack: () => void;
   onTeamClick: (teamId: number, season: number) => void;
   onLeagueClick: (leagueId: number, season: number) => void;
@@ -49,7 +49,7 @@ interface TeamDetailsProps {
 
 export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick, onLeagueClick, onPlayerClick, onMatchClick, profile }: TeamDetailsProps) {
   const [team, setTeam] = useState<any>(null);
-  const [selectedSeason, setSelectedSeason] = useState(initialSeason);
+  const [selectedSeason, setSelectedSeason] = useState<number | undefined>(initialSeason);
   const [actualCurrentSeason, setActualCurrentSeason] = useState<number | null>(null);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
   const [fixtures, setFixtures] = useState<any[]>([]);
@@ -63,6 +63,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
   const [activeTab, setActiveTab] = useState<'infos' | 'effectif' | 'matches' | 'standings' | 'competitions' | 'stats' | 'historique' | 'tbfo'>('infos');
   const [teamLeagues, setTeamLeagues] = useState<any[]>([]);
   const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
+  const lastRefreshedTeamRef = React.useRef<{teamId: number, season?: number} | null>(null);
 
   // Group initial fixtures to know which leagues the team is in
   const seasonLeagues = React.useMemo(() => {
@@ -156,12 +157,14 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
 
   // Refetch standings and stats when effectiveLeagueId changes
   useEffect(() => {
-    if (!effectiveLeagueId) return;
+    if (!effectiveLeagueId || !selectedSeason) return;
     let isMounted = true;
     const fetchLeagueData = async () => {
       try {
+        const alreadyRefreshed = lastRefreshedTeamRef.current?.teamId === teamId && lastRefreshedTeamRef.current?.season === selectedSeason;
+        const force = !alreadyRefreshed;
         const [standingsResults, statsResults] = await Promise.allSettled([
-          footballDataService.getStandings(effectiveLeagueId, selectedSeason, false),
+          footballDataService.getStandings(effectiveLeagueId, selectedSeason, force),
           footballApi.getTeamStats(effectiveLeagueId, teamId, selectedSeason)
         ]);
         if (isMounted) {
@@ -233,6 +236,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
   }, [teamId]);
 
   const fetchData = async (force = false) => {
+    if (!selectedSeason) return;
     if (force) setRefreshing(true);
     else setLoading(true);
     
@@ -293,7 +297,12 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
   };
 
   useEffect(() => {
-    fetchData();
+    if (!selectedSeason) return;
+    const alreadyRefreshed = lastRefreshedTeamRef.current?.teamId === teamId && lastRefreshedTeamRef.current?.season === selectedSeason;
+    fetchData(!alreadyRefreshed);
+    if (!alreadyRefreshed) {
+      lastRefreshedTeamRef.current = { teamId, season: selectedSeason };
+    }
   }, [teamId, selectedSeason]);
 
   const handleRefresh = () => {
@@ -932,7 +941,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
       {Object.entries(groupedByMonth).map(([month, monthFixtures]) => (
         <div key={month} className="space-y-3">
           <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm pl-2 border-l-2 border-orange-500">{month}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {monthFixtures.map(match => (
               <SharedMatchCard
                 key={match.fixture.id}

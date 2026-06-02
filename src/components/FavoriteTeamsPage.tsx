@@ -5,6 +5,7 @@ import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
 import { Search, Plus, Shield, ChevronLeft, Star, Activity, Globe, ChevronRight } from 'lucide-react';
 import { getImageUrl, cn } from '../lib/utils';
 import { footballApi } from '../services/footballApi';
+import { footballDataService } from '../services/footballDataService';
 import { Button, Card } from './Layout';
 import { useAlert } from '../context/AlertContext';
 import { handleFirestoreError, OperationType } from '../firebase';
@@ -13,7 +14,7 @@ import { logTransaction } from '../services/transactionService';
 interface FavoriteTeamsPageProps {
   profile: UserProfile;
   onBack: () => void;
-  onTeamClick: (teamId: number, season: number) => void;
+  onTeamClick: (teamId: number, season?: number) => void;
 }
 
 export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeamsPageProps) {
@@ -71,25 +72,66 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
 
             // Fetch Summary Data (Ranking, Last Matches, Competitions)
             try {
-              const currentSeason = 2024; // Should probably be dynamic
-              const [fixtures, leagues] = await Promise.all([
-                footballApi.getFixturesByTeam(Number(data.id), currentSeason).catch(() => []),
-                footballApi.getLeaguesByTeam(Number(data.id)).catch(() => [])
-              ]);
+              const currentSeason = footballDataService.getCurrentSeasonYear();
+              const leagues = await footballApi.getLeaguesByTeam(Number(data.id)).catch(() => []);
+              
+              let fixtures: any[] = [];
+              const currentYear = new Date().getFullYear();
+              let seasonToFetch = currentYear;
+              let attempts = 0;
+              const nowMs = Date.now();
+              
+              // Get fixtures from current year and go back if needed to find at least 5 completed matches
+              while (attempts < 4) {
+                const fetched = await footballApi.getFixturesByTeam(Number(data.id), seasonToFetch).catch(() => []);
+                fetched.forEach((f: any) => {
+                  if (!fixtures.some((existing: any) => existing.fixture.id === f.fixture.id)) {
+                    fixtures.push(f);
+                  }
+                });
+                
+                const pastFT = fixtures.filter((f: any) => 
+                  ['FT', 'AET', 'PEN'].includes(f.fixture.status.short)
+                );
+                
+                if (pastFT.length >= 5) {
+                  break;
+                }
+                
+                seasonToFetch--;
+                attempts++;
+              }
 
-              // Get primary league standings if possible
+              // Filter to include only completed matches and sort descending (newest first)
+              const completedPastMatches = fixtures
+                .filter((f: any) => 
+                  ['FT', 'AET', 'PEN'].includes(f.fixture.status.short)
+                )
+                .sort((a: any, b: any) => new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime())
+                .slice(0, 5);
+
+              // Get primary league standings if possible, using the latest/current season of that league
               let standing = null;
               if (leagues.length > 0) {
-                const primaryLeague = leagues[0].league.id;
-                const standingsRes = await footballApi.getStandings(primaryLeague, currentSeason).catch(() => []);
-                if (standingsRes && standingsRes[0]) {
-                  const teamStanding = standingsRes[0].league.standings[0].find((s: any) => s.team.id.toString() === data.id.toString());
-                  if (teamStanding) standing = { ...teamStanding, leagueName: standingsRes[0].league.name };
+                const firstLeagueEntry = leagues[0];
+                const primaryLeague = firstLeagueEntry.league.id;
+                
+                const sortedSeasons = [...(firstLeagueEntry.seasons || [])].sort((a: any, b: any) => b.year - a.year);
+                const latestLeagueSeasonObj = sortedSeasons.find((s: any) => s.current) || sortedSeasons[0];
+                const leagueSeason = latestLeagueSeasonObj ? latestLeagueSeasonObj.year : currentSeason;
+                
+                const standingsRes = await footballApi.getStandings(primaryLeague, leagueSeason).catch(() => []);
+                if (standingsRes && standingsRes[0] && standingsRes[0].league && standingsRes[0].league.standings) {
+                  const flatStandings = standingsRes[0].league.standings.flat();
+                  const teamStanding = flatStandings.find((s: any) => s.team.id.toString() === data.id.toString());
+                  if (teamStanding) {
+                    standing = { ...teamStanding, leagueName: standingsRes[0].league.name };
+                  }
                 }
               }
 
               data.summary = {
-                lastMatches: fixtures.filter((f: any) => f.fixture.status.short === 'FT').sort((a: any, b: any) => new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime()).slice(0, 5),
+                lastMatches: completedPastMatches,
                 standing: standing,
                 competitions: leagues.map((l: any) => l.league.name)
               };
@@ -245,7 +287,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
             {teams.map((team, idx) => (
               <Card 
                 key={idx} 
-                onClick={() => onTeamClick(Number(team.id), 2024)}
+                onClick={() => onTeamClick(Number(team.id))}
                 className="bg-black/60 border-white/10 p-4 space-y-4 hover:border-orange-500/50 transition-all cursor-pointer group relative overflow-hidden"
               >
                 <div className="flex items-center gap-4 border-b border-white/5 pb-4">
