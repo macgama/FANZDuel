@@ -70,6 +70,8 @@ import {
   Wallet,
   BarChart2,
   PieChart,
+  Flame,
+  Gift,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { signOut } from "firebase/auth";
@@ -207,6 +209,21 @@ function AppContent() {
     globalFervor: false,
     fanzFervor: false,
   });
+
+  const [dismissedFervorAlert, setDismissedFervorAlert] = useState(false);
+  const prevGlobalFervorRef = useRef(false);
+  const prevFanzFervorRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      (claimableAlerts.globalFervor && !prevGlobalFervorRef.current) ||
+      (claimableAlerts.fanzFervor && !prevFanzFervorRef.current)
+    ) {
+      setDismissedFervorAlert(false);
+    }
+    prevGlobalFervorRef.current = claimableAlerts.globalFervor;
+    prevFanzFervorRef.current = claimableAlerts.fanzFervor;
+  }, [claimableAlerts.globalFervor, claimableAlerts.fanzFervor]);
 
   // We need to store profile in a ref for use inside listeners without triggering re-runs
   const profileRef = React.useRef(profile);
@@ -2298,6 +2315,95 @@ function AppContent() {
               </div>
             </div>
           )}
+
+          {/* Alerte de passage de palier de ferveur */}
+          <AnimatePresence>
+            {!dismissedFervorAlert && (claimableAlerts.globalFervor || claimableAlerts.fanzFervor) && (
+              <motion.div
+                key="fervor-palier-alert"
+                initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="fixed bottom-24 md:bottom-20 left-4 right-4 md:left-auto md:right-6 md:w-[380px] bg-[#0f0f0f]/95 border-2 border-orange-500/40 rounded-2xl p-4 shadow-[0_10px_30px_-5px_rgba(234,88,12,0.4)] backdrop-blur-md z-[120] flex flex-col gap-3 overflow-hidden text-white"
+              >
+                {/* Effet lumineux de fond */}
+                <div className="absolute -top-10 -right-10 w-24 h-24 bg-orange-600/25 rounded-full blur-2xl pointer-events-none" />
+                
+                <div className="flex items-start justify-between relative">
+                  <div className="flex gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-500 shrink-0">
+                      <Flame className="w-5 h-5 animate-pulse text-orange-500 fill-orange-500/20" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black italic uppercase tracking-wider text-orange-500 flex items-center gap-1.5 leading-none">
+                        PALIER FRANCHI ! <Sparkles className="w-3.5 h-3.5 text-orange-300" />
+                      </h4>
+                      <p className="text-[11px] text-gray-300 font-bold leading-normal mt-1">
+                        Tu as passé un nouveau niveau de ferveur ! Récupère vite tes récompenses.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setDismissedFervorAlert(true)}
+                    className="p-1 hover:bg-white/10 rounded-lg text-gray-500 hover:text-white transition-all -mt-1 -mr-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-2 mt-1 relative">
+                  {claimableAlerts.globalFervor && (
+                    <div className="flex items-center justify-between p-2 bg-white/5 rounded-xl border border-white/5 hover:border-orange-500/10 transition-all">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-3.5 h-3.5 text-yellow-500" />
+                        <span className="text-[10px] font-bold text-gray-300 uppercase italic">Ferveur Générale</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setView("fervor-path");
+                          setSelectedMatchId(null);
+                          setSelectedTeam(null);
+                          setSelectedLeague(null);
+                          setSelectedFanzId(null);
+                          setSelectedPlayer(null);
+                          setDismissedFervorAlert(true);
+                        }}
+                        className="bg-orange-500 hover:bg-orange-600 text-white font-black italic uppercase text-[9px] tracking-wider px-3.5 py-1.5 h-auto rounded-lg shadow-md hover:shadow-orange-500/20"
+                      >
+                        Récupérer <Gift className="w-3 h-3 ml-1" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {claimableAlerts.fanzFervor && (
+                    <div className="flex items-center justify-between p-2 bg-white/5 rounded-xl border border-white/5 hover:border-orange-500/10 transition-all">
+                      <div className="flex items-center gap-2">
+                        <Star className="w-3.5 h-3.5 text-orange-400" />
+                        <span className="text-[10px] font-bold text-gray-300 uppercase italic">Ferveur FANZ</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setView("fanz");
+                          setSelectedMatchId(null);
+                          setSelectedTeam(null);
+                          setSelectedLeague(null);
+                          setSelectedFanzId(null);
+                          setSelectedPlayer(null);
+                          setDismissedFervorAlert(true);
+                        }}
+                        className="bg-orange-500 hover:bg-orange-600 text-white font-black italic uppercase text-[9px] tracking-wider px-3.5 py-1.5 h-auto rounded-lg shadow-md hover:shadow-orange-500/20"
+                      >
+                        Récupérer <Gift className="w-3 h-3 ml-1" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
         {renderFooter()}
       </Layout>

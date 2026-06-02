@@ -1653,7 +1653,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                           isOpen: true,
                                           title: step.isIntermediate
                                             ? `Gain Intermédiaire`
-                                            : `Palier Ferveur ${step.level}`,
+                                            : `Palier Ferveur ${step.displayLevel || step.level}`,
                                           slotId,
                                           rewardType: step.reward.type as any,
                                           amount: step.reward.amount,
@@ -1662,7 +1662,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                                           emoteId: step.reward.emoteId,
                                           actionId: step.reward.actionId,
                                           step: "initial",
-                                          rankNum: step.level,
+                                          rankNum: step.displayLevel || step.level,
                                         });
                                         return;
                                       }
@@ -4107,7 +4107,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                           bgClass = "bg-blue-500/20";
                           hoverClass =
                             "hover:border-blue-500 hover:bg-blue-500/5";
-                          title = `+${choice.amount || 100} XP`;
+                          title = `+100 XP`;
                           subtitle = "Boostez vos compétences";
                         } else if (choice.type === "money") {
                           icon = (
@@ -4370,7 +4370,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                             </div>
                             <div>
                               <div className="font-black italic uppercase text-sm">
-                                +{rewardModal.amount || 100} XP
+                                +100 XP
                               </div>
                               <div className="text-[10px] text-gray-400 font-bold leading-tight">
                                 Boostez vos compétences
@@ -4925,7 +4925,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
                               rewardModal.slotId,
                             ];
                             const newStats = { ...fanz.stats };
-                            const amount = rewardModal.amount || 100;
+                            const amount = 100;
                             const currentStat = newStats[key as keyof typeof statLabels] || 0;
                             newStats[key as keyof typeof statLabels] = Math.min(900, currentStat + amount);
                             const newChoices = {
