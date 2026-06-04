@@ -989,17 +989,19 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
             <div className="space-y-6">
               {/* Active Action Banner */}
               {userProfile.activeAction?.fanzId === fanz.id ? (
-                <div className="mb-6">
+                <div className="mb-6 flex justify-center w-full">
                   {lifeActions
                     .filter((a) => a.id === userProfile.activeAction?.actionId)
                     .map((action) => (
-                      <LifeActionCard
-                        key={action.id}
-                        action={action}
-                        fanz={fanz}
-                        userProfile={userProfile}
-                        fanzTemplate={template}
-                      />
+                      <div key={action.id} className="w-full max-w-[500px]">
+                        <LifeActionCard
+                          key={action.id}
+                          action={action}
+                          fanz={fanz}
+                          userProfile={userProfile}
+                          fanzTemplate={template}
+                        />
+                      </div>
                     ))}
                 </div>
               ) : (

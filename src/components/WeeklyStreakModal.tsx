@@ -200,7 +200,7 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
   if (loading) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
+    <div className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] border-x border-white/5 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-hidden">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

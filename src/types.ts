@@ -41,6 +41,19 @@ export interface UserProfile {
   totalScore?: number;
   win_count?: number; // Added for compatibility
   duel_count?: number; // Added for compatibility
+  clicks_count?: number;
+  cards_played_count?: number;
+  emotes_sent_count?: number;
+  duels_training_count?: number;
+  duels_training_win_count?: number;
+  duels_1v1_count?: number;
+  duels_1v1_win_count?: number;
+  duels_2v2_count?: number;
+  duels_2v2_win_count?: number;
+  duels_5v5_count?: number;
+  duels_5v5_win_count?: number;
+  duels_war_of_kops_count?: number;
+  duels_war_of_kops_win_count?: number;
   level: number;
   teamSlots: number;
   cards: string[];

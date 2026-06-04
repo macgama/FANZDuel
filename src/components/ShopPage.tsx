@@ -46,6 +46,31 @@ const RARITY_LABELS = {
   legendary: 'Légendaire',
 };
 
+// Helper to get exactly 3 active Fanz for the day deterministically based on date seed
+export const getDailyFanzs = (allActiveFanzs: FanzTemplate[]): FanzTemplate[] => {
+  if (allActiveFanzs.length <= 3) return allActiveFanzs;
+  
+  // Use date string YYYY-MM-DD to get a stable daily hash
+  const todayStr = new Date().toISOString().split('T')[0];
+  let hash = 0;
+  for (let i = 0; i < todayStr.length; i++) {
+    hash = todayStr.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  let seed = Math.abs(hash);
+
+  // Seeded Shuffle
+  const items = [...allActiveFanzs];
+  for (let i = items.length - 1; i > 0; i--) {
+     const x = Math.sin(seed++) * 10000;
+     const r = x - Math.floor(x);
+     const j = Math.floor(r * (i + 1));
+     const temp = items[i];
+     items[i] = items[j];
+     items[j] = temp;
+  }
+  return items.slice(0, 3);
+};
+
 export function ShopPage({ profile, onBack }: ShopPageProps) {
   const [activeTab, setActiveTab] = useState('featured');
   const [fanzItems, setFanzItems] = useState<any[]>([]);
@@ -100,7 +125,11 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           .map(doc => doc.data() as FanzTemplate)
           .filter(f => f.isActive !== false);
         
-        const fanzForSale = fanzData
+        // Pick the 3 daily active fanz deterministically
+        const dailyFanzs = getDailyFanzs(fanzData);
+        const dailyFanzIds = dailyFanzs.map(f => f.id);
+        
+        const fanzForSale = dailyFanzs
           .filter(f => f.price && (f.price.money || f.price.gems))
           .filter(f => !ownedFanzTemplateIds.includes(f.id))
           .map(f => ({
@@ -119,8 +148,8 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         const skinsForSale: any[] = [];
         const emotesForSale: any[] = [];
         
-        fanzData.forEach(fanz => {
-          // Only show skins and emotes if the user has unlocked this FANZ
+        dailyFanzs.forEach(fanz => {
+          // Only show skins and emotes if the user has unlocked this FANZ (which is in the daily selection)
           if (ownedFanzTemplateIds.includes(fanz.id)) {
             if (fanz.skins && Array.isArray(fanz.skins)) {
               fanz.skins.forEach(skin => {
@@ -184,11 +213,11 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           .filter(c => c.price && (c.price.money || c.price.gems))
           .filter(c => !(profile.cards || []).includes(c.id))
           .filter(c => {
-            // Only show cards if they don't have specific fanzIds, or if the user owns at least one of those FANZ
+            // Only show cards if they are linked to our daily active FANZ selection
             if (c.fanzIds && c.fanzIds.length > 0) {
-              return c.fanzIds.some(fid => ownedFanzTemplateIds.includes(fid));
+              return c.fanzIds.some(fid => dailyFanzIds.includes(fid));
             }
-            return true;
+            return false;
           })
           .map(c => ({
             id: c.id,
@@ -211,7 +240,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         
         const allItemsForSale = [...fanzForSale, ...skinsForSale, ...emotesForSale, ...cardsForSale];
         const shuffled = [...allItemsForSale].sort(() => 0.5 - Math.random());
-        setFeaturedItems(shuffled.slice(0, 4));
+        setFeaturedItems(shuffled.slice(0, 3));
       } catch (err) {
         console.error("Error fetching shop items", err);
         handleFirestoreError(err, OperationType.GET, 'shop_items');
@@ -251,6 +280,11 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       const cardsSnap = await getDocs(collection(db, 'cards'));
       const allCards = cardsSnap.docs.map(d => ({ id: d.id, ...d.data() as DuelCard }));
       
+      // Find the daily selection pool of fanz
+      const activeTemplates = fanzTemplates.filter(f => f.isActive !== false);
+      const dailyFanzTemplates = getDailyFanzs(activeTemplates);
+      const dailyFanzIds = dailyFanzTemplates.map(f => f.id);
+
       // Decide number of rewards from pack
       const numRewards = pack.numberOfRewards;
       
@@ -259,7 +293,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       const userEmotes = [...(profile.emotes || [])];
       const userCards = [...(profile.cards || [])];
       
-      const REWARD_TYPES = ['skin', 'emote', 'card', 'money', 'gems', 'boost', 'infinite_energy', 'double_gains', 'xp'];
+      const REWARD_TYPES = ['fanz', 'skin', 'emote', 'card', 'money', 'gems', 'boost', 'infinite_energy', 'double_gains', 'xp'];
       
       for (let i = 0; i < numRewards; i++) {
         const shuffledTypes = [...REWARD_TYPES].sort(() => 0.5 - Math.random());
@@ -479,12 +513,12 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
   const renderPriceButton = (price: number | string, currency: string, item?: any) => {
     if (item && item.isActive === false) {
       return (
-        <Button 
+        <button 
           disabled
-          className="w-full font-black uppercase text-[10px] sm:text-xs mt-3 bg-gray-800 text-white/40 cursor-not-allowed border-gray-700 hover:bg-gray-800"
+          className="w-full font-black uppercase text-[10px] sm:text-xs mt-3 bg-gray-800 text-white/40 cursor-not-allowed border border-gray-700 py-2 px-3 rounded-lg whitespace-nowrap"
         >
           Bientôt dispo
-        </Button>
+        </button>
       );
     }
 
@@ -495,26 +529,26 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
       if (hasMoney && hasGems) {
         return (
-          <Button 
+          <button 
             onClick={() => setSelectedItem(item)}
-            className="w-full font-black uppercase text-[10px] bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white mt-3 px-1"
+            className="w-full font-black uppercase text-[10px] bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white mt-3 py-2 px-3 rounded-lg whitespace-nowrap transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
-            <span className="flex items-center justify-center gap-1.5 flex-wrap">
+            <span className="flex items-center justify-center gap-1 sm:gap-1.5">
               <span className="flex items-center gap-0.5">{item.fullPrice.money} <span>$</span></span>
               <span>+</span>
               <span className="flex items-center gap-0.5">{item.fullPrice.gems} <img src={LOGOS.gems} alt="" className="w-3 h-3 drop-shadow-md" /></span>
             </span>
-          </Button>
+          </button>
         );
       }
     }
 
     // Fallback to the original logic if only one currency is provided or fullPrice is missing
     return (
-      <Button 
+      <button 
         onClick={() => setSelectedItem(item)}
         className={cn(
-        "w-full font-black uppercase text-[10px] sm:text-xs mt-3",
+        "w-full font-black uppercase text-[10px] sm:text-xs mt-3 py-2 px-3 rounded-lg whitespace-nowrap transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]",
         currency === 'gems' ? "bg-blue-500 hover:bg-blue-600 text-white" : 
         currency === 'boost' ? "bg-orange-500 hover:bg-orange-600 text-white" : 
         currency === 'money' ? "bg-green-500 hover:bg-green-600 text-white" : 
@@ -526,7 +560,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           {currency === 'money' && <span>$</span>}
           {currency === 'boost' && <span>Boosts</span>}
         </span>
-      </Button>
+      </button>
     );
   };
 
@@ -609,23 +643,26 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-20">
         {/* Categories */}
-        <div className="flex overflow-x-auto gap-2 no-scrollbar pb-2">
+        <div className="flex overflow-x-auto gap-1.5 sm:gap-2 no-scrollbar pb-2">
           {CATEGORIES.map(cat => (
             <button 
               key={cat.id} 
               onClick={() => setActiveTab(cat.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 border rounded-full whitespace-nowrap transition-all",
+                "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border rounded-full whitespace-nowrap transition-all",
                 activeTab === cat.id 
                   ? "bg-orange-600 border-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.4)]" 
                   : "bg-white/5 border-white/10 hover:bg-white/10"
               )}
             >
-              <div className={activeTab === cat.id ? "text-white" : "text-gray-400"}>
+              <div className={cn(
+                "flex-shrink-0 flex items-center justify-center [&>svg]:w-3.5 [&>svg]:h-3.5 [&>svg]:sm:w-4 [&>svg]:sm:h-4",
+                activeTab === cat.id ? "text-white" : "text-gray-400"
+              )}>
                 {cat.icon}
               </div>
               <span className={cn(
-                "text-xs font-bold uppercase tracking-widest",
+                "text-[10px] sm:text-xs font-bold uppercase tracking-wider sm:tracking-widest",
                 activeTab === cat.id ? "text-white" : "text-gray-400"
               )}>
                 {cat.title}
@@ -647,38 +684,48 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'featured' && (
               <>
                 <section>
-                  <h2 className="text-lg font-black italic uppercase tracking-tighter text-white mb-4 flex items-center gap-2">
-                    <Flame className="w-5 h-5 text-orange-500" />
+                  <h2 className="text-base sm:text-lg font-black italic uppercase tracking-tighter text-white mb-4 flex items-center gap-2">
+                    <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
                     Offres Fanzzy
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-6">
                     {(shopConfig?.ferveurPacks || []).map((pack, idx) => (
                       <motion.div
                         key={pack.id}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        className={cn(
+                          idx === 2 ? "col-span-2" : ""
+                        )}
                       >
                         <Card className="relative overflow-hidden border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.2)] h-full flex flex-col justify-between">
                           <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 via-orange-500/20 to-red-500/20" />
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/20 blur-3xl rounded-full" />
-                          <div className="absolute bottom-0 left-0 w-32 h-32 bg-orange-500/20 blur-3xl rounded-full" />
+                          <div className="absolute top-0 right-0 w-24 sm:w-32 bg-yellow-500/20 blur-2xl rounded-full" />
+                          <div className="absolute bottom-0 left-0 w-24 sm:w-32 bg-orange-500/20 blur-2xl rounded-full" />
                           
-                          <div className="relative p-6 flex flex-col items-center text-center h-full">
-                            <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg animate-pulse">
+                          <div className="relative p-3.5 sm:p-5 md:p-6 flex flex-col items-center text-center h-full justify-between">
+                            <div className="absolute top-2 right-2 bg-red-500 text-white text-[8px] sm:text-[10px] font-black uppercase px-2 py-0.5 sm:py-1 rounded-full shadow-lg animate-pulse">
                               Épique
                             </div>
-                            <div className="relative mb-4 mt-2">
-                              {pack.numberOfRewards >= 3 && <Sparkles className="absolute -top-4 -right-4 w-8 h-8 text-yellow-400 animate-spin-slow" />}
-                              <Zap className="w-16 h-16 text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.8)]" />
+                            <div className="relative mb-3 mt-4 sm:mb-4 sm:mt-2">
+                              {pack.numberOfRewards >= 3 && <Sparkles className="absolute -top-3 -right-3 w-5 h-5 sm:w-8 sm:h-8 text-yellow-400 animate-spin-slow" />}
+                              <Zap className="w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.8)]" />
                             </div>
-                            <h3 className="text-xl font-black italic uppercase text-white mb-2 drop-shadow-md">{pack.name}</h3>
-                            <p className="text-[10px] text-yellow-200/80 font-bold uppercase tracking-widest mb-6 flex-grow flex items-center justify-center min-h-[40px]">{pack.description}</p>
-                            <Button 
+                            <h3 className="text-[11px] sm:text-xs md:text-sm lg:text-base font-black italic uppercase text-white mb-2 drop-shadow-md leading-tight min-h-[2.5rem] flex items-center justify-center">{pack.name}</h3>
+                            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-yellow-200/80 font-bold uppercase tracking-wide mb-4 sm:mb-6 flex-grow flex items-center justify-center min-h-[24px] sm:min-h-[32px] md:min-h-[40px] px-0.5">{pack.description}</p>
+                            <button 
                               onClick={() => purchasePackFerveur(pack)}
                               disabled={purchasing || (profile.gems || 0) < pack.price}
-                              className="w-full mt-auto bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black uppercase text-base shadow-[0_0_20px_rgba(234,179,8,0.4)] border-none flex items-center justify-center gap-1.5 py-3">
-                              {purchasing && packAnimation !== 'idle' ? 'Ouverture...' : <>Acheter {pack.price} <img src={LOGOS.gems} alt="" className="w-4 h-4 mx-0.5 object-contain" referrerPolicy="no-referrer" /></>}
-                            </Button>
+                              className="w-full mt-auto bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 hover:from-yellow-400 hover:to-red-400 text-black font-black uppercase text-[10px] min-[360px]:text-[11px] sm:text-xs md:text-sm hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 shadow-[0_0_20px_rgba(234,179,8,0.5)] border-none flex items-center justify-center gap-1 py-2 sm:py-2.5 md:py-3 px-2 sm:px-3 md:px-4 rounded-lg sm:rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-nowrap">
+                              {purchasing && packAnimation !== 'idle' ? (
+                                'Ouverture...'
+                              ) : (
+                                <span className="flex items-center justify-center gap-0.5 sm:gap-1 flex-nowrap whitespace-nowrap">
+                                  <span>Acheter {pack.price}</span>
+                                  <img src={LOGOS.gems} alt="" className="w-3 h-3 min-[360px]:w-3.5 min-[360px]:h-3.5 sm:w-4 sm:h-4 mx-0.5 object-contain inline-block shrink-0" referrerPolicy="no-referrer" />
+                                </span>
+                              )}
+                            </button>
                           </div>
                         </Card>
                       </motion.div>
@@ -687,8 +734,8 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 </section>
 
                 <section>
-                  <h2 className="text-lg font-black italic uppercase tracking-tighter text-white mb-4">Nouveautés</h2>
-                  <div className="grid grid-cols-2 gap-4">
+                  <h2 className="text-base sm:text-lg font-black italic uppercase tracking-tighter text-white mb-4">Nouveautés</h2>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {featuredItems.map(item => renderItemCard(item, item.type))}
                   </div>
                 </section>
@@ -699,9 +746,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'fanz' && (
               <section>
                 {fanzItems.length === 0 && !loading && (
-                  <p className="text-center text-gray-500 py-8">Aucun Fanz disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun Fanz disponible pour le moment.</p>
                 )}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {fanzItems.map(fanz => renderItemCard(fanz, 'fanz'))}
                 </div>
               </section>
@@ -711,9 +758,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'skins' && (
               <section>
                 {skinItems.length === 0 && !loading && (
-                  <p className="text-center text-gray-500 py-8">Aucun Skin disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun Skin disponible pour le moment.</p>
                 )}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {skinItems.map(skin => renderItemCard(skin, 'skin'))}
                 </div>
               </section>
@@ -723,9 +770,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'emotes' && (
               <section>
                 {emoteItems.length === 0 && !loading && (
-                  <p className="text-center text-gray-500 py-8">Aucun Emote disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun Emote disponible pour le moment.</p>
                 )}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {emoteItems.map(emote => renderItemCard(emote, 'emote'))}
                 </div>
               </section>
@@ -735,9 +782,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'cards' && (
               <section>
                 {cardItems.length === 0 && !loading && (
-                  <p className="text-center text-gray-500 py-8">Aucune Carte disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucune Carte disponible pour le moment.</p>
                 )}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {cardItems.map(card => renderItemCard(card, 'card'))}
                 </div>
               </section>
@@ -746,7 +793,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {/* BOOSTS TAB */}
             {activeTab === 'boosts' && (
               <section>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {(shopConfig?.boosts || MOCK_BOOSTS).map((boost: any) => {
                     let IconComp = boost.icon;
                     if (!IconComp) {
@@ -764,11 +811,11 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {/* PACKS TAB -> REAL MONEY PACKS */}
             {activeTab === 'packs' && (
               <section className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {(shopConfig?.realMoneyPacks || []).map(pack => (
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} key={pack.id}>
                       <Card className={cn(
-                        "relative overflow-hidden border p-4 flex flex-col items-center text-center h-full",
+                        "relative overflow-hidden border p-3.5 sm:p-4 flex flex-col items-center text-center h-full justify-between",
                          pack.popular ? "border-blue-500 bg-blue-900/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]" : "border-white/10 bg-white/5 hover:bg-white/10"
                       )} style={{ backgroundColor: pack.bgColor, borderColor: pack.popular ? '#3b82f6' : undefined }}>
                         {pack.popular && (
@@ -776,12 +823,12 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                             Le plus populaire
                           </div>
                         )}
-                        <div className={cn("text-4xl mb-3 drop-shadow-xl", pack.popular ? "mt-4" : "mt-2")}>
+                        <div className={cn("text-3xl sm:text-4xl mb-3 drop-shadow-xl", pack.popular ? "mt-4" : "mt-2")}>
                           {pack.image || '🎁'}
                         </div>
-                        <h3 className="text-lg font-black italic text-white mb-1 leading-tight">{pack.name}</h3>
-                        <div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-4 opacity-80 min-h-[30px]">
-                          {pack.rewards.map(r => {
+                        <h3 className="text-xs sm:text-sm md:text-base font-black italic text-white mb-1 leading-tight">{pack.name}</h3>
+                        <div className="text-[8px] sm:text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-4 opacity-80 min-h-[30px] flex items-center justify-center">
+                          {pack.rewards.map((r: any) => {
                             if (r.type === 'gems') return `${r.amount} Gemmes`;
                             if (r.type === 'money') return `${r.amount} $`;
                             if (r.type === 'energy') return `${r.amount} Énergie`;
@@ -789,23 +836,23 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                             return '';
                           }).join(' + ')}
                         </div>
-                        <Button 
+                        <button 
                           onClick={() => {
                             // TODO: Add real payment intent
                             alert(`Achat Stripe à implémenter : Pack ${pack.name} pour ${pack.priceEur}€`);
                           }}
                           className={cn(
-                          "w-full font-black uppercase text-xs",
-                          pack.popular ? "bg-blue-500 hover:bg-blue-600 text-white border-transparent" : "bg-white text-black hover:bg-gray-200 border-transparent"
+                          "w-full font-black uppercase text-xs sm:text-sm py-2.5 sm:py-3 px-3 mt-auto rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer",
+                          pack.popular ? "bg-blue-500 hover:bg-blue-600 text-white shadow-[0_4px_12px_rgba(59,130,246,0.4)]" : "bg-white text-black hover:bg-gray-200"
                         )}>
                           {pack.priceEur}€
-                        </Button>
+                        </button>
                       </Card>
                     </motion.div>
                   ))}
                 </div>
                 {(!shopConfig?.realMoneyPacks || shopConfig.realMoneyPacks.length === 0) && (
-                  <p className="text-center text-gray-500 py-8">Aucun pack disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun pack disponible pour le moment.</p>
                 )}
               </section>
             )}

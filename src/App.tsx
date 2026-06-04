@@ -48,6 +48,7 @@ import {
   Activity,
   Database,
   Globe,
+  ChevronRight,
   Users,
   Star,
   X,
@@ -135,6 +136,7 @@ function AppContent() {
   const currentUserRef = React.useRef<string | null>(null);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [currentDuel, setCurrentDuel] = useState<any>(null);
+  const [guestView, setGuestView] = useState<"landing" | "matches">("landing");
 
   useEffect(() => {
     if (profile !== null) {
@@ -176,6 +178,54 @@ function AppContent() {
       }
     }
   };
+
+  // Gestion globale et automatique du widget de traduction Google Translate
+  useEffect(() => {
+    const checkAndTeleportTranslation = () => {
+      const translateEl = document.getElementById("google_translate_element");
+      if (!translateEl) return;
+
+      const profileContainer = document.getElementById("google-translate-profile-container");
+      
+      // Trouver tous les conteneurs de langue du hub public (peut en avoir un dans la landing et un dans match du jour)
+      const landingContainers = document.querySelectorAll("[id='google-translate-landing-container']");
+      let activeLandingContainer = null;
+      for (let i = 0; i < landingContainers.length; i++) {
+        const el = landingContainers[i];
+        if (el && document.body.contains(el)) {
+          // Utilise le premier conteneur qui est connecté au DOM
+          activeLandingContainer = el;
+          break;
+        }
+      }
+
+      if (profileContainer) {
+        if (translateEl.parentElement !== profileContainer) {
+          profileContainer.appendChild(translateEl);
+        }
+      } else if (activeLandingContainer) {
+        if (translateEl.parentElement !== activeLandingContainer) {
+          activeLandingContainer.appendChild(translateEl);
+        }
+      } else {
+        if (translateEl.parentElement !== document.body) {
+          document.body.appendChild(translateEl);
+        }
+      }
+    };
+
+    // Vérifier immédiatement, puis toutes les 500ms
+    checkAndTeleportTranslation();
+    const interval = setInterval(checkAndTeleportTranslation, 500);
+
+    return () => {
+      clearInterval(interval);
+      const translateEl = document.getElementById("google_translate_element");
+      if (translateEl && translateEl.parentElement !== document.body) {
+        document.body.appendChild(translateEl);
+      }
+    };
+  }, [view, guestView, user]);
 
   const [selectedLeague, setSelectedLeague] = useState<{
     id: number;
@@ -1221,7 +1271,184 @@ function AppContent() {
   }
 
   if (!user) {
-    return <LandingPage />;
+    if (guestView === "matches") {
+      return (
+        <div className="min-h-screen bg-[#111] text-white">
+          {/* Public guest-friendly navigation bar */}
+          <header className="sticky top-0 z-50 bg-[#111]/85 backdrop-blur-xl border-b border-white/5 px-3 md:px-6 py-3 md:py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2 md:gap-6">
+              <button 
+                onClick={() => {
+                  setSelectedMatchId(null);
+                  setSelectedLeague(null);
+                  setSelectedTeam(null);
+                  setSelectedPlayer(null);
+                  setGuestView("landing");
+                }}
+                className="text-gray-400 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-1 font-bold text-xs uppercase"
+              >
+                <ChevronRight className="w-5 h-5 rotate-180" />
+                <span>Accueil</span>
+              </button>
+              <div 
+                className="text-xl md:text-2xl font-black italic tracking-tighter text-orange-500 cursor-pointer hidden sm:block" 
+                onClick={() => {
+                  setSelectedMatchId(null);
+                  setSelectedLeague(null);
+                  setSelectedTeam(null);
+                  setSelectedPlayer(null);
+                  setGuestView("landing");
+                }}
+              >
+                TBFO
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 md:gap-4">
+              {/* GOOGLE TRANSLATE CONTAINER MOUNTED IN NAVBAR */}
+              <div className="flex items-center pr-2 border-r border-white/10">
+                <div 
+                  id="google-translate-landing-container" 
+                  className="h-8 flex items-center min-w-[100px] sm:min-w-[120px] max-w-[160px] overflow-visible rounded-lg"
+                />
+              </div>
+
+              <button
+                onClick={() => {
+                  setGuestView("landing");
+                  // Small delay to let landing page render then trigger Auth view
+                  setTimeout(() => {
+                    const btn = document.getElementById("landing-connect-button");
+                    if (btn) btn.click();
+                  }, 50);
+                }}
+                className="bg-orange-600 hover:bg-orange-500 text-white font-black uppercase text-[10px] md:text-xs px-3 py-2 md:px-6 md:py-2.5 rounded-lg transition-all shadow-lg shadow-orange-600/20 active:scale-95 whitespace-nowrap"
+              >
+                Connexion
+              </button>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto px-4 py-8">
+            {selectedMatchId ? (
+              <MatchDetails
+                fixtureId={selectedMatchId}
+                user={null}
+                initialTab={selectedMatchTab}
+                initialDuelId={undefined}
+                initialDuelType={undefined}
+                onDuelStatusChange={() => {}}
+                onDuelIntent={() => {
+                  setGuestView("landing");
+                  setTimeout(() => {
+                    const btn = document.getElementById("landing-connect-button");
+                    if (btn) btn.click();
+                  }, 50);
+                }}
+                onBack={() => {
+                  setSelectedMatchId(null);
+                  setSelectedMatchTab("summary");
+                }}
+                onTeamClick={(id, season) => {
+                  setSelectedTeam({ id, season });
+                  setSelectedMatchId(null);
+                }}
+                onLeagueClick={(id, season) => {
+                  setSelectedLeague({ id, season });
+                  setSelectedMatchId(null);
+                }}
+                onPlayerClick={(id, season) => {
+                  setSelectedPlayer({ id, season });
+                  setSelectedMatchId(null);
+                }}
+                onFanzClick={() => {}}
+              />
+            ) : selectedPlayer ? (
+              <PlayerDetails
+                playerId={selectedPlayer.id}
+                season={selectedPlayer.season}
+                onBack={() => setSelectedPlayer(null)}
+                onTeamClick={(id, season) =>
+                  setSelectedTeam({ id, season })
+                }
+                onLeagueClick={(id, season) =>
+                  setSelectedLeague({ id, season })
+                }
+              />
+            ) : selectedTeam ? (
+              <TeamDetails
+                teamId={selectedTeam.id}
+                season={selectedTeam.season || 2026}
+                onBack={() => setSelectedTeam(null)}
+                onMatchClick={(matchId) => {
+                  setSelectedMatchId(matchId);
+                  setSelectedMatchTab("summary");
+                }}
+                onTeamClick={(id, season) => {
+                  setSelectedTeam({ id, season });
+                }}
+                onPlayerClick={(id, season) => {
+                  setSelectedPlayer({ id, season });
+                }}
+                onLeagueClick={(id, season) => {
+                  setSelectedLeague({ id, season });
+                }}
+                profile={null}
+              />
+            ) : selectedLeague ? (
+              <LeagueDetails
+                leagueId={selectedLeague.id}
+                season={selectedLeague.season}
+                onBack={() => setSelectedLeague(null)}
+                onMatchClick={(matchId, tab) => {
+                  setSelectedMatchId(matchId);
+                  setSelectedMatchTab(tab || "summary");
+                }}
+                onTeamClick={(id, season) => {
+                  setSelectedTeam({ id, season });
+                }}
+                onPlayerClick={(id, season) => {
+                  setSelectedPlayer({ id, season });
+                }}
+                profile={null}
+              />
+            ) : (
+              <MatchesPage
+                profile={null}
+                onMatchClick={(id, tab = "summary") => {
+                  setSelectedMatchId(id);
+                  setSelectedMatchTab(tab);
+                }}
+                onJoinDuel={() => {
+                  setGuestView("landing");
+                  setTimeout(() => {
+                    const btn = document.getElementById("landing-connect-button");
+                    if (btn) btn.click();
+                  }, 50);
+                }}
+                onTeamClick={(id, season) =>
+                  setSelectedTeam({ id, season })
+                }
+                onLeagueClick={(id, season) =>
+                  setSelectedLeague({ id, season })
+                }
+              />
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    return (
+      <LandingPage 
+        onShowLiveScores={() => setGuestView("matches")} 
+        onMatchSelect={(matchId) => {
+          setSelectedMatchId(matchId);
+          setSelectedMatchTab("summary");
+          setGuestView("matches");
+        }}
+      />
+    );
   }
 
   if (user && !profile) {
@@ -1240,7 +1467,7 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      <Layout containerClassName="md:flex-row">
+      <Layout containerClassName="md:flex-row md:justify-center">
         <GlobalSocketListener
           onDuelStarting={(duelId, duelData) => {
             if (!isDuelActive) {
@@ -1575,7 +1802,12 @@ function AppContent() {
           </aside>
         )}
 
-        <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 bg-black/40">
+        <div
+          className={cn(
+            "flex-1 flex flex-col overflow-hidden relative min-h-0 bg-black/40",
+            view !== "admin" && "md:flex-none md:w-[600px] md:max-w-[600px]"
+          )}
+        >
           {view === "home" ? (
             <Home
               profile={profile}
@@ -1625,7 +1857,7 @@ function AppContent() {
               className={cn(
                 "flex-1 flex flex-col overflow-hidden relative min-h-0 w-full shadow-2xl bg-[#0a0a0a]",
                 view !== "admin" &&
-                  "max-w-3xl mx-auto lg:border-x border-white/5",
+                  "max-w-[600px] mx-auto lg:border-x border-white/5",
               )}
             >
               {profile && view !== "duel" && !isDuelActive && (
@@ -1669,6 +1901,7 @@ function AppContent() {
                   }}
                   unreadSocialCount={unreadSocialCount}
                   hasClaimableFervorAlert={claimableAlerts.globalFervor}
+                  wide={view === "admin"}
                 />
               )}
 
@@ -1689,6 +1922,7 @@ function AppContent() {
                       "shop",
                       "favorite-teams",
                       "transactions",
+                      "stats",
                     ].includes(view as string) &&
                     "px-4 md:px-6 pt-4",
                   (selectedFanzId ||
@@ -1705,6 +1939,7 @@ function AppContent() {
                       "shop",
                       "favorite-teams",
                       "transactions",
+                      "stats",
                     ].includes(view as string)) &&
                     "px-0",
                 )}

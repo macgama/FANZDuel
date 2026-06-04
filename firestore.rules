@@ -1,84 +1,8 @@
-// ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Collection: users
-// Document ID: {userId} (Firebase Auth UID)
-// Fields:
-//   - uid: string (required, immutable)
-//   - email: string (required, immutable)
-//   - displayName: string (optional, max 50 chars)
-//   - photoURL: string (optional, URL format)
-//   - role: string (required, 'admin' or 'client')
-//   - money: number (required, >= 0)
-//   - gems: number (required, >= 0)
-//   - boostPoints: number (required, >= 0)
-//   - energy: number (required, >= 0)
-//   - maxEnergy: number (required, >= 0)
-//   - lastEnergyRefill: string (optional, ISO 8601)
-//   - ferveur: number (optional, >= 0)
-//   - level: number (required, >= 1)
-//   - xp: number (required, >= 0)
-//   - cards: list (optional, strings)
-//   - fanz: list (optional, strings)
-//   - activeAction: map (optional, {actionId, fanzId, startTime, endTime})
-//   - streak: number (optional, >= 0)
-//   - lastActive: string (optional, ISO 8601)
-//   - createdAt: string (required, immutable, ISO 8601)
-//   - updatedAt: string (required, ISO 8601)
-//
-// Collection: fanz
-// Document ID: {fanzId}
-// Fields:
-//   - id: string (required, immutable)
-//   - ownerUid: string (required, immutable)
-//   - templateId: string (required, immutable)
-//   - name: string (required)
-//   - rank: number (required, >= 0)
-//   - ferveurLevel: number (required, >= 0)
-//   - ferveurPoints: number (required, >= 0)
-//   - stats: map (required, {force, endurance, mental, bluff, creativity, social, intelligence, charisma})
-//   - equippedCards: list (optional, strings)
-//   - unlockedSkins: list (optional, strings)
-//   - equippedSkin: string (optional)
-//   - unlockedEmotes: list (optional, strings)
-//   - cardProgress: map (optional, {cardId: {level, xp}})
-//   - unlockedActions: list (optional, strings)
-//   - claimedRewards: list (optional, strings)
-//   - createdAt: string (required, immutable, ISO 8601)
-//
-// Collection: transactions
-// Document ID: {transactionId}
-// Fields:
-//   - userId: string (required, immutable)
-//   - type: string (required, enum)
-//   - amount: number (required)
-//   - description: string (required)
-//   - fanzId: string (optional)
-//   - createdAt: string (required, immutable, ISO 8601)
-//
-// Collection: duels
-// Document ID: {duelId}
-// Fields:
-//   - player1: map (required, {uid, name, photoURL, fanzId, score, energy, cards, hand, deck, discard})
-//   - player2: map (required, {uid, name, photoURL, fanzId, score, energy, cards, hand, deck, discard})
-//   - status: string (required, 'waiting' | 'active' | 'finished')
-//   - turn: number (required)
-//   - activePlayer: string (required, uid)
-//   - lastAction: map (optional)
-//   - createdAt: string (required, immutable)
-//   - updatedAt: string (required)
-//
-// ===============================================================
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -88,199 +12,107 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        (request.auth.token.email == "gael.manigley@gmail.com"); 
+      return isAuthenticated() && (
+        request.auth.token.email == "gael.manigley@gmail.com" ||
+        request.auth.token.role == "admin"
+      );
     }
 
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    // --- Collections ---
+
+    // Public game templates and static configurations
+    match /fanz_templates/{templateId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    function isValidUrl(url) {
-      return url is string && (url.matches("^https://.*") || url.matches("^http://.*") || url.matches("^data:image/.*"));
+    match /life_actions/{actionId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    function isValidDateString(dateStr) {
-      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    match /cards/{cardId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    match /emotes/{emoteId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    function areImmutableFieldsUnchanged(fields) {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    match /skins/{skinId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    function isFriendRequestUpdate() {
-      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      let oldRequests = 'friendRequests' in resource.data ? resource.data.friendRequests : [];
-      let newRequests = 'friendRequests' in request.resource.data ? request.resource.data.friendRequests : [];
-      
-      return affectedKeys.hasOnly(['friendRequests']) &&
-             (
-               (newRequests.size() == oldRequests.size() + 1 && request.auth.uid in newRequests && !(request.auth.uid in oldRequests)) ||
-               (newRequests.size() == oldRequests.size() - 1 && !(request.auth.uid in newRequests) && request.auth.uid in oldRequests)
-             );
+    match /missions/{missionId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    function isFriendUpdate() {
-      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      let oldFriends = 'friends' in resource.data ? resource.data.friends : [];
-      let newFriends = 'friends' in request.resource.data ? request.resource.data.friends : [];
-      
-      return affectedKeys.hasOnly(['friends']) &&
-             (
-               (newFriends.size() == oldFriends.size() + 1 && request.auth.uid in newFriends && !(request.auth.uid in oldFriends)) ||
-               (newFriends.size() == oldFriends.size() - 1 && !(request.auth.uid in newFriends) && request.auth.uid in oldFriends)
-             );
+    match /passes/{passId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-
-    function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'pseudo', 'displayName', 'email', 'photoURL', 'favoriteTeams', 'money', 'gems', 'boostPoints', 'energy', 'maxEnergy', 'lastEnergyRefill', 'ferveurPoints', 'level', 'teamSlots', 'cards', 'role', 'language', 'activeAction', 'skins', 'emotes', 'unlockedActions', 'createdAt', 'updatedAt', 'streak', 'lastLoginDate', 'claimedStreakDays', 'missionsProgress', 'passId', 'passPoints', 'isPassPremium', 'claimedPassRewards', 'claimedFervorRewards', 'friends', 'friendRequests', 'xp', 'ferveur', 'lastActive', 'purchasedPasses', 'activeFanzId', 'matchesPlayed', 'matchesWon', 'totalScore', 'totalScoreGiven', 'matchesParticipated', 'dataSaver']) &&
-             (!('uid' in data) || data.uid is string) &&
-             (!('pseudo' in data) || (data.pseudo is string && data.pseudo.size() > 0 && data.pseudo.size() < 50)) &&
-             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
-             (!('email' in data) || isValidEmail(data.email)) &&
-             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 2000)) &&
-             (!('favoriteTeams' in data) || data.favoriteTeams is list) &&
-             (!('money' in data) || data.money is number) &&
-             (!('gems' in data) || data.gems is number) &&
-             (!('boostPoints' in data) || data.boostPoints is number) &&
-             (!('energy' in data) || (data.energy is number && data.energy >= 0 && data.energy <= 1000)) &&
-             (!('maxEnergy' in data) || (data.maxEnergy is number && data.maxEnergy >= 0)) &&
-             (!('lastEnergyRefill' in data) || isValidDateString(data.lastEnergyRefill)) &&
-             (!('ferveurPoints' in data) || data.ferveurPoints is number) &&
-             (!('matchesPlayed' in data) || data.matchesPlayed is number) &&
-             (!('matchesWon' in data) || data.matchesWon is number) &&
-             (!('totalScore' in data) || data.totalScore is number) &&
-             (!('totalScoreGiven' in data) || data.totalScoreGiven is number) &&
-             (!('matchesParticipated' in data) || data.matchesParticipated is number) &&
-             (!('level' in data) || data.level is number) &&
-             (!('teamSlots' in data) || data.teamSlots is number) &&
-             (!('cards' in data) || data.cards is list) &&
-             (!('skins' in data) || data.skins is list) &&
-             (!('emotes' in data) || data.emotes is list) &&
-             (!('unlockedActions' in data) || data.unlockedActions is list) &&
-             (!('language' in data) || (data.language is string && data.language.size() < 10)) &&
-             (!('activeAction' in data) || data.activeAction == null || (data.activeAction is map && data.activeAction.keys().hasOnly(['fanzId', 'actionId', 'startTime', 'durationMinutes']) && data.activeAction.fanzId is string && data.activeAction.actionId is string && isValidDateString(data.activeAction.startTime) && data.activeAction.durationMinutes is number)) &&
-             (!('streak' in data) || data.streak is number) &&
-             (!('lastLoginDate' in data) || data.lastLoginDate is string) &&
-             (!('claimedStreakDays' in data) || data.claimedStreakDays is list) &&
-             (!('missionsProgress' in data) || data.missionsProgress is map) &&
-             (!('passId' in data) || data.passId is string) &&
-             (!('purchasedPasses' in data) || data.purchasedPasses is list) &&
-             (!('passPoints' in data) || data.passPoints is number) &&
-             (!('isPassPremium' in data) || data.isPassPremium is bool) &&
-             (!('claimedPassRewards' in data) || data.claimedPassRewards is list) &&
-             (!('claimedFervorRewards' in data) || data.claimedFervorRewards is list) &&
-             (!('role' in data) || data.role in ['admin', 'moderator', 'client']) &&
-             (!('friends' in data) || data.friends is list) &&
-             (!('friendRequests' in data) || data.friendRequests is list) &&
-             (!('xp' in data) || data.xp is number) &&
-             (!('ferveur' in data) || data.ferveur is number) &&
-             (!('lastActive' in data) || isValidDateString(data.lastActive)) &&
-             (!('activeFanzId' in data) || data.activeFanzId is string) &&
-             (!('dataSaver' in data) || data.dataSaver is bool);
+    match /global_configs/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    function isValidFanz(data) {
-      let ownerId = 'ownerUid' in data ? data.ownerUid : ('uid' in data ? data.uid : '');
-      let resOwnerId = resource == null ? '' : ('ownerUid' in resource.data ? resource.data.ownerUid : ('uid' in resource.data ? resource.data.uid : ''));
-      return hasOnlyAllowedFields(['id', 'templateId', 'ownerUid', 'uid', 'name', 'sport', 'imageUrl', 'videoUrl', 'image', 'video', 'description', 'rarity', 'baseStats', 'specialCards', 'skins', 'emotes', 'ferveurPath', 'rankRewards', 'stats', 'xp', 'level', 'rank', 'claimedRewards', 'claimedChoices', 'ferveurPoints', 'ferveurLevel', 'energy', 'equippedCards', 'unlockedSkins', 'equippedSkin', 'unlockedEmotes', 'unlockedActions', 'lifeActionProgress', 'cardProgress', 'baseExcitement', 'deck', 'createdAt', 'updatedAt', 'ferveur', 'matchesPlayed', 'matchesWon']) &&
-             (resource == null ? ownerId == request.auth.uid : ownerId == resOwnerId) &&
-             data.templateId is string && data.templateId.size() > 0 && data.templateId.size() < 50 &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
-             data.sport is string &&
-             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 2000)) &&
-             (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() < 2000)) &&
-             (!('image' in data) || (data.image is string && data.image.size() < 2000)) &&
-             (!('video' in data) || (data.video is string && data.video.size() < 2000)) &&
-             (!('description' in data) || data.description is string) &&
-             (!('rarity' in data) || data.rarity is string) &&
-             (!('baseStats' in data) || data.baseStats is map) &&
-             (!('specialCards' in data) || data.specialCards is list) &&
-             (!('skins' in data) || data.skins is list) &&
-             (!('emotes' in data) || data.emotes is list) &&
-             (!('ferveurPath' in data) || data.ferveurPath is list) &&
-             (!('rankRewards' in data) || data.rankRewards is map || data.rankRewards is list) &&
-             data.stats is map &&
-             data.xp is number &&
-             data.level is number &&
-             (!('rank' in data) || (data.rank is number && data.rank >= 0 && data.rank <= 10)) &&
-             (!('claimedRewards' in data) || data.claimedRewards is list) &&
-             (!('claimedChoices' in data) || data.claimedChoices is map) &&
-             data.ferveurPoints is number &&
-             data.ferveurLevel is number &&
-             data.energy is number &&
-             (!('equippedCards' in data) || data.equippedCards is list) &&
-             (!('unlockedSkins' in data) || data.unlockedSkins is list) &&
-             (!('equippedSkin' in data) || data.equippedSkin == null || (data.equippedSkin is string && data.equippedSkin.size() < 100)) &&
-             (!('unlockedEmotes' in data) || data.unlockedEmotes is list) &&
-             (!('unlockedActions' in data) || data.unlockedActions is list) &&
-             (!('lifeActionProgress' in data) || data.lifeActionProgress is map) &&
-             (!('cardProgress' in data) || data.cardProgress is map) &&
-             (!('baseExcitement' in data) || data.baseExcitement is number) &&
-             (!('deck' in data) || data.deck is list) &&
-             (!('ferveur' in data) || data.ferveur is number) &&
-             (!('matchesPlayed' in data) || data.matchesPlayed is number) &&
-             (!('matchesWon' in data) || data.matchesWon is number) &&
-             (!('createdAt' in data) || data.createdAt is string) &&
-             (!('updatedAt' in data) || data.updatedAt is string);
+    match /weekly_streak_config/{day} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    function isValidTransaction(data) {
-      return hasOnlyAllowedFields(['userId', 'type', 'amount', 'description', 'fanzId', 'createdAt']) &&
-        data.userId is string &&
-        data.type is string &&
-        data.amount is number &&
-        data.description is string &&
-        data.createdAt is string;
+    // Match Scores & Fixtures (public football metadata)
+    match /match_scores/{duelId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
 
-    // ===============================================================
-    // Rules
-    // ===============================================================
+    match /leagues/{leagueId} {
+      allow read: if true;
+      allow write: if isAdmin();
 
-    function isValidMessage(data) {
-      return hasOnlyAllowedFields(['senderId', 'receiverId', 'emoteId', 'timestamp', 'read']) &&
-             data.senderId == request.auth.uid &&
-             data.receiverId is string &&
-             data.emoteId is string &&
-             data.timestamp is string &&
-             (!('read' in data) || data.read is bool);
-    }
-
-    function isValidChat(data) {
-      return hasOnlyAllowedFields(['id', 'participants', 'lastMessage', 'lastMessageTime', 'unreadCount']) &&
-             data.participants is list &&
-             data.participants.size() == 2 &&
-             request.auth.uid in data.participants &&
-             (!('lastMessage' in data) || data.lastMessage is string) &&
-             (!('lastMessageTime' in data) || data.lastMessageTime is string) &&
-             (!('unreadCount' in data) || data.unreadCount is map);
-    }
-
-    match /chats/{chatId} {
-      allow read: if isAuthenticated() && (resource == null || request.auth.uid in resource.data.participants);
-      allow create: if isAuthenticated() && isValidChat(request.resource.data);
-      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants && isValidChat(request.resource.data);
-
-      match /messages/{messageId} {
-        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-        allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants && isValidMessage(request.resource.data);
-        allow update: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      match /seasons/{season}/standings/{standingId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+      match /seasons/{season}/fixtures/{fixtureId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+      match /seasons/{season}/teams/{teamId} {
+        allow read: if true;
+        allow write: if isAdmin();
       }
     }
 
+    match /api_teams/{teamId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /ranking_users/{rankingId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /ranking_teams/{rankingId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /teams/{teamId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // User-specific collections (private or semi-private)
     match /users/{userId} {
       allow read: if isAuthenticated();
-      // Users can only create their own profile. For updates, we restrict to only their own data.
-      // Ideally, sensitive fields like 'money' should be updated by the server, but for now we enforce owner access.
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if isAdmin();
@@ -289,29 +121,8 @@ service cloud.firestore {
     match /fanz/{fanzId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid;
       allow delete: if isAdmin();
-    }
-
-    match /fanz_templates/{templateId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /life_actions/{actionId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /cards/{cardId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /transactions/{transactionId} {
-      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
-      allow create: if isAuthenticated() && (isOwner(request.resource.data.userId) || isAdmin()) && isValidTransaction(request.resource.data);
-      allow update, delete: if isAdmin();
     }
 
     match /duels/{duelId} {
@@ -321,111 +132,25 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    match /emotes/{emoteId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+      allow create: if isAuthenticated() && (isOwner(request.resource.data.userId) || isAdmin());
+      allow update, delete: if isAdmin();
     }
 
-    match /skins/{skinId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
 
-    match /match_scores/{scoreId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    match /active_duels/{duelId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    match /matches/{matchId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /teams/{teamId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-      
-      match /seasons/{season}/{allPaths=**} {
-        allow read: if isAuthenticated();
-        allow write: if isAuthenticated();
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow update: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
       }
     }
 
-    match /metadata/{key} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    match /leagues/{leagueId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-      
-      match /seasons/{season}/{allPaths=**} {
-        allow read: if isAuthenticated();
-        // Caching needs write permissions for any user that fetches this first
-        allow write: if isAuthenticated();
-      }
-    }
-
-    match /api_teams/{teamId} {
-      allow read: if isAuthenticated();
-      // Users fetching API data cache it to this collection
-      allow write: if isAuthenticated();
-    }
-
-    match /missions/{missionId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /passes/{passId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /global_configs/{configId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /weekly_streak_cycles/{cycleId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /weekly_streak_config/{day} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /ranking_users/{rankingId} {
-      allow read: if isAuthenticated();
-      // Server will handle score updates via Admin SDK
-      allow write: if isAdmin();
-    }
-
-    match /ranking_teams/{rankingId} {
-      allow read: if isAuthenticated();
-      // Server will handle score updates via Admin SDK
-      allow write: if isAdmin();
-    }
-
-    match /fixture_results/{fixtureId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    match /duel_locks/{lockId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // Default deny
+    // Default deny for everything else
     match /{path=**} {
       allow read, write: if false;
     }

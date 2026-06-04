@@ -122,8 +122,12 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           const contentType = res.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             const data = await res.json();
-          // filter out duels where the user is already a participant
-          setActiveDuels(data.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)));
+            // filter out duels where the user is already a participant
+            if (user) {
+              setActiveDuels(data.filter((d: any) => !d.participants.find((p: any) => p.uid === user.uid)));
+            } else {
+              setActiveDuels(data);
+            }
           }
         }
       } catch (err: any) {
@@ -135,7 +139,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
     fetchActiveDuels();
     const interval = setInterval(fetchActiveDuels, 5000);
     return () => clearInterval(interval);
-  }, [fixtureId, user.uid]);
+  }, [fixtureId, user?.uid]);
 
   const isLiveStatusRef = React.useRef<boolean>(false);
 

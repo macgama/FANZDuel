@@ -1,8 +1,6 @@
 {
-  "firestore": [
-    {
-      "database": "fanz-database-pro",
-      "rules": "firestore.rules"
-    }
-  ]
+  "firestore": {
+    "database": "fanz-database-pro",
+    "rules": "firestore.rules"
+  }
 }

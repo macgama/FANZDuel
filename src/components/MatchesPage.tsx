@@ -127,13 +127,12 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   }, []);
 
   const filteredFixtures = useMemo(() => {
-    if (!leaguesLoaded) return [];
-    
     const favoriteIds = profile?.favoriteTeams?.map(id => id.toString()) || [];
     
     return fixtures.filter(f => {
-      // Only show matches from active leagues
-      if (!activeLeagueIds.includes(f.league.id)) {
+      // Only show matches from active leagues if there are active leagues defined.
+      // Otherwise, show all to avoid an empty screen.
+      if (activeLeagueIds.length > 0 && !activeLeagueIds.includes(f.league.id)) {
         return false;
       }
 

@@ -593,6 +593,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const botEnergyRef = useRef<Record<string, number>>({});
   const [matchDetails, setMatchDetails] = useState<any>(null);
   const previousMatchDetailsRef = useRef<any>(null);
+  const clicksCountRef = useRef(0);
+  const cardsPlayedCountRef = useRef(0);
+  const emotesSentCountRef = useRef(0);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // Persistence: Store/Clear current duel
@@ -1629,13 +1632,30 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               ferveurPoints: newUserPoints,
               level: newUserLevel,
               totalScore: increment(myScore),
-              matchesPlayed: increment(1)
+              matchesPlayed: increment(1),
+              duel_count: increment(1)
             };
+            if (clicksCountRef.current > 0) {
+              updates.clicks_count = increment(clicksCountRef.current);
+            }
+            if (cardsPlayedCountRef.current > 0) {
+              updates.cards_played_count = increment(cardsPlayedCountRef.current);
+            }
+            if (emotesSentCountRef.current > 0) {
+              updates.emotes_sent_count = increment(emotesSentCountRef.current);
+            }
+            if (duelType) {
+              updates[`duels_${duelType}_count`] = increment(1);
+              if (isWin) {
+                updates[`duels_${duelType}_win_count`] = increment(1);
+              }
+            }
             if ((userData.antiMalusMatches || 0) > 0) {
               updates.antiMalusMatches = increment(-1);
             }
             if (isWin) {
               updates.matchesWon = increment(1);
+              updates.win_count = increment(1);
             }
             if (ferveurGainGeneral > 0) {
               try {
@@ -2234,6 +2254,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const handleAction = (e: React.MouseEvent) => {
     if (winner || isButtonHidden || isButtonFrozen || isStunned) return;
     
+    clicksCountRef.current += 1;
+    
     if (isBlind && Math.random() < 0.5) {
       addFloatingEffect('💨 Raté ! Aveuglé par la Citrouille !', e.clientX, e.clientY - 20, 'text-orange-500 font-extrabold scale-110 animate-pulse');
       audioManager.playCardSelect?.();
@@ -2318,6 +2340,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     }
     
     if (winner || status !== 'active' || excitement < actualCost || isCardLocked || isStunned) return;
+
+    cardsPlayedCountRef.current += 1;
 
     // Save snapshot of state for potential "VAR Temporelle" rewind
     saveSnapshot(hand, excitement);
@@ -3253,6 +3277,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                         setShowEmotes(false);
                         const myTeam = participants.find(p => p.uid === user.uid)?.team || 'A';
                         socket?.emit('send-emote', { duelId: currentDuelIdRef.current, team: myTeam, emoteId: emote.id, senderId: user.uid });
+                        emotesSentCountRef.current += 1;
                         // Show locally
                         const id = Math.random().toString(36).substring(7);
                         const x = `${40 + Math.random() * 20}%`;

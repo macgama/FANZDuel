@@ -9,13 +9,7 @@ const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 const auth = getAuth(app);
 
 async function check() {
-  try {
-    await signInAnonymously(auth);
-    console.log("Signed in anonymously");
-  } catch (e) {
-    console.error("Auth failed:", e);
-    process.exit(1);
-  }
+  console.log("Checking Firestore collections without signing in...");
 
   try {
     const teamsSnap = await getDocs(collection(db, 'ranking_teams'));

@@ -27,24 +27,6 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
   const [ownedTemplateIds, setOwnedTemplateIds] = useState<string[]>([]);
   const [ownedSkinIds, setOwnedSkinIds] = useState<string[]>([]);
 
-  // Teleport the Google Translate widget inside this modal's mount lifetime
-  useEffect(() => {
-    const translateEl = document.getElementById('google_translate_element');
-    const container = document.getElementById('google-translate-profile-container');
-    
-    if (translateEl && container) {
-      translateEl.classList.add('in-profile-modal');
-      container.appendChild(translateEl);
-    }
-    
-    return () => {
-      if (translateEl) {
-        translateEl.classList.remove('in-profile-modal');
-        document.body.appendChild(translateEl);
-      }
-    };
-  }, []);
-
   useEffect(() => {
     if (!profile.uid) return;
 

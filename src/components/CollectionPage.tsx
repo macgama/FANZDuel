@@ -117,10 +117,16 @@ export function CollectionPage({ user }: CollectionPageProps) {
           defeatVideoUrl: t.defeatVideoUrl,
           isActive: t.isActive
         };
-        const otherSkins = (t.skins || []).map(s => ({...s, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${s.id}`}));
+        if (t.isActive === false) {
+          return [baseSkin];
+        }
+        const otherSkins = (t.skins || []).filter(s => s.isActive !== false).map(s => ({...s, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${s.id}`}));
         return [baseSkin, ...otherSkins];
       });
-      const allEmotes = templates.flatMap(t => (t.emotes || []).filter(e => e.category !== 'event' || e.isActive !== false).map(e => ({...e, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${e.id}`})));
+      const allEmotes = templates.flatMap(t => {
+        if (t.isActive === false) return [];
+        return (t.emotes || []).filter(e => e.isActive !== false).map(e => ({...e, fanzId: t.id, fanzName: t.name, uniqueId: `${t.id}-${e.id}`}));
+      });
       setSkins(allSkins);
       setEmotes(allEmotes);
       
@@ -139,8 +145,12 @@ export function CollectionPage({ user }: CollectionPageProps) {
       for (const fanzId of card.fanzIds) {
         const fanz = fanzTemplates.find(f => f.id === fanzId);
         const skin = fanz?.skins?.find(s => s.id === card.skinId);
-        if (skin && skin.isActive === false) return true;
+        if (!skin || skin.isActive === false) return true;
       }
+    }
+    if (card.skinId && card.skinId !== '000') {
+      const exists = skins.some(s => (s.id === card.skinId || s.uniqueId === card.skinId) && s.isActive !== false);
+      if (!exists) return true;
     }
     if (card.fanzIds && card.fanzIds.length > 0) {
       const allFanzInactive = card.fanzIds.every(fanzId => {
@@ -156,16 +166,26 @@ export function CollectionPage({ user }: CollectionPageProps) {
     if (action.isActive === false) return true;
     if (action.fanzTemplateId) {
       const fanz = fanzTemplates.find(f => f.id === action.fanzTemplateId);
-      if (fanz && fanz.isActive === false) return true;
+      if (!fanz || fanz.isActive === false) return true;
       if (action.associatedSkinId && action.associatedSkinId !== '000') {
         const skin = fanz?.skins?.find(s => s.id === action.associatedSkinId);
-        if (skin && skin.isActive === false) return true;
+        if (!skin || skin.isActive === false) return true;
       }
     }
     if (action.skinId && action.fanzTemplateId) {
       const fanz = fanzTemplates.find(f => f.id === action.fanzTemplateId);
       const skin = fanz?.skins?.find(s => s.id === action.skinId);
-      if (skin && skin.isActive === false) return true;
+      if (!skin || skin.isActive === false) return true;
+    }
+    
+    // Also, if any specific skin is defined, verify it exists and is active in our calculated skins list
+    if (action.associatedSkinId && action.associatedSkinId !== '000') {
+      const exists = skins.some(s => (s.id === action.associatedSkinId || s.uniqueId === action.associatedSkinId) && s.isActive !== false);
+      if (!exists) return true;
+    }
+    if (action.skinId && action.skinId !== '000') {
+      const exists = skins.some(s => (s.id === action.skinId || s.uniqueId === action.skinId) && s.isActive !== false);
+      if (!exists) return true;
     }
     return false;
   };
@@ -239,39 +259,78 @@ export function CollectionPage({ user }: CollectionPageProps) {
   };
 
   const expandedActions = actions.flatMap(action => {
-    if (action.skinOverrides && Object.keys(action.skinOverrides).length > 0 && action.fanzTemplateId) {
-      const items = [{
-        ...action,
-        uniqueItemKey: action.id + '-000',
-        associatedSkinId: '000',
-        fanzSkinName: fanzTemplates.find(f => f.id === action.fanzTemplateId)?.name || action.fanzTemplateId
-      }];
-      Object.keys(action.skinOverrides).forEach(skinId => {
-        const skinOverride = action.skinOverrides![skinId];
-        const skinName = fanzTemplates.find(f => f.id === action.fanzTemplateId)?.skins?.find(s => s.id === skinId)?.name || skinId;
-        items.push({
+    if (action.fanzTemplateId) {
+      const fanz = fanzTemplates.find(f => f.id === action.fanzTemplateId);
+      if (!fanz || fanz.isActive === false) {
+        return [];
+      }
+
+      if (action.skinOverrides && Object.keys(action.skinOverrides).length > 0) {
+        const items = [{
           ...action,
-          uniqueItemKey: action.id + '-' + skinId,
-          associatedSkinId: skinId,
-          fanzSkinName: skinName,
-          image: skinOverride.image || action.image,
-          videoUrl: skinOverride.videoUrl || action.videoUrl
+          uniqueItemKey: action.id + '-000',
+          associatedSkinId: '000',
+          fanzSkinName: fanz.name
+        }];
+        Object.keys(action.skinOverrides).forEach(skinId => {
+          const skinObj = fanz.skins?.find(s => s.id === skinId);
+          if (!skinObj || skinObj.isActive === false) return;
+
+          const skinOverride = action.skinOverrides![skinId];
+          items.push({
+            ...action,
+            uniqueItemKey: action.id + '-' + skinId,
+            associatedSkinId: skinId,
+            fanzSkinName: skinObj.name || skinId,
+            image: skinOverride.image || action.image,
+            videoUrl: skinOverride.videoUrl || action.videoUrl
+          });
         });
-      });
-      return items;
+        return items;
+      }
+
+      if (action.skinId && action.skinId !== '000') {
+        const skinObj = fanz.skins?.find(s => s.id === action.skinId);
+        if (!skinObj || skinObj.isActive === false) return [];
+        return [{
+          ...action,
+          uniqueItemKey: action.id,
+          associatedSkinId: action.skinId,
+          fanzSkinName: skinObj.name
+        }];
+      }
+
+      return [{
+        ...action,
+        uniqueItemKey: action.id,
+        associatedSkinId: '000',
+        fanzSkinName: fanz.name
+      }];
     }
+
     return [{
       ...action,
       uniqueItemKey: action.id,
-      associatedSkinId: action.skinId,
-      fanzSkinName: action.fanzTemplateId ? (fanzTemplates.find(f => f.id === action.fanzTemplateId)?.name || action.fanzTemplateId) : ''
+      associatedSkinId: action.skinId || '000',
+      fanzSkinName: ''
     }];
+  });
+
+  const filteredCards = cards.filter(c => {
+    if (c.fanzIds && c.fanzIds.length > 0) {
+      const hasActiveFanz = c.fanzIds.some(fanzId => {
+        const fanz = fanzTemplates.find(f => f.id === fanzId);
+        return fanz && fanz.isActive !== false;
+      });
+      if (!hasActiveFanz) return false;
+    }
+    return true;
   });
 
   const validOwnedTemplates = fanzTemplates.filter(t => ownedTemplates.has(t.id)).length;
   const validOwnedSkins = skins.filter(checkSkinOwned).length;
   const validOwnedEmotes = emotes.filter(checkEmoteOwned).length;
-  const validOwnedCards = cards.filter(checkCardOwned).length;
+  const validOwnedCards = filteredCards.filter(checkCardOwned).length;
   
   const validOwnedExpandedActions = expandedActions.filter(checkActionOwned).length;
 
@@ -279,7 +338,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
     { id: 'fanz', label: 'FANZ', count: validOwnedTemplates + '/' + fanzTemplates.length },
     { id: 'skins', label: 'Skins', count: validOwnedSkins + '/' + skins.length },
     { id: 'emotes', label: 'Emotes', count: validOwnedEmotes + '/' + emotes.length },
-    { id: 'cards', label: 'Cartes', count: validOwnedCards + '/' + cards.length },
+    { id: 'cards', label: 'Cartes', count: validOwnedCards + '/' + filteredCards.length },
     { id: 'actions', label: 'Actions', count: validOwnedExpandedActions + '/' + expandedActions.length },
   ];
 
@@ -491,7 +550,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
 
         {activeTab === 'cards' && (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
-            {[...cards]
+            {[...filteredCards]
               .filter(c => {
                 if (filterCollectionFanz === 'all') return true;
                 if (filterCollectionFanz === 'generic') return (!c.fanzIds || c.fanzIds.length === 0);

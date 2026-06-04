@@ -188,7 +188,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
         exit={{ opacity: 0 }}
         onClick={handleGlobalClick}
         className={cn(
-          "fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden select-none",
+          "fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] border-x border-white/5 z-[100] flex items-center justify-center p-4 overflow-hidden select-none",
           ['money', 'gems', 'boost', 'energy', 'xp', 'emote', 'action', 'card', 'skin'].includes(reward.type) && isRevealed ? "bg-black/80" : "bg-black/95 backdrop-blur-xl"
         )}
       >
@@ -250,7 +250,7 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
               animate={isAnimating ? { scale: [1, 1.2, 0.9, 1.1], rotate: [0, 5, -5, 0] } : { scale: [1, 1.05, 1] }}
               transition={isAnimating ? { duration: 0.3 } : { repeat: Infinity, duration: 2, ease: "easeInOut" }}
               onClick={(e) => { e.stopPropagation(); handleRevealClick(); }}
-              className="fixed inset-0 z-[110] flex items-center justify-center cursor-pointer overflow-hidden bg-black"
+              className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] border-x border-white/5 z-[110] flex items-center justify-center cursor-pointer overflow-hidden bg-black"
             >
               <img 
                 src={getRewardImage()} 

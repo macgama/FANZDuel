@@ -8,18 +8,15 @@
 
 html, body, #root {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 
 body {
-  @apply bg-[#0a0a0a] text-white;
+  @apply bg-[#0a0a0a] text-white overflow-x-hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  position: fixed;
-  inset: 0;
 }
 
 ::selection {
@@ -87,17 +84,25 @@ select option {
   z-index: 9999 !important;
 }
 
-#google_translate_element.in-profile-modal {
+#google_translate_element.in-profile-modal,
+#google_translate_element.in-landing-page,
+#google_translate_element.in-guest-header,
+#google-translate-profile-container #google_translate_element,
+#google-translate-landing-container #google_translate_element {
   position: static !important;
   left: auto !important;
   top: auto !important;
   opacity: 1 !important;
   pointer-events: auto !important;
   display: block !important;
-  width: 100% !important;
+  width: auto !important;
 }
 
-#google_translate_element.in-profile-modal .goog-te-gadget-simple {
+#google_translate_element.in-profile-modal .goog-te-gadget-simple,
+#google_translate_element.in-landing-page .goog-te-gadget-simple,
+#google_translate_element.in-guest-header .goog-te-gadget-simple,
+#google-translate-profile-container #google_translate_element .goog-te-gadget-simple,
+#google-translate-landing-container #google_translate_element .goog-te-gadget-simple {
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -108,11 +113,29 @@ select option {
   align-items: center !important;
 }
 
-#google_translate_element.in-profile-modal .goog-te-menu-value {
+#google_translate_element.in-profile-modal .goog-te-menu-value,
+#google_translate_element.in-landing-page .goog-te-menu-value,
+#google_translate_element.in-guest-header .goog-te-menu-value,
+#google-translate-profile-container #google_translate_element .goog-te-menu-value,
+#google-translate-landing-container #google_translate_element .goog-te-menu-value {
   width: 100% !important;
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
+}
+
+/* Force all internal text elements of simple widget to be pure white and bold */
+.goog-te-gadget-simple,
+.goog-te-gadget-simple *,
+.goog-te-menu-value,
+.goog-te-menu-value *,
+#google_translate_element *,
+#google-translate-profile-container * {
+  color: #ffffff !important;
+  font-family: var(--font-sans), sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
 }
 
 /* Style the widget container */
@@ -123,7 +146,6 @@ select option {
   border-radius: 9999px !important; /* Pill style */
   padding: 4px 10px !important;
   font-family: inherit !important;
-  color: #f4f4f5 !important; /* zinc-100 */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -131,6 +153,21 @@ select option {
   cursor: pointer !important;
   line-height: 1.2 !important;
   height: auto !important;
+}
+
+/* Interactivity on profile translation container block */
+#google-translate-profile-container {
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+#google-translate-profile-container:hover {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+#google-translate-profile-container:focus-within,
+#google-translate-profile-container:active {
+  border-color: #f97316 !important; /* Glow orange */
+  background-color: rgba(249, 115, 22, 0.04) !important;
 }
 
 /* Hide all standard Google branding/logos/icons inside the simple bar */
@@ -143,29 +180,24 @@ select option {
 /* Add a discrete custom translation icon / globe icon */
 .goog-te-gadget-simple::before {
   content: "🌐" !important;
-  font-size: 11px !important;
-  margin-right: 2px !important;
+  font-size: 14px !important;
+  margin-right: 4px !important;
   display: inline-block !important;
 }
 
 /* Style the language select text */
 .goog-te-menu-value {
-  color: #e4e4e7 !important; /* zinc-200 */
-  font-size: 10px !important;
-  font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
   display: inline-flex !important;
   align-items: center !important;
   margin: 0 !important;
-  text-decoration: none !important;
 }
 
 /* Hide Google's vertical dividers & indicator triangles */
 .goog-te-menu-value span {
   border: none !important;
   padding: 0 !important;
-  color: #e4e4e7 !important;
 }
 
 .goog-te-menu-value span:nth-child(3) {
@@ -181,19 +213,26 @@ select option {
   content: "▼" !important;
   font-size: 7px !important;
   color: #a1a1aa !important; /* zinc-400 */
-  margin-left: 5px !important;
+  margin-left: 6px !important;
   opacity: 0.8 !important;
 }
 
-/* Disable Google Translate native frame shift & clean body top offset */
-body {
-  top: 0px !important;
-  position: static !important;
+/* Handle placement offsets elegantly when Google Translate is active */
+html.translated-ltr header.fixed,
+html.translated-ltr header.sticky,
+html.translated-ltr .sticky.top-0,
+html.translated-ltr .fixed.top-0,
+html.translated-rtl header.fixed,
+html.translated-rtl header.sticky,
+html.translated-rtl .sticky.top-0,
+html.translated-rtl .fixed.top-0 {
+  top: 40px !important;
 }
 
-/* Absolute complete hiding of standard translate widgets & banner frames */
+/* Absolute complete hiding of standard translate widgets & banner frames if any, but clean when shown */
 iframe.goog-te-banner-frame,
 .goog-te-banner-frame,
+.goog-te-banner,
 #goog-gt-tt,
 .goog-te-balloon-frame {
   display: none !important;
@@ -208,12 +247,40 @@ iframe.goog-te-banner-frame,
   border: none !important;
 }
 
-/* If Google's translation frame is opened, style the menu inside as dark is hard due to iframes */
+/* Style the Google Translate floating iframe menu list */
+iframe.goog-te-menu-frame,
 .goog-te-menu-frame {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 12px !important;
-  background-color: #18181b !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid rgba(249, 115, 22, 0.4) !important; /* Glowing orange accent border */
+  border-radius: 14px !important;
+  background-color: #0c0c0e !important;
+  
+  /* Apply visual composite filter inversion to the frame */
+  /* This turns standard bright white background into elegant midnight black, */
+  /* and maps the generic blue options of Google Translate directly to brand-complementary orange/gold */
+  filter: invert(0.92) contrast(1.1) brightness(1.2) !important;
+  
+  transition: opacity 0.2s ease-in-out !important;
+}
+
+@media (max-width: 768px) {
+  iframe.goog-te-menu-frame,
+  .goog-te-menu-frame {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important; /* Center properly on viewport */
+    width: 90% !important;
+    max-width: 400px !important;
+    height: 70% !important;
+    max-height: 500px !important;
+    z-index: 99999999 !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95) !important;
+    border: 2px solid rgba(249, 115, 22, 0.6) !important;
+    border-radius: 18px !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important; /* Silky momentum scroll */
+  }
 }
 
 

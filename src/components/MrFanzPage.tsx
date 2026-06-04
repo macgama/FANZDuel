@@ -97,7 +97,7 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Guide Content */}
-      <div className="px-4 py-4 sm:py-6 space-y-4 sm:space-y-8 max-w-3xl mx-auto w-full">
+      <div className="px-4 py-4 sm:py-6 space-y-4 sm:space-y-8 max-w-[600px] mx-auto w-full">
         {sections.map((section, idx) => (
           <motion.div
             key={section.id}

@@ -43,6 +43,7 @@ interface HeaderProps {
   variant?: "home" | "subpage";
   unreadSocialCount?: number;
   hasClaimableFervorAlert?: boolean;
+  wide?: boolean;
 }
 
 export function Header({
@@ -56,6 +57,7 @@ export function Header({
   variant = "home",
   unreadSocialCount = 0,
   hasClaimableFervorAlert,
+  wide = false,
 }: HeaderProps) {
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>("");
   const [countdownInfiniteEnergy, setCountdownInfiniteEnergy] =
@@ -188,7 +190,7 @@ export function Header({
             : "relative bg-[#0a0a0a]/95 backdrop-blur-xl",
         )}
       >
-        <div className="w-full max-w-3xl mx-auto flex items-start justify-between px-4 md:px-6 py-4">
+        <div className={cn("w-full mx-auto flex items-start justify-between px-4 md:px-6 py-4", wide ? "max-w-none" : "max-w-[600px]")}>
           {/* Left: Avatar & Level OR Back Button */}
           {variant === "subpage" ? (
             <button

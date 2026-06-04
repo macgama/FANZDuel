@@ -22,6 +22,15 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const { showAlert } = useAlert();
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
+  const [showAccelerateConfirm, setShowAccelerateConfirm] = useState(false);
+
+  useEffect(() => {
+    if (!userProfile.activeAction || userProfile.activeAction.actionId !== action.id || userProfile.activeAction.fanzId !== fanz.id) {
+      setShowAbandonConfirm(false);
+      setShowAccelerateConfirm(false);
+    }
+  }, [userProfile.activeAction, action.id, fanz.id]);
 
   let resolvedImage = action.image;
   let resolvedVideoUrl = action.videoUrl;
@@ -108,11 +117,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       const now = new Date().getTime();
       const remaining = Math.max(0, endTime - now);
       
-      if (remaining === 0) {
-        handleCompleteAction();
-      } else {
-        setTimeLeft(remaining);
-      }
+      setTimeLeft(remaining);
     };
 
     calculateTimeLeft();
@@ -180,106 +185,6 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       });
     } catch (error) {
       console.error("Erreur lors de l'annulation:", error);
-    }
-  };
-
-  const handleCompleteAction = async () => {
-    if (!isThisActionActive) return;
-    try {
-      const userRef = doc(db, 'users', userProfile.uid);
-      const fanzRef = doc(db, 'fanz', fanz.id);
-
-      const unlockedActions = userProfile.unlockedActions || [];
-      const skinSpecificActionId = action.id + '-' + (fanz.equippedSkin || '000');
-      let newUnlockedActions = [...unlockedActions];
-      if (!newUnlockedActions.includes(skinSpecificActionId)) {
-        newUnlockedActions.push(skinSpecificActionId);
-      }
-      if (!fanz.equippedSkin || fanz.equippedSkin === '000') {
-        if (!newUnlockedActions.includes(action.id)) {
-          newUnlockedActions.push(action.id);
-        }
-      }
-
-      // Update User
-      await updateDoc(userRef, {
-        energy: Math.min(100, userProfile.energy + gainEnergy),
-        money: userProfile.money + gainMoney,
-        gems: (userProfile.gems || 0) + gainGems,
-        boostPoints: (userProfile.boostPoints || 0) + gainBoost,
-        activeAction: deleteField(),
-        unlockedActions: newUnlockedActions
-      });
-
-      if (gainEnergy > 0) await logTransaction(userProfile.uid, 'energy', gainEnergy, `Fin action: ${action.name}`);
-      if (gainMoney > 0) await logTransaction(userProfile.uid, 'money', gainMoney, `Fin action: ${action.name}`);
-      if (gainGems > 0) await logTransaction(userProfile.uid, 'gems', gainGems, `Fin action: ${action.name}`);
-      if (gainBoost > 0) await logTransaction(userProfile.uid, 'boost', gainBoost, `Fin action: ${action.name}`);
-
-      await progressMission(userProfile, 'life_action', 1);
-
-      // Update Fanz
-      const newActionXp = actionProgress.xp + 10; // Fixed XP per action for leveling up the action itself
-      let newActionLevel = actionProgress.level;
-      const hasLeveledUp = newActionXp >= newActionLevel * 50;
-      if (hasLeveledUp) {
-        newActionLevel += 1;
-      }
-
-      const newFanzStats = { ...fanz.stats };
-      const xpMultiplier = isXpBoostActive ? 2 : 1;
-      if (action.targetStat) {
-        newFanzStats[action.targetStat] += gainXp * xpMultiplier;
-      }
-      if (action.xpGains) {
-        Object.entries(action.xpGains).forEach(([stat, gain]) => {
-          if (gain) {
-            const statKey = stat as keyof FanzStats;
-            newFanzStats[statKey] += Math.floor(gain * scaleFactor * xpMultiplier);
-          }
-        });
-      }
-
-      await updateDoc(fanzRef, {
-        stats: newFanzStats,
-        [`lifeActionProgress.${action.id}`]: {
-          level: newActionLevel,
-          xp: newActionXp
-        }
-      });
-
-      // Show Alert
-      const rewards: Reward[] = [];
-      if (gainEnergy > 0) rewards.push({ type: 'energy', amount: gainEnergy, label: 'Énergie' });
-      if (gainMoney > 0) rewards.push({ type: 'money', amount: gainMoney, label: 'Argent' });
-      if (gainGems > 0) rewards.push({ type: 'gems', amount: gainGems, label: 'Gemmes' });
-      if (gainBoost > 0) rewards.push({ type: 'boost', amount: gainBoost, label: 'Boost' });
-      
-      if (action.targetStat && gainXp > 0) {
-        const xpAmount = gainXp * (isXpBoostActive ? 2 : 1);
-        rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${action.targetStat}${isXpBoostActive ? ' (x2)' : ''}`, stat: action.targetStat });
-      }
-      
-      if (action.xpGains) {
-        Object.entries(action.xpGains).forEach(([stat, gain]) => {
-          if (gain) {
-            const xpAmount = Math.floor(gain * scaleFactor * (isXpBoostActive ? 2 : 1));
-            rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${stat}${isXpBoostActive ? ' (x2)' : ''}`, stat });
-          }
-        });
-      }
-
-      showAlert({
-        title: action.name,
-        subtitle: hasLeveledUp ? `Niveau ${newActionLevel} débloqué !` : "Activité terminée !",
-        videoUrl: resolvedVideoUrl,
-        imageUrl: resolvedImage,
-        rewards,
-        type: hasLeveledUp ? 'level-up' : 'success'
-      });
-
-    } catch (error) {
-      console.error("Erreur lors de la complétion:", error);
     }
   };
 
@@ -403,23 +308,91 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
         </div>
 
-        <div className="absolute inset-0 bg-orange-900/10 animate-pulse z-0"></div>
-        <div className="relative z-10 p-5 flex flex-col h-full justify-between">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex-1 pr-2">
+        <div className="absolute inset-0 bg-orange-900/10 animate-pulse z-0 hidden" />
+        
+        {/* Abandon Confirmation Overlay */}
+        {showAbandonConfirm && (
+          <div className="absolute inset-0 bg-neutral-950/95 backdrop-blur-md z-30 flex flex-col justify-center items-center p-6 text-center transition-all duration-300">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mb-3 text-red-500 shadow-lg shadow-red-500/10 shrink-0">
+              <Trash2 className="w-5 h-5 animate-bounce" />
+            </div>
+            <h5 className="text-base font-black italic uppercase tracking-tighter text-white mb-2">Abandonner l'activité ?</h5>
+            <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide leading-relaxed max-w-[280px] mb-5">
+              Tu vas perdre toute ta progression sur cette action et les ressources dépensées ne seront pas remboursées.
+            </p>
+            <div className="flex flex-col gap-2 w-full max-w-[240px]">
+              <button
+                onClick={handleCancelAction}
+                className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider transition-colors shadow-lg shadow-red-600/20"
+              >
+                Confirmer l'abandon
+              </button>
+              <button
+                onClick={() => setShowAbandonConfirm(false)}
+                className="w-full py-2.5 rounded-xl border border-white/10 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 font-bold text-xs uppercase tracking-wider transition-colors"
+              >
+                Retour
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Accelerate/Finish Confirmation Overlay */}
+        {showAccelerateConfirm && (
+          <div className="absolute inset-0 bg-neutral-950/95 backdrop-blur-md z-30 flex flex-col justify-center items-center p-6 text-center transition-all duration-300">
+            <div className="w-12 h-12 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center mb-3 text-orange-500 shadow-lg shadow-orange-500/10 shrink-0">
+              <FastForward className="w-5 h-5 animate-bounce" />
+            </div>
+            <h5 className="text-base font-black italic uppercase tracking-tighter text-white mb-2">Utiliser 1 jeton ?</h5>
+            <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide leading-relaxed max-w-[280px] mb-5">
+              Dépenser 1 jeton (Gemme) pour terminer instantanément l'activité "{action.name}" et empocher tout le butin ?
+            </p>
+            <div className="flex flex-col gap-2 w-full max-w-[240px]">
+              <button
+                onClick={() => {
+                  setShowAccelerateConfirm(false);
+                  handleAccelerate();
+                }}
+                className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs uppercase tracking-wider transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-1.5"
+              >
+                <img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> Confirmer (1 gemme)
+              </button>
+              <button
+                onClick={() => setShowAccelerateConfirm(false)}
+                className="w-full py-2.5 rounded-xl border border-white/10 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 font-bold text-xs uppercase tracking-wider transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="relative z-10 p-5 flex flex-col h-full justify-between items-center text-center w-full">
+          <div className="flex flex-col items-center w-full mb-4 mt-2">
+            {/* Timer circle perfectly centered at the top */}
+            <div className="w-16 h-16 rounded-full border-2 border-orange-500 flex items-center justify-center bg-black/85 backdrop-blur-md shadow-[0_0_15px_rgba(249,115,22,0.4)] shrink-0 mb-3.5">
+              <span className="font-black text-white text-xs tracking-wider">
+                {timeLeft !== null ? formatTime(timeLeft) : '...'}
+              </span>
+            </div>
+
+            <div className="w-full">
               <div className="text-orange-500 font-bold text-[10px] tracking-widest uppercase mb-1 drop-shadow-md">Activité en cours</div>
-              <h4 className="text-xl font-black text-white uppercase tracking-tighter drop-shadow-md leading-tight">{action.name}</h4>
-              <div className="flex items-center gap-1 text-orange-500 mb-1 drop-shadow-md">
+              <h4 className="text-xl font-black text-white uppercase tracking-tighter drop-shadow-md leading-tight mb-1.5">{action.name}</h4>
+              
+              <div className="flex items-center justify-center gap-1 text-orange-500 mb-3 drop-shadow-md">
                 <Star className="w-3 h-3 fill-current" />
-                <span className="font-black text-[10px] uppercase">Niveau {currentLevel}</span>
+                <span className="font-black text-[10.5px] uppercase">Niveau {currentLevel}</span>
                 {currentLevel > 1 && (
                   <span className="font-black text-[9px] text-green-400 uppercase bg-black/50 px-1.5 py-0.5 rounded ml-1 border border-green-500/30">
                     +{Math.round((scaleFactor - 1) * 100)}% Bonus
                   </span>
                 )}
               </div>
-              <div className="w-full sm:w-32 bg-black/80 rounded-lg p-1 border border-white/10 shadow-lg">
-                <div className="text-[10px] text-blue-400 font-black uppercase text-center mb-0.5 tracking-widest leading-none">XP Action</div>
+
+              {/* XP Action bar centered */}
+              <div className="w-full max-w-[160px] bg-black/80 rounded-lg p-1.5 border border-white/10 shadow-lg mx-auto">
+                <div className="text-[9px] text-blue-400 font-black uppercase text-center mb-1 tracking-widest leading-none">XP Action</div>
                 <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative" title={`${(actionProgress.xp || 0) % 50} / 50 XP`}>
                   <div 
                     className="h-full bg-blue-500 transition-all duration-300"
@@ -428,14 +401,9 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
                 </div>
               </div>
             </div>
-            <div className="w-14 h-14 rounded-full border-2 border-orange-500 flex items-center justify-center bg-black/80 backdrop-blur-md shadow-[0_0_15px_rgba(249,115,22,0.3)] shrink-0">
-              <span className="font-black text-white text-[10px] tracking-widest">
-                {timeLeft !== null ? formatTime(timeLeft) : '...'}
-              </span>
-            </div>
           </div>
 
-          <div>
+          <div className="w-full">
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 mb-3 border border-white/10 text-center">
               <div className="text-xs font-black text-blue-400/80 uppercase tracking-widest mb-3">Butin prévu</div>
               <div className="flex flex-wrap items-center justify-center gap-4 text-xs sm:text-sm">
@@ -474,16 +442,16 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
 
             <div className="flex gap-3">
               <button 
-                onClick={handleCancelAction}
+                onClick={() => setShowAbandonConfirm(true)}
                 className="flex-1 py-3 rounded-xl border border-white/10 bg-black/60 backdrop-blur-md text-blue-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <Trash2 className="w-4 h-4" /> Abandon
               </button>
               <button 
-                onClick={handleAccelerate}
+                onClick={() => setShowAccelerateConfirm(true)}
                 className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
               >
-                <FastForward className="w-4 h-4 fill-current" /> Finir (1 TOK)
+                <FastForward className="w-4 h-4 fill-current" /> Finir (1 GEM)
               </button>
             </div>
           </div>

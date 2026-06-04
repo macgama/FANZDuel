@@ -457,7 +457,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
   };
 
   return (
-    <div className="h-full w-full max-w-3xl mx-auto bg-transparent relative overflow-hidden flex flex-col font-sans text-white border-x border-white/5 shadow-2xl">
+    <div className="h-full w-full max-w-[600px] mx-auto bg-transparent relative overflow-hidden flex flex-col font-sans text-white border-x border-white/5 shadow-2xl">
       
       {/* HEADER */}
       <Header 
@@ -672,96 +672,97 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
               onShowAllClick={() => onNavigate('matches')}
             />
           ) : (
-            <div className="relative w-full pb-4">
-              <button 
-                onClick={() => scroll(scrollContainerRef, 'left')}
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
+            (() => {
+              const isActionInProgress = !!(activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id);
+              return (
+                <div className="relative w-full pb-4">
+                  {!isActionInProgress && (
+                    <button 
+                      onClick={() => scroll(scrollContainerRef, 'left')}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  )}
 
-              <div 
-                ref={scrollContainerRef}
-                className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
-              >
-                <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
-                  {activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id ? (
-                    lifeActions
-                      .filter(action => action.id === profile.activeAction?.actionId)
-                      .map(action => (
-                        <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
-                          <LifeActionCard 
-                            action={action} 
-                            fanz={activeFanz} 
-                            userProfile={profile} 
-                            fanzTemplate={fanzTemplate}
-                          />
+                  <div 
+                    ref={scrollContainerRef}
+                    className={isActionInProgress 
+                      ? "w-full flex justify-center px-4" 
+                      : "w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
+                    }
+                  >
+                    <div className={isActionInProgress 
+                      ? "w-full flex justify-center py-2" 
+                      : "flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch"
+                    }>
+                      {activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id ? (
+                        lifeActions
+                          .filter(action => action.id === profile.activeAction?.actionId)
+                          .map(action => (
+                            <div key={action.id} className="w-full max-w-[500px] shrink-0">
+                              <LifeActionCard 
+                                action={action} 
+                                fanz={activeFanz} 
+                                userProfile={profile} 
+                                fanzTemplate={fanzTemplate}
+                              />
+                            </div>
+                          ))
+                      ) : activeFanz && fanzTemplate && !profile.activeAction ? (
+                        (() => {
+                          const equippedSkinData = activeFanz.equippedSkin ? fanzTemplate.skins?.find((s: any) => s.id === activeFanz.equippedSkin) : null;
+                          return lifeActions
+                            .filter(action => {
+                              const isTemplateMatch = action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId;
+                              const isSkinMatch = !action.skinId || action.skinId === activeFanz.equippedSkin;
+                              const isSpecialAction = action.id === equippedSkinData?.specialActionId;
+                              return (isTemplateMatch && isSkinMatch) || isSpecialAction;
+                            })
+                            .reduce((acc, action) => {
+                              const existingIdx = acc.findIndex(a => a.name === action.name);
+                              if (existingIdx !== -1) {
+                                if (action.skinId && !acc[existingIdx].skinId) {
+                                  acc[existingIdx] = action;
+                                }
+                              } else {
+                                acc.push(action);
+                              }
+                              return acc;
+                            }, [] as LifeAction[])
+                            .map(action => (
+                              <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
+                                <LifeActionCard 
+                                  action={action} 
+                                  fanz={activeFanz} 
+                                  userProfile={profile} 
+                                  fanzTemplate={fanzTemplate}
+                                />
+                              </div>
+                            ));
+                        })()
+                      ) : (
+                        <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-[30px]">
+                          Aucun match en direct et aucun FANZ actif
                         </div>
-                      ))
-                  ) : activeFanz && fanzTemplate && !profile.activeAction ? (
-                    (() => {
-                      const equippedSkinData = activeFanz.equippedSkin ? fanzTemplate.skins?.find((s: any) => s.id === activeFanz.equippedSkin) : null;
-                      return lifeActions
-                        .filter(action => {
-                          const isTemplateMatch = action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId;
-                          const isSkinMatch = !action.skinId || action.skinId === activeFanz.equippedSkin;
-                          const isSpecialAction = action.id === equippedSkinData?.specialActionId;
-                          return (isTemplateMatch && isSkinMatch) || isSpecialAction;
-                        })
-                        .reduce((acc, action) => {
-                          const existingIdx = acc.findIndex(a => a.name === action.name);
-                          if (existingIdx !== -1) {
-                            if (action.skinId && !acc[existingIdx].skinId) {
-                              acc[existingIdx] = action;
-                            }
-                          } else {
-                            acc.push(action);
-                          }
-                          return acc;
-                        }, [] as LifeAction[])
-                        .map(action => (
-                          <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
-                            <LifeActionCard 
-                              action={action} 
-                              fanz={activeFanz} 
-                              userProfile={profile} 
-                              fanzTemplate={fanzTemplate}
-                            />
-                          </div>
-                        ));
-                    })()
-                  ) : (
-                    <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-[30px]">
-                      Aucun match en direct et aucun FANZ actif
+                      )}
                     </div>
+                  </div>
+                  
+                  {!isActionInProgress && (
+                    <button 
+                      onClick={() => scroll(scrollContainerRef, 'right')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
                   )}
                 </div>
-              </div>
-              
-              {/* Right Scroll Button */}
-              <button 
-                onClick={() => scroll(scrollContainerRef, 'right')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
+              );
+            })()
           )}
 
-          {/* Buy me a ball after live slider / actions */}
-          <div className="px-[30px] shrink-0">
-            <a 
-              href="https://buymeacoffee.com/thebestfanonline" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full relative group overflow-hidden rounded-2xl flex items-center justify-center p-0.5"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 rounded-2xl animate-spin-slow opacity-70 group-hover:opacity-100 transition-opacity" style={{ animationDuration: '3s' }} />
-              <div className="relative w-full bg-[#111] backdrop-blur-md px-4 py-3 rounded-2xl flex items-center justify-center gap-3 transition-transform duration-300 group-hover:scale-[0.98]">
-                <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a ball&emoji=⚽&slug=fanz.sports&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a ball" className="h-10" />
-              </div>
-            </a>
-          </div>
+
 
         {/* HUB COUPE DU MONDE 2026 */}
         <div className="py-2 shrink-0 relative">

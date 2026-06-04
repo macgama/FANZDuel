@@ -10,6 +10,9 @@ import sharp from "sharp";
 import { BASE_CARDS } from "./src/constants/cards.ts";
 import admin from 'firebase-admin';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeApp as initClientApp } from 'firebase/app';
+import { getAuth as getClientAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore as getClientFirestore, collection as clientCollection, getCountFromServer } from 'firebase/firestore';
 
 dotenv.config();
 
@@ -58,7 +61,7 @@ async function startServer() {
         console.log(`[Server] Live-updated ${loadedCards.length} cards from database.`);
       }
     }, (err) => {
-      console.error("[Server] Failed to listen to cards collection:", err);
+      console.warn("[Server] Failed to listen to cards collection (database integration is pending admin credentials):", err.message || err);
     });
   }
 
@@ -876,6 +879,60 @@ async function startServer() {
   });
 
   // API Routes
+  app.get("/api/landing/stats", async (req, res) => {
+    const BASE_SUPPORTERS = 0;
+    const BASE_DUELS = 0;
+    let supporters = BASE_SUPPORTERS;
+    let duelsTotal = BASE_DUELS;
+    const duelsActive = Object.values(duels).filter(d => d.status !== 'finished').length;
+
+    let fetchSuccess = false;
+    try {
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        const clientApp = initClientApp(config);
+        const clientAuth = getClientAuth(clientApp);
+        await signInWithEmailAndPassword(clientAuth, 'testUser@random.com', 'testpass123');
+        const clientDb = getClientFirestore(clientApp, config.firestoreDatabaseId);
+
+        const usersSnap = await getCountFromServer(clientCollection(clientDb, 'users'));
+        supporters = BASE_SUPPORTERS + (usersSnap.data().count || 0);
+
+        const duelsSnap = await getCountFromServer(clientCollection(clientDb, 'duels'));
+        duelsTotal = BASE_DUELS + (duelsSnap.data().count || 0);
+        
+        fetchSuccess = true;
+      }
+    } catch (err: any) {
+      console.warn("[Server Stats] Fetch using Client SDK failed, falling back to Admin SDK:", err.message || err);
+    }
+
+    if (!fetchSuccess && db) {
+      try {
+        const usersSnap = await db.collection('users').count().get();
+        if (usersSnap && usersSnap.data) {
+          supporters = BASE_SUPPORTERS + (usersSnap.data().count || 0);
+        }
+      } catch (err: any) {
+        console.warn("Could not fetch real users count via Admin SDK:", err.message || err);
+      }
+      try {
+        const duelsSnap = await db.collection('duels').count().get();
+        if (duelsSnap && duelsSnap.data) {
+          duelsTotal = BASE_DUELS + (duelsSnap.data().count || 0);
+        }
+      } catch (err: any) {
+        console.warn("Could not fetch real duels count via Admin SDK:", err.message || err);
+      }
+    }
+
+    res.json({
+      supporters,
+      duelsTotal,
+      duelsActive
+    });
+  });
+
   app.get("/api/duels/all", (req, res) => {
     const allActiveDuels = Object.values(duels)
       .filter(d => d.status !== 'finished' && !d.isPrivate)

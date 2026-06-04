@@ -85,7 +85,7 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
           Wallet
         </h1>
       </div>
-      <div className="p-4 max-w-3xl mx-auto">
+      <div className="p-4 max-w-[600px] mx-auto">
         {/* Filters */}
         <div className="w-full pb-4">
           <div className="flex items-center justify-between bg-white/5 p-1 sm:p-1.5 rounded-xl border border-white/10 w-full">
