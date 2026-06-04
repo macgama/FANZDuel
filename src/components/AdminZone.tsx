@@ -4,7 +4,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where, getDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
 import { Card, Button } from './Layout';
 import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle, DuelConfig, FanzSkin, PassLevel } from '../types';
-import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog, List, LayoutGrid, ChevronUp, ChevronDown, Copy } from 'lucide-react';
+import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog, List, LayoutGrid, ChevronUp, ChevronDown, Copy, Megaphone } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { generateFervorPath } from '../utils/fervorPath';
 import { RewardSelector } from './RewardSelector';
@@ -20,10 +20,15 @@ import { LOGOS } from '../constants';
 import { footballDataService } from '../services/footballDataService';
 
 export function AdminZone() {
-  const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig' | 'shop'>('football');
+  const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig' | 'shop' | 'alerts'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
   const [confirmRecalculate, setConfirmRecalculate] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+
+  // Commercial Alerts state
+  const [commercialAlerts, setCommercialAlerts] = useState<any[]>([]);
+  const [editingAlert, setEditingAlert] = useState<any | null>(null);
+  const [showCreateAlertModal, setShowCreateAlertModal] = useState(false);
   
   // Duel Config state
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
@@ -184,6 +189,114 @@ export function AdminZone() {
   const [editingPass, setEditingPass] = useState<Pass | null>(null);
   const [shopConfig, setShopConfig] = useState<any | null>(null);
 
+  // Commercial Alerts core functions
+  const fetchCommercialAlerts = async () => {
+    setLoading(true);
+    setStatus({ type: 'loading', message: 'Chargement des alertes...' });
+    try {
+      const q = query(collection(db, 'commercial_alerts'), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const alerts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setCommercialAlerts(alerts);
+      setStatus(null);
+    } catch (err) {
+      console.error("Error fetching commercial alerts", err);
+      setStatus({ type: 'error', message: `Erreur lors de la récupération des alertes: ${err instanceof Error ? err.message : String(err)}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAlert = async (alertData: any) => {
+    setLoading(true);
+    setStatus({ type: 'loading', message: 'Enregistrement de l\'alerte...' });
+    try {
+      const alertId = alertData.id || `alert-${Date.now()}`;
+      const alertRef = doc(db, 'commercial_alerts', alertId);
+      
+      const sanitized = {
+        id: alertId,
+        type: alertData.type || 'general',
+        title: alertData.title || '',
+        message: alertData.message || '',
+        itemId: alertData.itemId || '',
+        fanzId: alertData.fanzId || '',
+        imageUrl: alertData.imageUrl || '',
+        createdAt: alertData.createdAt || new Date().toISOString(),
+        isActive: alertData.isActive !== false
+      };
+      
+      await setDoc(alertRef, sanitized);
+      setStatus({ type: 'success', message: 'Alerte commerciale enregistrée avec succès !' });
+      setEditingAlert(null);
+      setShowCreateAlertModal(false);
+      fetchCommercialAlerts();
+    } catch (err) {
+      console.error("Error saving alert", err);
+      setStatus({ type: 'error', message: `Erreur sauvegarde: ${err instanceof Error ? err.message : String(err)}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAlert = async (alertId: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette alerte ?")) return;
+    setLoading(true);
+    setStatus({ type: 'loading', message: 'Suppression...' });
+    try {
+      await deleteDoc(doc(db, 'commercial_alerts', alertId));
+      setStatus({ type: 'success', message: 'Alerte supprimée avec succès.' });
+      fetchCommercialAlerts();
+    } catch (err) {
+      console.error("Error deleting alert", err);
+      setStatus({ type: 'error', message: `Erreur suppression: ${err instanceof Error ? err.message : String(err)}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleAlertActive = async (alert: any) => {
+    setLoading(true);
+    try {
+      const alertRef = doc(db, 'commercial_alerts', alert.id);
+      await setDoc(alertRef, { ...alert, isActive: !alert.isActive });
+      setStatus({ type: 'success', message: `Alerte ${!alert.isActive ? 'activée' : 'désactivée'} !` });
+      fetchCommercialAlerts();
+    } catch (err) {
+      console.error("Error toggling active state of alert", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fast trigger configuration helper from contextual item
+  const handleTriggerQuickAlert = (type: 'fanz' | 'skin' | 'emote', item: any, parentFanz?: any) => {
+    const title = type === 'fanz' ? `🔥 NOUVEAU FANZ : ${item.name} !` : type === 'skin' ? `🎭 NOUVEAU SKIN : ${item.name} !` : `💬 NOUVEL EMOTE : ${item.name} !`;
+    let message = '';
+    let categoryText = '';
+    if (type === 'fanz') {
+      categoryText = item.rarity ? `de rareté ${item.rarity.toUpperCase()}` : '';
+      message = `Découvrez notre tout nouveau FANZ ${item.name} ${categoryText} ! Rejoignez le Kop et battez-vous pour la victoire !`;
+    } else {
+      categoryText = parentFanz ? `pour ${parentFanz.name}` : '';
+      message = `Un tout nouveau ${type === 'skin' ? 'skin' : 'emote'} "${item.name}" ${categoryText} vient d'être activé ! Personnalisez votre style dans les duels dès maintenant !`;
+    }
+
+    setEditingAlert({
+      id: `alert-${Date.now()}`,
+      type,
+      title,
+      message,
+      itemId: item.id || '',
+      fanzId: parentFanz?.id || item.fanzId || '',
+      imageUrl: item.image || item.imageUrl || '',
+      createdAt: new Date().toISOString(),
+      isActive: true
+    });
+    setActiveTab('alerts');
+    setShowCreateAlertModal(true);
+  };
+
   const fetchShopConfig = async () => {
     try {
       setStatus({ type: 'loading', message: 'Chargement config de la boutique...' });
@@ -278,6 +391,9 @@ export function AdminZone() {
       fetchDuelConfig();
     } else if (activeTab === 'shop') {
       fetchShopConfig();
+    } else if (activeTab === 'alerts') {
+      fetchCommercialAlerts();
+      if (fanzTemplates.length === 0) fetchFanzTemplates();
     }
   }, [activeTab, activeUserSubTab]); // Added activeUserSubTab to dependencies
 
@@ -2188,6 +2304,23 @@ export function AdminZone() {
         </h1>
         <div className="flex items-center gap-4">
           <Button 
+            onClick={() => handleSaveAlert({
+              id: 'alert-doggy',
+              type: 'nouveau_fanz',
+              title: 'Nouveau FanZ : Doggy 🐶',
+              message: 'Le FanZ fan-011 Doggy est maintenant disponible ! Collectionnez-le dès aujourd\'hui.',
+              fanzId: 'fan-011',
+              createdAt: new Date().toISOString(),
+              isActive: true
+            })}
+            variant="outline"
+            className="flex items-center gap-2 border-orange-500 text-orange-500 hover:bg-orange-50"
+            disabled={loading}
+          >
+            Créer Alerte Doggy
+          </Button>
+
+          <Button 
             onClick={() => {
               if (!confirmReset) {
                 setConfirmReset(true);
@@ -2271,11 +2404,17 @@ export function AdminZone() {
         >
           Config DUEL
         </button>
-        <button
+         <button
           className={`pb-2 px-4 font-bold ${activeTab === 'shop' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           onClick={() => setActiveTab('shop')}
         >
           BOUTIQUE 
+        </button>
+        <button
+          className={`pb-2 px-4 font-bold ${activeTab === 'alerts' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          onClick={() => setActiveTab('alerts')}
+        >
+          📢 Alertes
         </button>
       </div>
 
@@ -3594,6 +3733,9 @@ export function AdminZone() {
                             <option value="corne_drakkar">Corne de Brume de Drakkar (Silence Chants & Sorts) [Durée]</option>
                             <option value="steal_object_card">Abordage du Parcage Visiteur (Vole Objet du Deck/Main) [Rien]</option>
                             <option value="parrot_taunt">Perroquet Insolent (Provoc / détournement d'attention) [Durée]</option>
+                            <option value="vol_ballon">Vol de Ballon (Bouton adverse bloqué & attaque annulée) [Durée]</option>
+                            <option value="regard_chien_battu">Regard de Chien Battu (Annule malus + régén. Endurance) [Valeur]</option>
+                            <option value="zoomies_chaos">Les Zoomies du Chaos (Défausse et pioche pour les deux) [Rien]</option>
                           </select>
                         </div>
                         <div className="w-24 space-y-1">
@@ -4627,6 +4769,7 @@ export function AdminZone() {
                     lifeActions={lifeActions} 
                     duelCards={duelCards} 
                     fanzId={editingFanz.id} 
+                    onTriggerQuickAlert={(type, item) => handleTriggerQuickAlert(type, item, editingFanz)}
                   />
                 </div>
 
@@ -4646,6 +4789,7 @@ export function AdminZone() {
                     emotes={editingFanz.emotes || []} 
                     onChange={emotes => setEditingFanz({...editingFanz, emotes})} 
                     fanzId={editingFanz.id} 
+                    onTriggerQuickAlert={(type, item) => handleTriggerQuickAlert(type, item, editingFanz)}
                   />
                 </div>
 
@@ -4930,6 +5074,18 @@ export function AdminZone() {
                                 <Save className="w-4 h-4" />
                               </Button>
                             )}
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-orange-500 hover:text-orange-400 border-orange-500/30 hover:bg-orange-500/10 px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTriggerQuickAlert('fanz', template);
+                              }}
+                              title="Créer Alerte Commerciale"
+                            >
+                              <Megaphone className="w-4 h-4" />
+                            </Button>
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -5336,6 +5492,277 @@ export function AdminZone() {
               </div>
             </div>
           </Card>
+        </div>
+      )}
+
+      {activeTab === 'alerts' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center bg-gray-900 border border-gray-800 p-4 rounded-2xl">
+            <div>
+              <h3 className="text-xl font-bold text-orange-400 flex items-center gap-2">
+                <Megaphone className="w-5 h-5 mr-1" /> Système d'Alertes Commerciales
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">
+                Gérez et éditez les annonces de nouveautés (FANZ, skins et emotes activés) diffusées aux utilisateurs.
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setEditingAlert({
+                  id: `alert-${Date.now()}`,
+                  type: 'general',
+                  title: '✨ Nouvelle Sortie Exclusive !',
+                  message: '',
+                  itemId: '',
+                  fanzId: '',
+                  imageUrl: '',
+                  createdAt: new Date().toISOString(),
+                  isActive: true
+                });
+                setShowCreateAlertModal(true);
+              }}
+              className="bg-orange-500 hover:bg-orange-600 font-bold"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Nouvelle Alerte
+            </Button>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-xl p-6">
+            {commercialAlerts.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <div className="mb-2 text-3xl">📢</div>
+                Aucune alerte commerciale enregistrée pour le moment.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-800 text-gray-400 uppercase tracking-wider text-[10px]">
+                      <th className="py-3 px-4">Statut</th>
+                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Titre & Message</th>
+                      <th className="py-3 px-4">Preview Média</th>
+                      <th className="py-3 px-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commercialAlerts.map(alert => (
+                      <tr key={alert.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
+                        <td className="py-4 px-4">
+                          <button
+                            onClick={() => handleToggleAlertActive(alert)}
+                            className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-full ${
+                              alert.isActive !== false ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                            }`}
+                          >
+                            {alert.isActive !== false ? '● En cours' : '○ Inactif'}
+                          </button>
+                        </td>
+                        <td className="py-4 px-4 font-mono font-black uppercase text-[10px] text-orange-400">
+                          {alert.type}
+                        </td>
+                        <td className="py-4 px-4 max-w-sm">
+                          <div className="font-bold text-white mb-1">{alert.title}</div>
+                          <div className="text-gray-400 text-[11px] leading-relaxed truncate-2-lines line-clamp-2">{alert.message}</div>
+                          <div className="text-[9px] text-gray-600 mt-1">Créée le {new Date(alert.createdAt).toLocaleString('fr-FR')}</div>
+                        </td>
+                        <td className="py-4 px-4">
+                          {alert.imageUrl ? (
+                            <img src={getImageUrl(alert.imageUrl)} alt="Preview" className="w-12 h-12 object-contain bg-black/40 border border-white/10 rounded-lg p-1" referrerPolicy="no-referrer" />
+                          ) : (
+                            <span className="text-gray-600">Aucun média</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex gap-2 justify-center">
+                            <Button 
+                              onClick={() => {
+                                setEditingAlert(alert);
+                                setShowCreateAlertModal(true);
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-400 border-blue-400/20 hover:bg-blue-400/10"
+                            >
+                              Éditer
+                            </Button>
+                            <Button 
+                              onClick={() => handleDeleteAlert(alert.id)}
+                              variant="destructive"
+                              size="sm"
+                            >
+                              Supprimer
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showCreateAlertModal && editingAlert && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="w-full max-w-lg bg-gray-900 border border-gray-800 rounded-3xl p-6 shadow-2xl flex flex-col space-y-4 text-white">
+            <h3 className="text-lg font-bold text-orange-400 flex items-center gap-2">
+              <Megaphone className="w-5 h-5 mr-1" /> {editingAlert.id.includes('alert-') ? 'Créer une alerte commerciale' : 'Modifier l\'alerte'}
+            </h3>
+
+            <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-2">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Type de Nouveauté</label>
+                <select
+                  value={editingAlert.type}
+                  onChange={e => {
+                    const t = e.target.value as any;
+                    setEditingAlert({ ...editingAlert, type: t, itemId: '', fanzId: '' });
+                  }}
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-orange-500"
+                >
+                  <option value="general">Général (Campagne marketing)</option>
+                  <option value="fanz">Nouveau FANZ</option>
+                  <option value="skin">Nouveau SKIN</option>
+                  <option value="emote">Nouvel EMOTE</option>
+                </select>
+              </div>
+
+              {/* Fanz Selector for contextual auto-generation */}
+              {(editingAlert.type === 'fanz' || editingAlert.type === 'skin' || editingAlert.type === 'emote') && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                    {editingAlert.type === 'fanz' ? 'Sélectionner le Fanz Template' : 'Sélectionner le Fanz associé'}
+                  </label>
+                  <select
+                    value={editingAlert.type === 'fanz' ? editingAlert.itemId : editingAlert.fanzId}
+                    onChange={e => {
+                      const selectedId = e.target.value;
+                      const matchedFanz = fanzTemplates.find(f => f.id === selectedId);
+                      
+                      if (editingAlert.type === 'fanz') {
+                        setEditingAlert({
+                          ...editingAlert,
+                          itemId: selectedId,
+                          title: `🔥 NOUVEAU FANZ : ${matchedFanz ? matchedFanz.name : ''} !`,
+                          message: `Découvrez notre tout nouveau FANZ ${matchedFanz ? matchedFanz.name : ''} ! Rejoignez le Kop et battez-vous pour la victoire !`,
+                          imageUrl: matchedFanz ? matchedFanz.image || '' : ''
+                        });
+                      } else {
+                        setEditingAlert({
+                          ...editingAlert,
+                          fanzId: selectedId,
+                          itemId: '' // Reset item choice on parent change
+                        });
+                      }
+                    }}
+                    className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-orange-500"
+                  >
+                    <option value="">-- Choisir un Fanz Template --</option>
+                    {fanzTemplates.map(f => (
+                      <option key={f.id} value={f.id}>{f.name} ({f.rarity})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Select skin or emote from chosen Fanz skins/emotes list */}
+              {(editingAlert.type === 'skin' || editingAlert.type === 'emote') && editingAlert.fanzId && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
+                    {editingAlert.type === 'skin' ? 'Sélectionner le Skin' : 'Sélectionner l\'Emote'}
+                  </label>
+                  <select
+                    value={editingAlert.itemId}
+                    onChange={e => {
+                      const itemId = e.target.value;
+                      const fanz = fanzTemplates.find(f => f.id === editingAlert.fanzId);
+                      const list = editingAlert.type === 'skin' ? (fanz?.skins || []) : (fanz?.emotes || []);
+                      const selectedItem = list.find((i: any) => i.id === itemId);
+
+                      setEditingAlert({
+                        ...editingAlert,
+                        itemId,
+                        title: editingAlert.type === 'skin' ? `🎭 NOUVEAU SKIN : ${selectedItem?.name || ''} !` : `💬 NOUVEL EMOTE : ${selectedItem?.name || ''} !`,
+                        message: `Un tout nouveau ${editingAlert.type === 'skin' ? 'skin' : 'emote'} "${selectedItem?.name || ''}" est désormais activé ! Personnalisez vos duels dès maintenant !`,
+                        imageUrl: selectedItem?.imageUrl || (selectedItem as any)?.image || ''
+                      });
+                    }}
+                    className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-orange-500"
+                  >
+                    <option value="">-- Choisir un item dans la liste --</option>
+                    {((fanzTemplates.find(f => f.id === editingAlert.fanzId))?.[editingAlert.type === 'skin' ? 'skins' : 'emotes'] || []).map((i: any) => (
+                      <option key={i.id} value={i.id}>{i.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Titre de l'Alerte</label>
+                <input
+                  type="text"
+                  value={editingAlert.title}
+                  onChange={e => setEditingAlert({ ...editingAlert, title: e.target.value })}
+                  placeholder="ex: 🔥 Nouveau FANZ : Mbappé !"
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Message d'Annonce</label>
+                <textarea
+                  value={editingAlert.message}
+                  onChange={e => setEditingAlert({ ...editingAlert, message: e.target.value })}
+                  placeholder="Décrivez l'item ou rédigez le pitch commercial..."
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-orange-500 h-24 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Média URL (Image de preview)</label>
+                <input
+                  type="text"
+                  value={editingAlert.imageUrl}
+                  onChange={e => setEditingAlert({ ...editingAlert, imageUrl: e.target.value })}
+                  placeholder="ex: /fanz/custom-image.png"
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 bg-white/5 p-3 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="alertActiveInput"
+                  checked={editingAlert.isActive !== false}
+                  onChange={e => setEditingAlert({ ...editingAlert, isActive: e.target.checked })}
+                  className="w-4 h-4 text-orange-500 accent-orange-500 rounded focus:ring-0 cursor-pointer"
+                />
+                <label htmlFor="alertActiveInput" className="text-sm cursor-pointer select-none font-medium">Activer immédiatement l'annonce</label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-800">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingAlert(null);
+                  setShowCreateAlertModal(false);
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={() => handleSaveAlert(editingAlert)}
+                className="bg-orange-500 hover:bg-orange-600 font-bold"
+                disabled={loading || !editingAlert.title || !editingAlert.message}
+              >
+                Enregistrer l'Alerte
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

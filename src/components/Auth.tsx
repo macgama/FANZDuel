@@ -194,7 +194,11 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           activeFanzId: fanzId,
           photoURL: 'https://thebestfan.online/img/public/fanz/imageFanz001Skin000.png',
           lastEnergyRefill: new Date().toISOString(),
-          role: ((user.email || email) === 'gael.manigley@gmail.com' || (user.email || email) === 'michel@gmail.com' || (user.email || email) === 'elisa@gmail.com' || (user.email || email) === 'caro@gmail.com') ? 'admin' : 'client',
+          role: (() => {
+            const userEmail = (user.email || email || '').toLowerCase().trim();
+            const adminEmails = ['gael.manigley@gmail.com', 'michel@gmail.com', 'elisa@gmail.com', 'caro@gmail.com'];
+            return adminEmails.includes(userEmail) ? 'admin' : 'client';
+          })(),
         });
 
         await logTransaction(user.uid, 'money', INITIAL_USER_DATA.money, 'Cadeau de Bienvenue');

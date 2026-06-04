@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FanzTemplate, FanzSkin, FanzEmote, FerveurLevel, LifeAction, Card as DuelCard, FervorRangeConfig } from '../types';
 import { Button } from './ui/button';
-import { Plus, Trash2, Copy } from 'lucide-react';
+import { Plus, Trash2, Copy, Megaphone } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { RewardSelector } from './RewardSelector';
 
@@ -11,9 +11,10 @@ interface FanzSkinsTableProps {
   lifeActions: LifeAction[];
   duelCards: DuelCard[];
   fanzId: string;
+  onTriggerQuickAlert?: (type: 'skin', item: any) => void;
 }
 
-export const FanzSkinsTable: React.FC<FanzSkinsTableProps> = ({ skins, onChange, lifeActions, duelCards, fanzId }) => {
+export const FanzSkinsTable: React.FC<FanzSkinsTableProps> = ({ skins, onChange, lifeActions, duelCards, fanzId, onTriggerQuickAlert }) => {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const handleSort = (key: string) => {
@@ -108,6 +109,11 @@ export const FanzSkinsTable: React.FC<FanzSkinsTableProps> = ({ skins, onChange,
             <tr key={originalIdx} className="hover:bg-gray-800/50">
               <td className="p-2 border border-gray-800 sticky left-0 z-10 bg-gray-900">
                 <div className="flex gap-1" title={originalIdx.toString()}>
+                  {onTriggerQuickAlert && (
+                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-orange-400 animate-pulse hover:text-orange-300" onClick={() => onTriggerQuickAlert('skin', skin)} title="Créer une alerte commerciale">
+                      <Megaphone className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-blue-400" onClick={() => {
                     const newSkin = { ...skin, id: `${skin.id}-copy-${Date.now()}`, name: `${skin.name} (Copie)` };
                     onChange([...skins.slice(0, originalIdx+1), newSkin, ...skins.slice(originalIdx+1)]);
@@ -244,9 +250,10 @@ interface FanzEmotesTableProps {
   emotes: FanzEmote[];
   onChange: (emotes: FanzEmote[]) => void;
   fanzId: string;
+  onTriggerQuickAlert?: (type: 'emote', item: any) => void;
 }
 
-export const FanzEmotesTable: React.FC<FanzEmotesTableProps> = ({ emotes, onChange, fanzId }) => {
+export const FanzEmotesTable: React.FC<FanzEmotesTableProps> = ({ emotes, onChange, fanzId, onTriggerQuickAlert }) => {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const handleSort = (key: string) => {
@@ -333,6 +340,11 @@ export const FanzEmotesTable: React.FC<FanzEmotesTableProps> = ({ emotes, onChan
             <tr key={originalIdx} className="hover:bg-gray-800/50">
               <td className="p-2 border border-gray-800 sticky left-0 z-10 bg-gray-900">
                 <div className="flex gap-1" title={originalIdx.toString()}>
+                  {onTriggerQuickAlert && (
+                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-orange-400 animate-pulse hover:text-orange-300" onClick={() => onTriggerQuickAlert('emote', emote)} title="Créer une alerte commerciale">
+                      <Megaphone className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-blue-400" onClick={() => {
                     const newEmote = { ...emote, id: `${emote.id}-copy-${Date.now()}`, name: `${emote.name} (Copie)` };
                     onChange([...emotes.slice(0, originalIdx+1), newEmote, ...emotes.slice(originalIdx+1)]);

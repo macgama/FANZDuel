@@ -353,7 +353,10 @@ export type CardEffectType =
   | 'var_temporelle'
   | 'tifo_holographique'
   | 'capo_megaphone'
-  | 'craquage_massif';
+  | 'craquage_massif'
+  | 'vol_ballon'
+  | 'regard_chien_battu'
+  | 'zoomies_chaos';
 
 export interface CardEffect {
   type: CardEffectType;

@@ -816,5 +816,41 @@ export const BASE_CARDS: Card[] = [
     effects: [{ type: 'craquage_massif', duration: 10 }],
     imageUrl: 'https://thebestfan.online/public/images/craquage_massif.png',
     fanzIds: []
+  },
+  {
+    id: 'base_vol_ballon',
+    name: 'Vol de Ballon',
+    type: 'malus',
+    rarity: 'rare',
+    energyCost: 4,
+    fervorValue: 0,
+    description: 'Doggo sprinte sur la pelouse au pire moment et chipe le ballon. La carte adverse ciblée est déstabilisée : elle passe son tour et voit son attaque réduite à 0 pour la prochaine manche.',
+    effects: [{ type: 'vol_ballon', duration: 6 }],
+    imageUrl: 'https://thebestfan.online/public/images/vol_ballon.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_regard_chien_battu',
+    name: 'Regard de Chien Battu',
+    type: 'bonus',
+    rarity: 'epic',
+    energyCost: 3,
+    fervorValue: 0,
+    description: "Doggo s'assoit et fait ses yeux les plus tristes et mignons à l'arbitre. Annule instantanément le dernier malus ou carton reçu par l'une de vos cartes alliées, et redonne un bonus d'Endurance.",
+    effects: [{ type: 'regard_chien_battu', value: 30 }],
+    imageUrl: 'https://thebestfan.online/public/images/regard_chien_battu.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_zoomies_chaos',
+    name: 'Les Zoomies du Chaos',
+    type: 'neutral',
+    rarity: 'epic',
+    energyCost: 5,
+    fervorValue: 0,
+    description: 'Pris d\'un quart d\'heure de folie, Doggo court à 100 km/h aux quatre coins du plateau en aboyant. La panique s\'installe : les deux joueurs doivent immédiatement défausser une carte au hasard de leur main et en piocher une nouvelle.',
+    effects: [{ type: 'zoomies_chaos' }],
+    imageUrl: 'https://thebestfan.online/public/images/zoomies_chaos.png',
+    fanzIds: []
   }
 ];

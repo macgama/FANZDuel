@@ -363,6 +363,23 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["teamId", "season", "leagueId", "totalScore", "matches", "averageScore"]
+    },
+    "CommercialAlert": {
+      "title": "CommercialAlert",
+      "description": "An announcement or commercial alert for new FANZ, SKIN, or EMOTE releases.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["fanz", "skin", "emote", "general"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "itemId": { "type": "string", "description": "The ID of the new Fanz/Skin/Emote if applicable" },
+        "fanzId": { "type": "string", "description": "Associated Fanz ID (for skins/emotes)" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isActive": { "type": "boolean", "default": true }
+      },
+      "required": ["id", "type", "title", "message", "createdAt"]
     }
   },
   "firestore": {
@@ -386,6 +403,7 @@
     "/chats/{chatId}": { "schema": "Chat", "description": "Chat conversations" },
     "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages in a chat" },
     "/ranking_users/{rankingId}": { "schema": "RankingUser", "description": "User rankings per season and league" },
-    "/ranking_teams/{rankingId}": { "schema": "RankingTeam", "description": "Team rankings per season and league" }
+    "/ranking_teams/{rankingId}": { "schema": "RankingTeam", "description": "Team rankings per season and league" },
+    "/commercial_alerts/{alertId}": { "schema": "CommercialAlert", "description": "Commercial announcements for new items" }
   }
 }

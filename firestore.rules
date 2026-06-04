@@ -13,8 +13,20 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == "gael.manigley@gmail.com" ||
-        request.auth.token.role == "admin"
+        ('email' in request.auth.token && (
+          request.auth.token.email == "gael.manigley@gmail.com" ||
+          request.auth.token.email == "Gael.manigley@gmail.com" ||
+          request.auth.token.email == "Gael.Manigley@gmail.com" ||
+          request.auth.token.email == "gael.Manigley@gmail.com" ||
+          request.auth.token.email == "michel@gmail.com" ||
+          request.auth.token.email == "Michel@gmail.com" ||
+          request.auth.token.email == "elisa@gmail.com" ||
+          request.auth.token.email == "Elisa@gmail.com" ||
+          request.auth.token.email == "caro@gmail.com" ||
+          request.auth.token.email == "Caro@gmail.com"
+        )) || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == "admin")
       );
     }
 
@@ -62,6 +74,11 @@ service cloud.firestore {
     }
 
     match /weekly_streak_config/{day} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /commercial_alerts/{alertId} {
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -114,14 +131,34 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      allow update: if (isOwner(userId) && (
+        request.resource.data.get('role', null) == null || 
+        (resource.data != null && resource.data.get('role', null) != null && request.resource.data.role == resource.data.role) ||
+        ((resource.data == null || resource.data.get('role', null) == null) && request.resource.data.role == "client") ||
+        (request.resource.data.role == "admin" && 
+         'email' in request.auth.token && (
+           request.auth.token.email == "gael.manigley@gmail.com" ||
+           request.auth.token.email == "Gael.manigley@gmail.com" ||
+           request.auth.token.email == "Gael.Manigley@gmail.com" ||
+           request.auth.token.email == "gael.Manigley@gmail.com" ||
+           request.auth.token.email == "michel@gmail.com" ||
+           request.auth.token.email == "Michel@gmail.com" ||
+           request.auth.token.email == "elisa@gmail.com" ||
+           request.auth.token.email == "Elisa@gmail.com" ||
+           request.auth.token.email == "caro@gmail.com" ||
+           request.auth.token.email == "Caro@gmail.com"
+         ))
+      )) || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /fanz/{fanzId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.get('ownerUid', null) == request.auth.uid ||
+        resource.data.get('uid', null) == request.auth.uid
+      );
       allow delete: if isAdmin();
     }
 
@@ -133,20 +170,33 @@ service cloud.firestore {
     }
 
     match /transactions/{transactionId} {
-      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
-      allow create: if isAuthenticated() && (isOwner(request.resource.data.userId) || isAdmin());
+      allow read: if isAuthenticated() && (
+        resource.data.get('userId', null) == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.get('userId', null) == request.auth.uid || isAdmin()
+      );
       allow update, delete: if isAdmin();
     }
 
     match /chats/{chatId} {
-      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.get('participants', []);
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.get('participants', []);
 
       match /messages/{messageId} {
-        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-        allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-        allow update: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow read: if isAuthenticated() && (
+          exists(/databases/$(database)/documents/chats/$(chatId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.get('participants', [])
+        );
+        allow create: if isAuthenticated() && (
+          exists(/databases/$(database)/documents/chats/$(chatId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.get('participants', [])
+        );
+        allow update: if isAuthenticated() && (
+          exists(/databases/$(database)/documents/chats/$(chatId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.get('participants', [])
+        );
       }
     }
 

@@ -473,6 +473,9 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
     swap_hands: "Échange les mains",
     mimic: "Imite la dernière carte",
     lucky_draw: "Tirage chanceux",
+    vol_ballon: "Vol de Ballon",
+    regard_chien_battu: "Regard de Chien Battu",
+    zoomies_chaos: "Les Zoomies du Chaos",
   };
 
   const statLabels = {

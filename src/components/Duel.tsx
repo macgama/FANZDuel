@@ -1808,7 +1808,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
 
       const isMalus = (enhancedCard.effects || []).some(e => 
-        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card', 'stun', 'mammoth_charge', 'mascot_bone_drum', 'corne_drakkar', 'pumpkin_fog', 'locker_room_curse', 'chainsaw_megaphone', 'burning_seats'].includes(e.type)
+        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card', 'stun', 'mammoth_charge', 'mascot_bone_drum', 'corne_drakkar', 'pumpkin_fog', 'locker_room_curse', 'chainsaw_megaphone', 'burning_seats', 'vol_ballon', 'zoomies_chaos'].includes(e.type)
       );
       
       if (!enhancedCard.videoUrl || enhancedCard.videoUrl === "undefined" || user.dataSaver) {
@@ -2015,6 +2015,25 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setIsStunned(true);
             setTimeout(() => setIsStunned(false), getEffectiveDuration(effect.duration || 5, mentalResistance));
             addFloatingEffect('😵 ASSOMMÉ ! (Saut de tour)', window.innerWidth / 2, 200, 'text-red-500 font-black scale-150 animate-bounce');
+            break;
+          case 'vol_ballon':
+            setIsStunned(true);
+            setIsCursed(true);
+            setTimeout(() => {
+              setIsStunned(false);
+              setIsCursed(false);
+            }, getEffectiveDuration(effect.duration || 6, mentalResistance));
+            addFloatingEffect('⚽ Vol de Ballon ! (Passage de tour & Malus ferveur !)', window.innerWidth / 2, 200, 'text-red-500 font-black scale-125 animate-bounce');
+            break;
+          case 'zoomies_chaos':
+            setHand(prev => {
+              if (prev.length === 0) return prev;
+              const newHand = [...prev];
+              newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+              return newHand;
+            });
+            setTimeout(() => drawCard(true, 1), 500);
+            addFloatingEffect('🌪️ Chaos des Zoomies ! (Panique, main défaussée et repiochée)', window.innerWidth / 2, 200, 'text-red-400 font-extrabold animate-pulse');
             break;
           case 'throat_tackle':
             addFloatingEffect('🦵 TACLE À LA GORGE ! ("L\'arbitre laisse jouer !")', window.innerWidth / 2, 200, 'text-orange-500 font-black scale-150');
@@ -2480,7 +2499,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
     // Apply self-effects (on client)
     (boostedCard.effects || []).forEach(effect => {
-      if (effect.type === 'cleanse') {
+      if (effect.type === 'cleanse' || effect.type === 'regard_chien_battu') {
         setIsBlurred(false);
         setIsButtonHidden(false);
         setIsButtonFrozen(false);
@@ -2496,7 +2515,25 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setIsCursed(false);
         setIsConfetti(false);
         setIsHypnotized(false);
-        addFloatingEffect('✨ Purifié!', x, y - 30, 'text-yellow-400 font-black');
+        setIsStunned(false);
+        if (effect.type === 'regard_chien_battu') {
+          setExcitement(prev => Math.min(maxExcitement, prev + (effect.value || 30)));
+          addFloatingEffect('🥺 Regard de Chien Battu ! (Malus purgés & Endurance augmentée)', x, y - 30, 'text-green-400 font-black scale-110');
+        } else {
+          addFloatingEffect('✨ Purifié!', x, y - 30, 'text-yellow-400 font-black');
+        }
+      }
+      if (effect.type === 'zoomies_chaos') {
+        // Discard 1 random card from hand
+        setHand(prev => {
+          if (prev.length === 0) return prev;
+          const newHand = [...prev];
+          newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+          return newHand;
+        });
+        // Draw 1 new card
+        setTimeout(() => drawCard(true, 1), 500);
+        addFloatingEffect('🐕 Les Zoomies du Chaos ! (Votre main tourne)', x, y - 30, 'text-blue-400 font-black');
       }
       if (effect.type === 'immunity') {
         setIsImmune(true);

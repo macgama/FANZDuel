@@ -95,6 +95,7 @@ import { LandingPage } from "./components/LandingPage";
 import { MrFanzPage } from "./components/MrFanzPage";
 import { MrFanzHelp } from "./components/MrFanzHelp";
 import { CollectionPage } from "./components/CollectionPage";
+import { CommercialAlertOverlay } from "./components/CommercialAlertOverlay";
 
 export default function App() {
   return (
@@ -280,6 +281,39 @@ function AppContent() {
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
+
+  // Empêcher le rechargement de page et la navigation accidentelle lorsque l'utilisateur est connecté
+  useEffect(() => {
+    const isUserAuthenticated = !!(profile?.uid || auth.currentUser?.uid);
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isUserAuthenticated) {
+        e.preventDefault();
+        e.returnValue = "Vous avez une session active. Si vous rechargez ou quittez la page, vous risquez de perdre votre progression.";
+        return e.returnValue;
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isUserAuthenticated) {
+        // Bloquer F5 ou Ctrl+R / Cmd+R raccourcis de rafraîchissement
+        if (
+          e.key === "F5" ||
+          ((e.ctrlKey || e.metaKey) && e.key === "r")
+        ) {
+          e.preventDefault();
+          console.warn("Rafraîchissement bloqué : session de jeu active !");
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profile, isDuelActive, view]);
 
   // Compute claimable states for sidebar dots
   useEffect(() => {
@@ -1019,9 +1053,11 @@ function AppContent() {
                 needsUpdate = true;
               }
 
-              // Check for admin role
+              // Check for admin role (case-insensitive for all listed admins)
+              const adminEmails = ["gael.manigley@gmail.com", "michel@gmail.com", "elisa@gmail.com", "caro@gmail.com"];
+              const isCurrentUserAdmin = currentUser.email && adminEmails.includes(currentUser.email.toLowerCase().trim());
               if (
-                currentUser.email === "gael.manigley@gmail.com" &&
+                isCurrentUserAdmin &&
                 data.role !== "admin"
               ) {
                 updatedData.role = "admin";
@@ -2173,6 +2209,10 @@ function AppContent() {
               profile={profile}
               onClose={() => setShowStreakModal(false)}
             />
+          )}
+
+          {profile && (
+            <CommercialAlertOverlay setView={setView} />
           )}
         </div>
 
