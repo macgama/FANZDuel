@@ -58,7 +58,7 @@ export function SharedMatchCard({
 }: SharedMatchCardProps) {
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(match.fixture.status.short);
   const isUpcoming = ['TBD', 'NS'].includes(match.fixture.status.short);
-  const isFinished = !isLive && !isUpcoming;
+  const isFinished = ['FT', 'AET', 'PEN'].includes(match.fixture.status.short);
   
   const favoriteIds = profile?.favoriteTeams?.map((id: any) => id.toString()) || [];
   const homeIsFav = favoriteIds.includes(match.teams.home.id.toString());
@@ -233,24 +233,30 @@ export function SharedMatchCard({
                 </div>
               )}
               
-              <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center gap-0.5 shadow-sm">
-                <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase">
-                  {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}` : match.fixture.status.short}
-                </span>
-                {match.fixture.status.elapsed && <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase animate-pulse">'</span>}
-              </div>
-
-              {/* Precise converted status label */}
-              <span className={cn(
-                "text-[7px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm text-center mt-1.5",
-                ['ET', 'P', 'BT'].includes(match.fixture.status.short)
-                  ? "bg-[#ef4444] text-white animate-pulse"
-                  : isLive
-                    ? "bg-[#2a2a2a] text-gray-400"
-                    : "bg-orange-500/15 text-orange-400 border border-orange-500/20"
-              )}>
-                {getMatchStatusLabel(match.fixture.status)}
-              </span>
+              {!isFinished ? (
+                <>
+                  <div className="mt-2 bg-orange-500/20 border border-orange-500/30 rounded-full px-3 py-1 flex items-center justify-center gap-0.5 shadow-sm">
+                    <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase">
+                      {match.fixture.status.elapsed ? `${match.fixture.status.elapsed}${match.fixture.status.extra ? `+${match.fixture.status.extra}` : ''}` : match.fixture.status.short}
+                    </span>
+                    {match.fixture.status.elapsed && <span className="text-[10px] sm:text-xs font-black text-orange-500 uppercase animate-pulse">'</span>}
+                  </div>
+                  <span className={cn(
+                    "text-[7px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm text-center mt-1.5",
+                    ['ET', 'P', 'BT'].includes(match.fixture.status.short)
+                      ? "bg-[#ef4444] text-white animate-pulse"
+                      : "bg-[#2a2a2a] text-gray-400"
+                  )}>
+                    {getMatchStatusLabel(match.fixture.status)}
+                  </span>
+                </>
+              ) : (
+                <div className="mt-2 bg-orange-500/15 border border-orange-500/20 rounded-full px-3 py-1 flex items-center justify-center shadow-sm">
+                  <span className="text-[10px] sm:text-xs font-black text-orange-400 uppercase tracking-widest">
+                    {getMatchStatusLabel(match.fixture.status)}
+                  </span>
+                </div>
+              )}
             </>
           ) : (
             <div className="flex flex-col items-center gap-1.5 mt-6">

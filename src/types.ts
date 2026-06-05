@@ -377,7 +377,10 @@ export type CardEffectType =
   | 'craquage_massif'
   | 'vol_ballon'
   | 'regard_chien_battu'
-  | 'zoomies_chaos';
+  | 'zoomies_chaos'
+  | 'transfusion_tactique'
+  | 'eclipse_artificielle'
+  | 'coup_d_envoi_13h';
 
 export interface CardEffect {
   type: CardEffectType;

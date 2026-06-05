@@ -3714,6 +3714,9 @@ export function AdminZone() {
                             <option value="prime_goat">Le Prime (G.O.A.T) (Joueur gagne +4 de puissance ce tour, ignore ses stats) [Durée]</option>
                             <option value="attention_swipe">Perte d'Attention (Swipe) (Défausse une carte au hasard) [Rien]</option>
                             <option value="sterile_debate">Le Débat Stérile sur les Réseaux (Clash Ratio : pari de carte, coût max gagne) [Rien]</option>
+                            <option value="transfusion_tactique">Transfusion Tactique (Vol de Vie) [Durée]</option>
+                            <option value="eclipse_artificielle">Éclipse Artificielle (Annulation météo & boost) [Durée]</option>
+                            <option value="coup_d_envoi_13h">Coup d'Envoi à 13h00 (Aveuglement + Dégâts) [Durée]</option>
                           </select>
                         </div>
                         <div className="w-24 space-y-1">

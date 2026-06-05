@@ -96,6 +96,7 @@ import { MrFanzPage } from "./components/MrFanzPage";
 import { MrFanzHelp } from "./components/MrFanzHelp";
 import { CollectionPage } from "./components/CollectionPage";
 import { CommercialAlertOverlay } from "./components/CommercialAlertOverlay";
+import { UpdatePrompt } from "./components/UpdatePrompt";
 
 export default function App() {
   return (
@@ -2217,6 +2218,8 @@ function AppContent() {
           {profile && (
             <CommercialAlertOverlay setView={setView} />
           )}
+
+          <UpdatePrompt />
         </div>
 
         {/* Menu Modal */}

@@ -19,14 +19,16 @@ async function fetchApi(url: string) {
       }
       console.error(`API Error (${response.status}): ${errorText}`);
 
-      // Handle 429 Rate limits and 403 authorization lockups gracefully rather than throwing screen-breaking exceptions
+      // Handle 429 Rate limits, 403 authorization lockups, and 50x server errors gracefully rather than throwing screen-breaking exceptions
       if (
         response.status === 429 || 
         response.status === 403 || 
+        response.status >= 500 || 
         errorText.toLowerCase().includes("rate limit") || 
-        errorText.toLowerCase().includes("rate exceeded")
+        errorText.toLowerCase().includes("rate exceeded") ||
+        errorText.toLowerCase().includes("error: server error")
       ) {
-        console.warn(`[Football API] Handled rate limit status ${response.status} gracefully. Returning empty response scheme.`);
+        console.warn(`[Football API] Handled API error status ${response.status} gracefully. Returning empty response scheme.`);
         return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
       }
 
@@ -56,9 +58,9 @@ async function fetchApi(url: string) {
       console.error(`Fetch error for ${url}:`, error);
     }
     
-    // If rate limit error occurs inside the call stack, return empty list formatted correctly
+    // If rate limit or 5xx error occurs inside the call stack, return empty list formatted correctly
     const errText = String(error?.message || "").toLowerCase();
-    if (errText.includes("rate limit") || errText.includes("rate exceeded") || errText.includes("429")) {
+    if (errText.includes("rate limit") || errText.includes("rate exceeded") || errText.includes("429") || errText.includes("503") || errText.includes("502") || errText.includes("server error")) {
       return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
     }
     throw error;

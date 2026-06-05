@@ -401,14 +401,12 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                 </span>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-1.5">
-                <div className="px-2.5 py-0.5 bg-white/10 border border-white/10 rounded-full text-gray-400 font-black text-[8px] sm:text-[10px] uppercase">
-                  {details.fixture.status.short}
+              <div className="flex flex-col items-center gap-1.5 mt-2">
+                <div className="px-3 py-1 bg-orange-500/15 border border-orange-500/20 rounded-full flex items-center justify-center shadow-sm">
+                  <span className="text-[10px] sm:text-xs font-black text-orange-400 uppercase tracking-widest">
+                    {getMatchStatusLabel(details.fixture.status)}
+                  </span>
                 </div>
-                {/* Translated/Precise label for finished matches */}
-                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 text-center">
-                  {getMatchStatusLabel(details.fixture.status)}
-                </span>
               </div>
             )}
           </div>

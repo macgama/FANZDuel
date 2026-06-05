@@ -2309,6 +2309,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           case 'megaphone_echo':
             addFloatingEffect("📢 Écho du Mégaphone de l'adversaire : Ses supporters sont galvanisés !", window.innerWidth / 2, 200, 'text-yellow-400 font-black scale-110');
             break;
+          case 'Biological_curfew':
+            break; // Used just as a placeholder to match
           case 'biological_curfew':
             setHand(currentHand => {
               if (currentHand.length > 0) {
@@ -2323,6 +2325,25 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               }
               return currentHand;
             });
+            break;
+          case 'transfusion_tactique':
+            setIsStunned(true);
+            setTimeout(() => setIsStunned(false), getEffectiveDuration(effect.duration || 4, mentalResistance));
+            addFloatingEffect("🧛 TRANSFUSION TACTIQUE : L'adversaire draine votre énergie et vous paralyse !", window.innerWidth / 2, 200, 'text-red-500 font-black animate-pulse z-[210]');
+            {
+              const res = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+              const dir = currentMyTeam === 'A' ? -1 : 1; 
+              setProgress(prev => Math.min(100, Math.max(0, prev + (15 / res) * dir)));
+            }
+            setExcitement(prev => Math.max(0, prev - 10));
+            break;
+          case 'eclipse_artificielle':
+            addFloatingEffect("🦇 ÉCLIPSE ARTIFICIELLE : L'adversaire invoque la nuit et annule ses malus !", window.innerWidth / 2, 200, 'text-purple-400 font-extrabold animate-pulse');
+            break;
+          case 'coup_d_envoi_13h':
+            setIsStunned(true);
+            setTimeout(() => setIsStunned(false), getEffectiveDuration(effect.duration || 8, mentalResistance));
+            addFloatingEffect("🔥 COUP D'ENVOI 13H00 : Fumée étouffante (Adversaire en flammes), vous êtes aveuglé !", window.innerWidth / 2, 210, 'text-yellow-500 font-black animate-pulse scale-125 z-[210]');
             break;
           case 'early_craquage':
             setIsEnemyEarlyCraquageActive(true);
@@ -2999,6 +3020,29 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setIsWallOfShieldsActive(true);
         setTimeout(() => setIsWallOfShieldsActive(false), (effect.duration || 12) * 1000);
         addFloatingEffect('🛡️ Mur d\'Écharpes Actif ! (-50% Dégâts)', x, y - 30, 'text-blue-400 font-extrabold scale-110 animate-pulse');
+      }
+
+      if (effect.type === 'transfusion_tactique') {
+        const trResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+        const drainVal = 15 / trResistance;
+        const direction = currentMyTeam === 'A' ? 1 : -1;
+        setProgress((prev) => Math.min(100, Math.max(0, prev + drainVal * direction)));
+        setExcitement(prev => Math.min(maxExcitement, prev + 15));
+        addFloatingEffect("🦇 MORSURE NOCTURNE : Vous drainez la ferveur ennemie !", x, y - 40, 'text-red-500 font-extrabold scale-125 z-[200]');
+      }
+      if (effect.type === 'eclipse_artificielle') {
+        setIsStunned(false);
+        setIsBlurred(false);
+        setIsButtonHidden(false);
+        setIsButtonShrunk(false);
+        setIsButtonMoving(false);
+        setIsScoreHidden(false);
+        setIsButtonFrozen(false);
+        addFloatingEffect("🦇 ÉCLIPSE ARTIFICIELLE : Nuit Noire & Purge des Malus Visuels !", x, y - 40, 'text-purple-400 font-extrabold scale-110 z-[200]');
+      }
+      if (effect.type === 'coup_d_envoi_13h') {
+        setExcitement(0);
+        addFloatingEffect("☀️ COUP D'ENVOI 13h00 : Oups ! Soleil mortel, vous perdez votre énergie !", x, y - 40, 'text-yellow-500 font-black scale-125 z-[200] animate-pulse');
       }
       if (effect.type === 'clapping_odin') {
         setIsOdinClappingActive(true);
