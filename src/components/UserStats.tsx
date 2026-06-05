@@ -30,6 +30,7 @@ export function UserStats({ user, onBack }: UserStatsProps) {
   const [userFanz, setUserFanz] = useState<Fanz[]>([]);
   const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
   const [recentDuels, setRecentDuels] = useState<any[]>([]);
+  const [fanzTransactions, setFanzTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDuelDetails, setSelectedDuelDetails] = useState<string | null>(null);
 
@@ -41,6 +42,19 @@ export function UserStats({ user, onBack }: UserStatsProps) {
         const fanzQ = query(collection(db, 'fanz'), where('ownerUid', '==', user.uid));
         const fanzSnap = await getDocs(fanzQ);
         setUserFanz(fanzSnap.docs.map(d => ({ id: d.id, ...d.data() } as Fanz)));
+
+        // Fetch ferveur_fanz transactions
+        try {
+          const txsQ = query(
+            collection(db, 'transactions'),
+            where('userId', '==', user.uid),
+            where('type', '==', 'ferveur_fanz')
+          );
+          const txsSnap = await getDocs(txsQ);
+          setFanzTransactions(txsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } catch (e) {
+          console.error("Error fetching fanz transactions:", e);
+        }
 
         // Fetch Recent Duels (from fixture_results)
         const duelsQ = query(
@@ -159,45 +173,106 @@ export function UserStats({ user, onBack }: UserStatsProps) {
             </div>
           </section>
 
-          {/* Best Fanz */}
+          {/* Mes FANZ en Possession */}
           <section>
             <div className="flex items-center gap-2 mb-4">
               <Star className="w-5 h-5 text-yellow-500" />
-              <h3 className="text-sm font-black uppercase tracking-widest">Mon meilleur Fanz</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest">Mes FANZ ({userFanz.length})</h3>
             </div>
-            {bestFanz ? (
-              <div className="bg-gradient-to-r from-gray-900 to-black border border-white/10 rounded-3xl p-4 flex gap-6 items-center">
-                <div className="w-24 h-24 bg-white/5 rounded-2xl overflow-hidden shrink-0 border border-white/10 flex items-center justify-center">
-                  {(bestFanz.imageUrl || (bestFanz as any).image) ? (
-                    <img src={getImageUrl(bestFanz.imageUrl || (bestFanz as any).image)} alt="" className="w-full h-full object-cover" />
-                  ) : bestFanz.videoUrl ? (
-                    <video src={getImageUrl(bestFanz.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                  ) : (
-                    <Users className="w-8 h-8 text-gray-600" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="text-lg font-black italic uppercase italic tracking-tighter text-white">{bestFanz.name}</div>
-                  <div className="text-[10px] font-black uppercase text-yellow-500 tracking-widest mb-2">Niveau {bestFanz.level || 1} • {bestFanz.rarity}</div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    <div className="flex justify-between text-[10px] font-bold border-b border-white/5 py-1">
-                      <span className="text-gray-500">FORCE</span>
-                      <span>{bestFanz.stats?.force || 1}</span>
+            {userFanz.length > 0 ? (
+              <div className="space-y-4">
+                {userFanz.map((fanz) => {
+                  const fanzSkinsCount = Array.isArray(fanz.unlockedSkins) 
+                    ? fanz.unlockedSkins.length 
+                    : fanz.unlockedSkins 
+                      ? Object.keys(fanz.unlockedSkins).length 
+                      : 0;
+                  const fanzEmotesCount = Array.isArray(fanz.unlockedEmotes) 
+                    ? fanz.unlockedEmotes.length 
+                    : fanz.unlockedEmotes 
+                      ? Object.keys(fanz.unlockedEmotes).length 
+                      : 0;
+                  
+                  // Calculate duel stats from transactions
+                  const txs = fanzTransactions.filter(tx => tx.fanzId === fanz.id);
+                  const wins = txs.filter(tx => tx.description?.toLowerCase().includes('victoire')).length;
+                  const losses = txs.filter(tx => tx.description?.toLowerCase().includes('défaite')).length;
+                  const trainings = txs.filter(tx => tx.description?.toLowerCase().includes('entraînement')).length;
+                  
+                  return (
+                    <div key={fanz.id} className="bg-gradient-to-r from-stone-900 via-stone-950/70 to-black border border-white/10 rounded-2xl p-5 flex flex-col sm:flex-row gap-5 items-center sm:items-start transition-all hover:border-orange-500/30">
+                      {/* Image / Video preview */}
+                      <div className="w-24 h-24 bg-white/5 rounded-2xl overflow-hidden shrink-0 border border-white/10 flex items-center justify-center relative shadow-inner">
+                        {(fanz.imageUrl || (fanz as any).image) ? (
+                          <img src={getImageUrl(fanz.imageUrl || (fanz as any).image)} alt="" className="w-full h-full object-cover" />
+                        ) : fanz.videoUrl ? (
+                          <video src={getImageUrl(fanz.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                        ) : (
+                          <Users className="w-8 h-8 text-stone-600" />
+                        )}
+                        <span className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-black uppercase text-white tracking-widest border border-white/10">
+                          {fanz.rarity || 'Commun'}
+                        </span>
+                      </div>
+
+                      {/* Info & Stats list */}
+                      <div className="flex-1 w-full text-center sm:text-left space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <div>
+                            <h4 className="text-lg font-black italic uppercase tracking-tight text-white leading-tight">
+                              {fanz.name}
+                            </h4>
+                            <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">
+                              Sport : {fanz.sport}
+                            </p>
+                          </div>
+                          <div className="text-xs font-black uppercase text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1 rounded-full w-fit mx-auto sm:mx-0">
+                            Rang {fanz.rank || 1}
+                          </div>
+                        </div>
+
+                        {/* Detailed information table */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-bold border-t border-white/5 pt-3">
+                          <div className="flex justify-between border-b border-white/5 pb-1">
+                            <span className="text-stone-400 uppercase">Ferveur</span>
+                            <span className="text-orange-400">Niveau {fanz.ferveurLevel || 1}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/5 pb-1">
+                            <span className="text-stone-400 uppercase">Skins</span>
+                            <span className="text-white">{Math.max(1, fanzSkinsCount)} débloqué(s)</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/5 pb-1">
+                            <span className="text-stone-400 uppercase">Émotes</span>
+                            <span className="text-white">{fanzEmotesCount} débloquée(s)</span>
+                          </div>
+                          <div className="flex justify-between border-b border-white/5 pb-1">
+                            <span className="text-stone-400 uppercase">Cartes Duel</span>
+                            <span className="text-white">{(fanz.deck || fanz.equippedCards || []).length} / 8 équipées</span>
+                          </div>
+                        </div>
+
+                        {/* Duels metrics */}
+                        <div className="bg-white/5 rounded-xl p-3 border border-white/5 space-y-1 text-[10px] font-bold text-left">
+                          <div className="text-stone-400 uppercase tracking-wider text-[8px] mb-1">Historique de ferveur fanz</div>
+                          <div className="flex items-center justify-between text-white">
+                            <span>Matches de Duel</span>
+                            <span className="text-sm font-black italic">
+                              <span className="text-green-400">{wins}V</span>
+                              <span className="text-stone-500 mx-1">/</span>
+                              <span className="text-red-400">{losses}D</span>
+                            </span>
+                          </div>
+                          {trainings > 0 && (
+                            <div className="flex items-center justify-between text-stone-400 font-normal text-[9px] border-t border-white/5 pt-1 mt-1">
+                              <span>Entraînements réalisés</span>
+                              <span>{trainings} match(s)</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-[10px] font-bold border-b border-white/5 py-1">
-                      <span className="text-gray-500">MÉNTAL</span>
-                      <span>{bestFanz.stats?.mental || 1}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px] font-bold border-b border-white/5 py-1">
-                      <span className="text-gray-500">BLUFF</span>
-                      <span>{bestFanz.stats?.bluff || 1}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px] font-bold border-b border-white/5 py-1">
-                      <span className="text-gray-500">SOCIAL</span>
-                      <span>{bestFanz.stats?.social || 1}</span>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 bg-white/5 border border-dashed border-white/10 rounded-2xl">

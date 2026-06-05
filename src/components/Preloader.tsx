@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getImageUrl } from '../lib/utils';
+import { getImageUrl, getOptimizedVideoUrl } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { LayoutGrid, Loader2 } from 'lucide-react';
 
@@ -13,6 +13,11 @@ interface PreloaderProps {
 export function Preloader({ onComplete, uid }: PreloaderProps) {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('Chargement des données...');
+  const [randomVideos] = useState<string[]>(() => {
+    const ids = Array.from({ length: 11 }, (_, i) => String(i + 1).padStart(3, '0'));
+    const shuffled = [...ids].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 8).map(id => `/fanz/${id}/videoFanz${id}Skin000.mp4`);
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -125,10 +130,22 @@ export function Preloader({ onComplete, uid }: PreloaderProps) {
       transition={{ duration: 0.5 }}
       className="fixed inset-0 z-[200] flex flex-col items-center justify-center p-8 bg-[#0a0a0a] overflow-hidden"
     >
-      {/* Background decoration */}
-      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-orange-500/30 blur-[100px] rounded-full mix-blend-screen" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/20 blur-[100px] rounded-full mix-blend-screen" />
+      {/* Background decoration & Fanz Video Grid */}
+      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden pointer-events-none select-none p-4 opacity-15">
+        <div className="w-full max-w-[600px] h-full max-h-[85vh] grid grid-cols-2 grid-rows-4 gap-3">
+          {randomVideos.map((videoPath, idx) => (
+            <div key={idx} className="w-full h-full rounded-xl overflow-hidden bg-white/5 border border-white/5 flex items-center justify-center relative">
+              <video
+                src={getOptimizedVideoUrl(videoPath)}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover scale-105"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="relative z-10 w-full max-w-xs flex flex-col items-center gap-10">

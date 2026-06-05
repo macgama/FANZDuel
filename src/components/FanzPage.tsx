@@ -30,9 +30,10 @@ import { MrFanzHelp } from "./MrFanzHelp";
 interface FanzPageProps {
   userProfile: UserProfile;
   onFanzClick?: (fanzId: string) => void;
+  onNavigate?: (view: any) => void;
 }
 
-export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
+export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps) {
   const [ownedFanz, setOwnedFanz] = useState<Map<string, Fanz>>(new Map()); // templateId -> Fanz object
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [fanzFervorConfig, setFanzFervorConfig] = useState<
@@ -270,6 +271,11 @@ export function FanzPage({ userProfile, onFanzClick }: FanzPageProps) {
                         isOwned={false}
                         userProfile={userProfile}
                         globalFerveurPath={globalFerveurPath}
+                        onClick={() => {
+                          if (template.isActive !== false && onNavigate) {
+                            onNavigate("shop");
+                          }
+                        }}
                       />
                     ))}
                 </div>
@@ -348,10 +354,10 @@ function FanzCard({
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`relative group ${!isOwned ? "" : "cursor-pointer"}`}
+      className={`relative group ${(!isOwned && template.isActive === false) ? "" : "cursor-pointer"}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={isOwned ? onClick : undefined}
+      onClick={(!isOwned && template.isActive === false) ? undefined : onClick}
     >
       <Card
         className={`overflow-hidden p-0 border transition-all duration-500 ${

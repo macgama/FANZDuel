@@ -13,6 +13,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
+        request.auth.uid == "aox8MmXhfeZIAogRda0CwzwrOTy1" ||
         ('email' in request.auth.token && (
           request.auth.token.email == "gael.manigley@gmail.com" ||
           request.auth.token.email == "Gael.manigley@gmail.com" ||
@@ -79,6 +80,11 @@ service cloud.firestore {
     }
 
     match /commercial_alerts/{alertId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /news/{newsId} {
       allow read: if true;
       allow write: if isAdmin();
     }

@@ -30,7 +30,9 @@ import {
   Target,
   Ticket,
   Star,
-  Swords
+  Swords,
+  Megaphone,
+  X
 } from 'lucide-react';
 import { OptimizedMedia } from './OptimizedMedia';
 import { motion, AnimatePresence } from 'motion/react';
@@ -74,6 +76,25 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
 
   const [hasNewPass, setHasNewPass] = useState(false);
   const [hasClaimableStreak, setHasClaimableStreak] = useState(false);
+  const [news, setNews] = useState<any[]>([]);
+  const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
+  const [selectedNewsDetail, setSelectedNewsDetail] = useState<any | null>(null);
+  const [showNewsModal, setShowNewsModal] = useState(false);
+  const [zoomedMedia, setZoomedMedia] = useState<{ type: 'image' | 'video', url: string } | null>(null);
+
+  useEffect(() => {
+    if (news.length > 0) {
+      try {
+        const alreadyShown = sessionStorage.getItem('news_modal_shown');
+        if (!alreadyShown) {
+          setShowNewsModal(true);
+          sessionStorage.setItem('news_modal_shown', 'true');
+        }
+      } catch (e) {
+        setShowNewsModal(true);
+      }
+    }
+  }, [news]);
 
   const favoriteIds = React.useMemo(() => {
     return profile?.favoriteTeams?.map(id => id.toString()) || [];
@@ -108,6 +129,22 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
       fetchBadges();
     }
   }, [profile.uid, profile.purchasedPasses, profile.streak, profile.claimedStreakDays]);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'news'),
+      where('isActive', '==', true),
+      limit(5)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setNews(list);
+    }, (error) => {
+      console.log("News snapshot listener handled:", error.message);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const scroll = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
     if (ref.current) {
@@ -452,6 +489,21 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     };
   }, [profile?.uid, JSON.stringify(profile?.favoriteTeams)]);
 
+  const handleNewsClick = (item: any) => {
+    if (!item) return;
+    setSelectedNewsDetail(item);
+  };
+
+  const handleNewsNavigate = (item: any) => {
+    if (!item) return;
+    setSelectedNewsDetail(null);
+    if (item.type === 'pack' || item.type === 'fanz' || item.type === 'skin' || item.type === 'emote') {
+      onNavigate('shop');
+    } else if (item.type === 'competition') {
+      onNavigate('competitions');
+    }
+  };
+
   const handleLogout = () => {
     signOut(auth);
   };
@@ -609,6 +661,34 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
 
         {/* Content Below Video (Live Matches or Life Actions) */}
         <div className="flex-1 flex flex-col justify-evenly gap-4 py-4 shrink-0 min-h-[400px]">
+          {/* Official News Button Indicator */}
+          {news.length > 0 && (
+            <div className="px-4 sm:px-8 shrink-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <button
+                onClick={() => setShowNewsModal(true)}
+                className="w-full relative flex items-center justify-between gap-3 p-3 bg-gradient-to-r from-blue-950/40 via-purple-950/30 to-blue-950/40 border border-blue-500/20 rounded-xl hover:bg-white/10 hover:border-blue-500/40 transition-all text-left shadow-[0_4px_24px_rgba(59,130,246,0.15)] cursor-pointer group"
+              >
+                {/* Background light pulse */}
+                <div className="absolute inset-0 bg-blue-500/5 opacity-50 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+                
+                <div className="flex items-center gap-2.5 relative z-10">
+                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0 select-none">
+                    <Megaphone className="w-3.5 h-3.5 animate-pulse" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-white leading-tight flex items-center gap-1.5">
+                      Actualités Fanz <span className="bg-blue-500/20 text-blue-300 text-[8px] font-black px-1.5 py-0.2 rounded-full border border-blue-500/30">{news.length}</span>
+                    </span>
+                    <p className="text-[8px] text-white/50">Cliquez pour voir les dernières nouveautés</p>
+                  </div>
+                </div>
+                <div className="text-[8px] font-black uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 relative z-10 hover:bg-blue-500/20 transition-all">
+                  Consulter
+                </div>
+              </button>
+            </div>
+          )}
+
           {/* Quick Links */}
           <div className="px-4 sm:px-8 grid grid-cols-4 gap-3 sm:gap-4 shrink-0">
             <button 
@@ -907,6 +987,274 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
       profile={profile} 
       onClose={() => setShowProfileModal(false)} 
     />
+  )}
+
+  {selectedNewsDetail && (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-sm bg-stone-900 border border-white/10 rounded-2xl p-5 shadow-2xl flex flex-col space-y-4 text-white relative">
+        <button
+          onClick={() => setSelectedNewsDetail(null)}
+          className="absolute top-4 right-4 text-white/50 hover:text-white p-1 hover:bg-white/5 rounded-full transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded text-[8px] uppercase font-black tracking-wider ${
+            selectedNewsDetail.type === 'competition' ? 'bg-purple-900/40 text-purple-400 border border-purple-800/40' :
+            selectedNewsDetail.type === 'fanz' ? 'bg-orange-900/40 text-orange-400 border border-orange-800/40' :
+            selectedNewsDetail.type === 'skin' ? 'bg-pink-900/40 text-pink-400 border border-pink-800/40' :
+            selectedNewsDetail.type === 'emote' ? 'bg-teal-900/40 text-teal-400 border border-teal-800/40' :
+            selectedNewsDetail.type === 'pack' ? 'bg-yellow-900/40 text-yellow-500 border border-yellow-800/40' :
+            'bg-blue-900/40 text-blue-400 border border-blue-800/40'
+          }`}>
+            {selectedNewsDetail.type}
+          </span>
+          <span className="text-[9px] text-white/40">
+            {new Date(selectedNewsDetail.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-black uppercase text-white leading-tight">
+            {selectedNewsDetail.title}
+          </h3>
+
+          {selectedNewsDetail.imageUrl && (
+            <div className="w-full flex justify-center bg-black/40 border border-white/5 rounded-xl p-3">
+              {selectedNewsDetail.imageUrl.length < 5 ? (
+                <span className="text-4xl select-none">{selectedNewsDetail.imageUrl}</span>
+              ) : (
+                <img 
+                  src={getImageUrl(selectedNewsDetail.imageUrl)} 
+                  alt="Aperçu" 
+                  className="max-h-32 object-contain rounded-lg"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+            </div>
+          )}
+
+          <p className="text-[11px] text-white/80 leading-relaxed max-h-40 overflow-y-auto pr-1">
+            {selectedNewsDetail.message}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5 pt-3 border-t border-white/5">
+          {(selectedNewsDetail.type === 'pack' || selectedNewsDetail.type === 'fanz' || selectedNewsDetail.type === 'skin' || selectedNewsDetail.type === 'emote' || selectedNewsDetail.type === 'competition') && (
+            <button
+              onClick={() => handleNewsNavigate(selectedNewsDetail)}
+              className="w-full bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-[10px] font-black uppercase tracking-wider py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_2px_8px_rgba(59,130,246,0.3)]"
+            >
+              {selectedNewsDetail.type === 'competition' ? (
+                <>🏆 Rejoindre les Compétitions</>
+              ) : (
+                <>🛍️ Acheter / Découvrir</>
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => setSelectedNewsDetail(null)}
+            className="w-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-black uppercase tracking-wider py-2.5 rounded-lg transition-all cursor-pointer"
+          >
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {showNewsModal && news.length > 0 && (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-sm bg-stone-900 border border-white/10 rounded-2xl p-5 shadow-2xl flex flex-col space-y-4 text-white relative">
+        <button
+          onClick={() => setShowNewsModal(false)}
+          className="absolute top-4 right-4 text-white/50 hover:text-white p-1 hover:bg-white/5 rounded-full transition-colors z-[100]"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Carousel de News */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5 leading-none">
+              <Megaphone className="w-3.5 h-3.5" />
+              Actualités Fanz ({currentNewsIndex + 1}/{news.length})
+            </h2>
+          </div>
+
+          <div className="relative min-h-[200px] flex flex-col justify-between">
+            {/* Contenu de la news actuelle */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded text-[8px] uppercase font-black tracking-wider ${
+                  news[currentNewsIndex].type === 'competition' ? 'bg-purple-900/40 text-purple-400 border border-purple-800/40' :
+                  news[currentNewsIndex].type === 'fanz' ? 'bg-orange-900/40 text-orange-400 border border-orange-800/40' :
+                  news[currentNewsIndex].type === 'skin' ? 'bg-pink-900/40 text-pink-400 border border-pink-800/40' :
+                  news[currentNewsIndex].type === 'emote' ? 'bg-teal-900/40 text-teal-400 border border-teal-800/40' :
+                  news[currentNewsIndex].type === 'pack' ? 'bg-yellow-900/40 text-yellow-500 border border-yellow-800/40' :
+                  'bg-blue-900/40 text-blue-400 border border-blue-800/40'
+                }`}>
+                  {news[currentNewsIndex].type}
+                </span>
+                <span className="text-[9px] text-white/40">
+                  {new Date(news[currentNewsIndex].createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+
+              <h3 className="text-sm font-black uppercase text-white leading-tight">
+                {news[currentNewsIndex].title}
+              </h3>
+
+              {(() => {
+                const currentNews = news[currentNewsIndex];
+                const isVideoExt = (url: string) => {
+                  if (!url) return false;
+                  const cleanUrl = url.split('?')[0];
+                  return cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mov') || cleanUrl.endsWith('.ogg');
+                };
+
+                const hasVideo = currentNews.videoUrl || (currentNews.imageUrl && isVideoExt(currentNews.imageUrl));
+                const mediaType = hasVideo ? 'video' : 'image';
+                const mediaUrl = currentNews.videoUrl || currentNews.imageUrl;
+
+                if (!mediaUrl) return null;
+
+                return (
+                  <div 
+                    onClick={() => {
+                      if (mediaUrl.length >= 5) {
+                        setZoomedMedia({ type: mediaType, url: getImageUrl(mediaUrl) });
+                      }
+                    }}
+                    className={`w-full flex justify-center bg-black/40 border border-white/5 rounded-xl p-3 relative group transition-all duration-300 ${mediaUrl.length >= 5 ? 'cursor-zoom-in hover:border-blue-500/30 hover:bg-black/60 shadow-lg' : ''}`}
+                  >
+                    {mediaUrl.length < 5 ? (
+                      <span className="text-4xl select-none">{mediaUrl}</span>
+                    ) : hasVideo ? (
+                      <div className="relative max-h-28 flex items-center justify-center">
+                        <video 
+                          src={getImageUrl(mediaUrl)} 
+                          className="max-h-24 object-contain rounded-lg shadow-md"
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center rounded-lg transition-colors duration-300">
+                          <span className="bg-black/60 text-[9px] font-black uppercase text-white px-2 py-1 rounded border border-white/15 opacity-0 group-hover:opacity-100 transition-opacity tracking-wider">Agrandir la vidéo</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative max-h-28 flex items-center justify-center">
+                        <img 
+                          src={getImageUrl(mediaUrl)} 
+                          alt="Aperçu" 
+                          className="max-h-24 object-contain rounded-lg shadow-md"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center rounded-lg transition-colors duration-300">
+                          <span className="bg-black/60 text-[9px] font-black uppercase text-white px-2 py-1 rounded border border-white/15 opacity-0 group-hover:opacity-100 transition-opacity tracking-wider">Agrandir l'image</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <p className="text-[11px] text-white/85 leading-relaxed max-h-32 overflow-y-auto pr-1">
+                {news[currentNewsIndex].message}
+              </p>
+            </div>
+
+            {/* Navigation du carrousel */}
+            {news.length > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <button
+                  onClick={() => setCurrentNewsIndex(prev => (prev - 1 + news.length) % news.length)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer border border-white/5"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                
+                {/* Indicateurs de points */}
+                <div className="flex gap-1.5">
+                  {news.map((_, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => setCurrentNewsIndex(idx)}
+                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${idx === currentNewsIndex ? 'w-4 bg-blue-500' : 'w-1.5 bg-white/20'}`} 
+                    />
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setCurrentNewsIndex(prev => (prev + 1) % news.length)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer border border-white/5"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Boutons d'action en bas du modal */}
+        <div className="flex flex-col gap-1.5 pt-3 border-t border-white/5 text-center">
+          {(news[currentNewsIndex].type === 'pack' || news[currentNewsIndex].type === 'fanz' || news[currentNewsIndex].type === 'skin' || news[currentNewsIndex].type === 'emote' || news[currentNewsIndex].type === 'competition') && (
+            <button
+              onClick={() => {
+                setShowNewsModal(false);
+                handleNewsNavigate(news[currentNewsIndex]);
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-[10px] font-black uppercase tracking-wider py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_2px_8px_rgba(59,130,246,0.3)]"
+            >
+              {news[currentNewsIndex].type === 'competition' ? (
+                <>🏆 Rejoindre les Compétitions</>
+              ) : (
+                <>🛍️ Acheter / Découvrir</>
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => setShowNewsModal(false)}
+            className="w-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-black uppercase tracking-wider py-2.5 rounded-lg transition-all cursor-pointer"
+          >
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {zoomedMedia && (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 p-4 backdrop-blur-lg animate-in fade-in duration-200" onClick={() => setZoomedMedia(null)}>
+      <div className="max-w-full max-h-full flex flex-col items-center justify-center relative" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={() => setZoomedMedia(null)}
+          className="absolute -top-12 sm:top-4 sm:-right-12 text-white/70 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors z-[210] cursor-pointer animate-in fade-in duration-300"
+        >
+          <X className="w-6 h-6" />
+        </button>
+        {zoomedMedia.type === 'video' ? (
+          <video
+            src={zoomedMedia.url}
+            className="max-w-[90vw] max-h-[80vh] object-contain rounded-xl border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200"
+            controls
+            autoPlay
+            loop
+            playsInline
+          />
+        ) : (
+          <img
+            src={zoomedMedia.url}
+            alt="Agrandissement"
+            className="max-w-[90vw] max-h-[80vh] object-contain rounded-xl border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200"
+            referrerPolicy="no-referrer"
+          />
+        )}
+      </div>
+    </div>
   )}
 </div>
   );

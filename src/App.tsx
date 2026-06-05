@@ -819,6 +819,8 @@ function AppContent() {
       // Also add friend requests count from profile
       const requestsCount = profile?.friendRequests?.length || 0;
       setUnreadSocialCount(totalUnread + requestsCount);
+    }, (error) => {
+      console.error("Chats snapshot listener error:", error);
     });
 
     return () => unsubscribeChats();
@@ -2145,6 +2147,7 @@ function AppContent() {
                         <FanzPage
                           userProfile={profile}
                           onFanzClick={(id) => setSelectedFanzId(id)}
+                          onNavigate={setView}
                         />
                       ) : view === "collection" ? (
                         <CollectionPage user={profile} />

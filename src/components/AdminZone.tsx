@@ -4,7 +4,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, where, getDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
 import { Card, Button } from './Layout';
 import { League, Team, Standing, Fixture, LifeAction, Card as DuelCard, FanzTemplate, FerveurLevel, RankReward, FanzStats, Fanz, UserProfile, Mission, Pass, GlobalFervorConfig, WeeklyStreakConfig, WeeklyStreakCycle, DuelConfig, FanzSkin, PassLevel } from '../types';
-import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog, List, LayoutGrid, ChevronUp, ChevronDown, Copy, Megaphone } from 'lucide-react';
+import { Database, Download, RefreshCw, CheckCircle, AlertCircle, Search, Plus, Save, Trash2, Activity, Video, Layers, Users, Trophy, Star, Shield, Brain, Eye, Info, Flame, MessageCircle, Calendar, Gift, Target, CreditCard, UserCog, List, LayoutGrid, ChevronUp, ChevronDown, Copy, Megaphone, Newspaper } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { generateFervorPath } from '../utils/fervorPath';
 import { RewardSelector } from './RewardSelector';
@@ -20,15 +20,15 @@ import { LOGOS } from '../constants';
 import { footballDataService } from '../services/footballDataService';
 
 export function AdminZone() {
-  const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig' | 'shop' | 'alerts'>('football');
+  const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig' | 'shop' | 'news'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
   const [confirmRecalculate, setConfirmRecalculate] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
-
-  // Commercial Alerts state
-  const [commercialAlerts, setCommercialAlerts] = useState<any[]>([]);
-  const [editingAlert, setEditingAlert] = useState<any | null>(null);
-  const [showCreateAlertModal, setShowCreateAlertModal] = useState(false);
+  
+  // News state
+  const [newsList, setNewsList] = useState<any[]>([]);
+  const [editingNews, setEditingNews] = useState<any | null>(null);
+  const [showCreateNewsModal, setShowCreateNewsModal] = useState(false);
   
   // Duel Config state
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
@@ -189,112 +189,86 @@ export function AdminZone() {
   const [editingPass, setEditingPass] = useState<Pass | null>(null);
   const [shopConfig, setShopConfig] = useState<any | null>(null);
 
-  // Commercial Alerts core functions
-  const fetchCommercialAlerts = async () => {
-    setLoading(true);
-    setStatus({ type: 'loading', message: 'Chargement des alertes...' });
+
+
+  const fetchNews = async () => {
     try {
-      const q = query(collection(db, 'commercial_alerts'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const alerts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setCommercialAlerts(alerts);
-      setStatus(null);
-    } catch (err) {
-      console.error("Error fetching commercial alerts", err);
-      setStatus({ type: 'error', message: `Erreur lors de la récupération des alertes: ${err instanceof Error ? err.message : String(err)}` });
+      setStatus({ type: 'loading', message: 'Chargement des actualités...' });
+      setLoading(true);
+      const q = query(collection(db, 'news'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const list = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setNewsList(list);
+      setStatus({ type: 'success', message: 'Actualités chargées avec succès !' });
+    } catch (error) {
+      console.error("fetchNews error:", error);
+      setStatus({ type: 'error', message: 'Erreur lors du chargement des actualités.' });
+      handleFirestoreError(error, OperationType.GET, 'news');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveAlert = async (alertData: any) => {
+  const handleSaveNews = async (newsData: any) => {
+    if (!newsData.title || !newsData.message) {
+      setStatus({ type: 'error', message: 'Veuillez remplir le titre et le message.' });
+      return;
+    }
     setLoading(true);
-    setStatus({ type: 'loading', message: 'Enregistrement de l\'alerte...' });
+    setStatus({ type: 'loading', message: "Enregistrement de l'actualité..." });
     try {
-      const alertId = alertData.id || `alert-${Date.now()}`;
-      const alertRef = doc(db, 'commercial_alerts', alertId);
-      
-      const sanitized = {
-        id: alertId,
-        type: alertData.type || 'general',
-        title: alertData.title || '',
-        message: alertData.message || '',
-        itemId: alertData.itemId || '',
-        fanzId: alertData.fanzId || '',
-        imageUrl: alertData.imageUrl || '',
-        createdAt: alertData.createdAt || new Date().toISOString(),
-        isActive: alertData.isActive !== false
-      };
-      
-      await setDoc(alertRef, sanitized);
-      setStatus({ type: 'success', message: 'Alerte commerciale enregistrée avec succès !' });
-      setEditingAlert(null);
-      setShowCreateAlertModal(false);
-      fetchCommercialAlerts();
-    } catch (err) {
-      console.error("Error saving alert", err);
-      setStatus({ type: 'error', message: `Erreur sauvegarde: ${err instanceof Error ? err.message : String(err)}` });
+      const docRef = doc(db, 'news', newsData.id);
+      await setDoc(docRef, {
+        ...newsData,
+        createdAt: newsData.createdAt || new Date().toISOString(),
+        isActive: newsData.isActive !== false
+      });
+      setStatus({ type: 'success', message: 'Actualité enregistrée avec succès !' });
+      setShowCreateNewsModal(false);
+      setEditingNews(null);
+      await fetchNews();
+    } catch (error) {
+      console.error("handleSaveNews error:", error);
+      setStatus({ type: 'error', message: "Erreur lors de l'enregistrement de l'actualité." });
+      handleFirestoreError(error, OperationType.WRITE, `news/${newsData.id}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteAlert = async (alertId: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette alerte ?")) return;
+  const handleDeleteNews = async (newsId: string) => {
+    if (!window.confirm('Voulez-vous vraiment supprimer cette actualité ?')) return;
     setLoading(true);
-    setStatus({ type: 'loading', message: 'Suppression...' });
+    setStatus({ type: 'loading', message: "Suppression de l'actualité..." });
     try {
-      await deleteDoc(doc(db, 'commercial_alerts', alertId));
-      setStatus({ type: 'success', message: 'Alerte supprimée avec succès.' });
-      fetchCommercialAlerts();
-    } catch (err) {
-      console.error("Error deleting alert", err);
-      setStatus({ type: 'error', message: `Erreur suppression: ${err instanceof Error ? err.message : String(err)}` });
+      await deleteDoc(doc(db, 'news', newsId));
+      setStatus({ type: 'success', message: 'Actualité supprimée !' });
+      await fetchNews();
+    } catch (error) {
+      console.error("handleDeleteNews error:", error);
+      setStatus({ type: 'error', message: "Erreur lors de la suppression." });
+      handleFirestoreError(error, OperationType.DELETE, `news/${newsId}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleAlertActive = async (alert: any) => {
+  const handleToggleNewsActive = async (newsItem: any) => {
     setLoading(true);
+    setStatus({ type: 'loading', message: 'Mise à jour du statut...' });
     try {
-      const alertRef = doc(db, 'commercial_alerts', alert.id);
-      await setDoc(alertRef, { ...alert, isActive: !alert.isActive });
-      setStatus({ type: 'success', message: `Alerte ${!alert.isActive ? 'activée' : 'désactivée'} !` });
-      fetchCommercialAlerts();
-    } catch (err) {
-      console.error("Error toggling active state of alert", err);
+      const docRef = doc(db, 'news', newsItem.id);
+      const newStatus = newsItem.isActive === false ? true : false;
+      await updateDoc(docRef, { isActive: newStatus });
+      setStatus({ type: 'success', message: 'Statut mis à jour !' });
+      await fetchNews();
+    } catch (error) {
+      console.error("handleToggleNewsActive error:", error);
+      setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
+      handleFirestoreError(error, OperationType.UPDATE, `news/${newsItem.id}`);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Fast trigger configuration helper from contextual item
-  const handleTriggerQuickAlert = (type: 'fanz' | 'skin' | 'emote', item: any, parentFanz?: any) => {
-    const title = type === 'fanz' ? `🔥 NOUVEAU FANZ : ${item.name} !` : type === 'skin' ? `🎭 NOUVEAU SKIN : ${item.name} !` : `💬 NOUVEL EMOTE : ${item.name} !`;
-    let message = '';
-    let categoryText = '';
-    if (type === 'fanz') {
-      categoryText = item.rarity ? `de rareté ${item.rarity.toUpperCase()}` : '';
-      message = `Découvrez notre tout nouveau FANZ ${item.name} ${categoryText} ! Rejoignez le Kop et battez-vous pour la victoire !`;
-    } else {
-      categoryText = parentFanz ? `pour ${parentFanz.name}` : '';
-      message = `Un tout nouveau ${type === 'skin' ? 'skin' : 'emote'} "${item.name}" ${categoryText} vient d'être activé ! Personnalisez votre style dans les duels dès maintenant !`;
-    }
-
-    setEditingAlert({
-      id: `alert-${Date.now()}`,
-      type,
-      title,
-      message,
-      itemId: item.id || '',
-      fanzId: parentFanz?.id || item.fanzId || '',
-      imageUrl: item.image || item.imageUrl || '',
-      createdAt: new Date().toISOString(),
-      isActive: true
-    });
-    setActiveTab('alerts');
-    setShowCreateAlertModal(true);
   };
 
   const fetchShopConfig = async () => {
@@ -391,8 +365,8 @@ export function AdminZone() {
       fetchDuelConfig();
     } else if (activeTab === 'shop') {
       fetchShopConfig();
-    } else if (activeTab === 'alerts') {
-      fetchCommercialAlerts();
+    } else if (activeTab === 'news') {
+      fetchNews();
       if (fanzTemplates.length === 0) fetchFanzTemplates();
     }
   }, [activeTab, activeUserSubTab]); // Added activeUserSubTab to dependencies
@@ -2304,23 +2278,6 @@ export function AdminZone() {
         </h1>
         <div className="flex items-center gap-4">
           <Button 
-            onClick={() => handleSaveAlert({
-              id: 'alert-doggy',
-              type: 'nouveau_fanz',
-              title: 'Nouveau FanZ : Doggy 🐶',
-              message: 'Le FanZ fan-011 Doggy est maintenant disponible ! Collectionnez-le dès aujourd\'hui.',
-              fanzId: 'fan-011',
-              createdAt: new Date().toISOString(),
-              isActive: true
-            })}
-            variant="outline"
-            className="flex items-center gap-2 border-orange-500 text-orange-500 hover:bg-orange-50"
-            disabled={loading}
-          >
-            Créer Alerte Doggy
-          </Button>
-
-          <Button 
             onClick={() => {
               if (!confirmReset) {
                 setConfirmReset(true);
@@ -2404,17 +2361,17 @@ export function AdminZone() {
         >
           Config DUEL
         </button>
-         <button
+        <button
           className={`pb-2 px-4 font-bold ${activeTab === 'shop' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           onClick={() => setActiveTab('shop')}
         >
           BOUTIQUE 
         </button>
         <button
-          className={`pb-2 px-4 font-bold ${activeTab === 'alerts' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-          onClick={() => setActiveTab('alerts')}
+          className={`pb-2 px-4 font-bold ${activeTab === 'news' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          onClick={() => setActiveTab('news')}
         >
-          📢 Alertes
+          ACTUALITÉS
         </button>
       </div>
 
@@ -4769,7 +4726,6 @@ export function AdminZone() {
                     lifeActions={lifeActions} 
                     duelCards={duelCards} 
                     fanzId={editingFanz.id} 
-                    onTriggerQuickAlert={(type, item) => handleTriggerQuickAlert(type, item, editingFanz)}
                   />
                 </div>
 
@@ -4789,7 +4745,6 @@ export function AdminZone() {
                     emotes={editingFanz.emotes || []} 
                     onChange={emotes => setEditingFanz({...editingFanz, emotes})} 
                     fanzId={editingFanz.id} 
-                    onTriggerQuickAlert={(type, item) => handleTriggerQuickAlert(type, item, editingFanz)}
                   />
                 </div>
 
@@ -5074,18 +5029,7 @@ export function AdminZone() {
                                 <Save className="w-4 h-4" />
                               </Button>
                             )}
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-orange-500 hover:text-orange-400 border-orange-500/30 hover:bg-orange-500/10 px-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleTriggerQuickAlert('fanz', template);
-                              }}
-                              title="Créer Alerte Commerciale"
-                            >
-                              <Megaphone className="w-4 h-4" />
-                            </Button>
+
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -5495,43 +5439,44 @@ export function AdminZone() {
         </div>
       )}
 
-      {activeTab === 'alerts' && (
+      {activeTab === 'news' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center bg-gray-900 border border-gray-800 p-4 rounded-2xl">
+          <div className="flex justify-between items-center bg-gray-950 border border-gray-800 p-6 rounded-3xl">
             <div>
-              <h3 className="text-xl font-bold text-orange-400 flex items-center gap-2">
-                <Megaphone className="w-5 h-5 mr-1" /> Système d'Alertes Commerciales
+              <h3 className="text-xl font-bold text-blue-400 flex items-center gap-2">
+                <Newspaper className="w-5 h-5 mr-1" /> Système d'Actualités Officielles
               </h3>
               <p className="text-xs text-gray-400 mt-1">
-                Gérez et éditez les annonces de nouveautés (FANZ, skins et emotes activés) diffusées aux utilisateurs.
+                Créez, gérez et diffusez de superbes actualités pour annoncer des nouveautés (compétitions, fanz, skins, emotes, packs, etc.).
               </p>
             </div>
             <Button
               onClick={() => {
-                setEditingAlert({
-                  id: `alert-${Date.now()}`,
+                setEditingNews({
+                  id: `news-${Date.now()}`,
                   type: 'general',
-                  title: '✨ Nouvelle Sortie Exclusive !',
+                  title: '📢 Grande Nouveauté !',
                   message: '',
                   itemId: '',
                   fanzId: '',
                   imageUrl: '',
+                  videoUrl: '',
                   createdAt: new Date().toISOString(),
                   isActive: true
                 });
-                setShowCreateAlertModal(true);
+                setShowCreateNewsModal(true);
               }}
-              className="bg-orange-500 hover:bg-orange-600 font-bold"
+              className="bg-blue-600 hover:bg-blue-700 font-bold"
             >
-              <Plus className="w-4 h-4 mr-2" /> Nouvelle Alerte
+              <Plus className="w-4 h-4 mr-2" /> Créer une Actualité
             </Button>
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-xl p-6">
-            {commercialAlerts.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <div className="mb-2 text-3xl">📢</div>
-                Aucune alerte commerciale enregistrée pour le moment.
+            {newsList.length === 0 ? (
+              <div className="p-8 text-center text-gray-505">
+                <div className="mb-2 text-3xl">📰</div>
+                Aucune actualité enregistrée pour le moment.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -5539,46 +5484,64 @@ export function AdminZone() {
                   <thead>
                     <tr className="border-b border-gray-800 text-gray-400 uppercase tracking-wider text-[10px]">
                       <th className="py-3 px-4">Statut</th>
-                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Type de Nouveauté</th>
                       <th className="py-3 px-4">Titre & Message</th>
-                      <th className="py-3 px-4">Preview Média</th>
+                      <th className="py-3 px-4">Média Preview</th>
                       <th className="py-3 px-4 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {commercialAlerts.map(alert => (
-                      <tr key={alert.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
+                    {newsList.map(item => (
+                      <tr key={item.id} className="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
                         <td className="py-4 px-4">
                           <button
-                            onClick={() => handleToggleAlertActive(alert)}
+                            onClick={() => handleToggleNewsActive(item)}
                             className={`px-2.5 py-1 text-[10px] uppercase font-black tracking-wider rounded-full ${
-                              alert.isActive !== false ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              item.isActive !== false ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
                             }`}
                           >
-                            {alert.isActive !== false ? '● En cours' : '○ Inactif'}
+                            {item.isActive !== false ? '● En Ligne' : '○ Masqué'}
                           </button>
                         </td>
-                        <td className="py-4 px-4 font-mono font-black uppercase text-[10px] text-orange-400">
-                          {alert.type}
+                        <td className="py-4 px-4">
+                          <span className={`px-2 py-1 rounded text-[9px] uppercase font-bold ${
+                            item.type === 'competition' ? 'bg-purple-900/40 text-purple-400 border border-purple-800' :
+                            item.type === 'fanz' ? 'bg-orange-900/40 text-orange-400 border border-orange-800' :
+                            item.type === 'skin' ? 'bg-pink-900/40 text-pink-400 border border-pink-800' :
+                            item.type === 'emote' ? 'bg-teal-900/40 text-teal-400 border border-teal-800' :
+                            item.type === 'pack' ? 'bg-yellow-900/40 text-yellow-500 border border-yellow-800' :
+                            'bg-gray-800 text-gray-300 border border-gray-700'
+                          }`}>
+                            {item.type}
+                          </span>
                         </td>
                         <td className="py-4 px-4 max-w-sm">
-                          <div className="font-bold text-white mb-1">{alert.title}</div>
-                          <div className="text-gray-400 text-[11px] leading-relaxed truncate-2-lines line-clamp-2">{alert.message}</div>
-                          <div className="text-[9px] text-gray-600 mt-1">Créée le {new Date(alert.createdAt).toLocaleString('fr-FR')}</div>
+                          <div className="font-bold text-white mb-1">{item.title}</div>
+                          <div className="text-gray-400 text-[11px] leading-relaxed truncate-2-lines line-clamp-2">{item.message}</div>
+                          <div className="text-[9px] text-gray-600 mt-1">Publié le {new Date(item.createdAt).toLocaleString('fr-FR')}</div>
                         </td>
-                        <td className="py-4 px-4">
-                          {alert.imageUrl ? (
-                            <img src={getImageUrl(alert.imageUrl)} alt="Preview" className="w-12 h-12 object-contain bg-black/40 border border-white/10 rounded-lg p-1" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span className="text-gray-600">Aucun média</span>
-                          )}
-                        </td>
+                         <td className="py-4 px-4">
+                           {item.videoUrl ? (
+                             <div className="flex flex-col items-center gap-1">
+                               <video src={getImageUrl(item.videoUrl)} className="w-12 h-12 object-cover bg-black/40 border border-white/10 rounded-lg p-1" muted playsInline />
+                               <span className="text-[8px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1 rounded uppercase font-black">Vidéo</span>
+                             </div>
+                           ) : item.imageUrl ? (
+                             item.imageUrl.length < 5 ? (
+                               <span className="text-xl p-2 bg-black/40 border border-white/10 rounded-lg">{item.imageUrl}</span>
+                             ) : (
+                               <img src={getImageUrl(item.imageUrl)} alt="Preview" className="w-12 h-12 object-contain bg-black/40 border border-white/10 rounded-lg p-1" referrerPolicy="no-referrer" />
+                             )
+                           ) : (
+                             <span className="text-gray-600">Aucun média</span>
+                           )}
+                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className="flex gap-2 justify-center">
                             <Button 
                               onClick={() => {
-                                setEditingAlert(alert);
-                                setShowCreateAlertModal(true);
+                                setEditingNews(item);
+                                setShowCreateNewsModal(true);
                               }}
                               variant="outline"
                               size="sm"
@@ -5587,7 +5550,7 @@ export function AdminZone() {
                               Éditer
                             </Button>
                             <Button 
-                              onClick={() => handleDeleteAlert(alert.id)}
+                              onClick={() => handleDeleteNews(item.id)}
                               variant="destructive"
                               size="sm"
                             >
@@ -5605,60 +5568,62 @@ export function AdminZone() {
         </div>
       )}
 
-      {showCreateAlertModal && editingAlert && (
+      {showCreateNewsModal && editingNews && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg bg-gray-900 border border-gray-800 rounded-3xl p-6 shadow-2xl flex flex-col space-y-4 text-white">
-            <h3 className="text-lg font-bold text-orange-400 flex items-center gap-2">
-              <Megaphone className="w-5 h-5 mr-1" /> {editingAlert.id.includes('alert-') ? 'Créer une alerte commerciale' : 'Modifier l\'alerte'}
+          <div className="w-full max-w-lg bg-gray-905 border border-gray-800 rounded-3xl p-6 shadow-2xl flex flex-col space-y-4 text-white">
+            <h3 className="text-lg font-bold text-blue-400 flex items-center gap-2">
+              <Newspaper className="w-5 h-5 mr-1" /> {editingNews.id.includes('news-') ? 'Publier une actualité' : 'Modifier l\'actualité'}
             </h3>
 
             <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-2">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Type de Nouveauté</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Catégorie de nouveauté</label>
                 <select
-                  value={editingAlert.type}
+                  value={editingNews.type}
                   onChange={e => {
                     const t = e.target.value as any;
-                    setEditingAlert({ ...editingAlert, type: t, itemId: '', fanzId: '' });
+                    setEditingNews({ ...editingNews, type: t, itemId: '', fanzId: '' });
                   }}
-                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-orange-500"
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500"
                 >
-                  <option value="general">Général (Campagne marketing)</option>
-                  <option value="fanz">Nouveau FANZ</option>
-                  <option value="skin">Nouveau SKIN</option>
-                  <option value="emote">Nouvel EMOTE</option>
+                  <option value="general">Général (Actualités de l'app)</option>
+                  <option value="competition">Nouvelle COMPÉTITION</option>
+                  <option value="fanz">Nouveau FANZ disponible</option>
+                  <option value="skin">Nouveau SKIN disponible</option>
+                  <option value="emote">Nouvel EMOTE disponible</option>
+                  <option value="pack">Nouveau PACK Boutique</option>
                 </select>
               </div>
 
-              {/* Fanz Selector for contextual auto-generation */}
-              {(editingAlert.type === 'fanz' || editingAlert.type === 'skin' || editingAlert.type === 'emote') && (
+              {/* Fanz Selector for contextual fanz/skin/emote */}
+              {(editingNews.type === 'fanz' || editingNews.type === 'skin' || editingNews.type === 'emote') && (
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
-                    {editingAlert.type === 'fanz' ? 'Sélectionner le Fanz Template' : 'Sélectionner le Fanz associé'}
+                    {editingNews.type === 'fanz' ? 'Sélectionner le Fanz Template' : 'Sélectionner le Fanz associé'}
                   </label>
                   <select
-                    value={editingAlert.type === 'fanz' ? editingAlert.itemId : editingAlert.fanzId}
+                    value={editingNews.type === 'fanz' ? editingNews.itemId : editingNews.fanzId}
                     onChange={e => {
                       const selectedId = e.target.value;
                       const matchedFanz = fanzTemplates.find(f => f.id === selectedId);
                       
-                      if (editingAlert.type === 'fanz') {
-                        setEditingAlert({
-                          ...editingAlert,
+                      if (editingNews.type === 'fanz') {
+                        setEditingNews({
+                          ...editingNews,
                           itemId: selectedId,
-                          title: `🔥 NOUVEAU FANZ : ${matchedFanz ? matchedFanz.name : ''} !`,
-                          message: `Découvrez notre tout nouveau FANZ ${matchedFanz ? matchedFanz.name : ''} ! Rejoignez le Kop et battez-vous pour la victoire !`,
+                          title: `🔥 NOUVEAU FANZ DISPONIBLE : ${matchedFanz ? matchedFanz.name : ''} !`,
+                          message: `Découvrez notre légendaire FANZ ${matchedFanz ? matchedFanz.name : ''} ! Rejoignez les Kops et combattez pour les couleurs de votre club !`,
                           imageUrl: matchedFanz ? matchedFanz.image || '' : ''
                         });
                       } else {
-                        setEditingAlert({
-                          ...editingAlert,
+                        setEditingNews({
+                          ...editingNews,
                           fanzId: selectedId,
-                          itemId: '' // Reset item choice on parent change
+                          itemId: '' // Reset choice
                         });
                       }
                     }}
-                    className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-orange-500"
+                    className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500"
                   >
                     <option value="">-- Choisir un Fanz Template --</option>
                     {fanzTemplates.map(f => (
@@ -5668,79 +5633,144 @@ export function AdminZone() {
                 </div>
               )}
 
-              {/* Select skin or emote from chosen Fanz skins/emotes list */}
-              {(editingAlert.type === 'skin' || editingAlert.type === 'emote') && editingAlert.fanzId && (
+              {/* Skin or emote selection list */}
+              {(editingNews.type === 'skin' || editingNews.type === 'emote') && editingNews.fanzId && (
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase mb-1">
-                    {editingAlert.type === 'skin' ? 'Sélectionner le Skin' : 'Sélectionner l\'Emote'}
+                    {editingNews.type === 'skin' ? 'Sélectionner le Skin' : 'Sélectionner l\'Emote'}
                   </label>
                   <select
-                    value={editingAlert.itemId}
+                    value={editingNews.itemId}
                     onChange={e => {
                       const itemId = e.target.value;
-                      const fanz = fanzTemplates.find(f => f.id === editingAlert.fanzId);
-                      const list = editingAlert.type === 'skin' ? (fanz?.skins || []) : (fanz?.emotes || []);
+                      const fanz = fanzTemplates.find(f => f.id === editingNews.fanzId);
+                      const list = editingNews.type === 'skin' ? (fanz?.skins || []) : (fanz?.emotes || []);
                       const selectedItem = list.find((i: any) => i.id === itemId);
 
-                      setEditingAlert({
-                        ...editingAlert,
+                      setEditingNews({
+                        ...editingNews,
                         itemId,
-                        title: editingAlert.type === 'skin' ? `🎭 NOUVEAU SKIN : ${selectedItem?.name || ''} !` : `💬 NOUVEL EMOTE : ${selectedItem?.name || ''} !`,
-                        message: `Un tout nouveau ${editingAlert.type === 'skin' ? 'skin' : 'emote'} "${selectedItem?.name || ''}" est désormais activé ! Personnalisez vos duels dès maintenant !`,
+                        title: editingNews.type === 'skin' ? `🎭 NOUVEAU SKIN : ${selectedItem?.name || ''} !` : `💬 NOUVEL EMOTE : ${selectedItem?.name || ''} !`,
+                        message: `Un magnifique ${editingNews.type === 'skin' ? 'skin' : 'emote'} "${selectedItem?.name || ''}" est désormais activable ! Personnalisez vos duels dès maintenant !`,
                         imageUrl: selectedItem?.imageUrl || (selectedItem as any)?.image || ''
                       });
                     }}
-                    className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-orange-500"
+                    className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500"
                   >
                     <option value="">-- Choisir un item dans la liste --</option>
-                    {((fanzTemplates.find(f => f.id === editingAlert.fanzId))?.[editingAlert.type === 'skin' ? 'skins' : 'emotes'] || []).map((i: any) => (
+                    {((fanzTemplates.find(f => f.id === editingNews.fanzId))?.[editingNews.type === 'skin' ? 'skins' : 'emotes'] || []).map((i: any) => (
                       <option key={i.id} value={i.id}>{i.name}</option>
                     ))}
                   </select>
                 </div>
               )}
 
+              {/* Pack list helper if pack type selected */}
+              {editingNews.type === 'pack' && shopConfig?.realMoneyPacks && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Sélectionner un Pack Boutique</label>
+                  <select
+                    value={editingNews.itemId}
+                    onChange={e => {
+                      const selectedId = e.target.value;
+                      const matchedPack = shopConfig.realMoneyPacks.find((p: any) => p.id === selectedId);
+
+                      setEditingNews({
+                        ...editingNews,
+                        itemId: selectedId,
+                        title: `💎 NOUVEAU PACK DE LA BOUTIQUE : ${matchedPack ? matchedPack.name : ''} !`,
+                        message: `Profitez d'une offre exclusive avec le pack "${matchedPack ? matchedPack.name : ''}" disponible dès aujourd'hui dans la boutique officielle !`,
+                        imageUrl: matchedPack ? matchedPack.image || '' : ''
+                      });
+                    }}
+                    className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500"
+                  >
+                    <option value="">-- Sélectionner un Pack existant --</option>
+                    {shopConfig.realMoneyPacks.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.priceEur}€)</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Competition automatic help title */}
+              {editingNews.type === 'competition' && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Noms de Ligue Préréglés</label>
+                  <select
+                    onChange={e => {
+                      const leagueName = e.target.value;
+                      if (!leagueName) return;
+                      setEditingNews({
+                        ...editingNews,
+                        title: `🏆 NOUVELLE COMPÉTITION DISPONIBLE : ${leagueName} !`,
+                        message: `La compétition ${leagueName} est désormais disponible pour s'affronter en duel ! Rejoignez le Kop de vos équipes préférées et grimpez le classement mondial !`
+                      });
+                    }}
+                    className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500"
+                  >
+                    <option value="">-- Remplir automatiquement avec une ligue globale --</option>
+                    <option value="Ligue 1 McDonald's">Ligue 1 McDonald's</option>
+                    <option value="UEFA Champions League">UEFA Champions League</option>
+                    <option value="Premier League">Premier League</option>
+                    <option value="LaLiga EA Sports">LaLiga EA Sports</option>
+                    <option value="Serie A Enilive">Serie A Enilive</option>
+                  </select>
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Titre de l'Alerte</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Titre de la News</label>
                 <input
                   type="text"
-                  value={editingAlert.title}
-                  onChange={e => setEditingAlert({ ...editingAlert, title: e.target.value })}
-                  placeholder="ex: 🔥 Nouveau FANZ : Mbappé !"
-                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-orange-500"
+                  value={editingNews.title}
+                  onChange={e => setEditingNews({ ...editingNews, title: e.target.value })}
+                  placeholder="ex: 🏆 Nouvelle compétition disponible !"
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Message d'Annonce</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Message d'annonce</label>
                 <textarea
-                  value={editingAlert.message}
-                  onChange={e => setEditingAlert({ ...editingAlert, message: e.target.value })}
-                  placeholder="Décrivez l'item ou rédigez le pitch commercial..."
-                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-orange-500 h-24 resize-none"
+                  value={editingNews.message}
+                  onChange={e => setEditingNews({ ...editingNews, message: e.target.value })}
+                  placeholder="Écrivez le message de l'annonce..."
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-blue-500 h-24 resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Média URL (Image de preview)</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">URL de l'image (Média)</label>
                 <input
                   type="text"
-                  value={editingAlert.imageUrl}
-                  onChange={e => setEditingAlert({ ...editingAlert, imageUrl: e.target.value })}
-                  placeholder="ex: /fanz/custom-image.png"
-                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-orange-500"
+                  value={editingNews.imageUrl || ''}
+                  onChange={e => setEditingNews({ ...editingNews, imageUrl: e.target.value })}
+                  placeholder="ex: /fanz/image-name.png ou emoji 💎"
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">URL de la vidéo (Média - Optionnel)</label>
+                <input
+                  type="text"
+                  value={editingNews.videoUrl || ''}
+                  onChange={e => setEditingNews({ ...editingNews, videoUrl: e.target.value })}
+                  placeholder="ex: /fanz/video-name.mp4"
+                  className="w-full bg-black/50 border border-white/20 rounded-xl px-3 py-2 text-white placeholder-white/30 outline-none focus:border-blue-500"
                 />
               </div>
 
               <div className="flex items-center gap-2 pt-2 bg-white/5 p-3 rounded-xl">
                 <input
                   type="checkbox"
-                  id="alertActiveInput"
-                  checked={editingAlert.isActive !== false}
-                  onChange={e => setEditingAlert({ ...editingAlert, isActive: e.target.checked })}
-                  className="w-4 h-4 text-orange-500 accent-orange-500 rounded focus:ring-0 cursor-pointer"
+                  id="newsActiveInput"
+                  checked={editingNews.isActive !== false}
+                  onChange={e => setEditingNews({ ...editingNews, isActive: e.target.checked })}
+                  className="w-4 h-4 text-blue-500 accent-blue-500 rounded focus:ring-0 cursor-pointer"
                 />
-                <label htmlFor="alertActiveInput" className="text-sm cursor-pointer select-none font-medium">Activer immédiatement l'annonce</label>
+                <label htmlFor="newsActiveInput" className="text-sm cursor-pointer select-none font-medium">Activer et diffuser immédiatement</label>
               </div>
             </div>
 
@@ -5748,18 +5778,18 @@ export function AdminZone() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setEditingAlert(null);
-                  setShowCreateAlertModal(false);
+                  setEditingNews(null);
+                  setShowCreateNewsModal(false);
                 }}
               >
                 Annuler
               </Button>
               <Button
-                onClick={() => handleSaveAlert(editingAlert)}
-                className="bg-orange-500 hover:bg-orange-600 font-bold"
-                disabled={loading || !editingAlert.title || !editingAlert.message}
+                onClick={() => handleSaveNews(editingNews)}
+                className="bg-blue-600 hover:bg-blue-700 font-bold"
+                disabled={loading || !editingNews.title || !editingNews.message}
               >
-                Enregistrer l'Alerte
+                Enregistrer l'Actualité
               </Button>
             </div>
           </div>

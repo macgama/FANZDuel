@@ -380,6 +380,24 @@
         "isActive": { "type": "boolean", "default": true }
       },
       "required": ["id", "type", "title", "message", "createdAt"]
+    },
+    "News": {
+      "title": "News",
+      "description": "A news announcement created by admins to feature competitions, fanz, skins, emotes, or packs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["competition", "fanz", "skin", "emote", "pack", "general"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "itemId": { "type": "string", "description": "ID of the featured entity if any" },
+        "fanzId": { "type": "string", "description": "Fanz ID context for skins/emotes" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isActive": { "type": "boolean", "default": true },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["id", "type", "title", "message", "createdAt"]
     }
   },
   "firestore": {
@@ -404,6 +422,7 @@
     "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages in a chat" },
     "/ranking_users/{rankingId}": { "schema": "RankingUser", "description": "User rankings per season and league" },
     "/ranking_teams/{rankingId}": { "schema": "RankingTeam", "description": "Team rankings per season and league" },
-    "/commercial_alerts/{alertId}": { "schema": "CommercialAlert", "description": "Commercial announcements for new items" }
+    "/commercial_alerts/{alertId}": { "schema": "CommercialAlert", "description": "Commercial announcements for new items" },
+    "/news/{newsId}": { "schema": "News", "description": "News announcements for various updates" }
   }
 }

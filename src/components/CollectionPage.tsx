@@ -35,6 +35,8 @@ export function CollectionPage({ user }: CollectionPageProps) {
     // 1. Fetch user's FANZ to see what they own
     const unsubscribe = onSnapshot(query(collection(db, 'fanz'), where('ownerUid', '==', user.uid)), (snap) => {
       setFanzList(snap.docs.map(d => d.data() as Fanz));
+    }, (error) => {
+      console.error("CollectionPage fanz listener error:", error);
     });
     return () => unsubscribe();
   }, [user.uid]);
@@ -42,6 +44,8 @@ export function CollectionPage({ user }: CollectionPageProps) {
   useEffect(() => {
     const unsubBase = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
        setUserDoc(docSnap.data() as UserProfile);
+    }, (error) => {
+      console.error("CollectionPage users listener error:", error);
     });
     return () => unsubBase();
   }, [user.uid]);
