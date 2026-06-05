@@ -852,5 +852,44 @@ export const BASE_CARDS: Card[] = [
     effects: [{ type: 'zoomies_chaos' }],
     imageUrl: 'https://thebestfan.online/public/images/zoomies_chaos.png',
     fanzIds: []
+  },
+  {
+    id: 'base_script_with_me',
+    name: 'Le Script est avec moi',
+    category: 'Action',
+    type: 'bonus',
+    rarity: 'epic',
+    energyCost: 4,
+    fervorValue: 0,
+    description: 'Annulez la dernière attaque réussie de l\'adversaire. Le "script" algorithmique du jeu a décidé que le ballon devait rebondir miraculeusement dans vos pieds.',
+    effects: [{ type: 'cancel_last_attack' }],
+    imageUrl: 'https://thebestfan.online/public/images/script_with_me.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_rage_quit',
+    name: 'Rage Quit Téléphonique',
+    category: 'Piège',
+    type: 'malus',
+    rarity: 'epic',
+    energyCost: 5,
+    fervorValue: 0,
+    description: 'Votre Spécialiste vient d\'encaisser un but gag. Il éteint la console de rage. Défaussez toutes les cartes "Action Rapide" de votre main et passez le tour.',
+    effects: [{ type: 'rage_quit_discard', duration: 6 }],
+    imageUrl: 'https://thebestfan.online/public/images/rage_quit.png',
+    fanzIds: []
+  },
+  {
+    id: 'base_meta_update',
+    name: 'Mise à Jour des Stats (Nouvelle Méta)',
+    category: 'Événement',
+    type: 'neutral',
+    rarity: 'epic',
+    energyCost: 3,
+    fervorValue: 0,
+    description: 'Une nouvelle mise à jour vient de tomber. Les cartes ayant moins de 3 points en Attaque gagnent +2, celles ayant plus de 5 points perdent -2. Valable jusqu\'à la fin du tour.',
+    effects: [{ type: 'meta_update', duration: 15 }],
+    imageUrl: 'https://thebestfan.online/public/images/meta_update.png',
+    fanzIds: []
   }
 ];

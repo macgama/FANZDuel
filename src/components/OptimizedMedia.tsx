@@ -16,6 +16,14 @@ interface OptimizedMediaProps {
   controls?: boolean;
   width?: number;
   forceUnmuted?: boolean;
+  // Global Media Viewer Support
+  viewerEnabled?: boolean;
+  viewerIgnore?: boolean;
+  viewerTitle?: string;
+  viewerItemType?: 'card' | 'emote' | 'skin' | 'fanz' | 'life_action' | 'other';
+  viewerDescription?: string;
+  viewerMetadata?: string;
+  viewerVideoUrl?: string;
 }
 
 export function OptimizedMedia({
@@ -31,6 +39,14 @@ export function OptimizedMedia({
   controls = false,
   width,
   forceUnmuted = false,
+  // Global Media Viewer Support
+  viewerEnabled,
+  viewerIgnore,
+  viewerTitle,
+  viewerItemType,
+  viewerDescription,
+  viewerMetadata,
+  viewerVideoUrl,
 }: OptimizedMediaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -88,6 +104,16 @@ export function OptimizedMedia({
     return <div className={`bg-gray-800 ${className}`} />;
   }
 
+  const viewerProps = {
+    'data-viewer-enabled': viewerEnabled ? 'true' : undefined,
+    'data-viewer-ignore': viewerIgnore ? 'true' : undefined,
+    'data-viewer-title': viewerTitle,
+    'data-viewer-item-type': viewerItemType,
+    'data-viewer-description': viewerDescription,
+    'data-viewer-metadata': viewerMetadata,
+    'data-viewer-video-url': viewerVideoUrl,
+  };
+
   // In Data Saver mode, fallback to image if it's a video
   if (type === 'video' && dataSaver) {
     if (posterSrc) {
@@ -102,6 +128,7 @@ export function OptimizedMedia({
             const fallback = getFallbackSrc(poster);
             if (posterSrc !== fallback) setPosterSrc(fallback);
           }}
+          {...viewerProps}
         />
       );
     }
@@ -119,6 +146,7 @@ export function OptimizedMedia({
           controls={false}
           playsInline
           preload="metadata"
+          {...viewerProps}
         />
       </div>
     );
@@ -147,6 +175,7 @@ export function OptimizedMedia({
               e.stopPropagation();
               setIsHoveredOrClicked(prev => !prev);
             }}
+            {...viewerProps}
           />
         ) : (
           // Render poster or placeholder when out of view to save memory
@@ -159,6 +188,7 @@ export function OptimizedMedia({
                 const fallback = getFallbackSrc(poster);
                 if (posterSrc !== fallback) setPosterSrc(fallback);
               }}
+              {...viewerProps}
             />
           ) : (
             <div className={`bg-gray-800 ${className}`} />
@@ -183,6 +213,7 @@ export function OptimizedMedia({
             const fallback = getFallbackSrc(src);
             if (imgSrc !== fallback) setImgSrc(fallback);
           }}
+          {...viewerProps}
         />
       ) : (
         <div className={`bg-gray-800 ${className}`} />

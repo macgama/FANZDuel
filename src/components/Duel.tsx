@@ -813,6 +813,26 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [isSabotaged, setIsSabotaged] = useState(false);
   const [isTradingStickers, setIsTradingStickers] = useState(false);
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
+  const [lastMyCard, setLastMyCard] = useState<GameCard | null>(null);
+  const [isHalfHalfScarfActive, setIsHalfHalfScarfActive] = useState(false);
+  const [isMegaphoneEchoActive, setIsMegaphoneEchoActive] = useState(false);
+  const [lockedCardInstanceIds, setLockedCardInstanceIds] = useState<string[]>([]);
+  const [isEarlyCraquageActive, setIsEarlyCraquageActive] = useState(false);
+  const [isEnemyEarlyCraquageActive, setIsEnemyEarlyCraquageActive] = useState(false);
+  const [isLaserRelaunchActive, setIsLaserRelaunchActive] = useState(false);
+  const [isEnemyLaserRelaunchActive, setIsEnemyLaserRelaunchActive] = useState(false);
+  const [isMentalMainCouranteActive, setIsMentalMainCouranteActive] = useState(false);
+  const [isEnemyMentalMainCouranteActive, setIsEnemyMentalMainCouranteActive] = useState(false);
+  const [isHeritageWeightActive, setIsHeritageWeightActive] = useState(false);
+  const [isEnemyHeritageWeightActive, setIsEnemyHeritageWeightActive] = useState(false);
+  const [isBuvetteAlertActive, setIsBuvetteAlertActive] = useState(false);
+  const [hasConsumedBuvette, setHasConsumedBuvette] = useState(false);
+  const [isTikTokHighlightActive, setIsTikTokHighlightActive] = useState(false);
+  const [isEnemyTikTokHighlightActive, setIsEnemyTikTokHighlightActive] = useState(false);
+  const [isPrimeGoatActive, setIsPrimeGoatActive] = useState(false);
+  const [isEnemyPrimeGoatActive, setIsEnemyPrimeGoatActive] = useState(false);
+  const [isDebatePickerOpen, setIsDebatePickerOpen] = useState(false);
+  const [hasLastActionFailed, setHasLastActionFailed] = useState(false);
   const [isImmune, setIsImmune] = useState(false);
   const [isCriticalStrike, setIsCriticalStrike] = useState(false);
   const [isMomentum, setIsMomentum] = useState(false);
@@ -851,6 +871,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [isEnemyCapoMegaphoneActive, setIsEnemyCapoMegaphoneActive] = useState(false);
   const [isCraquageMassifActive, setIsCraquageMassifActive] = useState(false);
   const [isEnemyCraquageMassifActive, setIsEnemyCraquageMassifActive] = useState(false);
+  const [isMetaUpdateActive, setIsMetaUpdateActive] = useState(false);
+  const [isEnemyMetaUpdateActive, setIsEnemyMetaUpdateActive] = useState(false);
   const [stateSnapshots, setStateSnapshots] = useState<{
     progress: number;
     excitement: number;
@@ -1808,7 +1830,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       setTimeout(() => setEnemyPlayedCardAnim(null), 2000);
 
       const isMalus = (enhancedCard.effects || []).some(e => 
-        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card', 'stun', 'mammoth_charge', 'mascot_bone_drum', 'corne_drakkar', 'pumpkin_fog', 'locker_room_curse', 'chainsaw_megaphone', 'burning_seats', 'vol_ballon', 'zoomies_chaos'].includes(e.type)
+        ['drain_energy', 'hide_button', 'shrink_button', 'move_button', 'blur_view', 'hide_score', 'discard_enemy_cards', 'discard_random_cards', 'shuffle_deck', 'freeze_button', 'earthquake', 'fake_buttons', 'card_lock', 'fog_of_war', 'sabotage', 'steal_energy', 'blackout', 'curse', 'confetti', 'hypnosis', 'pacifier_drama', 'mascot_bazooka', 'steal_best_card', 'stun', 'mammoth_charge', 'mascot_bone_drum', 'corne_drakkar', 'pumpkin_fog', 'locker_room_curse', 'chainsaw_megaphone', 'burning_seats', 'vol_ballon', 'zoomies_chaos', 'boucher_district'].includes(e.type)
       );
       
       if (!enhancedCard.videoUrl || enhancedCard.videoUrl === "undefined" || user.dataSaver) {
@@ -1838,6 +1860,27 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           const revertSign = currentMyTeam === 'A' ? 1 : -1;
           return Math.min(100, Math.max(0, prev + revertDelta * revertSign));
         });
+        return;
+      }
+
+      const isClimateOrTerrainCard = 
+        (enhancedCard.category?.toLowerCase() || '').includes('climat') || 
+        (enhancedCard.category?.toLowerCase() || '').includes('terrain') || 
+        (enhancedCard.category?.toLowerCase() || '').includes('weather') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('pluie') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('neige') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('boue') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('faux rebond') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('climat') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('terrain') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('rain') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('snow') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('mud') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('bounce') || 
+        (enhancedCard.name?.toLowerCase() || '').includes('weather');
+
+      if (isClimateOrTerrainCard && isMentalMainCouranteActive) {
+        addFloatingEffect("🛡️ Le Mental de la Main Courante bloque l'effet de climat/terrain !", window.innerWidth / 2, 160, 'text-green-400 font-extrabold animate-bounce py-1 px-2 bg-black/40 rounded border border-green-500/35');
         return;
       }
 
@@ -2092,6 +2135,44 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setTimeout(() => setIsDeafened(false), getEffectiveDuration(effect.duration || 10, mentalResistance));
             addFloatingEffect("🔇 Sourd ! Chants et Sorts bloqués !", window.innerWidth / 2, 200, "text-red-400 font-extrabold animate-pulse");
             break;
+          case 'boucher_district':
+            setHand(prev => {
+              if (prev.length === 0) return prev;
+              const newHand = [...prev];
+              newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+              return newHand;
+            });
+            setTimeout(drawCard, 2000);
+            setExcitement(prev => Math.max(0, prev - 1));
+            addFloatingEffect("💥 LE BOUCHER DU DISTRICT ! Tacle assassin à la gorge ! Prodige KO défaussé (-1 PA) !", window.innerWidth / 2, 200, 'text-red-500 font-black scale-125 animate-bounce z-[200]');
+            break;
+          case 'tiktok_highlight':
+            setIsEnemyTikTokHighlightActive(true);
+            setTimeout(() => setIsEnemyTikTokHighlightActive(false), 8000);
+            addFloatingEffect("📱 Coup du foulard tenté (Highlight TikTok adverse) ! Double ferveur pour l'ennemi !", window.innerWidth / 2, 200, 'text-purple-400 font-bold animate-pulse');
+            break;
+          case 'prime_goat':
+            setIsEnemyPrimeGoatActive(true);
+            setTimeout(() => setIsEnemyPrimeGoatActive(false), (effect.duration || 15) * 1000);
+            addFloatingEffect("⚡ Le Prime (G.O.A.T) ! L'adversaire hype l'Ado avec un montage vidéo (+4 Ferveur adverse, ignore stats) !", window.innerWidth / 2, 200, 'text-yellow-400 font-extrabold animate-bounce');
+            break;
+          case 'attention_swipe':
+            setHand(prev => {
+              if (prev.length === 0) return prev;
+              const newHand = [...prev];
+              newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+              return newHand;
+            });
+            setTimeout(drawCard, 2000);
+            addFloatingEffect("📱 Perte d'Attention (Swipe) ! L'Ado a zappé sur TikTok ! Défausse d'une carte au hasard de votre main !", window.innerWidth / 2, 200, 'text-red-400 font-black scale-110 animate-bounce bg-black/40 px-2 py-1');
+            break;
+          case 'sterile_debate':
+            setIsDebatePickerOpen(true);
+            addFloatingEffect("💬 Le Débat Stérile sur les Réseaux ! Choisissez une carte à parier contre le Ratio adverse !", window.innerWidth / 2, 200, 'text-purple-400 font-extrabold animate-bounce bg-black/40 px-2 py-1 rounded');
+            break;
+          case 'faux_rebond_excuse':
+            addFloatingEffect("🤷‍♂️ L'Excuse du Faux Rebond ! L'adversaire annule sa phase d'action !", window.innerWidth / 2, 200, 'text-yellow-400 font-extrabold animate-bounce bg-black/40 px-2 py-1 rounded');
+            break;
           case 'parrot_taunt':
             setIsEnemyParrotTauntActive(true);
             setTimeout(() => setIsEnemyParrotTauntActive(false), (effect.duration || 15) * 1000);
@@ -2146,6 +2227,178 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             setIsEnemyCraquageMassifActive(true);
             setTimeout(() => setIsEnemyCraquageMassifActive(false), (effect.duration || 10) * 1000);
             addFloatingEffect("🔥 CRAQUAGE MASSIF-FUMIGÈNES ! Tribune ennemie masquée !", window.innerWidth / 2, 200, 'text-red-500 font-black animate-pulse z-[210]');
+            break;
+          case 'cancel_last_attack':
+            if (myTeamRef.current || true) {
+              const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+              const val = 10;
+              const delta = (currentMyTeam === 'A' ? -val : val) / resistance;
+              const bonus = currentMyTeam === 'A' ? -10 : 10;
+              setProgress(prev => Math.min(100, Math.max(0, prev + delta + bonus)));
+              addFloatingEffect("🔮 SCRIPT ADVERSE : Votre dernière attaque est annulée (Rebond miracle) !", window.innerWidth / 2, 200, 'text-red-400 font-extrabold scale-110 animate-pulse');
+            }
+            break;
+          case 'rage_quit_discard':
+            const trqDiscardList = handRef.current.filter(c => c.category?.toLowerCase().includes('action') || c.name.toLowerCase().includes('action'));
+            if (trqDiscardList.length > 0) {
+              setHand(prev => prev.filter(c => !(c.category?.toLowerCase().includes('action') || c.name.toLowerCase().includes('action'))));
+              setTimeout(() => {
+                drawCard(false, trqDiscardList.length);
+              }, 2000);
+            }
+            setIsStunned(true);
+            setTimeout(() => setIsStunned(false), getEffectiveDuration(effect.duration || 6, mentalResistance));
+            addFloatingEffect(`😡 RAGE QUIT : Défausse de ${trqDiscardList.length} cartes Action + Tour sauté !`, window.innerWidth / 2, 220, 'text-red-500 font-extrabold scale-125 animate-pulse');
+            break;
+          case 'meta_update':
+            setIsMetaUpdateActive(true);
+            setTimeout(() => setIsMetaUpdateActive(false), (effect.duration || 15) * 1000);
+            addFloatingEffect("🌐 NOUVELLE MÉTA : Statut Équilibrage Global !", window.innerWidth / 2, 200, 'text-cyan-400 font-black animate-pulse scale-110');
+            break;
+          case 'stealth_jacket_flip':
+            if (lastMyCard && lastMyCard.effects && lastMyCard.effects.length > 0) {
+              addFloatingEffect(`🎭 Retournement de veste adverse : Effets de "${lastMyCard.name}" copiés !`, window.innerWidth / 2, 170, 'text-red-400 font-extrabold animate-pulse');
+              lastMyCard.effects.forEach((eff: any) => {
+                if (eff.type === 'drain_energy') {
+                  setExcitement(prev => Math.max(0, prev - getEffectiveValue(eff.value || 0)));
+                } else if (eff.type === 'blur_view') {
+                  setIsBlurred(true);
+                  setTimeout(() => setIsBlurred(false), getEffectiveDuration(eff.duration || 5, bluffResistance));
+                } else if (eff.type === 'hide_button') {
+                  setIsButtonHidden(true);
+                  setTimeout(() => setIsButtonHidden(false), getEffectiveDuration(eff.duration || 4, mentalResistance));
+                } else if (eff.type === 'shrink_button') {
+                  setIsButtonShrunk(true);
+                  setTimeout(() => setIsButtonShrunk(false), getEffectiveDuration(eff.duration || 6, bluffResistance));
+                } else if (eff.type === 'move_button') {
+                  setIsButtonMoving(true);
+                  setTimeout(() => setIsButtonMoving(false), getEffectiveDuration(eff.duration || 8, bluffResistance));
+                } else if (eff.type === 'hide_score') {
+                  setIsScoreHidden(true);
+                  setTimeout(() => setIsScoreHidden(false), getEffectiveDuration(eff.duration || 7, bluffResistance));
+                } else if (eff.type === 'freeze_button') {
+                  setIsButtonFrozen(true);
+                  setTimeout(() => setIsButtonFrozen(false), getEffectiveDuration(eff.duration || 3, mentalResistance));
+                } else if (eff.type === 'stun') {
+                  setIsStunned(true);
+                  setTimeout(() => setIsStunned(false), getEffectiveDuration(eff.duration || 5, mentalResistance));
+                }
+              });
+            } else {
+              addFloatingEffect("🎭 Retournement de veste adverse : Aucune carte à copier !", window.innerWidth / 2, 170, 'text-gray-400');
+            }
+            break;
+          case 'desert_crossing':
+            const isEnemyLosing = (currentMyTeam === 'A' && progress > 50) || (currentMyTeam === 'B' && progress < 50);
+            if (isEnemyLosing) {
+              addFloatingEffect("🏜️ Traversée du Désert adverse : Perte de ferveur adverse !", window.innerWidth / 2, 200, 'text-red-400 font-extrabold animate-pulse');
+              const loss = currentMyTeam === 'A' ? 15 : -15;
+              const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+              setProgress(prev => Math.min(100, Math.max(0, prev + (loss / resistance))));
+            } else {
+              addFloatingEffect("🏜️ Traversée du Désert adverse : L'adversaire mène ! Son Glory Hunter est sauf.", window.innerWidth / 2, 200, 'text-green-400 font-bold');
+            }
+            break;
+          case 'half_half_scarf':
+            setIsEnemyLuminescentStandardActive(true);
+            setTimeout(() => {
+              setIsEnemyLuminescentStandardActive(false);
+            }, (effect.duration || 10) * 1000);
+            addFloatingEffect("🧣 Écharpe Half-Half : Combat Gelé ! (Immunité adverse active)", window.innerWidth / 2, 200, 'text-blue-300 font-black');
+            break;
+          case 'megaphone_echo':
+            addFloatingEffect("📢 Écho du Mégaphone de l'adversaire : Ses supporters sont galvanisés !", window.innerWidth / 2, 200, 'text-yellow-400 font-black scale-110');
+            break;
+          case 'biological_curfew':
+            setHand(currentHand => {
+              if (currentHand.length > 0) {
+                const randomIndex = Math.floor(Math.random() * currentHand.length);
+                const targetCard = currentHand[randomIndex];
+                const targetId = targetCard.instanceId || targetCard.id;
+                setLockedCardInstanceIds(prev => [...prev, targetId]);
+                setTimeout(() => {
+                  setLockedCardInstanceIds(prev => prev.filter(id => id !== targetId));
+                }, (effect.duration || 10) * 1000);
+                addFloatingEffect(`😴 Couvre-Feu Biologique : "${targetCard.name}" est engagée (bloquée) !`, window.innerWidth / 2, 220, 'text-purple-400 font-extrabold animate-pulse');
+              }
+              return currentHand;
+            });
+            break;
+          case 'early_craquage':
+            setIsEnemyEarlyCraquageActive(true);
+            setTimeout(() => {
+              setIsEnemyEarlyCraquageActive(false);
+            }, (effect.duration || 15) * 1000);
+            addFloatingEffect("🌫️ Craquage Précoce adverse ! Visibilité réduite à 0% (50% de rater ses coups)", window.innerWidth / 2, 200, 'text-gray-400 font-black animate-pulse scale-110');
+            break;
+          case 'laser_relaunch':
+            setIsEnemyLaserRelaunchActive(true);
+            setTimeout(() => {
+              setIsEnemyLaserRelaunchActive(false);
+            }, (effect.duration || 15) * 1000);
+            addFloatingEffect("⚡ Relance Laser adverse ! Son prochain coup est ultra rapide.", window.innerWidth / 2, 200, 'text-yellow-400 font-extrabold animate-pulse');
+            break;
+          case 'pro_tantrum':
+            const ptResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+            const ptLoss = currentMyTeam === 'A' ? -12 : 12;
+            setProgress(prev => Math.min(100, Math.max(0, prev + (ptLoss / ptResistance))));
+            setHand(currentHand => {
+              const ramasseurIndex = currentHand.findIndex(c => c.name.toLowerCase().includes('ramasseur') || c.name.toLowerCase().includes('ballboy') || c.name.toLowerCase().includes('ball boy') || c.id.includes('ball_boy'));
+              if (ramasseurIndex !== -1) {
+                const ramasseurCard = currentHand[ramasseurIndex];
+                const newHand = currentHand.filter((_, idx) => idx !== ramasseurIndex);
+                setDeck(prevDeck => [...prevDeck, ramasseurCard]);
+                addFloatingEffect(`🏃‍♂️ "${ramasseurCard.name}" retourne dans le deck !`, window.innerWidth / 2, 220, 'text-rose-400 font-extrabold animate-bounce');
+                return newHand;
+              }
+              return currentHand;
+            });
+            addFloatingEffect("🟥 Coup de Sang adverse ! Bousculade et pénalité (-12% Ferveur)", window.innerWidth / 2, 190, 'text-red-500 font-extrabold animate-pulse scale-110');
+            break;
+          case 'multiball_chaos':
+            addFloatingEffect("🔊 DRING ! Double ballon sifflet de l'arbitre !", window.innerWidth / 2, 180, 'text-white font-extrabold scale-125 animate-pulse bg-slate-900 border border-slate-700 rounded px-2 py-1');
+            setPlayedHistory(prevHistory => {
+              if (prevHistory.length > 0) {
+                const lastPlayed = prevHistory[prevHistory.length - 1];
+                setHand(prevHand => {
+                  if (prevHand.some(c => c.id === lastPlayed.id)) return prevHand;
+                  return [...prevHand, lastPlayed];
+                });
+                addFloatingEffect(`⚽ Multi-Ballon adverse : "${lastPlayed.name}" reprise en main !`, window.innerWidth / 2, 220, 'text-green-300 font-bold');
+                return prevHistory.slice(0, -1);
+              }
+              return prevHistory;
+            });
+            if (lastEnemyCard) {
+              addFloatingEffect(`⚽ Multi-Ballon : "${lastEnemyCard.name}" adverse retourné !`, window.innerWidth / 2, 150, 'text-red-300 font-bold');
+              const mbResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+              const val = lastEnemyCard.fervorValue || lastEnemyCard.effects?.find(e => e.type === 'push_rope')?.value || 10;
+              const delta = (currentMyTeam === 'A' ? val : -val) / mbResistance;
+              setProgress(prev => Math.min(100, Math.max(0, prev + delta)));
+              setLastEnemyCard(null);
+            }
+            break;
+          case 'mental_main_courante':
+            setIsEnemyMentalMainCouranteActive(true);
+            setTimeout(() => {
+              setIsEnemyMentalMainCouranteActive(false);
+            }, (effect.duration || 15) * 1000);
+            addFloatingEffect("🛡️ L'adversaire s'équipe : Le Mental de la Main Courante (Climat/Terrain immunisé) !", window.innerWidth / 2, 200, 'text-green-300 font-extrabold animate-pulse');
+            break;
+          case 'heritage_weight':
+            setIsHeritageWeightActive(true);
+            setTimeout(() => {
+              setIsHeritageWeightActive(false);
+            }, (effect.duration || 15) * 1000);
+            addFloatingEffect("👵 Le Poids de l'Héritage ! La mélancolie vous empêche de jouer des cartes Modernes ce tour-ci !", window.innerWidth / 2, 210, 'text-red-400 font-black animate-pulse scale-105 bg-black/40 px-2 py-1 rounded');
+            break;
+          case 'buvette_alert':
+            setIsBuvetteAlertActive(true);
+            setHasConsumedBuvette(false);
+            setTimeout(() => {
+              setIsBuvetteAlertActive(false);
+            }, 12000);
+            addFloatingEffect("🌭 Alerte Buvette ! Passer l'attaque pour Buvette !", window.innerWidth / 2, 195, 'text-yellow-400 font-extrabold animate-bounce py-1 px-2 border border-yellow-500/40 rounded bg-slate-900 scale-110');
             break;
         }
       });
@@ -2275,6 +2528,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     
     clicksCountRef.current += 1;
     
+    if ((isEarlyCraquageActive || isEnemyEarlyCraquageActive) && Math.random() < 0.5) {
+      addFloatingEffect('🌫️ Raté ! Le fumigène précoce bouche la vue (50% chance) !', e.clientX, e.clientY - 20, 'text-gray-400 font-extrabold scale-110 animate-pulse bg-black/30 px-2 py-1 rounded');
+      return;
+    }
+
     if (isBlind && Math.random() < 0.5) {
       addFloatingEffect('💨 Raté ! Aveuglé par la Citrouille !', e.clientX, e.clientY - 20, 'text-orange-500 font-extrabold scale-110 animate-pulse');
       audioManager.playCardSelect?.();
@@ -2340,6 +2598,33 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   };
 
   const playCard = async (card: GameCard, e?: React.MouseEvent) => {
+    setHasLastActionFailed(false);
+    const cardId = card.instanceId || card.id;
+    if (lockedCardInstanceIds.includes(cardId)) {
+      const x = e ? e.clientX : window.innerWidth / 2;
+      const y = e ? e.clientY - 50 : window.innerHeight / 2;
+      addFloatingEffect('😴 Carte engagée ! Impossible de la jouer (Couvre-Feu Biologique 💤)', x, y, 'text-purple-400 font-extrabold scale-110');
+      return;
+    }
+
+    const isModerneCard = 
+      (card.category?.toLowerCase() || '').includes('tactique') || 
+      (card.category?.toLowerCase() || '').includes('moderne') || 
+      (card.category?.toLowerCase() || '').includes('technologie') || 
+      (card.category?.toLowerCase() || '').includes('star') || 
+      (card.name?.toLowerCase() || '').includes('var') || 
+      (card.name?.toLowerCase() || '').includes('tactique complexe') || 
+      (card.name?.toLowerCase() || '').includes('joueur star') || 
+      (card.name?.toLowerCase() || '').includes('star player') || 
+      (card.name?.toLowerCase() || '').includes('moderne');
+
+    if (isHeritageWeightActive && isModerneCard) {
+      const x = e ? e.clientX : window.innerWidth / 2;
+      const y = e ? e.clientY - 50 : window.innerHeight / 2;
+      addFloatingEffect("👴 Nostalgie : Impossible de jouer une carte Moderne (Poids de l'Héritage) !", x, y, 'text-red-400 font-extrabold scale-110 px-2 py-1 bg-black/45 rounded border border-red-500/35 m-1');
+      return;
+    }
+
     let actualCost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
     
     if (isFrenzy) {
@@ -2358,8 +2643,21 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       }
     }
     
+    let isEligibleForLaser = false;
+    if (isLaserRelaunchActive) {
+      const isActionRapideOrAttaquant = card.category?.toLowerCase().includes('action rapide') || 
+                                       card.name?.toLowerCase().includes('action rapide') || 
+                                       card.category?.toLowerCase().includes('attaquant') || 
+                                       card.name?.toLowerCase().includes('attaquant');
+      if (isActionRapideOrAttaquant) {
+        isEligibleForLaser = true;
+        actualCost = 0;
+      }
+    }
+    
     if (winner || status !== 'active' || excitement < actualCost || isCardLocked || isStunned) return;
 
+    setLastMyCard(card);
     cardsPlayedCountRef.current += 1;
 
     // Save snapshot of state for potential "VAR Temporelle" rewind
@@ -2380,6 +2678,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     setHand(prev => prev.filter(c => c.id !== card.id));
     setPlayedHistory(prev => [...prev, card]);
     setExcitement(prev => Math.max(0, prev - actualCost));
+    if (isEligibleForLaser) {
+      setIsLaserRelaunchActive(false);
+      const x = e ? e.clientX : window.innerWidth / 2;
+      const y = e ? e.clientY - 50 : window.innerHeight / 2;
+      addFloatingEffect("⚡ Relance Laser Consommée (0 Coût) !", x, y - 90, "text-yellow-400 font-extrabold animate-bounce");
+    }
     setTimeout(drawCard, 3000);
 
     // Visual feedback
@@ -2412,11 +2716,104 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       }
     }
 
+    const isPlayerCard = 
+      (card.category?.toLowerCase() || '').includes('joueur') || 
+      (card.category?.toLowerCase() || '').includes('player') || 
+      (card.category?.toLowerCase() || '').includes('star') ||
+      (card.name?.toLowerCase() || '').includes('joueur') ||
+      (card.name?.toLowerCase() || '').includes('player') ||
+      (card.name?.toLowerCase() || '').includes('star');
+
+    let isPrimeGoatApplied = false;
+    if (isPrimeGoatActive && isPlayerCard) {
+      isPrimeGoatApplied = true;
+    }
+
     let calculatedFervor = card.fervorValue ? Math.round(card.fervorValue * levelBonus * charismaBonus) : card.fervorValue;
+    
+    if (isPrimeGoatApplied) {
+      const baseFervor = card.fervorValue || 10;
+      calculatedFervor = baseFervor + 4;
+      setIsPrimeGoatActive(false);
+      addFloatingEffect(`✨ LE PRIME (G.O.A.T) ! ${card.name} montre son talent suprême ! (+4 Ferveur, ignorant ses stats réelles !)`, x, y - 110, "text-yellow-400 font-extrabold scale-115 border border-yellow-500/50 px-2.5 py-1.5 rounded bg-slate-950 shadow-[0_0_15px_rgba(234,179,8,0.6)] animate-pulse z-[250]");
+    }
+    
+    let isTiktokContred = false;
+    if (isTikTokHighlightActive) {
+      const enemyHasDefenseCard = lastEnemyCard && (
+        lastEnemyCard.category?.toLowerCase().includes('contre') || 
+        lastEnemyCard.category?.toLowerCase().includes('défense') || 
+        lastEnemyCard.category?.toLowerCase().includes('defense') || 
+        lastEnemyCard.name?.toLowerCase().includes('contre') || 
+        lastEnemyCard.name?.toLowerCase().includes('bouclier') || 
+        lastEnemyCard.name?.toLowerCase().includes('gardien') || 
+        lastEnemyCard.name?.toLowerCase().includes('esquive')
+      );
+      if (enemyHasDefenseCard || isEnemyMentalMainCouranteActive) {
+        isTiktokContred = true;
+      }
+
+      if (isTiktokContred) {
+        calculatedFervor = 0;
+        finalEffects = [];
+        setIsTikTokHighlightActive(false);
+        setHasLastActionFailed(true);
+        setHand(prev => {
+          if (prev.length === 0) return prev;
+          const newHand = [...prev];
+          newHand.splice(Math.floor(Math.random() * newHand.length), 1);
+          return newHand;
+        });
+        setTimeout(drawCard, 2000);
+        addFloatingEffect("📱 TikTok CONTRÉ ! L'attaque a échoué et le Prodige est défaussé !", x, y - 115, "text-red-500 font-extrabold bg-black/45 px-2 py-1 rounded scale-110 z-[220] animate-bounce");
+      } else {
+        if (calculatedFervor) {
+          calculatedFervor *= 2;
+        }
+        finalEffects = finalEffects.map(e => {
+          if (e.type === 'push_rope' && e.value) {
+            return { ...e, value: e.value * 2 };
+          }
+          return e;
+        });
+        setIsTikTokHighlightActive(false);
+        addFloatingEffect("⚡ COUP DU FOULARD DOUBLE DÉGÂTS (Highlight TikTok 🔥) !", x, y - 110, "text-purple-400 font-extrabold animate-bounce bg-black/40 px-2.5 py-1.5 rounded border border-purple-500/35 scale-115 text-center");
+      }
+    }
+
+    if (isMegaphoneEchoActive && (card.category?.toLowerCase().includes('supporter') || card.name.toLowerCase().includes('supporter'))) {
+      if (calculatedFervor !== undefined && calculatedFervor > 0) {
+        calculatedFervor += 2;
+      } else {
+        calculatedFervor = (calculatedFervor || 0) + 2;
+      }
+      addFloatingEffect("📢 ÉCHO DU MÉGAPHONE : +2 Ferveur (Galvanisé) !", x, y - 100, "text-yellow-400 font-extrabold animate-bounce");
+    }
+
+    if (isMetaUpdateActive && calculatedFervor !== undefined && calculatedFervor > 0) {
+      if (calculatedFervor < 3) {
+        calculatedFervor += 2;
+        addFloatingEffect("🌐 NOUVELLE MÉTA : +2 Ferveur ! (Base < 3)", x, y - 100, "text-green-400 font-extrabold scale-110 animate-bounce");
+      } else if (calculatedFervor > 5) {
+        calculatedFervor = Math.max(1, calculatedFervor - 2);
+        addFloatingEffect("🌐 NOUVELLE MÉTA : -2 Ferveur ! (Base > 5)", x, y - 100, "text-red-400 font-bold scale-110");
+      }
+    }
     if (isCapoMegaphoneActive && card.id !== 'base_capo_megaphone') {
       if (calculatedFervor) {
         calculatedFervor *= 2;
         addFloatingEffect("📣 EFFET MÉGAPHONE x2 !", x, y - 80, "text-yellow-400 font-extrabold scale-110 animate-bounce");
+      }
+    }
+
+    if (isEarlyCraquageActive || isEnemyEarlyCraquageActive) {
+      if (Math.random() < 0.5) {
+        calculatedFervor = 0;
+        finalEffects = [];
+        setHasLastActionFailed(true);
+        addFloatingEffect("🌫️ ÉCHEC ! Action perdue dans le brouillard du fumigène (50% rater) !", x, y - 110, "text-red-400 font-extrabold bg-black/45 px-2 py-1 rounded scale-110 z-[220]");
+      } else {
+        addFloatingEffect("🎲 Pile ou Face : Succès de l'attaque !", x, y - 110, "text-green-400 font-bold bg-black/45 px-2 py-1 rounded z-[220]");
       }
     }
 
@@ -2498,7 +2895,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     const myTeam = myParticipant?.team || 'A';
 
     // Apply self-effects (on client)
-    (boostedCard.effects || []).forEach(effect => {
+    const applySingleEffect = (effect: any) => {
       if (effect.type === 'cleanse' || effect.type === 'regard_chien_battu') {
         setIsBlurred(false);
         setIsButtonHidden(false);
@@ -2853,7 +3250,173 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setTimeout(() => setIsCraquageMassifActive(false), (effect.duration || 10) * 1000);
         addFloatingEffect("🔥 CRAQUAGE MASSIF : Tribune inciblable par l'ennemi !", x, y - 50, 'text-red-500 font-black scale-125 animate-bounce z-[210]');
       }
-    });
+      if (effect.type === 'cancel_last_attack') {
+        if (lastEnemyCard) {
+          const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+          const val = lastEnemyCard.fervorValue || lastEnemyCard.effects?.find(e => e.type === 'push_rope')?.value || 10;
+          const delta = (myTeam === 'A' ? val : -val) / resistance;
+          const bonus = myTeam === 'A' ? 10 : -10;
+          setProgress(prev => Math.min(100, Math.max(0, prev + delta + bonus)));
+          addFloatingEffect(`🔮 LE SCRIPT : Attaque adverse annulée (${lastEnemyCard.name}) + Rebond Miracle !`, x, y - 50, 'text-yellow-400 font-extrabold scale-110 drop-shadow-md z-[202]');
+          setLastEnemyCard(null);
+        } else {
+          const bonus = myTeam === 'A' ? 10 : -10;
+          setProgress(prev => Math.min(100, Math.max(0, prev + bonus)));
+          addFloatingEffect("🔮 SCRIPT ACTIF : Rebond miracle dans vos pieds ! (+10% ferveur)", x, y - 50, 'text-yellow-300 font-bold');
+        }
+      }
+      if (effect.type === 'rage_quit_discard') {
+        // Since playCard is playing a malus on the enemy, this only triggers locally on the player if they play it on themselves (e.g. testing)
+        // Usually, malus is sent to opponent, so this is just symmetrical visual feedback when played by us.
+        addFloatingEffect(`😡 RAGE QUIT INITIÉ ! Cible sous tension (l'adversaire déteste ça...)`, x, y - 55, 'text-red-500 font-black scale-110 animate-bounce');
+      }
+      if (effect.type === 'meta_update') {
+        setIsMetaUpdateActive(true);
+        setTimeout(() => setIsMetaUpdateActive(false), (effect.duration || 15) * 1000);
+        addFloatingEffect("🌐 NOUVELLE MÉTA : Statut Équilibrage Actif !", x, y - 30, "text-cyan-400 font-black animate-pulse scale-110");
+      }
+      if (effect.type === 'stealth_jacket_flip') {
+        if (lastEnemyCard && lastEnemyCard.effects && lastEnemyCard.effects.length > 0) {
+          addFloatingEffect(`🎭 Retournement de veste : Effets de "${lastEnemyCard.name}" copiés !`, x, y - 80, 'text-green-400 font-extrabold animate-pulse scale-110');
+          lastEnemyCard.effects.forEach(applySingleEffect);
+        } else {
+          addFloatingEffect("❌ Pas de carte adverse à copier", x, y - 80, 'text-gray-500');
+        }
+      }
+      if (effect.type === 'desert_crossing') {
+        const isLosing = (myTeam === 'A' && progress < 50) || (myTeam === 'B' && progress > 50);
+        if (isLosing) {
+          addFloatingEffect("🏜️ Traversée du Désert : Perte de ferveur (-15%) !", x, y - 80, 'text-red-500 font-extrabold animate-bounce scale-110');
+          const loss = myTeam === 'A' ? -15 : 15;
+          const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+          setProgress(prev => Math.min(100, Math.max(0, prev + (loss / resistance))));
+        } else {
+          addFloatingEffect("🏜️ Traversée du Désert : Vous menez ! Glory Hunter préservé.", x, y - 80, 'text-green-400 font-bold');
+        }
+      }
+      if (effect.type === 'half_half_scarf') {
+        setIsImmune(true);
+        setIsHalfHalfScarfActive(true);
+        setTimeout(() => {
+          setIsImmune(false);
+          setIsHalfHalfScarfActive(false);
+        }, (effect.duration || 10) * 1000);
+        addFloatingEffect("🧣 Écharpe Half-Half : Combat Gelé ! (Immunité mutuelle 10s)", x, y - 80, 'text-blue-300 font-extrabold animate-pulse');
+      }
+      if (effect.type === 'megaphone_echo') {
+        setIsMegaphoneEchoActive(true);
+        setTimeout(() => {
+          setIsMegaphoneEchoActive(false);
+        }, (effect.duration || 15) * 1000);
+        addFloatingEffect("📢 Écho du Mégaphone : Vos supporters sont galvanisés (+2 Ferveur/Attaque) !", x, y - 80, 'text-yellow-400 font-black scale-110 animate-bounce');
+      }
+      if (effect.type === 'biological_curfew') {
+        addFloatingEffect("😴 Couvre-Feu Biologique ! L'adversaire va s'endormir pour 2 tours.", x, y - 80, 'text-purple-400 font-extrabold scale-110');
+        // Let's also lock a random opponent card in training mode to make single player training feel alive
+        if (duel.type === 'training') {
+           addFloatingEffect("🤖 Bot fatigué : Une de ses actions est engagée !", x, y - 120, 'text-purple-400 font-semibold');
+        }
+      }
+      if (effect.type === 'early_craquage') {
+        setIsEarlyCraquageActive(true);
+        setTimeout(() => {
+          setIsEarlyCraquageActive(false);
+        }, (effect.duration || 15) * 1000);
+        addFloatingEffect("🌫️ Le Craquage Précoce ! Fumigène massif en plein virage pendant 15s !", x, y - 80, 'text-gray-400 font-black animate-pulse scale-110');
+      }
+      if (effect.type === 'laser_relaunch') {
+        setIsLaserRelaunchActive(true);
+        setTimeout(() => {
+          setIsLaserRelaunchActive(false);
+        }, (effect.duration || 15) * 1000);
+        addFloatingEffect("⚡ Relance Laser active ! Prochaine Action Rapide ou Attaquant gratuite !", x, y - 80, 'text-yellow-400 font-extrabold animate-pulse scale-110');
+      }
+      if (effect.type === 'pro_tantrum') {
+        addFloatingEffect("🟥 Coup de Sang du Pro : L'adversaire bouscule le ramasseur ! (-12% Ferveur adverse)", x, y - 80, 'text-red-500 font-extrabold animate-bounce scale-110');
+        const ptResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+        const ptLoss = myTeam === 'A' ? 12 : -12;
+        setProgress(prev => Math.min(100, Math.max(0, prev + (ptLoss / ptResistance))));
+      }
+      if (effect.type === 'multiball_chaos') {
+        addFloatingEffect("🔊 DRING ! Double ballon sifflet de l'arbitre ! Phase d'attaque annulée.", x, y - 50, 'text-white font-extrabold scale-125 animate-pulse bg-slate-900 border border-slate-700 rounded px-2 py-1');
+        setPlayedHistory(prevHistory => {
+          if (prevHistory.length > 0) {
+            const lastPlayed = prevHistory[prevHistory.length - 1];
+            setHand(prevHand => {
+              if (prevHand.some(c => c.id === lastPlayed.id)) return prevHand;
+              return [...prevHand, lastPlayed];
+            });
+            addFloatingEffect(`⚽ Multi-Ballon : "${lastPlayed.name}" retourné dans votre main !`, x, y - 80, 'text-green-300 font-bold');
+            return prevHistory.slice(0, -1);
+          }
+          return prevHistory;
+        });
+        if (lastEnemyCard) {
+          addFloatingEffect(`⚽ Multi-Ballon : "${lastEnemyCard.name}" adverse retourné !`, x, y - 110, 'text-red-300 font-bold');
+          const mbResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
+          const val = lastEnemyCard.fervorValue || lastEnemyCard.effects?.find(e => e.type === 'push_rope')?.value || 10;
+          const delta = (myTeam === 'A' ? val : -val) / mbResistance;
+          setProgress(prev => Math.min(100, Math.max(0, prev + delta)));
+          setLastEnemyCard(null);
+        }
+      }
+      if (effect.type === 'mental_main_courante') {
+        setIsMentalMainCouranteActive(true);
+        setTimeout(() => {
+          setIsMentalMainCouranteActive(false);
+        }, (effect.duration || 15) * 1000);
+        addFloatingEffect("🛡️ Le Mental de la Main Courante ! Vos cartes sont immunisées contre le Climat et le Terrain !", x, y - 80, 'text-green-400 font-extrabold animate-pulse scale-110');
+      }
+      if (effect.type === 'heritage_weight') {
+        setIsEnemyHeritageWeightActive(true);
+        setTimeout(() => {
+          setIsEnemyHeritageWeightActive(false);
+        }, (effect.duration || 15) * 1000);
+        addFloatingEffect("👵 Le Poids de l'Héritage ! L'adversaire est submergé par la mélancolie en repensant à 1964 !", x, y - 80, 'text-red-400 font-extrabold bg-black/45 px-2 py-1 rounded scale-110');
+      }
+      if (effect.type === 'buvette_alert') {
+        setIsBuvetteAlertActive(true);
+        setHasConsumedBuvette(false);
+        setTimeout(() => {
+          setIsBuvetteAlertActive(false);
+        }, 12000);
+        addFloatingEffect("🌭 Alerte Buvette ! Passer l'attaque pour Buvette ! (+3 Énergie / +12% Ferveur)", x, y - 80, 'text-yellow-400 font-black animate-bounce scale-110 py-1 px-2 border border-yellow-500/40 rounded bg-slate-900');
+      }
+      if (effect.type === 'tiktok_highlight') {
+        setIsTikTokHighlightActive(true);
+        addFloatingEffect("📱 Highlight TikTok ! Prochain geste doublé en ferveur ! (Attention au Contre !)", x, y - 85, 'text-purple-400 font-black animate-pulse scale-110');
+      }
+      if (effect.type === 'prime_goat') {
+        setIsPrimeGoatActive(true);
+        setTimeout(() => setIsPrimeGoatActive(false), (effect.duration || 15) * 1000);
+        addFloatingEffect("⚡ Le Prime (G.O.A.T) ! Votre prochaine carte 'Joueur' gagnera +4 en ferveur !", x, y - 85, 'text-yellow-400 font-extrabold animate-pulse scale-110');
+      }
+      if (effect.type === 'attention_swipe') {
+        addFloatingEffect("📱 Perte d'Attention (Swipe) ! L'Ado adverse zappe, défaussant une de ses cartes au hasard !", x, y - 85, 'text-red-400 font-black animate-bounce scale-110');
+      }
+      if (effect.type === 'sterile_debate') {
+        setIsDebatePickerOpen(true);
+        addFloatingEffect("💬 Débat Stérile sur les Réseaux ! Sélectionnez une carte à parier !", x, y - 85, 'text-purple-400 font-extrabold animate-bounce bg-black/40 px-2 py-1 rounded');
+      }
+      if (effect.type === 'boucher_district') {
+        addFloatingEffect("🤕 Le Boucher du District envoyé ! Tacle assassin sur l'adversaire !", x, y - 85, 'text-red-400 font-black scale-110 animate-bounce');
+      }
+      if (effect.type === 'faux_rebond_excuse') {
+        const lastPlayed = lastMyCard;
+        if (lastPlayed) {
+          setHand(prevHand => {
+            if (prevHand.some(c => c.id === lastPlayed.id)) return prevHand;
+            return [...prevHand, lastPlayed];
+          });
+          addFloatingEffect(`🤷‍♂️ Faux Rebond ! Action annulée : "${lastPlayed.name}" revient en main !`, x, y - 85, 'text-yellow-400 font-extrabold animate-bounce bg-black/40 px-2 py-1 rounded');
+        } else {
+          addFloatingEffect("🤷‍♂️ Faux Rebond ! Le match est temporairement gelé !", x, y - 85, 'text-yellow-400 font-bold');
+        }
+        setExcitement(0);
+      }
+    };
+
+    (boostedCard.effects || []).forEach(applySingleEffect);
 
     if (boostedCard.fervorValue) {
       addFloatingEffect(`+${boostedCard.fervorValue}% Ferveur!`, x, y - 60, 'text-yellow-400 font-black');
@@ -3887,6 +4450,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           {isEnemyCapoMegaphoneActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase animate-pulse">📢 Capo Mégaphone Ennemi</div>}
           {isCraquageMassifActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase animate-pulse">🔥 Fumi actifs (Inciblable)</div>}
           {isEnemyCraquageMassifActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 uppercase">🔥 Fumi Ennemis Actifs</div>}
+          {isHalfHalfScarfActive && <div className="flex items-center gap-1 text-[10px] font-bold text-teal-400 uppercase animate-pulse">🧣 Écharpe Half-Half</div>}
+          {isMegaphoneEchoActive && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-400 uppercase animate-pulse">📢 Écho du Mégaphone</div>}
+          {(isEarlyCraquageActive || isEnemyEarlyCraquageActive) && <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase animate-pulse">🌫️ Craquage Précoce (Brouillard)</div>}
+          {isLaserRelaunchActive && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-300 uppercase animate-pulse">⚡ Relance Laser Active !</div>}
+          {isEnemyLaserRelaunchActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-300 uppercase animate-pulse">⚡ Relance Laser Ennemie</div>}
+          {isMentalMainCouranteActive && <div className="flex items-center gap-1 text-[10px] font-bold text-green-400 uppercase animate-pulse">🛡️ Mental de la Main Courante</div>}
+          {isEnemyMentalMainCouranteActive && <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 uppercase">🛡️ Mental Main Courante Ennemi</div>}
+          {isHeritageWeightActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-400 uppercase animate-pulse">👴 Nostalgie (Héritage)</div>}
+          {isEnemyHeritageWeightActive && <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 uppercase">👴 Nostalgie Ennemie</div>}
+          {isBuvetteAlertActive && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-400 uppercase animate-pulse">🌭 Alerte Buvette !</div>}
+          {isTikTokHighlightActive && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-400 uppercase animate-pulse">📱 Highlight TikTok Prêt !</div>}
+          {isEnemyTikTokHighlightActive && <div className="flex items-center gap-1 text-[10px] font-bold text-purple-600 uppercase">📱 Highlight TikTok Ennemi</div>}
+          {isPrimeGoatActive && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-400 uppercase animate-pulse">✨ Prime G.O.A.T Activé !</div>}
+          {isEnemyPrimeGoatActive && <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-600 uppercase">✨ Prime G.O.A.T Ennemi</div>}
         </div>
         
         {/* Trade Stickers Confirm Block */}
@@ -3922,6 +4499,53 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     Échanger
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isBuvetteAlertActive && !hasConsumedBuvette && (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: -15 }}
+              className="absolute bottom-[180px] left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4"
+            >
+              <div className="bg-yellow-950/95 border-2 border-yellow-400 p-3.5 rounded-2xl shadow-[0_0_25px_rgba(234,179,8,0.65)] w-full text-center backdrop-blur-md flex flex-col items-center gap-2">
+                <div className="flex items-center gap-1.5 flex-nowrap">
+                  <span className="text-xl animate-bounce">🌭</span>
+                  <span className="text-sm font-black text-yellow-300 uppercase tracking-wider">Alerte Buvette Tactique</span>
+                  <span className="text-xl animate-bounce">🍺</span>
+                </div>
+                <p className="text-[11px] text-gray-200 leading-relaxed font-semibold">Les merguez sont cuites ! Souhaitez-vous passer votre tour pour récupérer de l'énergie et de la ferveur ?</p>
+                
+                <button
+                  onClick={() => {
+                    setHasConsumedBuvette(true);
+                    
+                    const actualTeam = myTeamRef.current || 'A';
+                    const targetFervorDelta = actualTeam === 'A' ? 12 : -12;
+                    setProgress(prev => Math.min(100, Math.max(0, prev + targetFervorDelta)));
+                    
+                    setExcitement(prev => Math.min(10, prev + 3));
+                    
+                    addFloatingEffect("🌭 Merguez & Frites savourées ! +3 Énergie / +12% Ferveur !", window.innerWidth / 2, window.innerHeight / 2, "text-yellow-400 font-extrabold scale-110 py-1.5 px-3 border-2 border-yellow-400 rounded-lg bg-slate-900 shadow-[0_0_15px_yellow] z-[300]");
+                    
+                    if (duel.type === 'training') {
+                      setTimeout(() => {
+                        if (Math.random() < 0.45) {
+                          const botAddition = actualTeam === 'A' ? -12 : 12;
+                          setProgress(p => Math.min(100, Math.max(0, p + botAddition)));
+                          addFloatingEffect("🤖 Le Bot s'est aussi arrêté à la Buvette ! (+12% Ferveur Bot)", window.innerWidth / 2, 220, "text-red-300 font-bold");
+                        }
+                      }, 2500);
+                    }
+                  }}
+                  className="w-full mt-1 py-2.5 rounded-xl bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-600 text-white font-extrabold text-xs shadow-md border border-yellow-300 hover:from-yellow-400 hover:to-orange-500 hover:scale-[1.03] transition-transform flex items-center justify-center gap-1 uppercase pointer-events-auto"
+                >
+                  🥤 Aller à la Buvette (+3⚡ / +12% Ferv)
+                </button>
               </div>
             </motion.div>
           )}
@@ -3975,6 +4599,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   {/* Overlay for unplayable state */}
                   {(!isTradingStickers && excitement < actualCost) && (
                     <div className="absolute inset-0 bg-black/60 z-10 pointer-events-none" />
+                  )}
+                  {/* Overlay for sleep (Couvre-Feu Biologique) state */}
+                  {(!isTradingStickers && lockedCardInstanceIds.includes(card.instanceId || card.id)) && (
+                    <div className="absolute inset-0 bg-purple-950/85 z-20 flex flex-col items-center justify-center text-center p-1 pointer-events-none">
+                      <span className="text-lg animate-bounce">😴</span>
+                      <span className="text-[8px] font-black text-purple-300 uppercase mt-0.5 leading-none shadow-sm">ENGAGÉE</span>
+                      <span className="text-[6px] text-purple-400 font-bold leading-normal">COUVRE-FEU</span>
+                    </div>
                   )}
                   {/* Background Image */}
                   {card.imageUrl && (
@@ -4297,6 +4929,69 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Le Débat Stérile sur les Réseaux Picker Modal */}
+      <AnimatePresence>
+        {isDebatePickerOpen && (
+          <div className="absolute inset-0 bg-black/90 space-y-4 z-50 flex flex-col justify-center items-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-[380px] bg-indigo-950/25 border-2 border-indigo-600/60 rounded-xl p-5 flex flex-col items-center gap-4 shadow-[0_0_25px_rgba(79,70,229,0.35)] relative overflow-hidden text-center"
+            >
+              <div className="text-4xl animate-bounce">💬</div>
+              <h3 className="text-lg font-black text-indigo-400 tracking-wider uppercase">
+                LE DÉBAT STÉRILE SUR LES RÉSEAUX
+              </h3>
+              <p className="text-xs text-indigo-200/90 leading-relaxed">
+                Le match s'arrête pour un clash de <strong>"Ratio"</strong>. Choisissez une carte de votre main à parier secrètement. 
+                <br />
+                Si son coût est supérieur ou égal au coût de la carte adverse, vous la gardez. Sinon, elle est <strong>défaussée</strong> !
+              </p>
+
+              <div className="w-full max-h-[200px] overflow-y-auto scrollbar-thin pr-1 flex flex-col gap-2 my-2">
+                {hand.length === 0 ? (
+                  <p className="text-xs text-slate-400">Aucune carte en main à parier...</p>
+                ) : (
+                  hand.map((card, index) => {
+                    return (
+                      <button
+                        key={card.instanceId || card.id || index}
+                        onClick={() => {
+                          const opponentCost = Math.floor(Math.random() * 4) + 1; // opponent card cost (1 - 4)
+                          const myCost = card.energyCost || 0;
+                          
+                          if (myCost >= opponentCost) {
+                            addFloatingEffect(`📈 Ratio Réussi ! (Toi: ${myCost}⚡ vs Adversaire: ${opponentCost}⚡) Carte préservée !`, window.innerWidth / 2, window.innerHeight / 2 - 40, "text-green-400 font-extrabold bg-slate-900 border-2 border-green-500 rounded-lg py-1.5 px-3 shadow-[0_0_15px_rgba(34,197,94,0.4)] z-[300]");
+                          } else {
+                            // Discard selected card
+                            setHand(prev => prev.filter(c => (c.instanceId || c.id) !== (card.instanceId || card.id)));
+                            setTimeout(drawCard, 2000);
+                            addFloatingEffect(`📉 Ratio Échoué ! (Toi: ${myCost}⚡ vs Adversaire: ${opponentCost}⚡) Carte défaussée !`, window.innerWidth / 2, window.innerHeight / 2 - 40, "text-red-400 font-extrabold bg-slate-900 border-2 border-red-500 rounded-lg py-1.5 px-3 shadow-[0_0_15px_rgba(239,68,68,0.4)] z-[300]");
+                          }
+                          setIsDebatePickerOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between p-2.5 rounded-lg bg-indigo-900/30 border border-indigo-500/20 hover:bg-indigo-900/50 hover:border-indigo-400 transition-colors text-left font-sans"
+                      >
+                        <span className="text-xs font-bold text-white truncate max-w-[200px]">{card.name}</span>
+                        <span className="text-xs font-black text-indigo-300 shrink-0">{card.energyCost || 0} ⚡</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <button
+                onClick={() => setIsDebatePickerOpen(false)}
+                className="text-xs text-slate-400 hover:text-white transition-colors underline"
+              >
+                Fermer sans parier
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

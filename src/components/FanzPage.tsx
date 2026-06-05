@@ -213,6 +213,17 @@ export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps
               <div className="grid grid-cols-2 gap-2">
                 {fanzTemplates
                   .filter((f) => ownedFanz.has(f.id))
+                  .sort((a, b) => {
+                    const fanzA = ownedFanz.get(a.id);
+                    const fanzB = ownedFanz.get(b.id);
+                    const isActA = fanzA ? userProfile.activeFanzId === fanzA.id : false;
+                    const isActB = fanzB ? userProfile.activeFanzId === fanzB.id : false;
+                    
+                    if (isActA && !isActB) return -1;
+                    if (!isActA && isActB) return 1;
+                    
+                    return (a.name || "").localeCompare(b.name || "", "fr");
+                  })
                   .map((template) => (
                     <FanzCard
                       key={template.id}
@@ -264,6 +275,15 @@ export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps
                 <div className="grid grid-cols-2 gap-2">
                   {fanzTemplates
                     .filter((f) => !ownedFanz.has(f.id))
+                    .sort((a, b) => {
+                      const isActiveA = a.isActive !== false;
+                      const isActiveB = b.isActive !== false;
+                      
+                      if (isActiveA && !isActiveB) return -1;
+                      if (!isActiveA && isActiveB) return 1;
+                      
+                      return (a.name || "").localeCompare(b.name || "", "fr");
+                    })
                     .map((template) => (
                       <FanzCard
                         key={template.id}

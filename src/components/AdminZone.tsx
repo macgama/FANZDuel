@@ -3693,6 +3693,27 @@ export function AdminZone() {
                             <option value="vol_ballon">Vol de Ballon (Bouton adverse bloqué & attaque annulée) [Durée]</option>
                             <option value="regard_chien_battu">Regard de Chien Battu (Annule malus + régén. Endurance) [Valeur]</option>
                             <option value="zoomies_chaos">Les Zoomies du Chaos (Défausse et pioche pour les deux) [Rien]</option>
+                            <option value="cancel_last_attack">Le Script est avec moi (Annule la dernière attaque reçue) [Rien]</option>
+                            <option value="rage_quit_discard">Rage Quit Téléphonique (Défausse Action Rapide + Passe tour) [Durée]</option>
+                            <option value="meta_update">Nouvelle Méta (Équilibrage moins de 3 / plus de 5) [Durée]</option>
+                            <option value="stealth_jacket_flip">Retournement de Veste Furtif (Copie la carte la plus forte adverse) [Rien]</option>
+                            <option value="desert_crossing">La Traversée du Désert (Piège perte ferveur si dominé) [Valeur]</option>
+                            <option value="half_half_scarf">L'Écharpe Half-Half (Lie et immunise deux cartes) [Durée]</option>
+                            <option value="megaphone_echo">L'Écho du Mégaphone (Galvaniser Supporters: +2 Ferveur/Attaque ce tour) [Valeur]</option>
+                            <option value="biological_curfew">Le Couvre-Feu Biologique (Carte engagée/bloquée pour l'adversaire ou soi) [Durée]</option>
+                            <option value="early_craquage">Le Craquage Précoce (Attaques ont 50% de chances d'échouer) [Durée]</option>
+                            <option value="laser_relaunch">La Relance Laser (Joue gratuit Action Rapide/Attaquant) [Rien]</option>
+                            <option value="pro_tantrum">Le Coup de Sang du Pro (Ramasseur de balles vers deck + -1 PV) [Rien]</option>
+                            <option value="multiball_chaos">Le Multi-Ballon Maléfique (Interrompt et renvoie les dernières cartes) [Rien]</option>
+                            <option value="mental_main_courante">Le Mental de la Main Courante (Immunité contre Climat et Terrain) [Durée]</option>
+                            <option value="heritage_weight">Le Poids de l'Héritage (Bloque les cartes Modernes) [Durée]</option>
+                            <option value="buvette_alert">Alerte Buvette (Saucisse-Frites) (Passer son tour pour récupérer +3 Ferveur/Vie) [Rien]</option>
+                            <option value="tiktok_highlight">L'Highlight TikTok (Double dégâts, détruit si contré) [Rien]</option>
+                            <option value="boucher_district">Le Boucher du District (Détruit le Prodige adverse + défausse 1 Énergie) [Rien]</option>
+                            <option value="faux_rebond_excuse">L'Excuse du Faux Rebond (Annule phase ratée, carte conservée) [Rien]</option>
+                            <option value="prime_goat">Le Prime (G.O.A.T) (Joueur gagne +4 de puissance ce tour, ignore ses stats) [Durée]</option>
+                            <option value="attention_swipe">Perte d'Attention (Swipe) (Défausse une carte au hasard) [Rien]</option>
+                            <option value="sterile_debate">Le Débat Stérile sur les Réseaux (Clash Ratio : pari de carte, coût max gagne) [Rien]</option>
                           </select>
                         </div>
                         <div className="w-24 space-y-1">
