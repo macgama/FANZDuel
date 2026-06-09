@@ -27,7 +27,7 @@ const STEPS = [
     color: "text-yellow-500",
     bg: "bg-yellow-500/10",
     border: "border-yellow-500/20",
-    video: "/tuto/video1.mp4"
+    video: "https://thebestfan.online/img/public/tuto/video1.mp4"
   },
   {
     title: "Adopte ton Fanz",
@@ -36,7 +36,7 @@ const STEPS = [
     color: "text-blue-500",
     bg: "bg-blue-500/10",
     border: "border-blue-500/20",
-    video: "/tuto/video2.mp4"
+    video: "https://thebestfan.online/img/public/tuto/video2.mp4"
   },
   {
     title: "Collectionne les Cartes",
@@ -45,7 +45,7 @@ const STEPS = [
     color: "text-purple-500",
     bg: "bg-purple-500/10",
     border: "border-purple-500/20",
-    video: "/tuto/video3.mp4"
+    video: "https://thebestfan.online/img/public/tuto/video3.mp4"
   },
   {
     title: "Gagne tes Duels",
@@ -54,16 +54,24 @@ const STEPS = [
     color: "text-orange-500",
     bg: "bg-orange-500/10",
     border: "border-orange-500/20",
-    video: "/tuto/video4.mp4"
+    video: "https://thebestfan.online/img/public/tuto/video4.mp4"
+  },
+  {
+    title: "Progression & Stats",
+    description: "La montée en compétences de tes FANZ se fait grâce aux actions LIFE ! Améliore tes stats pour être plus fort et plus résistant durant les duels.",
+    icon: Flame,
+    color: "text-red-500",
+    bg: "bg-red-500/10",
+    border: "border-red-500/20"
   },
   {
     title: "Ferveur et Récompenses",
     description: "Gagne de la ferveur pour monter en grade, complète tes missions quotidiennes et débloque un maximum de récompenses !",
-    icon: Flame,
-    color: "text-red-500",
-    bg: "bg-red-500/10",
-    border: "border-red-500/20",
-    video: "/tuto/video5.mp4"
+    icon: Trophy,
+    color: "text-yellow-500",
+    bg: "bg-yellow-500/10",
+    border: "border-yellow-500/20",
+    video: "https://thebestfan.online/img/public/tuto/video5.mp4"
   }
 ];
 

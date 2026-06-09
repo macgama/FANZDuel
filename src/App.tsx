@@ -188,10 +188,14 @@ function AppContent() {
       const translateEl = document.getElementById("google_translate_element");
       if (!translateEl) return;
 
-      const profileContainer = document.getElementById("google-translate-profile-container");
-      
+      const profileContainer = document.getElementById(
+        "google-translate-profile-container",
+      );
+
       // Trouver tous les conteneurs de langue du hub public (peut en avoir un dans la landing et un dans match du jour)
-      const landingContainers = document.querySelectorAll("[id='google-translate-landing-container']");
+      const landingContainers = document.querySelectorAll(
+        "[id='google-translate-landing-container']",
+      );
       let activeLandingContainer = null;
       for (let i = 0; i < landingContainers.length; i++) {
         const el = landingContainers[i];
@@ -247,7 +251,16 @@ function AppContent() {
     "summary" | "lineups" | "stats" | "duels"
   >("summary");
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
-  const [selectedFanzTab, setSelectedFanzTab] = useState<"infos" | "stats" | "cards" | "skins" | "emotes" | "rank" | "ferveur" | undefined>();
+  const [selectedFanzTab, setSelectedFanzTab] = useState<
+    | "infos"
+    | "stats"
+    | "cards"
+    | "skins"
+    | "emotes"
+    | "rank"
+    | "ferveur"
+    | undefined
+  >();
   const [isDuelActive, setIsDuelActive] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -288,25 +301,23 @@ function AppContent() {
     profileRef.current = profile;
   }, [profile]);
 
-  // Empêcher le rechargement de page et la navigation accidentelle lorsque l'utilisateur est connecté
+  // Empêcher le rechargement de page et la navigation accidentelle uniquement pendant un duel
   useEffect(() => {
-    const isUserAuthenticated = !!(profile?.uid || auth.currentUser?.uid);
+    // Only block reload/leave if the user is actively in a duel match
+    const inActiveMatch = isDuelActive || view === "duel";
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isUserAuthenticated) {
+      if (inActiveMatch) {
         e.preventDefault();
-        e.returnValue = "Vous avez une session active. Si vous rechargez ou quittez la page, vous risquez de perdre votre progression.";
+        e.returnValue = ""; // Modern browsers ignore custom messages
         return e.returnValue;
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isUserAuthenticated) {
+      if (inActiveMatch) {
         // Bloquer F5 ou Ctrl+R / Cmd+R raccourcis de rafraîchissement
-        if (
-          e.key === "F5" ||
-          ((e.ctrlKey || e.metaKey) && e.key === "r")
-        ) {
+        if (e.key === "F5" || ((e.ctrlKey || e.metaKey) && e.key === "r")) {
           e.preventDefault();
           console.warn("Rafraîchissement bloqué : session de jeu active !");
         }
@@ -319,7 +330,7 @@ function AppContent() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [profile, isDuelActive, view]);
+  }, [isDuelActive, view]);
 
   // Compute claimable states for sidebar dots
   useEffect(() => {
@@ -401,7 +412,9 @@ function AppContent() {
             }
           });
           // Always update db so profile is in sync, App logic will pick it up
-          if ((profileRef.current?.skinEnergyBonus || 0) !== totalSkinEnergyBonus) {
+          if (
+            (profileRef.current?.skinEnergyBonus || 0) !== totalSkinEnergyBonus
+          ) {
             updateDoc(doc(db, "users", profileRef.current!.uid), {
               skinEnergyBonus: totalSkinEnergyBonus,
             }).catch(console.error);
@@ -569,17 +582,25 @@ function AppContent() {
         try {
           const actionDoc = await getDoc(doc(db, "life_actions", actionId));
           if (!isSubscribed) return;
-          const actionData = actionDoc.exists() ? { id: actionDoc.id, ...actionDoc.data() } : null;
+          const actionData = actionDoc.exists()
+            ? { id: actionDoc.id, ...actionDoc.data() }
+            : null;
 
           const fanzDoc = await getDoc(doc(db, "fanz", fanzId));
           if (!isSubscribed) return;
-          const fanzData = fanzDoc.exists() ? { id: fanzDoc.id, ...fanzDoc.data() } : null;
+          const fanzData = fanzDoc.exists()
+            ? { id: fanzDoc.id, ...fanzDoc.data() }
+            : null;
 
           let templateData = null;
           if (fanzData) {
-            const templateDoc = await getDoc(doc(db, "fanz_templates", (fanzData as any).templateId));
+            const templateDoc = await getDoc(
+              doc(db, "fanz_templates", (fanzData as any).templateId),
+            );
             if (!isSubscribed) return;
-            templateData = templateDoc.exists() ? { id: templateDoc.id, ...templateDoc.data() } : null;
+            templateData = templateDoc.exists()
+              ? { id: templateDoc.id, ...templateDoc.data() }
+              : null;
           }
 
           if (isSubscribed) {
@@ -619,8 +640,8 @@ function AppContent() {
       if (nowMs >= endMs && !isCompletingGlobally.current) {
         isCompletingGlobally.current = true;
         try {
-          const userRef = doc(db, 'users', profile.uid);
-          const fanzRef = doc(db, 'fanz', activeFanz.id);
+          const userRef = doc(db, "users", profile.uid);
+          const fanzRef = doc(db, "fanz", activeFanz.id);
 
           const action = activeActionDetails;
           const fanz = activeFanz;
@@ -628,7 +649,11 @@ function AppContent() {
 
           let resolvedImage = action.image;
           let resolvedVideoUrl = action.videoUrl;
-          if (fanz.equippedSkin && action.skinOverrides && action.skinOverrides[fanz.equippedSkin]) {
+          if (
+            fanz.equippedSkin &&
+            action.skinOverrides &&
+            action.skinOverrides[fanz.equippedSkin]
+          ) {
             const override = action.skinOverrides[fanz.equippedSkin];
             if (override.image) resolvedImage = override.image;
             if (override.videoUrl) resolvedVideoUrl = override.videoUrl;
@@ -642,7 +667,9 @@ function AppContent() {
           let gemsCostReduction = 0;
           let boostCostReduction = 0;
           if (fanzTemplate && fanz.equippedSkin) {
-            const skin = (fanzTemplate.skins || []).find((s: any) => s.id === fanz.equippedSkin);
+            const skin = (fanzTemplate.skins || []).find(
+              (s: any) => s.id === fanz.equippedSkin,
+            );
             if (skin) {
               moneyBonusMod = skin.moneyBonus || 0;
               gemsBonusMod = skin.gemsBonus || 0;
@@ -654,26 +681,37 @@ function AppContent() {
             }
           }
 
-          const actionProgress = fanz.lifeActionProgress?.[action.id] || { level: 1, xp: 0 };
+          const actionProgress = fanz.lifeActionProgress?.[action.id] || {
+            level: 1,
+            xp: 0,
+          };
           const currentLevel = actionProgress.level;
           const scaleFactor = 1 + (currentLevel - 1) * 0.2;
 
           const now = new Date();
-          const isXpBoostActive = profile.boostXpUntil && new Date(profile.boostXpUntil) > now;
+          const isXpBoostActive =
+            profile.boostXpUntil && new Date(profile.boostXpUntil) > now;
 
           const gainEnergy = Math.floor((action.energyGain || 0) * scaleFactor);
-          const gainMoney = Math.floor((action.moneyGain || 0) * scaleFactor * (1 + moneyBonusMod / 100));
-          const gainGems = Math.floor((action.gemsGain || 0) * scaleFactor * (1 + gemsBonusMod / 100));
-          const gainBoost = Math.floor((action.boostGain || 0) * scaleFactor * (1 + boostBonusMod / 100));
+          const gainMoney = Math.floor(
+            (action.moneyGain || 0) * scaleFactor * (1 + moneyBonusMod / 100),
+          );
+          const gainGems = Math.floor(
+            (action.gemsGain || 0) * scaleFactor * (1 + gemsBonusMod / 100),
+          );
+          const gainBoost = Math.floor(
+            (action.boostGain || 0) * scaleFactor * (1 + boostBonusMod / 100),
+          );
           const gainXp = Math.floor((action.xpGain || 0) * scaleFactor);
 
           const unlockedActions = profile.unlockedActions || [];
-          const skinSpecificActionId = action.id + '-' + (fanz.equippedSkin || '000');
+          const skinSpecificActionId =
+            action.id + "-" + (fanz.equippedSkin || "000");
           let newUnlockedActions = [...unlockedActions];
           if (!newUnlockedActions.includes(skinSpecificActionId)) {
             newUnlockedActions.push(skinSpecificActionId);
           }
-          if (!fanz.equippedSkin || fanz.equippedSkin === '000') {
+          if (!fanz.equippedSkin || fanz.equippedSkin === "000") {
             if (!newUnlockedActions.includes(action.id)) {
               newUnlockedActions.push(action.id);
             }
@@ -686,16 +724,40 @@ function AppContent() {
             gems: (profile.gems || 0) + gainGems,
             boostPoints: (profile.boostPoints || 0) + gainBoost,
             activeAction: deleteField(),
-            unlockedActions: newUnlockedActions
+            unlockedActions: newUnlockedActions,
           });
 
           // 2. Log transactions
-          if (gainEnergy > 0) await logTransaction(profile.uid, 'energy', gainEnergy, `Fin action: ${action.name}`);
-          if (gainMoney > 0) await logTransaction(profile.uid, 'money', gainMoney, `Fin action: ${action.name}`);
-          if (gainGems > 0) await logTransaction(profile.uid, 'gems', gainGems, `Fin action: ${action.name}`);
-          if (gainBoost > 0) await logTransaction(profile.uid, 'boost', gainBoost, `Fin action: ${action.name}`);
+          if (gainEnergy > 0)
+            await logTransaction(
+              profile.uid,
+              "energy",
+              gainEnergy,
+              `Fin action: ${action.name}`,
+            );
+          if (gainMoney > 0)
+            await logTransaction(
+              profile.uid,
+              "money",
+              gainMoney,
+              `Fin action: ${action.name}`,
+            );
+          if (gainGems > 0)
+            await logTransaction(
+              profile.uid,
+              "gems",
+              gainGems,
+              `Fin action: ${action.name}`,
+            );
+          if (gainBoost > 0)
+            await logTransaction(
+              profile.uid,
+              "boost",
+              gainBoost,
+              `Fin action: ${action.name}`,
+            );
 
-          await progressMission(profile, 'life_action', 1);
+          await progressMission(profile, "life_action", 1);
 
           // 3. Update Fanz DB
           const newActionXp = actionProgress.xp + 10;
@@ -708,12 +770,15 @@ function AppContent() {
           const newFanzStats: any = { ...fanz.stats };
           const xpMultiplier = isXpBoostActive ? 2 : 1;
           if (action.targetStat) {
-            newFanzStats[action.targetStat] = (newFanzStats[action.targetStat] || 0) + gainXp * xpMultiplier;
+            newFanzStats[action.targetStat] =
+              (newFanzStats[action.targetStat] || 0) + gainXp * xpMultiplier;
           }
           if (action.xpGains) {
             Object.entries(action.xpGains).forEach(([stat, gain]) => {
               if (gain) {
-                newFanzStats[stat] = (newFanzStats[stat] || 0) + Math.floor((gain as number) * scaleFactor * xpMultiplier);
+                newFanzStats[stat] =
+                  (newFanzStats[stat] || 0) +
+                  Math.floor((gain as number) * scaleFactor * xpMultiplier);
               }
             });
           }
@@ -722,40 +787,61 @@ function AppContent() {
             stats: newFanzStats,
             [`lifeActionProgress.${action.id}`]: {
               level: newActionLevel,
-              xp: newActionXp
-            }
+              xp: newActionXp,
+            },
           });
 
           // 4. Show success reward alert
           const rewards: Reward[] = [];
-          if (gainEnergy > 0) rewards.push({ type: 'energy', amount: gainEnergy, label: 'Énergie' });
-          if (gainMoney > 0) rewards.push({ type: 'money', amount: gainMoney, label: 'Argent' });
-          if (gainGems > 0) rewards.push({ type: 'gems', amount: gainGems, label: 'Gemmes' });
-          if (gainBoost > 0) rewards.push({ type: 'boost', amount: gainBoost, label: 'Boost' });
-          
+          if (gainEnergy > 0)
+            rewards.push({
+              type: "energy",
+              amount: gainEnergy,
+              label: "Énergie",
+            });
+          if (gainMoney > 0)
+            rewards.push({ type: "money", amount: gainMoney, label: "Argent" });
+          if (gainGems > 0)
+            rewards.push({ type: "gems", amount: gainGems, label: "Gemmes" });
+          if (gainBoost > 0)
+            rewards.push({ type: "boost", amount: gainBoost, label: "Boost" });
+
           if (action.targetStat && gainXp > 0) {
             const xpAmount = gainXp * (isXpBoostActive ? 2 : 1);
-            rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${action.targetStat}${isXpBoostActive ? ' (x2)' : ''}`, stat: action.targetStat });
+            rewards.push({
+              type: "xp",
+              amount: xpAmount,
+              label: `XP ${action.targetStat}${isXpBoostActive ? " (x2)" : ""}`,
+              stat: action.targetStat,
+            });
           }
-          
+
           if (action.xpGains) {
             Object.entries(action.xpGains).forEach(([stat, gain]) => {
               if (gain) {
-                const xpAmount = Math.floor((gain as number) * scaleFactor * (isXpBoostActive ? 2 : 1));
-                rewards.push({ type: 'xp', amount: xpAmount, label: `XP ${stat}${isXpBoostActive ? ' (x2)' : ''}`, stat });
+                const xpAmount = Math.floor(
+                  (gain as number) * scaleFactor * (isXpBoostActive ? 2 : 1),
+                );
+                rewards.push({
+                  type: "xp",
+                  amount: xpAmount,
+                  label: `XP ${stat}${isXpBoostActive ? " (x2)" : ""}`,
+                  stat,
+                });
               }
             });
           }
 
           showAlert({
             title: action.name,
-            subtitle: hasLeveledUp ? `Niveau ${newActionLevel} débloqué !` : "Activité terminée !",
+            subtitle: hasLeveledUp
+              ? `Niveau ${newActionLevel} débloqué !`
+              : "Activité terminée !",
             videoUrl: resolvedVideoUrl,
             imageUrl: resolvedImage,
             rewards,
-            type: hasLeveledUp ? 'level-up' : 'success'
+            type: hasLeveledUp ? "level-up" : "success",
           });
-
         } catch (error) {
           console.error("Error completing active action globally:", error);
         } finally {
@@ -766,7 +852,13 @@ function AppContent() {
 
     const interval = setInterval(checkAndComplete, 1000);
     return () => clearInterval(interval);
-  }, [profile?.activeAction?.startTime, profile?.activeAction?.durationMinutes, activeActionDetails, activeFanz, activeFanzTemplate]);
+  }, [
+    profile?.activeAction?.startTime,
+    profile?.activeAction?.durationMinutes,
+    activeActionDetails,
+    activeFanz,
+    activeFanzTemplate,
+  ]);
 
   useEffect(() => {
     if (!user) return;
@@ -815,19 +907,23 @@ function AppContent() {
       collection(db, "chats"),
       where("participants", "array-contains", user.uid),
     );
-    const unsubscribeChats = onSnapshot(chatsQ, (snapshot) => {
-      let totalUnread = 0;
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        totalUnread += data.unreadCount?.[user.uid] || 0;
-      });
+    const unsubscribeChats = onSnapshot(
+      chatsQ,
+      (snapshot) => {
+        let totalUnread = 0;
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          totalUnread += data.unreadCount?.[user.uid] || 0;
+        });
 
-      // Also add friend requests count from profile
-      const requestsCount = profile?.friendRequests?.length || 0;
-      setUnreadSocialCount(totalUnread + requestsCount);
-    }, (error) => {
-      console.error("Chats snapshot listener error:", error);
-    });
+        // Also add friend requests count from profile
+        const requestsCount = profile?.friendRequests?.length || 0;
+        setUnreadSocialCount(totalUnread + requestsCount);
+      },
+      (error) => {
+        console.error("Chats snapshot listener error:", error);
+      },
+    );
 
     return () => unsubscribeChats();
   }, [user?.uid, profile?.friendRequests?.length]);
@@ -847,8 +943,10 @@ function AppContent() {
           liveTeamIds.add(f.teams.home.id.toString());
           liveTeamIds.add(f.teams.away.id.toString());
         });
-        
-        const hasLive = profile.favoriteTeams.some(teamId => liveTeamIds.has(teamId.split('_')[0]));
+
+        const hasLive = profile.favoriteTeams.some((teamId) =>
+          liveTeamIds.has(teamId.split("_")[0]),
+        );
         setHasLiveFavoriteMatch(hasLive);
       } catch (err) {
         console.error("Failed to check live favorite matches", err);
@@ -863,34 +961,52 @@ function AppContent() {
   // Track user fanz for new museum items
   useEffect(() => {
     if (!user?.uid) return;
-    const unFanz = onSnapshot(query(collection(db, "fanz"), where("ownerUid", "==", user.uid)), (snap) => {
-      setUserFanzCount(snap.docs.length);
-    });
+    const unFanz = onSnapshot(
+      query(collection(db, "fanz"), where("ownerUid", "==", user.uid)),
+      (snap) => {
+        setUserFanzCount(snap.docs.length);
+      },
+    );
     return () => unFanz();
   }, [user?.uid]);
 
   // Computed new museum items (comparing current loaded count + arrays with local storage)
   useEffect(() => {
     if (!profile || !user?.uid) return;
-    
+
     // Total items in museum
-    const totalItems = (profile.cards?.length || 0) + 
-                       (profile.skins?.length || 0) + 
-                       (profile.emotes?.length || 0) + 
-                       (profile.unlockedActions?.length || 0) + 
-                       userFanzCount;
-                       
-    const lastSeenCount = parseInt(localStorage.getItem(`museum_last_count_${user.uid}`) || '0', 10);
-    
+    const totalItems =
+      (profile.cards?.length || 0) +
+      (profile.skins?.length || 0) +
+      (profile.emotes?.length || 0) +
+      (profile.unlockedActions?.length || 0) +
+      userFanzCount;
+
+    const lastSeenCount = parseInt(
+      localStorage.getItem(`museum_last_count_${user.uid}`) || "0",
+      10,
+    );
+
     if (view === "collection") {
-      localStorage.setItem(`museum_last_count_${user.uid}`, totalItems.toString());
+      localStorage.setItem(
+        `museum_last_count_${user.uid}`,
+        totalItems.toString(),
+      );
       setHasNewMuseumItems(false);
     } else if (totalItems > lastSeenCount) {
       setHasNewMuseumItems(true);
     } else {
       setHasNewMuseumItems(false);
     }
-  }, [profile?.cards, profile?.skins, profile?.emotes, profile?.unlockedActions, userFanzCount, view, user?.uid]);
+  }, [
+    profile?.cards,
+    profile?.skins,
+    profile?.emotes,
+    profile?.unlockedActions,
+    userFanzCount,
+    view,
+    user?.uid,
+  ]);
 
   const handleDuelIntent = async (callback: () => void) => {
     if (profile?.activeAction) {
@@ -1137,12 +1253,16 @@ function AppContent() {
               }
 
               // Check for admin role (case-insensitive for all listed admins)
-              const adminEmails = ["gael.manigley@gmail.com", "michel@gmail.com", "elisa@gmail.com", "caro@gmail.com"];
-              const isCurrentUserAdmin = currentUser.email && adminEmails.includes(currentUser.email.toLowerCase().trim());
-              if (
-                isCurrentUserAdmin &&
-                data.role !== "admin"
-              ) {
+              const adminEmails = [
+                "gael.manigley@gmail.com",
+                "michel@gmail.com",
+                "elisa@gmail.com",
+                "caro@gmail.com",
+              ];
+              const isCurrentUserAdmin =
+                currentUser.email &&
+                adminEmails.includes(currentUser.email.toLowerCase().trim());
+              if (isCurrentUserAdmin && data.role !== "admin") {
                 updatedData.role = "admin";
                 needsUpdate = true;
               }
@@ -1266,7 +1386,10 @@ function AppContent() {
                 setProfile(updatedData);
               }
             } else {
-              if (safeSessionStorage.getItem("isCreatingAccount") && profile !== null) {
+              if (
+                safeSessionStorage.getItem("isCreatingAccount") &&
+                profile !== null
+              ) {
                 // Ignore the very first negative snapshot if we are creating an account
               } else {
                 setProfile(null);
@@ -1362,27 +1485,38 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center p-8 fixed inset-0 z-[200]">
-        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-[40%] h-[40%] bg-orange-500/20 blur-[120px] rounded-full mix-blend-screen" />
-        </div>
-        <div className="flex flex-col items-center gap-6 relative z-10 w-full max-w-xs">
-          <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(249,115,22,0.15)] relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-tr from-orange-500/20 to-transparent animate-pulse" />
-            <LayoutGrid className="w-10 h-10 text-orange-500 animate-[spin_4s_linear_infinite]" />
+      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center p-8 bg-[#0a0a0a] overflow-hidden">
+        <div className="relative z-10 w-full max-w-xs flex flex-col items-center gap-10">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(249,115,22,0.15)]">
+              <LayoutGrid className="w-10 h-10 text-orange-500 animate-[spin_20s_linear_infinite]" />
+            </div>
+
+            <div className="text-center">
+              <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white">
+                THE BEST <span className="text-orange-500">FAN</span>
+              </h1>
+              <p className="text-[10px] font-bold text-gray-400 tracking-[0.2em] uppercase mt-1">
+                L'expérience ultime commence
+              </p>
+            </div>
           </div>
-          <div className="text-center w-full">
-            <h1 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-2">
-              THE BEST <span className="text-orange-500">FAN</span>
-            </h1>
-            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2 mt-4">
-              <div className="h-full bg-orange-500 w-full animate-pulse opacity-50 relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white w-full h-full -translate-x-full animate-[shimmer_1.5s_infinite]" />
+
+          <div className="w-full space-y-3">
+            <div className="flex justify-between items-end px-1">
+              <span className="text-[10px] font-bold uppercase text-gray-500 flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border-t-2 border-orange-500 animate-spin" />
+                Démarrage...
+              </span>
+              <span className="text-orange-500 font-black text-sm animate-pulse">
+                ...
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden outline outline-1 outline-white/5 outline-offset-2">
+              <div className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-[3000ms] ease-out w-[10%]">
+                <div className="absolute inset-0 bg-white/20 animate-pulse" />
               </div>
             </div>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] animate-pulse">
-              Synchronisation...
-            </p>
           </div>
         </div>
       </div>
@@ -1396,7 +1530,7 @@ function AppContent() {
           {/* Public guest-friendly navigation bar */}
           <header className="sticky top-0 z-50 bg-[#111]/85 backdrop-blur-xl border-b border-white/5 px-3 md:px-6 py-3 md:py-4 flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-6">
-              <button 
+              <button
                 onClick={() => {
                   setSelectedMatchId(null);
                   setSelectedLeague(null);
@@ -1409,8 +1543,8 @@ function AppContent() {
                 <ChevronRight className="w-5 h-5 rotate-180" />
                 <span>Accueil</span>
               </button>
-              <div 
-                className="text-xl md:text-2xl font-black italic tracking-tighter text-orange-500 cursor-pointer hidden sm:block" 
+              <div
+                className="text-xl md:text-2xl font-black italic tracking-tighter text-orange-500 cursor-pointer hidden sm:block"
                 onClick={() => {
                   setSelectedMatchId(null);
                   setSelectedLeague(null);
@@ -1422,12 +1556,12 @@ function AppContent() {
                 TBFO
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 md:gap-4">
               {/* GOOGLE TRANSLATE CONTAINER MOUNTED IN NAVBAR */}
               <div className="flex items-center pr-2 border-r border-white/10">
-                <div 
-                  id="google-translate-landing-container" 
+                <div
+                  id="google-translate-landing-container"
                   className="h-8 flex items-center min-w-[100px] sm:min-w-[120px] max-w-[160px] overflow-visible rounded-lg"
                 />
               </div>
@@ -1437,7 +1571,9 @@ function AppContent() {
                   setGuestView("landing");
                   // Small delay to let landing page render then trigger Auth view
                   setTimeout(() => {
-                    const btn = document.getElementById("landing-connect-button");
+                    const btn = document.getElementById(
+                      "landing-connect-button",
+                    );
                     if (btn) btn.click();
                   }, 50);
                 }}
@@ -1460,7 +1596,9 @@ function AppContent() {
                 onDuelIntent={() => {
                   setGuestView("landing");
                   setTimeout(() => {
-                    const btn = document.getElementById("landing-connect-button");
+                    const btn = document.getElementById(
+                      "landing-connect-button",
+                    );
                     if (btn) btn.click();
                   }, 50);
                 }}
@@ -1487,9 +1625,7 @@ function AppContent() {
                 playerId={selectedPlayer.id}
                 season={selectedPlayer.season}
                 onBack={() => setSelectedPlayer(null)}
-                onTeamClick={(id, season) =>
-                  setSelectedTeam({ id, season })
-                }
+                onTeamClick={(id, season) => setSelectedTeam({ id, season })}
                 onLeagueClick={(id, season) =>
                   setSelectedLeague({ id, season })
                 }
@@ -1541,13 +1677,13 @@ function AppContent() {
                 onJoinDuel={() => {
                   setGuestView("landing");
                   setTimeout(() => {
-                    const btn = document.getElementById("landing-connect-button");
+                    const btn = document.getElementById(
+                      "landing-connect-button",
+                    );
                     if (btn) btn.click();
                   }, 50);
                 }}
-                onTeamClick={(id, season) =>
-                  setSelectedTeam({ id, season })
-                }
+                onTeamClick={(id, season) => setSelectedTeam({ id, season })}
                 onLeagueClick={(id, season) =>
                   setSelectedLeague({ id, season })
                 }
@@ -1559,8 +1695,8 @@ function AppContent() {
     }
 
     return (
-      <LandingPage 
-        onShowLiveScores={() => setGuestView("matches")} 
+      <LandingPage
+        onShowLiveScores={() => setGuestView("matches")}
         onMatchSelect={(matchId) => {
           setSelectedMatchId(matchId);
           setSelectedMatchTab("summary");
@@ -1578,20 +1714,19 @@ function AppContent() {
     );
   }
 
+  if (user && profile && !assetsLoaded) {
+    return (
+      <AnimatePresence mode="wait">
+        <Preloader uid={user.uid} onComplete={() => setAssetsLoaded(true)} />
+      </AnimatePresence>
+    );
+  }
+
   return (
     <>
       <AnimatePresence>
-        {!assetsLoaded && profile && (
-          <Preloader uid={user.uid} onComplete={() => setAssetsLoaded(true)} />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {assetsLoaded && profile && profile.hasCompletedOnboarding === false && (
-          <OnboardingTutorial 
-            profile={profile} 
-            onComplete={() => {}} 
-          />
+        {profile && profile.hasCompletedOnboarding === false && (
+          <OnboardingTutorial profile={profile} onComplete={() => {}} />
         )}
       </AnimatePresence>
 
@@ -1952,7 +2087,7 @@ function AppContent() {
         <div
           className={cn(
             "flex-1 flex flex-col overflow-hidden relative min-h-0 bg-black/40",
-            view !== "admin" && "md:flex-none md:w-[600px] md:max-w-[600px]"
+            view !== "admin" && "md:flex-none md:w-[600px] md:max-w-[600px]",
           )}
         >
           {view === "home" ? (
@@ -2332,9 +2467,7 @@ function AppContent() {
             />
           )}
 
-          {profile && (
-            <CommercialAlertOverlay setView={setView} />
-          )}
+          {profile && <CommercialAlertOverlay setView={setView} />}
 
           <UpdatePrompt />
         </div>
@@ -2733,9 +2866,10 @@ function AppContent() {
             </div>
           )}
 
-          {/* Alerte de passage de palier de ferveur */}
-          <AnimatePresence>
-            {!dismissedFervorAlert && (claimableAlerts.globalFervor || claimableAlerts.fanzFervor) && (
+        {/* Alerte de passage de palier de ferveur */}
+        <AnimatePresence>
+          {!dismissedFervorAlert &&
+            (claimableAlerts.globalFervor || claimableAlerts.fanzFervor) && (
               <motion.div
                 key="fervor-palier-alert"
                 initial={{ opacity: 0, y: 50, scale: 0.95 }}
@@ -2746,7 +2880,7 @@ function AppContent() {
               >
                 {/* Effet lumineux de fond */}
                 <div className="absolute -top-10 -right-10 w-24 h-24 bg-orange-600/25 rounded-full blur-2xl pointer-events-none" />
-                
+
                 <div className="flex items-start justify-between relative">
                   <div className="flex gap-3">
                     <div className="w-9 h-9 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-500 shrink-0">
@@ -2754,10 +2888,12 @@ function AppContent() {
                     </div>
                     <div>
                       <h4 className="text-xs font-black italic uppercase tracking-wider text-orange-500 flex items-center gap-1.5 leading-none">
-                        PALIER FRANCHI ! <Sparkles className="w-3.5 h-3.5 text-orange-300" />
+                        PALIER FRANCHI !{" "}
+                        <Sparkles className="w-3.5 h-3.5 text-orange-300" />
                       </h4>
                       <p className="text-[11px] text-gray-300 font-bold leading-normal mt-1">
-                        Tu as passé un nouveau niveau de ferveur ! Récupère vite tes récompenses.
+                        Tu as passé un nouveau niveau de ferveur ! Récupère vite
+                        tes récompenses.
                       </p>
                     </div>
                   </div>
@@ -2774,7 +2910,9 @@ function AppContent() {
                     <div className="flex items-center justify-between p-2 bg-white/5 rounded-xl border border-white/5 hover:border-orange-500/10 transition-all">
                       <div className="flex items-center gap-2">
                         <Trophy className="w-3.5 h-3.5 text-yellow-500" />
-                        <span className="text-[10px] font-bold text-gray-300 uppercase italic">Ferveur Générale</span>
+                        <span className="text-[10px] font-bold text-gray-300 uppercase italic">
+                          Ferveur Générale
+                        </span>
                       </div>
                       <Button
                         size="sm"
@@ -2798,7 +2936,9 @@ function AppContent() {
                     <div className="flex items-center justify-between p-2 bg-white/5 rounded-xl border border-white/5 hover:border-orange-500/10 transition-all">
                       <div className="flex items-center gap-2">
                         <Star className="w-3.5 h-3.5 text-orange-400" />
-                        <span className="text-[10px] font-bold text-gray-300 uppercase italic">Ferveur FANZ</span>
+                        <span className="text-[10px] font-bold text-gray-300 uppercase italic">
+                          Ferveur FANZ
+                        </span>
                       </div>
                       <Button
                         size="sm"
@@ -2820,7 +2960,7 @@ function AppContent() {
                 </div>
               </motion.div>
             )}
-          </AnimatePresence>
+        </AnimatePresence>
 
         {renderFooter()}
       </Layout>

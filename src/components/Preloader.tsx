@@ -124,7 +124,7 @@ export function Preloader({ onComplete, uid }: PreloaderProps) {
   return (
     <motion.div 
       key="preloader"
-      initial={{ opacity: 0 }}
+      initial={{ opacity: 1 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.05 }}
       transition={{ duration: 0.5 }}

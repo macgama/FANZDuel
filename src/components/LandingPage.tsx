@@ -7,7 +7,10 @@ import { getImageUrl, getOptimizedVideoUrl } from "../lib/utils";
 import { footballApi } from "../services/footballApi";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { translateCountryName, translateLeagueName } from "../utils/countryTranslations";
+import {
+  translateCountryName,
+  translateLeagueName,
+} from "../utils/countryTranslations";
 import { format, isSameDay } from "date-fns";
 import { BuyMeACoffee } from "./BuyMeACoffee";
 import {
@@ -30,7 +33,7 @@ import {
   Tv,
   Sparkles,
   RefreshCw,
-  TrophyIcon
+  TrophyIcon,
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -42,36 +45,45 @@ const FALLBACK_FANZ = [
   {
     id: "001",
     name: "Baby Fanzzy",
-    description: "Le chérubin tout premier supporter de l'arène, muni de sa tétine d'attaque exclusive et de sa poussette supersonique pour dompter les tribunes en chantant."
+    description:
+      "Le chérubin tout premier supporter de l'arène, muni de sa tétine d'attaque exclusive et de sa poussette supersonique pour dompter les tribunes en chantant.",
   },
   {
     id: "002",
     name: "Fanzzy Lion",
-    description: "Le roi de l'ambiance par excellence ! Équipé de sa crinière flamboyante et de son mégaphone tonitruant pour rugir de ferveur à chaque but marqué."
+    description:
+      "Le roi de l'ambiance par excellence ! Équipé de sa crinière flamboyante et de son mégaphone tonitruant pour rugir de ferveur à chaque but marqué.",
   },
   {
     id: "003",
     name: "Fanzzy Glove",
-    description: "Le virtuose tactique ! Toujours équipé de gants géants pour amortir les provocations de l'adversaire et lever fièrement les bras en signe de triomphe."
+    description:
+      "Le virtuose tactique ! Toujours équipé de gants géants pour amortir les provocations de l'adversaire et lever fièrement les bras en signe de triomphe.",
   },
   {
     id: "004",
     name: "Fanzzy Pyro",
-    description: "L'artificier pyrotechnique de l'arène ! Ses fumigènes colorés et ses tifos XXL colorent le ciel des tribunes pour créer un enfer de ferveur positive."
+    description:
+      "L'artificier pyrotechnique de l'arène ! Ses fumigènes colorés et ses tifos XXL colorent le ciel des tribunes pour créer un enfer de ferveur positive.",
   },
   {
     id: "005",
     name: "Fanzzy Megaphone",
-    description: "La voix puissante du virage ! Rien ne l'arrête lorsqu'il lance les chants et coordonne les kops de supporters d'un bout à l'autre de la rencontre."
+    description:
+      "La voix puissante du virage ! Rien ne l'arrête lorsqu'il lance les chants et coordonne les kops de supporters d'un bout à l'autre de la rencontre.",
   },
   {
     id: "011",
     name: "Fanzzy Festival",
-    description: "L'ambassadrice festive suprême ! Équipée d'un chapeau carnavalesque et de confettis magiques, elle transforme chaque match en fête légendaire inextinguible."
-  }
+    description:
+      "L'ambassadrice festive suprême ! Équipée d'un chapeau carnavalesque et de confettis magiques, elle transforme chaque match en fête légendaire inextinguible.",
+  },
 ];
 
-export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProps) {
+export function LandingPage({
+  onShowLiveScores,
+  onMatchSelect,
+}: LandingPageProps) {
   const [showAuth, setShowAuth] = useState(false);
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
@@ -123,21 +135,28 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
         if (!querySnapshot.empty) {
           const fetched = querySnapshot.docs.map((doc) => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
           })) as any[];
-          const activeTemplates = fetched.filter(t => t.isActive !== false);
+          const activeTemplates = fetched.filter((t) => t.isActive !== false);
           if (activeTemplates.length > 0) {
-            const shuffled = [...activeTemplates].sort(() => 0.5 - Math.random());
+            const shuffled = [...activeTemplates].sort(
+              () => 0.5 - Math.random(),
+            );
             setDisplayedFanz(shuffled.slice(0, 3));
             return;
           }
         }
       } catch (err: any) {
-        console.warn("Fanz templates showcase search is pending DB connection (using local high-quality templates instead):", err.message || err);
+        console.warn(
+          "Fanz templates showcase search is pending DB connection (using local high-quality templates instead):",
+          err.message || err,
+        );
       }
-      
+
       // Fallback
-      const shuffledFallback = [...FALLBACK_FANZ].sort(() => 0.5 - Math.random());
+      const shuffledFallback = [...FALLBACK_FANZ].sort(
+        () => 0.5 - Math.random(),
+      );
       setDisplayedFanz(shuffledFallback.slice(0, 3));
     };
 
@@ -162,16 +181,37 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
 
   // 1. Filter live matches
   const liveFixtures = fixtures.filter((f: any) =>
-    ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"].includes(f.fixture.status.short)
+    ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"].includes(
+      f.fixture.status.short,
+    ),
   );
 
   // 2. Filter upcoming matches (NS = Not Started, TBD = To Be Defined/Scheduled)
-  const upcomingFixtures = fixtures.filter((f: any) =>
-    ["NS", "TBD"].includes(f.fixture.status.short) || 
-    (!["FT", "AET", "PEN", "1H", "2H", "HT", "ET", "P", "BT", "LIVE", "PST", "CANC", "ABD"].includes(f.fixture.status.short) && new Date(f.fixture.date).getTime() > Date.now())
+  const upcomingFixtures = fixtures.filter(
+    (f: any) =>
+      ["NS", "TBD"].includes(f.fixture.status.short) ||
+      (![
+        "FT",
+        "AET",
+        "PEN",
+        "1H",
+        "2H",
+        "HT",
+        "ET",
+        "P",
+        "BT",
+        "LIVE",
+        "PST",
+        "CANC",
+        "ABD",
+      ].includes(f.fixture.status.short) &&
+        new Date(f.fixture.date).getTime() > Date.now()),
   );
   // Sort upcoming fixtures chronologically from nearest to furthest
-  upcomingFixtures.sort((a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime());
+  upcomingFixtures.sort(
+    (a, b) =>
+      new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime(),
+  );
 
   // 3. Decide which fixtures list and section header to show
   let displayedFixtures: any[] = [];
@@ -192,7 +232,7 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
     sectionTitle = "Matchs du Jour (Résultats)";
     isDisplayingLive = false;
   }
-  
+
   const formattedLiveCount = liveFixtures.length;
 
   if (showAuth) {
@@ -220,17 +260,17 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#111]/80 backdrop-blur-xl border-b border-white/5 px-3 md:px-6 py-3 md:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-6">
-            <div 
+            <div
               className="text-xl md:text-2xl font-black italic tracking-tighter text-orange-500 cursor-pointer select-none"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             >
               TBFO
             </div>
-            
+
             {/* GOOGLE TRANSLATE CONTAINER MOUNTED IN NAVBAR */}
             <div className="flex items-center border-l border-white/10 pl-2 md:pl-6">
-              <div 
-                id="google-translate-landing-container" 
+              <div
+                id="google-translate-landing-container"
                 className="h-8 flex items-center min-w-[100px] sm:min-w-[120px] max-w-[160px] overflow-visible rounded-lg"
               />
             </div>
@@ -341,17 +381,23 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4 px-4 sm:px-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${isDisplayingLive ? "bg-red-500 animate-ping" : "bg-orange-500"}`} />
-                <span className={`font-bold uppercase tracking-wider text-xs ${isDisplayingLive ? "text-red-500" : "text-orange-500"}`}>
-                  {isDisplayingLive ? "Mises à jour toutes les minutes" : "Prochainement en direct"}
+                <span
+                  className={`w-2.5 h-2.5 rounded-full ${isDisplayingLive ? "bg-red-500 animate-ping" : "bg-orange-500"}`}
+                />
+                <span
+                  className={`font-bold uppercase tracking-wider text-xs ${isDisplayingLive ? "text-red-500" : "text-orange-500"}`}
+                >
+                  {isDisplayingLive
+                    ? "Mises à jour toutes les minutes"
+                    : "Prochainement en direct"}
                 </span>
               </div>
               <h2 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter">
                 {sectionTitle}
               </h2>
             </div>
-            <button 
-              onClick={onShowLiveScores} 
+            <button
+              onClick={onShowLiveScores}
               className="w-full md:w-auto bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs uppercase px-6 py-3 rounded-lg flex items-center justify-center gap-2"
             >
               <Tv className="w-4 h-4 text-orange-500" />
@@ -362,7 +408,10 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
           {loadingMatches ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4 sm:px-6">
               {[1, 2, 3].map((n) => (
-                <div key={n} className="h-44 bg-white/5 rounded-2xl border border-white/5 animate-pulse flex items-center justify-center">
+                <div
+                  key={n}
+                  className="h-44 bg-white/5 rounded-2xl border border-white/5 animate-pulse flex items-center justify-center"
+                >
                   <RefreshCw className="w-6 h-6 text-orange-500/40 animate-spin" />
                 </div>
               ))}
@@ -370,16 +419,21 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
           ) : displayedFixtures.length === 0 ? (
             <div className="p-12 text-center bg-[#0d0d0d] border border-white/5 rounded-2xl mx-4 sm:mx-6">
               <Activity className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400 font-bold mb-2 uppercase tracking-wide text-sm">Aucun match disponible pour aujourd'hui</p>
-              <p className="text-xs text-gray-600">Revenez plus tard pour voir les résultats des tournois ou explorez d'autres zones.</p>
+              <p className="text-gray-400 font-bold mb-2 uppercase tracking-wide text-sm">
+                Aucun match disponible pour aujourd'hui
+              </p>
+              <p className="text-xs text-gray-600">
+                Revenez plus tard pour voir les résultats des tournois ou
+                explorez d'autres zones.
+              </p>
             </div>
           ) : (
             <div className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pb-4">
               <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
                 {displayedFixtures.slice(0, 6).map((match: any) => (
-                  <div 
-                    key={match.fixture.id} 
-                    className={`snap-center shrink-0 flex items-stretch ${displayedFixtures.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}
+                  <div
+                    key={match.fixture.id}
+                    className={`snap-center shrink-0 flex items-stretch ${displayedFixtures.length > 1 ? "w-[85vw] sm:w-[360px]" : "w-[calc(100vw-32px)] max-w-[388px]"}`}
                   >
                     <SharedMatchCard
                       match={match}
@@ -437,7 +491,9 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <LandingCard
-              icon={<Swords className="w-6 h-6 text-orange-500 animate-pulse" />}
+              icon={
+                <Swords className="w-6 h-6 text-orange-500 animate-pulse" />
+              }
               title="Duels en direct"
               description="Affrontez d'autres supporters pendant les matchs."
             />
@@ -474,16 +530,17 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
 
           <div className="flex overflow-x-auto no-scrollbar gap-4 pb-8 snap-x snap-mandatory">
             {[1, 2, 3, 4, 5].map((num) => (
-              <div 
-                key={num} 
+              <div
+                key={num}
                 className="w-[240px] md:w-[280px] shrink-0 aspect-[9/16] bg-black border border-white/10 rounded-2xl overflow-hidden snap-center relative shadow-2xl"
               >
-                <video 
-                  src={`/tuto/video${num}.mp4`} 
-                  className="absolute inset-0 w-full h-full object-cover" 
-                  controls 
-                  playsInline 
-                  preload="metadata"
+                <video
+                  src={`https://thebestfan.online/img/public/tuto/video${num}.mp4`}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
                 />
               </div>
             ))}
@@ -541,8 +598,6 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
             1.0."
           </div>
         </div>
-
-
       </section>
 
       {/* FOOTER CTA */}
