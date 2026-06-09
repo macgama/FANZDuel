@@ -148,12 +148,12 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         const skinsForSale: any[] = [];
         const emotesForSale: any[] = [];
         
-        dailyFanzs.forEach(fanz => {
-          // Only show skins and emotes if the user has unlocked this FANZ (which is in the daily selection)
+        fanzData.forEach(fanz => {
+          // Only show skins and emotes if the user has unlocked this FANZ
           if (ownedFanzTemplateIds.includes(fanz.id)) {
             if (fanz.skins && Array.isArray(fanz.skins)) {
               fanz.skins.forEach(skin => {
-                if (skin.price && (skin.price.money || skin.price.gems) && !(profile.skins || []).includes(skin.id)) {
+                if (skin.price && (skin.price.money !== undefined || skin.price.gems !== undefined) && !(profile.skins || []).includes(skin.id)) {
                   skinsForSale.push({
                     id: `${fanz.id}-${skin.id}`,
                     originalId: skin.id,
@@ -163,8 +163,8 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     fanz: fanz.name,
                     fanzId: fanz.id,
                     rarity: skin.rarity || 'epic', // Default rarity for skins if not specified
-                    price: skin.price.gems ? skin.price.gems : skin.price.money,
-                    currency: skin.price.gems ? 'gems' : 'money',
+                    price: skin.price.gems !== undefined ? skin.price.gems : skin.price.money,
+                    currency: skin.price.gems !== undefined ? 'gems' : 'money',
                     fullPrice: skin.price,
                     image: skin.imageUrl ? getImageUrl(skin.imageUrl) : '👕',
                     video: skin.videoUrl,
@@ -175,7 +175,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             }
             if (fanz.emotes && Array.isArray(fanz.emotes)) {
               fanz.emotes.forEach(emote => {
-                if (emote.price && (emote.price.money || emote.price.gems) && !(profile.emotes || []).includes(emote.id) && (emote.category !== 'event' || emote.isActive !== false)) {
+                if (emote.price && (emote.price.money !== undefined || emote.price.gems !== undefined) && !(profile.emotes || []).includes(emote.id) && (emote.category !== 'event' || emote.isActive !== false)) {
                   emotesForSale.push({
                     id: `${fanz.id}-${emote.id}`,
                     originalId: emote.id,
@@ -185,8 +185,8 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     fanz: fanz.name,
                     fanzId: fanz.id,
                     rarity: 'rare', // Default rarity for emotes
-                    price: emote.price.gems ? emote.price.gems : emote.price.money,
-                    currency: emote.price.gems ? 'gems' : 'money',
+                    price: emote.price.gems !== undefined ? emote.price.gems : emote.price.money,
+                    currency: emote.price.gems !== undefined ? 'gems' : 'money',
                     fullPrice: emote.price,
                     icon: emote.imageUrl ? getImageUrl(emote.imageUrl) : '😀',
                     video: emote.videoUrl
@@ -812,7 +812,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'packs' && (
               <section className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  {(shopConfig?.realMoneyPacks || []).map(pack => (
+                  {(shopConfig?.realMoneyPacks || []).filter(pack => !pack.name.toLowerCase().includes('gemme')).map(pack => (
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} key={pack.id}>
                       <Card className={cn(
                         "relative overflow-hidden border p-3.5 sm:p-4 flex flex-col items-center text-center h-full justify-between",
@@ -851,7 +851,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     </motion.div>
                   ))}
                 </div>
-                {(!shopConfig?.realMoneyPacks || shopConfig.realMoneyPacks.length === 0) && (
+                {(!shopConfig?.realMoneyPacks || shopConfig.realMoneyPacks.filter(pack => !pack.name.toLowerCase().includes('gemme')).length === 0) && (
                   <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun pack disponible pour le moment.</p>
                 )}
               </section>

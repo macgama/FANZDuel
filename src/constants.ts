@@ -29,6 +29,7 @@ export const INITIAL_USER_DATA = {
   isPassPremium: false,
   purchasedPasses: [],
   claimedPassRewards: [],
+  hasCompletedOnboarding: false,
 };
 
 export const STAT_NAMES = [

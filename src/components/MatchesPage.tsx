@@ -479,7 +479,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
 
           {/* Carousel des pays avec drapeaux */}
           {availableCountries.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto pb-2 pt-0.5 no-scrollbar px-4 scroll-smooth justify-center">
+            <div className="flex gap-2 overflow-x-auto pb-2 pt-0.5 no-scrollbar px-4 scroll-smooth">
               <button
                 onClick={() => setSelectedCountry(null)}
                 title="Tous les matchs"

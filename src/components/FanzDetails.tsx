@@ -91,9 +91,10 @@ interface FanzDetailsProps {
   fanzId: string;
   userProfile: UserProfile;
   onBack: () => void;
+  initialTab?: "infos" | "stats" | "cards" | "skins" | "emotes" | "rank" | "ferveur";
 }
 
-export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
+export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDetailsProps) {
   const [fanz, setFanz] = useState<Fanz | null>(null);
   const [template, setTemplate] = useState<FanzTemplate | null>(null);
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
@@ -106,7 +107,7 @@ export function FanzDetails({ fanzId, userProfile, onBack }: FanzDetailsProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
     "infos" | "stats" | "cards" | "skins" | "emotes" | "rank" | "ferveur"
-  >("infos");
+  >(initialTab || "infos");
   const [claimingReward, setClaimingReward] = useState<string | null>(null);
   const [rankingUp, setRankingUp] = useState(false);
   const [rewardModal, setRewardModal] = useState<{

@@ -33,7 +33,8 @@ import {
   Star,
   Swords,
   Megaphone,
-  X
+  X,
+  Database
 } from 'lucide-react';
 import { OptimizedMedia } from './OptimizedMedia';
 import { motion, AnimatePresence } from 'motion/react';
@@ -54,13 +55,14 @@ interface HomeProps {
   onTeamClick?: (teamId: number, season: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
   onOpenStreak: () => void;
-  onFanzClick?: (fanzId: string) => void;
+  onFanzClick?: (fanzId: string, tab?: 'infos' | 'stats' | 'cards' | 'skins' | 'emotes' | 'rank' | 'ferveur') => void;
 }
 
 export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onOpenStreak, onFanzClick }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [allFanz, setAllFanz] = useState<Fanz[]>([]);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
+  const [templatesMap, setTemplatesMap] = useState<Map<string, FanzTemplate>>(new Map());
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
@@ -72,8 +74,34 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [dismissedAlertIDs, setDismissedAlertIDs] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const worldCupScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // load from local storage
+    const stored = localStorage.getItem(`dismissed-alerts-${profile.uid}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.date === new Date().toDateString()) {
+           setDismissedAlertIDs(new Set(parsed.ids));
+        } else {
+           localStorage.removeItem(`dismissed-alerts-${profile.uid}`);
+        }
+      } catch (e) {}
+    }
+  }, [profile.uid]);
+
+  const handleDismissAlert = (id: string) => {
+    const newSet = new Set(dismissedAlertIDs);
+    newSet.add(id);
+    setDismissedAlertIDs(newSet);
+    localStorage.setItem(`dismissed-alerts-${profile.uid}`, JSON.stringify({
+      date: new Date().toDateString(),
+      ids: Array.from(newSet)
+    }));
+  };
 
   const [hasNewPass, setHasNewPass] = useState(false);
   const [hasClaimableStreak, setHasClaimableStreak] = useState(false);
@@ -261,6 +289,8 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
           const data = d.data() as Fanz;
           return templatesMap.has(data.templateId);
         });
+
+        setTemplatesMap(templatesMap);
 
         const sortedDocs = validDocs.sort((a, b) => {
           const dataA = a.data() as Fanz;
@@ -520,6 +550,62 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     signOut(auth);
   };
 
+  const fanzAlerts = React.useMemo(() => {
+    const alerts: Array<{ id: string; message: string; actionTitle: string; action: () => void; Icon: any; dismissTitle?: string; dismissAction?: () => void }> = [];
+    
+    if (!activeFanz) {
+      alerts.push({
+        id: 'no-active-fanz',
+        message: 'Aucun FANZ actif',
+        actionTitle: 'Voir mes FANZ',
+        action: () => onNavigate('fanz'),
+        Icon: Flame
+      });
+    } else if (activeFanz) {
+      const deckSize = activeFanz.equippedCards?.length || 0;
+      if (deckSize < 8) {
+        alerts.push({
+          id: 'incomplete-deck',
+          message: 'Deck incomplet',
+          actionTitle: 'Compléter',
+          action: () => onFanzClick?.(activeFanz.id, 'cards'),
+          Icon: Database
+        });
+      }
+    }
+
+    // Rank upgrade alerts
+    for (const fanz of allFanz) {
+      if ((fanz.rank ?? 0) >= 10) continue; // Max rank reached
+      
+      const rankNum = (fanz.rank ?? 0) + 1;
+      const slotId = `rank-${rankNum}`;
+      const template = templatesMap.get(fanz.templateId);
+      const rankCost = template?.rankCosts?.[slotId] || {
+        money: rankNum * 1000,
+        boostPoints: rankNum * 50
+      };
+      
+      const canUpgrade = (profile.money || 0) >= (rankCost.money || 0) && 
+                         (profile.boostPoints || 0) >= (rankCost.boostPoints || 0);
+
+      const alertId = `rank-up-${fanz.id}`;
+      if (canUpgrade && !dismissedAlertIDs.has(alertId)) {
+        alerts.push({
+          id: alertId,
+          message: `Rang ${rankNum} disponible (${fanz.name})`,
+          actionTitle: 'Améliorer',
+          action: () => onFanzClick?.(fanz.id, 'rank'),
+          dismissTitle: 'Compris',
+          dismissAction: () => handleDismissAlert(alertId),
+          Icon: Trophy
+        });
+      }
+    }
+
+    return alerts;
+  }, [allFanz, activeFanz, profile.money, profile.boostPoints, templatesMap, onNavigate, onFanzClick, dismissedAlertIDs]);
+
   return (
     <div className="h-full w-full max-w-[600px] mx-auto bg-transparent relative overflow-hidden flex flex-col font-sans text-white border-x border-white/5 shadow-2xl">
       
@@ -546,6 +632,42 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
           </button>
         </div>
       )}
+
+      {/* Fanz Alerts */}
+      <div className="absolute top-20 left-4 z-50 flex flex-col gap-2 max-w-[60%]">
+        <AnimatePresence>
+          {fanzAlerts.map(alert => (
+            <motion.div
+              key={alert.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-gray-900/90 backdrop-blur-md border border-white/10 rounded-xl p-2 shadow-xl flex flex-col gap-1.5"
+            >
+              <div className="flex items-center gap-2">
+                <alert.Icon className="w-4 h-4 text-orange-500 shrink-0" />
+                <span className="text-[10px] font-bold text-white leading-tight">{alert.message}</span>
+              </div>
+              <div className="flex gap-1.5 w-full">
+                <button
+                  onClick={alert.action}
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-[9px] font-black uppercase py-1 rounded transition-colors text-center"
+                >
+                  {alert.actionTitle}
+                </button>
+                {alert.dismissAction && (
+                  <button
+                    onClick={alert.dismissAction}
+                    className="flex-shrink-0 bg-white/10 hover:bg-white/20 text-white text-[9px] font-black uppercase py-1 px-2 rounded transition-colors"
+                  >
+                    {alert.dismissTitle}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
       {/* BODY: Video Background (4:3) and Content Below */}
       <div className="flex-1 flex flex-col relative overflow-y-auto pb-6 no-scrollbar">

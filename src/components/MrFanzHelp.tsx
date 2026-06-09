@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, X, Info, ChevronRight } from 'lucide-react';
+import { HelpCircle, X, Info, ChevronRight, Play } from 'lucide-react';
 import { Card, Button } from './Layout';
 
 interface HelpContext {
@@ -131,6 +131,25 @@ export function MrFanzHelp({ contextId }: { contextId: string }) {
                       </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <h4 className="text-orange-500 font-black italic text-xs uppercase mb-3 flex items-center gap-2">
+                    <Play size={14} /> Tutoriels Vidéos
+                  </h4>
+                  <div className="flex overflow-x-auto no-scrollbar gap-3 pb-2 snap-x">
+                    {[1, 2, 3, 4, 5].map((num) => (
+                      <div key={num} className="min-w-[140px] shrink-0 aspect-[9/16] bg-black/50 border border-white/5 rounded-xl overflow-hidden snap-center relative flex items-center justify-center group">
+                        <video 
+                          src={`/tuto/video${num}.mp4`} 
+                          className="absolute inset-0 w-full h-full object-cover" 
+                          controls 
+                          playsInline 
+                          preload="metadata"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <Button 

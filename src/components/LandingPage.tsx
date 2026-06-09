@@ -460,6 +460,37 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
         </div>
       </section>
 
+      {/* TUTORIELS */}
+      <section className="py-24 px-6 bg-[#0a0a0a] relative border-t border-white/5 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-black uppercase italic mb-2 tracking-tighter">
+              Le Guide MrFanz
+            </h2>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-xs md:text-sm">
+              Apprenez les bases pour devenir le Meilleur Fan
+            </p>
+          </div>
+
+          <div className="flex overflow-x-auto no-scrollbar gap-4 pb-8 snap-x snap-mandatory">
+            {[1, 2, 3, 4, 5].map((num) => (
+              <div 
+                key={num} 
+                className="w-[240px] md:w-[280px] shrink-0 aspect-[9/16] bg-black border border-white/10 rounded-2xl overflow-hidden snap-center relative shadow-2xl"
+              >
+                <video 
+                  src={`/tuto/video${num}.mp4`} 
+                  className="absolute inset-0 w-full h-full object-cover" 
+                  controls 
+                  playsInline 
+                  preload="metadata"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* L'ARÈNE EN CHIFFRES */}
       <section className="py-24 px-6 border-y border-white/5 bg-[#101010]">
         <div className="max-w-7xl mx-auto">

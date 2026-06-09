@@ -97,6 +97,7 @@ import { MrFanzHelp } from "./components/MrFanzHelp";
 import { CollectionPage } from "./components/CollectionPage";
 import { CommercialAlertOverlay } from "./components/CommercialAlertOverlay";
 import { UpdatePrompt } from "./components/UpdatePrompt";
+import { OnboardingTutorial } from "./components/OnboardingTutorial";
 
 export default function App() {
   return (
@@ -246,6 +247,7 @@ function AppContent() {
     "summary" | "lineups" | "stats" | "duels"
   >("summary");
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
+  const [selectedFanzTab, setSelectedFanzTab] = useState<"infos" | "stats" | "cards" | "skins" | "emotes" | "rank" | "ferveur" | undefined>();
   const [isDuelActive, setIsDuelActive] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -256,6 +258,9 @@ function AppContent() {
   } | null>(null);
   const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
   const [unreadSocialCount, setUnreadSocialCount] = useState(0);
+  const [hasLiveFavoriteMatch, setHasLiveFavoriteMatch] = useState(false);
+  const [hasNewMuseumItems, setHasNewMuseumItems] = useState(false);
+  const [userFanzCount, setUserFanzCount] = useState(0);
   const [claimableAlerts, setClaimableAlerts] = useState({
     missions: false,
     globalFervor: false,
@@ -827,6 +832,66 @@ function AppContent() {
     return () => unsubscribeChats();
   }, [user?.uid, profile?.friendRequests?.length]);
 
+  // Track live favorite teams
+  useEffect(() => {
+    if (!profile?.favoriteTeams || profile.favoriteTeams.length === 0) {
+      setHasLiveFavoriteMatch(false);
+      return;
+    }
+
+    const fetchLiveTeams = async () => {
+      try {
+        const liveFixtures = await footballApi.getLiveFixtures();
+        const liveTeamIds = new Set<string>();
+        liveFixtures.forEach((f: any) => {
+          liveTeamIds.add(f.teams.home.id.toString());
+          liveTeamIds.add(f.teams.away.id.toString());
+        });
+        
+        const hasLive = profile.favoriteTeams.some(teamId => liveTeamIds.has(teamId.split('_')[0]));
+        setHasLiveFavoriteMatch(hasLive);
+      } catch (err) {
+        console.error("Failed to check live favorite matches", err);
+      }
+    };
+
+    fetchLiveTeams();
+    const interval = setInterval(fetchLiveTeams, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [profile?.favoriteTeams]);
+
+  // Track user fanz for new museum items
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unFanz = onSnapshot(query(collection(db, "fanz"), where("ownerUid", "==", user.uid)), (snap) => {
+      setUserFanzCount(snap.docs.length);
+    });
+    return () => unFanz();
+  }, [user?.uid]);
+
+  // Computed new museum items (comparing current loaded count + arrays with local storage)
+  useEffect(() => {
+    if (!profile || !user?.uid) return;
+    
+    // Total items in museum
+    const totalItems = (profile.cards?.length || 0) + 
+                       (profile.skins?.length || 0) + 
+                       (profile.emotes?.length || 0) + 
+                       (profile.unlockedActions?.length || 0) + 
+                       userFanzCount;
+                       
+    const lastSeenCount = parseInt(localStorage.getItem(`museum_last_count_${user.uid}`) || '0', 10);
+    
+    if (view === "collection") {
+      localStorage.setItem(`museum_last_count_${user.uid}`, totalItems.toString());
+      setHasNewMuseumItems(false);
+    } else if (totalItems > lastSeenCount) {
+      setHasNewMuseumItems(true);
+    } else {
+      setHasNewMuseumItems(false);
+    }
+  }, [profile?.cards, profile?.skins, profile?.emotes, profile?.unlockedActions, userFanzCount, view, user?.uid]);
+
   const handleDuelIntent = async (callback: () => void) => {
     if (profile?.activeAction) {
       try {
@@ -923,9 +988,14 @@ function AppContent() {
             setSelectedFanzId(null);
             setSelectedPlayer(null);
           }}
-          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "collection" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+          className={`relative flex flex-col items-center gap-1 transition-all duration-300 ${view === "collection" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
         >
-          <Database className="w-5 h-5 sm:w-7 sm:h-7" />
+          <div className="relative">
+            <Database className="w-5 h-5 sm:w-7 sm:h-7" />
+            {hasNewMuseumItems && (
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full border border-[#0a0a0a]" />
+            )}
+          </div>
           <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
             Musée
           </span>
@@ -982,9 +1052,14 @@ function AppContent() {
             setSelectedFanzId(null);
             setSelectedPlayer(null);
           }}
-          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "social" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+          className={`relative flex flex-col items-center gap-1 transition-all duration-300 ${view === "social" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
         >
-          <Users className="w-5 h-5 sm:w-7 sm:h-7" />
+          <div className="relative">
+            <Users className="w-5 h-5 sm:w-7 sm:h-7" />
+            {unreadSocialCount > 0 && (
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full border border-[#0a0a0a]" />
+            )}
+          </div>
           <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
             Social
           </span>
@@ -998,9 +1073,14 @@ function AppContent() {
             setSelectedFanzId(null);
             setSelectedPlayer(null);
           }}
-          className={`flex flex-col items-center gap-1 transition-all duration-300 ${view === "matches" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
+          className={`relative flex flex-col items-center gap-1 transition-all duration-300 ${view === "matches" ? "text-white scale-110" : "text-gray-500 hover:text-white"}`}
         >
-          <Activity className="w-5 h-5 sm:w-7 sm:h-7" />
+          <div className="relative">
+            <Activity className="w-5 h-5 sm:w-7 sm:h-7" />
+            {hasLiveFavoriteMatch && (
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full border border-[#0a0a0a]" />
+            )}
+          </div>
           <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">
             Live
           </span>
@@ -1506,6 +1586,15 @@ function AppContent() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {assetsLoaded && profile && profile.hasCompletedOnboarding === false && (
+          <OnboardingTutorial 
+            profile={profile} 
+            onComplete={() => {}} 
+          />
+        )}
+      </AnimatePresence>
+
       <Layout containerClassName="md:flex-row md:justify-center">
         <GlobalSocketListener
           onDuelStarting={(duelId, duelData) => {
@@ -1601,7 +1690,14 @@ function AppContent() {
                 }}
               />
               <SidebarButton
-                icon={<Database />}
+                icon={
+                  <div className="relative">
+                    <Database />
+                    {hasNewMuseumItems && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                    )}
+                  </div>
+                }
                 label="MON MUSÉE"
                 active={view === "collection"}
                 onClick={() => {
@@ -1784,7 +1880,14 @@ function AppContent() {
 
               <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
                 <SidebarButton
-                  icon={<Activity />}
+                  icon={
+                    <div className="relative">
+                      <Activity />
+                      {hasLiveFavoriteMatch && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                      )}
+                    </div>
+                  }
                   label="MATCHS DU JOUR"
                   active={view === "matches"}
                   onClick={() => {
@@ -1891,8 +1994,13 @@ function AppContent() {
                 });
               }}
               onOpenStreak={() => setShowStreakModal(true)}
-              onFanzClick={(fanzId) => {
+              onFanzClick={(fanzId, tab) => {
                 setSelectedFanzId(fanzId);
+                if (tab) {
+                  setSelectedFanzTab(tab as any);
+                } else {
+                  setSelectedFanzTab(undefined);
+                }
                 setView("fanz");
               }}
             />
@@ -2093,7 +2201,11 @@ function AppContent() {
                         <FanzDetails
                           fanzId={selectedFanzId}
                           userProfile={profile}
-                          onBack={() => setSelectedFanzId(null)}
+                          initialTab={selectedFanzTab}
+                          onBack={() => {
+                            setSelectedFanzId(null);
+                            setSelectedFanzTab(undefined);
+                          }}
                         />
                       ) : view === "waiting-room" ? (
                         <WaitingRoom
@@ -2310,7 +2422,14 @@ function AppContent() {
                     }}
                   />
                   <SidebarButton
-                    icon={<Database className="w-5 h-5" />}
+                    icon={
+                      <div className="relative">
+                        <Database className="w-5 h-5" />
+                        {hasNewMuseumItems && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                        )}
+                      </div>
+                    }
                     label="MON MUSÉE"
                     active={view === "collection"}
                     onClick={() => {
@@ -2509,7 +2628,14 @@ function AppContent() {
 
                   <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
                     <SidebarButton
-                      icon={<Activity className="w-5 h-5" />}
+                      icon={
+                        <div className="relative">
+                          <Activity className="w-5 h-5" />
+                          {hasLiveFavoriteMatch && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]" />
+                          )}
+                        </div>
+                      }
                       label="MATCHS DU JOUR"
                       active={view === "matches"}
                       onClick={() => {

@@ -82,6 +82,7 @@ export interface UserProfile {
   friends?: string[];
   friendRequests?: string[];
   activeFanzId?: string;
+  hasCompletedOnboarding?: boolean;
 }
 
 export interface FanzStats {
