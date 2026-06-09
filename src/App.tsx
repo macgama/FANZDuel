@@ -1312,7 +1312,7 @@ function AppContent() {
   if (!user) {
     if (guestView === "matches") {
       return (
-        <div className="min-h-screen bg-[#111] text-white">
+        <div className="min-h-screen bg-[#111] text-white overflow-x-hidden w-full max-w-[100vw] relative">
           {/* Public guest-friendly navigation bar */}
           <header className="sticky top-0 z-50 bg-[#111]/85 backdrop-blur-xl border-b border-white/5 px-3 md:px-6 py-3 md:py-4 flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-6">
@@ -1368,7 +1368,7 @@ function AppContent() {
             </div>
           </header>
 
-          <main className="max-w-7xl mx-auto px-4 py-8">
+          <main className="w-full max-w-7xl mx-auto py-4 pt-6">
             {selectedMatchId ? (
               <MatchDetails
                 fixtureId={selectedMatchId}
@@ -1532,7 +1532,7 @@ function AppContent() {
         {profile && view !== "duel" && !isDuelActive && view !== "admin" && (
           <aside className="hidden md:flex flex-col w-20 lg:w-64 bg-[#0a0a0a]/95 backdrop-blur-3xl border-r border-white/5 h-[100dvh] shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.5)] z-40 overflow-y-auto relative">
             <div
-              className="p-4 lg:p-6 flex items-center gap-3 border-b border-white/5 shrink-0 justify-center lg:justify-start cursor-pointer hover:bg-white/5 transition-colors"
+              className="p-4 lg:px-4 lg:py-5 flex items-center gap-2 border-b border-white/5 shrink-0 justify-center lg:justify-start cursor-pointer hover:bg-white/5 transition-colors"
               onClick={() => {
                 setView("home");
                 setSelectedMatchId(null);
@@ -1545,14 +1545,19 @@ function AppContent() {
               <img
                 src="/img/logo2.png"
                 alt="TBFO"
-                className="w-8 h-8 rounded-lg outline outline-1 outline-white/10"
+                className="w-7 h-7 rounded-lg outline outline-1 outline-white/10"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}
               />
-              <span className="hidden lg:block font-black italic text-[15px] uppercase tracking-wider text-white leading-none truncate">
-                TheBestFan.Online
-              </span>
+              <div className="hidden lg:flex items-center gap-1 min-w-0">
+                <span className="font-black italic text-[13px] uppercase tracking-wider text-white leading-none shrink-0">
+                  TheBestFan.Online
+                </span>
+                <span className="px-1 py-0.5 text-[7px] font-extrabold uppercase bg-orange-500 text-black rounded-full leading-none shrink-0 tracking-wider">
+                  BETA
+                </span>
+              </div>
             </div>
             <div className="flex flex-col gap-1 p-2 lg:p-4 flex-1 overflow-y-auto no-scrollbar">
               <SidebarButton
@@ -2243,9 +2248,14 @@ function AppContent() {
                       e.currentTarget.style.display = "none";
                     }}
                   />
-                  <h2 className="text-sm font-black uppercase tracking-wider text-white">
-                    TheBestFan.Online
-                  </h2>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-sm font-black uppercase tracking-wider text-white">
+                      TheBestFan.Online
+                    </h2>
+                    <span className="px-1.5 py-0.5 text-[8px] font-extrabold uppercase bg-orange-500 text-black rounded-full leading-none shrink-0 tracking-widest scale-95">
+                      BETA
+                    </span>
+                  </div>
                 </div>
                 <button
                   onClick={() => setIsMenuOpen(false)}

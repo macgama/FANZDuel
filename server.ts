@@ -11,7 +11,7 @@ import { BASE_CARDS } from "./src/constants/cards.ts";
 import admin from 'firebase-admin';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp as initClientApp } from 'firebase/app';
-import { getAuth as getClientAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth as getClientAuth, signInAnonymously } from 'firebase/auth';
 import { getFirestore as getClientFirestore, collection as clientCollection, getCountFromServer } from 'firebase/firestore';
 
 dotenv.config();
@@ -42,7 +42,7 @@ async function startServer() {
         ...credentialOptions
       });
     }
-    db = getFirestore(config.firestoreDatabaseId || '(default)');
+    db = getFirestore(admin.app(), config.firestoreDatabaseId || '(default)');
     
     // Live update cards from Firestore
     db.collection('cards').onSnapshot((snap) => {
@@ -109,7 +109,26 @@ async function startServer() {
     return safeProps;
   }
 
-  function finishDuel(duelId: string, winner: string) {
+  function checkAndForfeitDuel(duelId: string) {
+    const duel = duels[duelId];
+    if (!duel || (duel.status !== 'active' && duel.status !== 'starting')) return;
+    if (['1v1', '2v2', '5v5'].includes(duel.type)) {
+       const humansA = duel.participants.filter(p => p.team === 'A' && !p.isBot && !p.uid.startsWith('bot_'));
+       const humansB = duel.participants.filter(p => p.team === 'B' && !p.isBot && !p.uid.startsWith('bot_'));
+       
+       if (humansA.length === 0 || humansB.length === 0) {
+         if (duel.timer) clearTimeout(duel.timer);
+         if (duel.botInterval) clearInterval(duel.botInterval);
+         
+         const winner = humansA.length > 0 ? "A" : (humansB.length > 0 ? "B" : "A"); 
+         
+         io.to(duelId).emit("duel-forfeit", { message: "Victoire par forfait (adversaires déconnectés) !" });
+         finishDuel(duelId, winner, true);
+       }
+    }
+  }
+
+  function finishDuel(duelId: string, winner: string, isForfeitPassed?: boolean) {
     const duel = duels[duelId];
     if (!duel || duel.status === 'finished') return;
     
@@ -150,14 +169,9 @@ async function startServer() {
 
     console.log(`[Server] Final results for ${duelId}: A=${scoreA}, B=${scoreB}`);
 
-    const details = {
-      teamAActions,
-      teamBActions,
-      totalActions,
-      baseWinnerPoints: 10,
-      proportionalPointsA: scoreA - (winner === 'A' ? 10 : 0),
-      proportionalPointsB: scoreB - (winner === 'B' ? 10 : 0)
-    };
+    const allParticipantsForForfeit = duel.type === 'war_of_kops' && duel.historicalParticipants ? Object.values(duel.historicalParticipants) : duel.participants;
+    const currentHumansA = allParticipantsForForfeit.filter(p => p.team === 'A' && !p.isBot && !p.uid.startsWith('bot_'));
+    const currentHumansB = allParticipantsForForfeit.filter(p => p.team === 'B' && !p.isBot && !p.uid.startsWith('bot_'));
 
     const allParticipants = duel.type === 'war_of_kops' && duel.historicalParticipants ? Object.values(duel.historicalParticipants) : duel.participants;
 
@@ -166,6 +180,19 @@ async function startServer() {
       ? !allParticipants.some(p => !p.isBot)
       : (allParticipants.some(p => p.team === 'A' && !p.isBot) === false ||
          allParticipants.some(p => p.team === 'B' && !p.isBot) === false);
+
+    const isForfeitType = ['1v1', '2v2', '5v5'].includes(duel.type);
+    const forfeitWin = isForfeitType && !isBotMatch && (winner === 'A' ? (currentHumansB.length === 0) : (currentHumansA.length === 0));
+
+    const details = {
+      teamAActions,
+      teamBActions,
+      totalActions,
+      baseWinnerPoints: 10,
+      proportionalPointsA: scoreA - (winner === 'A' ? 10 : 0),
+      proportionalPointsB: scoreB - (winner === 'B' ? 10 : 0),
+      isForfeit: isForfeitPassed === true || forfeitWin
+    };
 
     io.to(duelId).emit("duel-finished", { winner, scoreA, scoreB, details, isBotMatch });
 
@@ -524,7 +551,9 @@ async function startServer() {
         socket.emit("duel-joined", { 
           team: participant?.team || 'A', 
           duelId: duel.id, 
-          participants: duel.participants 
+          participants: duel.participants,
+          inviteCode: duel.inviteCode,
+          isPrivate: duel.isPrivate
         });
       }
 
@@ -533,7 +562,9 @@ async function startServer() {
         progress: duel.progress, 
         status: duel.status, 
         participants: duel.participants,
-        scores: duel.scores
+        scores: duel.scores,
+        inviteCode: duel.inviteCode,
+        isPrivate: duel.isPrivate
       });
 
       // Check if duel should start
@@ -554,7 +585,9 @@ async function startServer() {
           progress: duel.progress, 
           status: duel.status, 
           participants: duel.participants,
-          scores: duel.scores
+          scores: duel.scores,
+          inviteCode: duel.inviteCode,
+          isPrivate: duel.isPrivate
         });
 
         duel.timer = setTimeout(() => {
@@ -623,6 +656,16 @@ async function startServer() {
                delete duels[duelId];
             }
           }
+        } else if ((duel.status === 'active' || duel.status === 'starting') && ['1v1', '2v2', '5v5'].includes(duel.type)) {
+          duel.participants = duel.participants.filter(p => p.uid !== userId);
+          socket.leave(duelId);
+          io.to(duelId).emit("duel-update", { 
+             duelId: duel.id, 
+             progress: duel.progress, 
+             status: duel.status, 
+             participants: duel.participants 
+          });
+          checkAndForfeitDuel(duelId);
         } else if (duel.status === 'active' && duel.type === 'war_of_kops') {
           // Can safely leave war of kops without breaking it
           duel.participants = duel.participants.filter(p => p.uid !== userId);
@@ -867,11 +910,14 @@ async function startServer() {
         const index = duel.participants.findIndex(p => p.socketId === socket.id);
         if (index !== -1) {
           duel.participants.splice(index, 1);
-          if (duel.participants.length === 0 && duel.type !== 'war_of_kops') {
+          if (duel.status === 'waiting' && duel.participants.length === 0 && duel.type !== 'war_of_kops') {
             if (duel.timer) clearTimeout(duel.timer);
             delete duels[duel.id];
           } else {
             io.to(duel.id).emit("duel-update", { duelId: duel.id, participants: duel.participants });
+            if (duel.status === 'active' || duel.status === 'starting') {
+               checkAndForfeitDuel(duel.id);
+            }
           }
         }
       });
@@ -886,28 +932,7 @@ async function startServer() {
     let duelsTotal = BASE_DUELS;
     const duelsActive = Object.values(duels).filter(d => d.status !== 'finished').length;
 
-    let fetchSuccess = false;
-    try {
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        const clientApp = initClientApp(config);
-        const clientAuth = getClientAuth(clientApp);
-        await signInWithEmailAndPassword(clientAuth, 'testUser@random.com', 'testpass123');
-        const clientDb = getClientFirestore(clientApp, config.firestoreDatabaseId);
-
-        const usersSnap = await getCountFromServer(clientCollection(clientDb, 'users'));
-        supporters = BASE_SUPPORTERS + (usersSnap.data().count || 0);
-
-        const duelsSnap = await getCountFromServer(clientCollection(clientDb, 'duels'));
-        duelsTotal = BASE_DUELS + (duelsSnap.data().count || 0);
-        
-        fetchSuccess = true;
-      }
-    } catch (err: any) {
-      console.warn("[Server Stats] Fetch using Client SDK failed, falling back to Admin SDK:", err.message || err);
-    }
-
-    if (!fetchSuccess && db) {
+    if (db) {
       try {
         const usersSnap = await db.collection('users').count().get();
         if (usersSnap && usersSnap.data) {
@@ -1333,7 +1358,7 @@ async function startServer() {
         });
       }
       
-      const db = getFirestore(config.firestoreDatabaseId || '(default)');
+      const db = getFirestore(admin.app(), config.firestoreDatabaseId || '(default)');
       const teamsSnap = await db.collection('ranking_teams').get();
       const usersSnap = await db.collection('ranking_users').get();
       

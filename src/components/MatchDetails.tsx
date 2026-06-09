@@ -348,7 +348,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                 <img src={getImageUrl(details.teams.home.logo, 100)} alt="" className="w-4/5 h-4/5 object-contain" referrerPolicy="no-referrer" />
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-black text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-0.5 whitespace-nowrap z-10 animate-pulse border border-yellow-300/20">
                   <Trophy className="w-2 h-2 fill-black shrink-0" />
-                  <span>GAGNANT</span>
+                  <span>{isFinished ? 'GAGNANT' : 'MÈNE'}</span>
                 </div>
               </div>
             ) : (
@@ -418,7 +418,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                 <img src={getImageUrl(details.teams.away.logo, 100)} alt="" className="w-4/5 h-4/5 object-contain" referrerPolicy="no-referrer" />
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-black text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-0.5 whitespace-nowrap z-10 animate-pulse border border-yellow-300/20">
                   <Trophy className="w-2 h-2 fill-black shrink-0" />
-                  <span>GAGNANT</span>
+                  <span>{isFinished ? 'GAGNANT' : 'MÈNE'}</span>
                 </div>
               </div>
             ) : (

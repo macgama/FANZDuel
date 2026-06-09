@@ -4,6 +4,7 @@ import { UserProfile, Fanz, FanzTemplate, LifeAction, GlobalFervorConfig } from 
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, getDocs, limit, setDoc } from 'firebase/firestore';
 import { getImageUrl, cn } from '../lib/utils';
+import { BuyMeACoffee } from './BuyMeACoffee';
 // ... (rest of imports)
 
 // Since getImageUrl handles the logic for converting gs:// to https://thebestfan.online/img/, 
@@ -364,12 +365,11 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     if (!profile?.uid) return;
     let unsubs: (() => void)[] = [];
 
+    let currentMatchIdsStr = "";
+    
     // Fetch some live matches
     const fetchMatches = async () => {
       try {
-        // Clear previous listeners before fetching real-time scores again
-        unsubs.forEach(unsub => unsub());
-        unsubs = [];
         const liveFixtures = await footballApi.getLiveFixtures();
         
         // Fetch active leagues to filter
@@ -395,43 +395,55 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
         // Fetch scores for these matches via onSnapshot
         if (filteredFixtures.length > 0) {
           const matchIds = filteredFixtures.map((m: any) => m.fixture.id.toString());
+          const matchIdsStr = matchIds.sort().join(",");
           
-          // Chunk matchIds into arrays of 10
-          const chunkSize = 10;
-          for (let i = 0; i < matchIds.length; i += chunkSize) {
-            const chunk = matchIds.slice(i, i + chunkSize);
-            const q = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
+          if (matchIdsStr !== currentMatchIdsStr) {
+            // Match list changed, need to recreate listeners
+            unsubs.forEach(unsub => unsub());
+            unsubs = [];
+            currentMatchIdsStr = matchIdsStr;
             
-            const unsub = onSnapshot(q, (snapshot) => {
-              if (!snapshot.empty) {
-                console.log(`[Home] Received ${snapshot.size} scores for chunk starting with ${chunk[0]}`);
-              }
-              setMatchScores(prev => {
-                const newMap = { ...prev };
-                // Reset/Init scores for the current chunk matches to avoid accumulation bugs on snapshot updates
-                chunk.forEach(id => {
-                  newMap[id] = { scoreA: 0, scoreB: 0 };
+            // Chunk matchIds into arrays of 10
+            const chunkSize = 10;
+            for (let i = 0; i < matchIds.length; i += chunkSize) {
+              const chunk = matchIds.slice(i, i + chunkSize);
+              const q = query(collection(db, 'match_scores'), where('matchId', 'in', chunk));
+              
+              const unsub = onSnapshot(q, (snapshot) => {
+                if (!snapshot.empty) {
+                  console.log(`[Home] Received ${snapshot.size} scores for chunk starting with ${chunk[0]}`);
+                }
+                setMatchScores(prev => {
+                  const newMap = { ...prev };
+                  // Reset/Init scores for the current chunk matches to avoid accumulation bugs on snapshot updates
+                  chunk.forEach(id => {
+                    newMap[id] = { scoreA: 0, scoreB: 0 };
+                  });
+                  
+                  snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const mIdStr = data.matchId?.toString();
+                    if (mIdStr && chunk.includes(mIdStr)) {
+                      newMap[mIdStr].scoreA += Number(data.scoreA || 0);
+                      newMap[mIdStr].scoreB += Number(data.scoreB || 0);
+                    }
+                  });
+                  return newMap;
                 });
-                
-                snapshot.forEach(doc => {
-                  const data = doc.data();
-                  const mIdStr = data.matchId?.toString();
-                  if (mIdStr && chunk.includes(mIdStr)) {
-                    newMap[mIdStr].scoreA += Number(data.scoreA || 0);
-                    newMap[mIdStr].scoreB += Number(data.scoreB || 0);
-                  }
-                });
-                return newMap;
+              }, (err: any) => {
+                if (err?.code === 'permission-denied' || err?.message?.includes('Missing or insufficient permissions')) {
+                  console.warn("[Home] Scores listener permission denied, usually due to active sign-out.");
+                } else {
+                  console.error("Error listening to scores on Home:", err);
+                }
               });
-            }, (err: any) => {
-              if (err?.code === 'permission-denied' || err?.message?.includes('Missing or insufficient permissions')) {
-                console.warn("[Home] Scores listener permission denied, usually due to active sign-out.");
-              } else {
-                console.error("Error listening to scores on Home:", err);
-              }
-            });
-            unsubs.push(unsub);
+              unsubs.push(unsub);
+            }
           }
+        } else {
+          unsubs.forEach(unsub => unsub());
+          unsubs = [];
+          currentMatchIdsStr = "";
         }
       } catch (error: any) {
         if (error?.message !== 'Failed to fetch') {
@@ -843,6 +855,11 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
           )}
 
 
+
+        {/* BOUTON SOUTIEN / BUY ME A COFFEE */}
+        <div className="flex justify-center py-2 relative z-20">
+          <BuyMeACoffee />
+        </div>
 
         {/* HUB COUPE DU MONDE 2026 */}
         <div className="py-2 shrink-0 relative">

@@ -252,8 +252,8 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
         progress: 50,
         participants: [],
         createdAt: new Date().toISOString(),
-        isPrivate: isPrivateMode,
-        inviteCode: inviteCode || undefined
+        isPrivate: joiningDuelData ? joiningDuelData.isPrivate : isPrivateMode,
+        inviteCode: (joiningDuelData && joiningDuelData.inviteCode) ? joiningDuelData.inviteCode : (inviteCode || undefined)
       });
     } catch (err) {
       console.error("Error starting duel", err);
@@ -1412,10 +1412,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
     };
     socket.on('duel-started', handleDuelStarted);
 
+    socket.on('duel-forfeit', ({ message }) => {
+      addFloatingEffect(`🚪 ${message}`, window.innerWidth / 2, window.innerHeight / 2, 'text-green-400 font-black scale-150 z-[999] p-4 bg-black/80 rounded-xl border border-green-500/50');
+      showAlert({ type: 'success', title: message });
+    });
+
     const handleDuelFinished = async ({ winner, scoreA, scoreB, details, isBotMatch }: { winner: string, scoreA: number, scoreB: number, details?: any, isBotMatch?: boolean }) => {
       setWinner(winner);
       let ferveurGain = 0;
       let teamGain = 0;
+      const isForfeitMatch = !!(details && details.isForfeit);
 
       // Normalize scores for match history (scoreA = virtual team A, scoreB = virtual team B)
       // props.teamA is the official Home Team name of the match
@@ -1573,10 +1579,46 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           
           const fervorModMultiplier = 1 + (skinFervorBonusMod / 100);
 
-          if (duelType === 'training') {
+          let disableGlobalUpdates = false;
+
+          if (isForfeitMatch && isWin) {
+             // Forfeit Win
+             ferveurGainFanz = 5;
+             ferveurGainGeneral = 5;
+             disableGlobalUpdates = true;
+             
+             // Refund
+             const baseCost = configData?.costs?.[duelType as keyof typeof configData.costs] ?? { money: 0, energy: 0 };
+             const skinBonus = fanzData ? (fanzData as any)._skinBonus : undefined;
+             const energyReductionPct = skinBonus?.energyCostReduction || 0;
+             const moneyReductionPct = skinBonus?.moneyCostReduction || 0;
+             
+             const costMoney = Math.max(0, Math.round((baseCost.money || 0) * (1 - moneyReductionPct / 100)));
+             const costEnergy = Math.max(0, Math.round((baseCost.energy || 0) * (1 - energyReductionPct / 100)));
+             
+             let effectiveEnergyCost = costEnergy;
+             if (userData.infiniteEnergyUntil && new Date(userData.infiniteEnergyUntil) > new Date()) {
+               effectiveEnergyCost = 0;
+             }
+             
+             if (costMoney > 0 || effectiveEnergyCost > 0) {
+               await updateDoc(doc(db, 'users', user.uid), {
+                 money: increment(costMoney),
+                 energy: increment(effectiveEnergyCost)
+               });
+               if (costMoney > 0) await logTransaction(user.uid, 'money', costMoney, `Remboursement victoire forfait`);
+               if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', effectiveEnergyCost, `Remboursement victoire forfait`);
+             }
+          } else if (isBotMatch && !isForfeitMatch) {
+             // Bot Match (not forfeit)
+             ferveurGainFanz = 0;
+             ferveurGainGeneral = 0;
+             disableGlobalUpdates = true;
+          } else if (duelType === 'training') {
             // Pour l'entraînement, gain fixe de 5 points (ne dépend pas du score ni du résultat)
             ferveurGainFanz = Math.round(5 * xpMultiplier * fervorModMultiplier);
             ferveurGainGeneral = Math.round(5 * xpMultiplier * fervorModMultiplier);
+            disableGlobalUpdates = true;
           } else if (isWin) {
             // L'XP gagnée est basée sur le score multiplié par le type de duel
             ferveurGainFanz = Math.round(myScore * duelMultiplier * xpMultiplier * fervorModMultiplier);
@@ -1588,7 +1630,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           }
           
           // Update FANZ
-          if (fanzData && fanzId) {
+          if (fanzData && fanzId && ferveurGainFanz > 0) {
               const fanzRef = doc(db, 'fanz', fanzId);
               let newFanzPoints = Math.max(0, (fanzData.ferveurPoints || 0) + ferveurGainFanz);
               let newFanzLevel = fanzData.ferveurLevel || 1;
@@ -1652,32 +1694,34 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
             const updates: any = {
               ferveurPoints: newUserPoints,
-              level: newUserLevel,
-              totalScore: increment(myScore),
-              matchesPlayed: increment(1),
-              duel_count: increment(1)
+              level: newUserLevel
             };
-            if (clicksCountRef.current > 0) {
-              updates.clicks_count = increment(clicksCountRef.current);
-            }
-            if (cardsPlayedCountRef.current > 0) {
-              updates.cards_played_count = increment(cardsPlayedCountRef.current);
-            }
-            if (emotesSentCountRef.current > 0) {
-              updates.emotes_sent_count = increment(emotesSentCountRef.current);
-            }
-            if (duelType) {
-              updates[`duels_${duelType}_count`] = increment(1);
-              if (isWin) {
-                updates[`duels_${duelType}_win_count`] = increment(1);
+            if (!disableGlobalUpdates) {
+              updates.totalScore = increment(myScore);
+              updates.matchesPlayed = increment(1);
+              updates.duel_count = increment(1);
+              if (clicksCountRef.current > 0) {
+                updates.clicks_count = increment(clicksCountRef.current);
               }
-            }
-            if ((userData.antiMalusMatches || 0) > 0) {
-              updates.antiMalusMatches = increment(-1);
-            }
-            if (isWin) {
-              updates.matchesWon = increment(1);
-              updates.win_count = increment(1);
+              if (cardsPlayedCountRef.current > 0) {
+                updates.cards_played_count = increment(cardsPlayedCountRef.current);
+              }
+              if (emotesSentCountRef.current > 0) {
+                updates.emotes_sent_count = increment(emotesSentCountRef.current);
+              }
+              if (duelType) {
+                updates[`duels_${duelType}_count`] = increment(1);
+                if (isWin) {
+                  updates[`duels_${duelType}_win_count`] = increment(1);
+                }
+              }
+              if ((userData.antiMalusMatches || 0) > 0) {
+                updates.antiMalusMatches = increment(-1);
+              }
+              if (isWin) {
+                updates.matchesWon = increment(1);
+                updates.win_count = increment(1);
+              }
             }
             if (ferveurGainGeneral > 0) {
               try {
@@ -2309,8 +2353,6 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           case 'megaphone_echo':
             addFloatingEffect("📢 Écho du Mégaphone de l'adversaire : Ses supporters sont galvanisés !", window.innerWidth / 2, 200, 'text-yellow-400 font-black scale-110');
             break;
-          case 'Biological_curfew':
-            break; // Used just as a placeholder to match
           case 'biological_curfew':
             setHand(currentHand => {
               if (currentHand.length > 0) {
@@ -2531,6 +2573,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       socket.off('duel-update', handleDuelUpdate);
       socket.off('duel-starting', handleDuelStarting);
       socket.off('duel-started', handleDuelStarted);
+      socket.off('duel-forfeit'); // remove inline listener
       socket.off('duel-finished', handleDuelFinished);
       socket.off('enemy-card-played', handleEnemyCardPlayed);
       socket.off('swap-hands-request', handleSwapHandsRequest);
@@ -3025,7 +3068,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       if (effect.type === 'transfusion_tactique') {
         const trResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
         const drainVal = 15 / trResistance;
-        const direction = currentMyTeam === 'A' ? 1 : -1;
+        const direction = (myTeamRef.current || 'A') === 'A' ? 1 : -1;
         setProgress((prev) => Math.min(100, Math.max(0, prev + drainVal * direction)));
         setExcitement(prev => Math.min(maxExcitement, prev + 15));
         addFloatingEffect("🦇 MORSURE NOCTURNE : Vous drainez la ferveur ennemie !", x, y - 40, 'text-red-500 font-extrabold scale-125 z-[200]');
@@ -4772,14 +4815,26 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 </h2>
                 
                 <div className="space-y-4 my-8">
-                {duelResult.isBotMatch && (
+                {duelResult.details?.isForfeit && duelResult.isWin ? (
+                  <div className="bg-green-500/10 rounded-xl p-3 border border-green-500/20 mb-4 flex flex-col gap-1">
+                    <p className="text-xs text-green-400 font-bold uppercase">Victoire par forfait !</p>
+                    <p className="text-[10px] text-green-400/80 mb-1">Les adversaires ont quitté. Les équipes ne marquent pas de point.</p>
+                    <p className="text-[10px] text-green-400/90 font-bold">✓ Mise de départ remboursée (Argent & Énergie)</p>
+                    <p className="text-[10px] text-green-400/90 font-bold">✓ +5 XP de participation</p>
+                  </div>
+                ) : duelResult.details?.isForfeit && !duelResult.isWin ? (
+                  <div className="bg-red-500/10 rounded-xl p-3 border border-red-500/20 mb-4">
+                    <p className="text-xs text-red-400 font-bold">Défaite par forfait</p>
+                    <p className="text-[10px] text-red-400/80 mt-1">Équipe déconnectée. Mise et points perdus.</p>
+                  </div>
+                ) : duelResult.isBotMatch && (
                   <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/20 mb-4">
                     <p className="text-xs text-orange-400 font-bold">Match contre des Bots</p>
                     <p className="text-[10px] text-orange-400/80 mt-1">Les statistiques et l'XP ne sont pas enregistrées.</p>
                   </div>
                 )}
                 
-                {!duelResult.isBotMatch && (
+                {(!duelResult.isBotMatch || (duelResult.details?.isForfeit && duelResult.isWin)) && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
                     <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains du Fanz</p>
                     <p className="text-3xl font-black text-yellow-400">+{duelResult.ferveurGain} XP</p>

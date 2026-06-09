@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Auth } from "./Auth";
 import { Button } from "./Layout";
+import { SharedMatchCard } from "./SharedMatchCard";
 import { getImageUrl, getOptimizedVideoUrl } from "../lib/utils";
 import { footballApi } from "../services/footballApi";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { translateCountryName, translateLeagueName } from "../utils/countryTranslations";
 import { format, isSameDay } from "date-fns";
+import { BuyMeACoffee } from "./BuyMeACoffee";
 import {
   Trophy,
   Swords,
@@ -305,6 +307,15 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
               Se connecter
             </button>
           </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="mt-8 flex justify-center"
+          >
+            <BuyMeACoffee />
+          </motion.div>
         </div>
 
         {/* Floating Assets */}
@@ -325,9 +336,9 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
       </section>
 
       {/* MATCHS DU JOUR & DIRECT (LIVE) */}
-      <section className="py-24 px-6 bg-[#161616] relative border-y border-white/5">
+      <section className="py-24 bg-[#161616] relative border-y border-white/5">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4 px-4 sm:px-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${isDisplayingLive ? "bg-red-500 animate-ping" : "bg-orange-500"}`} />
@@ -349,7 +360,7 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
           </div>
 
           {loadingMatches ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4 sm:px-6">
               {[1, 2, 3].map((n) => (
                 <div key={n} className="h-44 bg-white/5 rounded-2xl border border-white/5 animate-pulse flex items-center justify-center">
                   <RefreshCw className="w-6 h-6 text-orange-500/40 animate-spin" />
@@ -357,87 +368,31 @@ export function LandingPage({ onShowLiveScores, onMatchSelect }: LandingPageProp
               ))}
             </div>
           ) : displayedFixtures.length === 0 ? (
-            <div className="p-12 text-center bg-[#0d0d0d] border border-white/5 rounded-2xl">
+            <div className="p-12 text-center bg-[#0d0d0d] border border-white/5 rounded-2xl mx-4 sm:mx-6">
               <Activity className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 font-bold mb-2 uppercase tracking-wide text-sm">Aucun match disponible pour aujourd'hui</p>
               <p className="text-xs text-gray-600">Revenez plus tard pour voir les résultats des tournois ou explorez d'autres zones.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayedFixtures.slice(0, 6).map((match: any) => {
-                const isLive = ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"].includes(match.fixture.status.short);
-                const scoreHome = match.goals.home ?? 0;
-                const scoreAway = match.goals.away ?? 0;
-                
-                return (
+            <div className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pb-4">
+              <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
+                {displayedFixtures.slice(0, 6).map((match: any) => (
                   <div 
-                    key={match.fixture.id}
-                    onClick={() => onMatchSelect?.(match.fixture.id)}
-                    className="p-6 bg-[#0f0f0f] border border-white/5 hover:border-orange-500/30 rounded-2xl cursor-pointer transition-all hover:translate-y-[-2px] flex flex-col justify-between h-48 relative group"
+                    key={match.fixture.id} 
+                    className={`snap-center shrink-0 flex items-stretch ${displayedFixtures.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}
                   >
-                    {/* Header */}
-                    <div className="flex items-center justify-between text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">
-                      <span>{translateLeagueName(match.league.name)}</span>
-                      {isLive ? (
-                        <div className="flex items-center gap-1.5 bg-red-600/10 text-red-500 px-2 py-0.5 rounded-full border border-red-500/20">
-                          <span className="w-1 h-1 rounded-full bg-red-500 animate-ping" />
-                          <span>{match.fixture.status.elapsed}' EN DIRECT</span>
-                        </div>
-                      ) : match.fixture.status.short === "FT" ? (
-                        <span className="bg-white/5 text-gray-400 px-2 py-0.5 rounded-full border border-white/5">Terminé</span>
-                      ) : (
-                        <span className="bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full border border-orange-500/10">
-                          {match.fixture.status.short === "TBD" ? "TBD" : format(new Date(match.fixture.date), "HH:mm")}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Score section */}
-                    <div className="flex items-center justify-between gap-4 py-2">
-                      <div className="flex-1 flex flex-col items-center text-center">
-                        <img 
-                          src={match.teams.home.logo} 
-                          alt={match.teams.home.name} 
-                          className="w-10 h-10 object-contain mb-1.5 drop-shadow-md"
-                          referrerPolicy="no-referrer"
-                        />
-                        <span className="text-xs font-bold text-gray-300 truncate max-w-[100px]">
-                          {translateCountryName(match.teams.home.name)}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="text-2xl font-black tracking-tight text-white flex items-center gap-3">
-                          <span className={match.teams.home.winner ? "text-orange-500" : ""}>{scoreHome}</span>
-                          <span className="text-gray-600">-</span>
-                          <span className={match.teams.away.winner ? "text-orange-500" : ""}>{scoreAway}</span>
-                        </div>
-                        <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest mt-1">Scores</span>
-                      </div>
-
-                      <div className="flex-1 flex flex-col items-center text-center">
-                        <img 
-                          src={match.teams.away.logo} 
-                          alt={match.teams.away.name} 
-                          className="w-10 h-10 object-contain mb-1.5 drop-shadow-md"
-                          referrerPolicy="no-referrer"
-                        />
-                        <span className="text-xs font-bold text-gray-300 truncate max-w-[100px]">
-                          {translateCountryName(match.teams.away.name)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-gray-500 font-bold">
-                      <span className="group-hover:text-orange-500 transition-colors uppercase italic flex items-center gap-1">
-                        Détails & Alignements <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                      </span>
-                      <span className="text-[9px] text-orange-500/80 uppercase">Cliquez pour voir</span>
-                    </div>
+                    <SharedMatchCard
+                      match={match}
+                      hasActiveDuel={false}
+                      onClick={() => onMatchSelect?.(match.fixture.id)}
+                      onJoinDuel={() => onMatchSelect?.(match.fixture.id)}
+                      onTeamClick={() => {}}
+                      profile={null}
+                      showLeagueHeader={true}
+                    />
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           )}
         </div>

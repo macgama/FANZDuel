@@ -1,11 +1,8 @@
 import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { AnimatePresence, motion } from 'motion/react';
-import { RefreshCw, X } from 'lucide-react';
 
 export function UpdatePrompt() {
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(r) {
@@ -16,9 +13,20 @@ export function UpdatePrompt() {
     },
   });
 
-  const close = () => {
-    setNeedRefresh(false);
-  };
+  React.useEffect(() => {
+    try {
+      const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+      const lastReload = localStorage.getItem('fanz_last_daily_reload');
+      
+      if (lastReload !== today) {
+        localStorage.setItem('fanz_last_daily_reload', today);
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error('Failed to perform silent daily refresh check:', e);
+    }
+  }, []);
 
   return null;
 }
+

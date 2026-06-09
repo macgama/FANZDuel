@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { safeLocalStorage } from '../lib/utils';
+import { useAlert } from '../context/AlertContext';
 
 interface GlobalSocketListenerProps {
   onDuelStarting: (duelId: string, duelData: any) => void;
@@ -8,6 +9,7 @@ interface GlobalSocketListenerProps {
 
 export const GlobalSocketListener: React.FC<GlobalSocketListenerProps> = ({ onDuelStarting }) => {
   const { socket } = useSocket();
+  const { showAlert } = useAlert();
 
   useEffect(() => {
     if (!socket) return;
@@ -31,14 +33,20 @@ export const GlobalSocketListener: React.FC<GlobalSocketListenerProps> = ({ onDu
       }
     };
 
+    const handleDuelError = ({ message }: { message: string }) => {
+      showAlert({ type: 'error', title: message });
+    };
+
     socket.on('duel-starting', handleDuelStarting);
     socket.on('duel-update', handleDuelUpdate);
+    socket.on('duel-error', handleDuelError);
 
     return () => {
       socket.off('duel-starting', handleDuelStarting);
       socket.off('duel-update', handleDuelUpdate);
+      socket.off('duel-error', handleDuelError);
     };
-  }, [socket, onDuelStarting]);
+  }, [socket, onDuelStarting, showAlert]);
 
   return null;
 };

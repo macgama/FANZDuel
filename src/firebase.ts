@@ -9,9 +9,7 @@ const app = initializeApp(firebaseConfig);
 // Use initializeFirestore to enable experimentalForceLongPolling
 // This helps in environments where WebSockets might be blocked, 
 // which often causes "Failed to fetch" errors or code=unavailable in Firestore.
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);

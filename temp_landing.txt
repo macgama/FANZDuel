@@ -1,0 +1,101 @@
+351:          {loadingMatches ? (
+352-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+353-              {[1, 2, 3].map((n) => (
+354-                <div key={n} className="h-44 bg-white/5 rounded-2xl border border-white/5 animate-pulse flex items-center justify-center">
+355-                  <RefreshCw className="w-6 h-6 text-orange-500/40 animate-spin" />
+356-                </div>
+357-              ))}
+358-            </div>
+359-          ) : displayedFixtures.length === 0 ? (
+360-            <div className="p-12 text-center bg-[#0d0d0d] border border-white/5 rounded-2xl">
+361-              <Activity className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+362-              <p className="text-gray-400 font-bold mb-2 uppercase tracking-wide text-sm">Aucun match disponible pour aujourd'hui</p>
+363-              <p className="text-xs text-gray-600">Revenez plus tard pour voir les résultats des tournois ou explorez d'autres zones.</p>
+364-            </div>
+365-          ) : (
+366-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+367-              {displayedFixtures.slice(0, 6).map((match: any) => {
+368-                const isLive = ["1H", "2H", "HT", "ET", "P", "BT", "LIVE"].includes(match.fixture.status.short);
+369-                const scoreHome = match.goals.home ?? 0;
+370-                const scoreAway = match.goals.away ?? 0;
+371-                
+372-                return (
+373-                  <div 
+374-                    key={match.fixture.id}
+375-                    onClick={() => onMatchSelect?.(match.fixture.id)}
+376-                    className="p-6 bg-[#0f0f0f] border border-white/5 hover:border-orange-500/30 rounded-2xl cursor-pointer transition-all hover:translate-y-[-2px] flex flex-col justify-between h-48 relative group"
+377-                  >
+378-                    {/* Header */}
+379-                    <div className="flex items-center justify-between text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">
+380-                      <span>{translateLeagueName(match.league.name)}</span>
+381-                      {isLive ? (
+382-                        <div className="flex items-center gap-1.5 bg-red-600/10 text-red-500 px-2 py-0.5 rounded-full border border-red-500/20">
+383-                          <span className="w-1 h-1 rounded-full bg-red-500 animate-ping" />
+384-                          <span>{match.fixture.status.elapsed}' EN DIRECT</span>
+385-                        </div>
+386-                      ) : match.fixture.status.short === "FT" ? (
+387-                        <span className="bg-white/5 text-gray-400 px-2 py-0.5 rounded-full border border-white/5">Terminé</span>
+388-                      ) : (
+389-                        <span className="bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full border border-orange-500/10">
+390-                          {match.fixture.status.short === "TBD" ? "TBD" : format(new Date(match.fixture.date), "HH:mm")}
+391-                        </span>
+392-                      )}
+393-                    </div>
+394-
+395-                    {/* Score section */}
+396-                    <div className="flex items-center justify-between gap-4 py-2">
+397-                      <div className="flex-1 flex flex-col items-center text-center">
+398-                        <img 
+399-                          src={match.teams.home.logo} 
+400-                          alt={match.teams.home.name} 
+401-                          className="w-10 h-10 object-contain mb-1.5 drop-shadow-md"
+402-                          referrerPolicy="no-referrer"
+403-                        />
+404-                        <span className="text-xs font-bold text-gray-300 truncate max-w-[100px]">
+405-                          {translateCountryName(match.teams.home.name)}
+406-                        </span>
+407-                      </div>
+408-
+409-                      <div className="flex flex-col items-center justify-center">
+410-                        <div className="text-2xl font-black tracking-tight text-white flex items-center gap-3">
+411-                          <span className={match.teams.home.winner ? "text-orange-500" : ""}>{scoreHome}</span>
+412-                          <span className="text-gray-600">-</span>
+413-                          <span className={match.teams.away.winner ? "text-orange-500" : ""}>{scoreAway}</span>
+414-                        </div>
+415-                        <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest mt-1">Scores</span>
+416-                      </div>
+417-
+418-                      <div className="flex-1 flex flex-col items-center text-center">
+419-                        <img 
+420-                          src={match.teams.away.logo} 
+421-                          alt={match.teams.away.name} 
+422-                          className="w-10 h-10 object-contain mb-1.5 drop-shadow-md"
+423-                          referrerPolicy="no-referrer"
+424-                        />
+425-                        <span className="text-xs font-bold text-gray-300 truncate max-w-[100px]">
+426-                          {translateCountryName(match.teams.away.name)}
+427-                        </span>
+428-                      </div>
+429-                    </div>
+430-
+431-                    {/* Footer */}
+432-                    <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-gray-500 font-bold">
+433-                      <span className="group-hover:text-orange-500 transition-colors uppercase italic flex items-center gap-1">
+434-                        Détails & Alignements <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+435-                      </span>
+436-                      <span className="text-[9px] text-orange-500/80 uppercase">Cliquez pour voir</span>
+437-                    </div>
+438-                  </div>
+439-                );
+440-              })}
+441-            </div>
+442-          )}
+443-        </div>
+444-      </section>
+445-
+446-      {/* RETROUVEZ LES FANZ - GALERIE MASCOTTES (AFFICHAGE DE 3 FANZ ALÉATOIRES ACTIFS) */}
+447-      <section className="py-24 px-6 relative bg-[#0b0b0b]">
+448-        <div className="max-w-7xl mx-auto">
+449-          <div className="text-center mb-16">
+450-            <h2 className="text-3xl md:text-5xl font-black uppercase italic mb-2 tracking-tighter">
+451-              Rencontrez les Fanz

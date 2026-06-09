@@ -8,8 +8,66 @@ import { db } from '../firebase';
 import { SharedMatchCard } from './SharedMatchCard';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
+import { matchTeamOrLeague } from '../utils/teamSearch';
 import { cn } from '../lib/utils';
 import { UserProfile } from '../types';
+
+const COUNTRY_CODES: Record<string, string> = {
+  "france": "fr",
+  "germany": "de",
+  "spain": "es",
+  "italy": "it",
+  "england": "gb-eng",
+  "belgium": "be",
+  "netherlands": "nl",
+  "portugal": "pt",
+  "argentina": "ar",
+  "brazil": "br",
+  "world": "un",
+  "switzerland": "ch",
+  "austria": "at",
+  "denmark": "dk",
+  "norway": "no",
+  "sweden": "se",
+  "turkey": "tr",
+  "saudi arabia": "sa",
+  "usa": "us",
+  "mexico": "mx",
+  "australia": "au",
+  "morocco": "ma",
+  "senegal": "sn",
+  "tunisia": "tn",
+  "egypt": "eg",
+  "cameroon": "cm",
+  "japan": "jp",
+  "south korea": "kr",
+  "colombia": "co",
+  "uruguay": "uy",
+  "chile": "cl",
+  "scotland": "gb-sct",
+  "wales": "gb-wls",
+  "northern ireland": "gb-nir",
+  "ireland": "ie",
+  "croatia": "hr",
+  "ukraine": "ua",
+  "poland": "pl",
+  "greece": "gr",
+  "czech republic": "cz",
+  "romania": "ro",
+  "bulgaria": "bg",
+  "hungary": "hu",
+  "algeria": "dz"
+};
+
+function getCountryFlag(countryName: string, flagFromLeague: string | null): string {
+  if (flagFromLeague) return flagFromLeague;
+  const normalized = countryName.toLowerCase();
+  const code = COUNTRY_CODES[normalized];
+  if (code) {
+    return `https://flagcdn.com/w160/${code}.png`;
+  }
+  return `https://flagcdn.com/w160/un.png`;
+}
 
 export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueClick, profile }: { onMatchClick: (id: number, tab?: 'summary' | 'lineups' | 'stats' | 'duels') => void; onJoinDuel: (id: number, isLive: boolean) => void; onTeamClick: (id: number, season: number) => void; onLeagueClick: (id: number, season: number) => void; profile: UserProfile | null }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -17,6 +75,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'finished'>('all');
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
 
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
 
@@ -126,6 +185,77 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
     fetchActiveLeagues();
   }, []);
 
+  const availableCountries = useMemo(() => {
+    const countryMap = new Map<string, { name: string; flag: string | null; count: number }>();
+    
+    fixtures.forEach(f => {
+      if (activeLeagueIds.length > 0 && !activeLeagueIds.includes(f.league.id)) {
+        return;
+      }
+      
+      if (statusFilter === 'live') {
+        const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short);
+        if (!isLive) return;
+      } else if (statusFilter === 'upcoming') {
+        const isUpcoming = ['NS', 'TBD'].includes(f.fixture.status.short);
+        if (!isUpcoming) return;
+      } else if (statusFilter === 'finished') {
+        const isFinished = ['FT', 'AET', 'PEN'].includes(f.fixture.status.short);
+        if (!isFinished) return;
+      }
+      
+      const name = f.league.country;
+      const current = countryMap.get(name);
+      if (!current) {
+        countryMap.set(name, {
+          name,
+          flag: f.league.flag || null,
+          count: 1
+        });
+      } else {
+        current.count += 1;
+        if (!current.flag && f.league.flag) {
+          current.flag = f.league.flag;
+        }
+      }
+    });
+
+    const countriesArray = Array.from(countryMap.values());
+    
+    countriesArray.sort((a, b) => {
+      if (a.name === 'World') return -1;
+      if (b.name === 'World') return 1;
+      
+      const nameA = translateCountryName(a.name);
+      const nameB = translateCountryName(b.name);
+      return nameA.localeCompare(nameB, 'fr');
+    });
+    
+    return countriesArray;
+  }, [fixtures, activeLeagueIds, statusFilter]);
+
+  const totalFilteredCount = useMemo(() => {
+    return fixtures.filter(f => {
+      if (activeLeagueIds.length > 0 && !activeLeagueIds.includes(f.league.id)) {
+        return false;
+      }
+      if (statusFilter === 'live') {
+        return ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short);
+      } else if (statusFilter === 'upcoming') {
+        return ['NS', 'TBD'].includes(f.fixture.status.short);
+      } else if (statusFilter === 'finished') {
+        return ['FT', 'AET', 'PEN'].includes(f.fixture.status.short);
+      }
+      return true;
+    }).length;
+  }, [fixtures, activeLeagueIds, statusFilter]);
+
+  useEffect(() => {
+    if (selectedCountry && !availableCountries.some(c => c.name === selectedCountry)) {
+      setSelectedCountry(null);
+    }
+  }, [availableCountries, selectedCountry]);
+
   const filteredFixtures = useMemo(() => {
     const favoriteIds = profile?.favoriteTeams?.map(id => id.toString()) || [];
     
@@ -136,12 +266,18 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
         return false;
       }
 
-      const matchesSearch = 
-        f.league.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.teams.home.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.teams.away.name.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      if (!matchesSearch) return false;
+      if (selectedCountry && f.league.country !== selectedCountry) {
+        return false;
+      }
+
+      if (searchTerm) {
+        const matchesSearch = 
+          matchTeamOrLeague(searchTerm, f.league.name) ||
+          matchTeamOrLeague(searchTerm, f.teams.home.name) ||
+          matchTeamOrLeague(searchTerm, f.teams.away.name);
+        
+        if (!matchesSearch) return false;
+      }
 
       if (statusFilter === 'live') return true; // Already filtered by API
       if (statusFilter === 'upcoming') return ['NS', 'TBD'].includes(f.fixture.status.short);
@@ -155,7 +291,7 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
       if (!aIsFav && bIsFav) return 1;
       return 0;
     });
-  }, [fixtures, searchTerm, statusFilter, profile?.favoriteTeams, activeLeagueIds]);
+  }, [fixtures, searchTerm, statusFilter, profile?.favoriteTeams, activeLeagueIds, selectedCountry]);
 
   // Enrich visible matches with events
   useEffect(() => {
@@ -340,6 +476,67 @@ export function MatchesPage({ onMatchClick, onJoinDuel, onTeamClick, onLeagueCli
               className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-4 focus:outline-none focus:border-orange-500 transition-colors text-sm"
             />
           </div>
+
+          {/* Carousel des pays avec drapeaux */}
+          {availableCountries.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 pt-0.5 no-scrollbar px-4 scroll-smooth justify-center">
+              <button
+                onClick={() => setSelectedCountry(null)}
+                title="Tous les matchs"
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap shrink-0 cursor-pointer",
+                  !selectedCountry 
+                    ? "bg-orange-600 border-orange-500 text-white shadow-[0_0_12px_rgba(249,115,22,0.3)]" 
+                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                <span className="text-sm">🌍</span>
+                <span className={cn(
+                  "text-[8px] font-extrabold px-1.5 py-0.5 rounded-full min-w-[16px] text-center",
+                  !selectedCountry ? "bg-black/35 text-white" : "bg-white/15 text-gray-400"
+                )}>
+                  {totalFilteredCount}
+                </span>
+              </button>
+
+              {availableCountries.map(c => {
+                const isSelected = selectedCountry === c.name;
+                const displayName = translateCountryName(c.name);
+                const flagUrl = getCountryFlag(c.name, c.flag);
+
+                return (
+                  <button
+                    key={c.name}
+                    onClick={() => setSelectedCountry(isSelected ? null : c.name)}
+                    title={displayName}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap shrink-0 cursor-pointer",
+                      isSelected 
+                        ? "bg-orange-600 border-orange-500 text-white shadow-[0_0_12px_rgba(249,115,22,0.3)]" 
+                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"
+                    )}
+                  >
+                    {c.name === 'World' ? (
+                      <span className="text-sm leading-none shrink-0" role="img" aria-label="World">🌐</span>
+                    ) : (
+                      <img 
+                        src={flagUrl} 
+                        alt={displayName} 
+                        className="w-5 h-3.5 object-cover rounded-sm border border-black/15 shrink-0" 
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+                    <span className={cn(
+                      "text-[8px] font-extrabold px-1.5 py-0.5 rounded-full min-w-[16px] text-center",
+                      isSelected ? "bg-black/35 text-white" : "bg-white/15 text-gray-400"
+                    )}>
+                      {c.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

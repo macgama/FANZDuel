@@ -15,6 +15,7 @@ import { footballApi } from '../services/footballApi';
 import { Search, ChevronLeft, Star } from 'lucide-react';
 import { useAlert } from '../context/AlertContext';
 import { safeSessionStorage } from '../lib/utils';
+import { getSearchVariations } from '../utils/teamSearch';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -59,7 +60,16 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
       }
       setIsSearchingTeam(true);
       try {
-        const results = await footballApi.searchTeams(teamSearch);
+        const variations = getSearchVariations(teamSearch);
+        let results: any[] = [];
+        
+        for (const variation of variations) {
+          const res = await footballApi.searchTeams(variation);
+          if (res && res.length > 0) {
+            results = res;
+            break; // Stop at first successful match
+          }
+        }
         setTeamResults(results || []);
       } catch (err) {
         console.error(err);
