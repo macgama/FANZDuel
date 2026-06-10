@@ -20,7 +20,7 @@ export function UpdatePrompt() {
       
       if (lastReload !== today) {
         localStorage.setItem('fanz_last_daily_reload', today);
-        window.location.reload();
+        // Removed window.location.reload(); to prevent random app restarts mid-duel
       }
     } catch (e) {
       console.error('Failed to perform silent daily refresh check:', e);
