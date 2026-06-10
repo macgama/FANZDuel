@@ -349,6 +349,19 @@ export function LandingPage({
           </motion.div>
 
           <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.25, duration: 0.6 }}
+            className="mt-12 max-w-3xl mx-auto rounded-3xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(249,115,22,0.15)] bg-black/40 backdrop-blur-md relative group"
+          >
+            <img
+              src="https://thebestfan.online/img/public/logo/teaser.png"
+              alt="The Best Fan Teaser"
+              className="w-full h-auto object-cover max-h-[420px] transition-transform duration-700 group-hover:scale-105"
+            />
+          </motion.div>
+
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}

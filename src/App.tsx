@@ -142,6 +142,18 @@ function AppContent() {
   const [guestView, setGuestView] = useState<"landing" | "matches">("landing");
 
   useEffect(() => {
+    // Prevent the mobile back button from exiting the app
+    window.history.pushState(null, "", window.location.href);
+    const handlePopState = (event: PopStateEvent) => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  useEffect(() => {
     if (profile !== null) {
       audioManager.setMuted(profile.isMuted || false);
     }

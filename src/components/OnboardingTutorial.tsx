@@ -140,7 +140,24 @@ export function OnboardingTutorial({
               transition={{ duration: 0.2 }}
               className="flex flex-col items-center w-full"
             >
-              {step.video ? (
+              {currentStep === STEPS.length - 1 ? (
+                <div className="w-full aspect-[4/3] sm:aspect-video rounded-xl overflow-hidden mb-6 border border-orange-500/30 bg-black/50 shadow-lg relative flex items-center justify-center">
+                  <img
+                    src="https://thebestfan.online/img/public/logo/teaser.png"
+                    alt="The Best Fan Teaser"
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Keep icon as a watermark/small decorative element */}
+                  <div
+                    className={cn(
+                      "absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center border shadow-lg bg-black/60 backdrop-blur-sm",
+                      step.border,
+                    )}
+                  >
+                    <StepIcon className={cn("w-5 h-5", step.color)} />
+                  </div>
+                </div>
+              ) : step.video ? (
                 <div className="w-full aspect-[4/3] sm:aspect-video rounded-xl overflow-hidden mb-6 border border-white/10 bg-black/50 shadow-lg relative flex items-center justify-center">
                   <video
                     src={step.video}

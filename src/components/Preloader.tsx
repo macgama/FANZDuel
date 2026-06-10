@@ -152,6 +152,19 @@ export function Preloader({ onComplete, uid }: PreloaderProps) {
         
         <div className="flex flex-col items-center gap-4">
           <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-48 h-28 rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_30px_rgba(249,115,22,0.2)] mb-2 flex items-center justify-center bg-black"
+          >
+            <img 
+              src="https://thebestfan.online/img/public/logo/teaser.png" 
+              alt="The Best Fan Teaser" 
+              className="w-full h-full object-cover" 
+            />
+          </motion.div>
+
+          <motion.div
             animate={{ 
               rotate: [0, 360],
             }}
@@ -160,9 +173,9 @@ export function Preloader({ onComplete, uid }: PreloaderProps) {
               repeat: Infinity, 
               ease: "linear" 
             }}
-            className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-[0_0_30px_rgba(249,115,22,0.15)]"
+            className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 shadow-[0_0_15px_rgba(249,115,22,0.1)]"
           >
-            <LayoutGrid className="w-10 h-10 text-orange-500" />
+            <LayoutGrid className="w-5 h-5 text-orange-500" />
           </motion.div>
           
           <div className="text-center">
