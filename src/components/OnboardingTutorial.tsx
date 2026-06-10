@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { db } from '../firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { UserProfile } from '../types';
-import { 
-  Trophy, 
-  Swords, 
-  Sparkles, 
-  Layers, 
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { db } from "../firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { UserProfile } from "../types";
+import {
+  Trophy,
+  Swords,
+  Sparkles,
+  Layers,
   ChevronRight,
   Flame,
-  X
-} from 'lucide-react';
-import { cn } from '../lib/utils';
+  X,
+} from "lucide-react";
+import { cn } from "../lib/utils";
 
 interface OnboardingTutorialProps {
   profile: UserProfile;
@@ -22,66 +22,76 @@ interface OnboardingTutorialProps {
 const STEPS = [
   {
     title: "Bienvenue dans The Best Fan",
-    description: "Le premier jeu de duel en direct pour les supporters de football. Défends tes couleurs pendant les vrais matchs de ton équipe !",
+    description:
+      "Le premier jeu de duel en direct pour les supporters de football. Défends tes couleurs pendant les vrais matchs de ton équipe !",
     icon: Trophy,
     color: "text-yellow-500",
     bg: "bg-yellow-500/10",
     border: "border-yellow-500/20",
-    video: "https://thebestfan.online/img/public/tuto/video1.mp4"
+    video: "https://thebestfan.online/img/public/tuto/video1.mp4",
   },
   {
     title: "Adopte ton Fanz",
-    description: "Choisis ton personnage, entraîne-le, améliore ses caractéristiques et débloque des skins ou des animations pour frimer !",
+    description:
+      "Choisis ton personnage, entraîne-le, améliore ses caractéristiques et débloque des skins ou des animations pour frimer !",
     icon: Sparkles,
     color: "text-blue-500",
     bg: "bg-blue-500/10",
     border: "border-blue-500/20",
-    video: "https://thebestfan.online/img/public/tuto/video2.mp4"
+    video: "https://thebestfan.online/img/public/tuto/video2.mp4",
   },
   {
     title: "Collectionne les Cartes",
-    description: "Constitue un deck de cartes stratégiques (objets, chants, malus) pour te donner un avantage décisif pendant les duels.",
+    description:
+      "Constitue un deck de cartes stratégiques (objets, chants, malus) pour te donner un avantage décisif pendant les duels.",
     icon: Layers,
     color: "text-purple-500",
     bg: "bg-purple-500/10",
     border: "border-purple-500/20",
-    video: "https://thebestfan.online/img/public/tuto/video3.mp4"
+    video: "https://thebestfan.online/img/public/tuto/video3.mp4",
   },
   {
     title: "Gagne tes Duels",
-    description: "Pendant les matchs, rejoins un duel. Clique le plus vite possible pour tirer la corde et utilise tes cartes au bon moment !",
+    description:
+      "Pendant les matchs, rejoins un duel. Clique le plus vite possible pour tirer la corde et utilise tes cartes au bon moment !",
     icon: Swords,
     color: "text-orange-500",
     bg: "bg-orange-500/10",
     border: "border-orange-500/20",
-    video: "https://thebestfan.online/img/public/tuto/video4.mp4"
+    video: "https://thebestfan.online/img/public/tuto/video4.mp4",
   },
   {
     title: "Progression & Stats",
-    description: "La montée en compétences de tes FANZ se fait grâce aux actions LIFE ! Améliore tes stats pour être plus fort et plus résistant durant les duels.",
+    description:
+      "La montée en compétences de tes FANZ se fait grâce aux actions LIFE ! Améliore tes stats pour être plus fort et plus résistant durant les duels.",
     icon: Flame,
     color: "text-red-500",
     bg: "bg-red-500/10",
-    border: "border-red-500/20"
+    border: "border-red-500/20",
+    video: "https://thebestfan.online/img/public/tuto/video5.mp4",
   },
   {
     title: "Ferveur et Récompenses",
-    description: "Gagne de la ferveur pour monter en grade, complète tes missions quotidiennes et débloque un maximum de récompenses !",
+    description:
+      "Gagne de la ferveur pour monter en grade, complète tes missions quotidiennes et débloque un maximum de récompenses !",
     icon: Trophy,
     color: "text-yellow-500",
     bg: "bg-yellow-500/10",
     border: "border-yellow-500/20",
-    video: "https://thebestfan.online/img/public/tuto/video5.mp4"
-  }
+    video: "https://thebestfan.online/img/public/tuto/video6.mp4",
+  },
 ];
 
-export function OnboardingTutorial({ profile, onComplete }: OnboardingTutorialProps) {
+export function OnboardingTutorial({
+  profile,
+  onComplete,
+}: OnboardingTutorialProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
 
   const handleNext = async () => {
     if (currentStep < STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
     } else {
       finishTutorial();
     }
@@ -91,8 +101,8 @@ export function OnboardingTutorial({ profile, onComplete }: OnboardingTutorialPr
     if (isFinishing) return;
     setIsFinishing(true);
     try {
-      await updateDoc(doc(db, 'users', profile.uid), {
-        hasCompletedOnboarding: true
+      await updateDoc(doc(db, "users", profile.uid), {
+        hasCompletedOnboarding: true,
       });
       onComplete();
     } catch (error) {
@@ -132,29 +142,40 @@ export function OnboardingTutorial({ profile, onComplete }: OnboardingTutorialPr
             >
               {step.video ? (
                 <div className="w-full aspect-[4/3] sm:aspect-video rounded-xl overflow-hidden mb-6 border border-white/10 bg-black/50 shadow-lg relative flex items-center justify-center">
-                  <video 
-                    src={step.video} 
-                    className="w-full h-full object-contain" 
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline 
+                  <video
+                    src={step.video}
+                    className="w-full h-full object-contain"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
                   />
                   {/* Keep icon as a watermark/small decorative element */}
-                  <div className={cn("absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center border shadow-lg bg-black/60 backdrop-blur-sm", step.border)}>
+                  <div
+                    className={cn(
+                      "absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center border shadow-lg bg-black/60 backdrop-blur-sm",
+                      step.border,
+                    )}
+                  >
                     <StepIcon className={cn("w-5 h-5", step.color)} />
                   </div>
                 </div>
               ) : (
-                <div className={cn("w-24 h-24 rounded-full flex items-center justify-center mb-6 border", step.bg, step.border)}>
+                <div
+                  className={cn(
+                    "w-24 h-24 rounded-full flex items-center justify-center mb-6 border",
+                    step.bg,
+                    step.border,
+                  )}
+                >
                   <StepIcon className={cn("w-12 h-12", step.color)} />
                 </div>
               )}
-              
+
               <h2 className="text-2xl font-black uppercase tracking-wider mb-4 text-white">
                 {step.title}
               </h2>
-              
+
               <p className="text-gray-400 text-sm leading-relaxed max-w-[280px]">
                 {step.description}
               </p>
@@ -169,7 +190,7 @@ export function OnboardingTutorial({ profile, onComplete }: OnboardingTutorialPr
               key={idx}
               className={cn(
                 "h-1.5 rounded-full transition-all duration-300",
-                idx === currentStep ? "w-6 bg-orange-500" : "w-1.5 bg-white/20"
+                idx === currentStep ? "w-6 bg-orange-500" : "w-1.5 bg-white/20",
               )}
             />
           ))}

@@ -529,17 +529,28 @@ export function LandingPage({
           </div>
 
           <div className="flex overflow-x-auto no-scrollbar gap-4 pb-8 snap-x snap-mandatory">
-            {[1, 2, 3, 4, 5].map((num) => (
+            {[
+              { id: 1, title: "Bienvenue dans The Best Fan" },
+              { id: 2, title: "Adopte ton Fanz" },
+              { id: 3, title: "Collectionne les Cartes" },
+              { id: 4, title: "Gagne tes Duels" },
+              { id: 5, title: "Progression & Stats" },
+              { id: 6, title: "Ferveur et Récompenses" },
+            ].map((video) => (
               <div
-                key={num}
-                className="w-[240px] md:w-[280px] shrink-0 aspect-[9/16] bg-black border border-white/10 rounded-2xl overflow-hidden snap-center relative shadow-2xl"
+                key={video.id}
+                className="w-[240px] md:w-[280px] shrink-0 aspect-[9/16] bg-black border border-white/10 rounded-2xl overflow-hidden snap-center relative shadow-2xl flex flex-col"
               >
+                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-3 z-10">
+                  <h3 className="text-white font-black italic uppercase text-xs md:text-sm drop-shadow-md">
+                    {video.title}
+                  </h3>
+                </div>
                 <video
-                  src={`https://thebestfan.online/img/public/tuto/video${num}.mp4`}
+                  src={`https://thebestfan.online/img/public/tuto/video${video.id}.mp4`}
                   className="absolute inset-0 w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  loop
+                  controls
+                  preload="metadata"
                   playsInline
                 />
               </div>

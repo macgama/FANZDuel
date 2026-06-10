@@ -136,17 +136,28 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
             <Play className="text-orange-500 w-5 h-5" /> Tutoriels Vidéos
           </h2>
           <div className="flex overflow-x-auto no-scrollbar gap-4 px-4 sm:px-6 pb-4 snap-x snap-mandatory">
-            {[1, 2, 3, 4, 5].map((num) => (
+            {[
+              { id: 1, title: "Bienvenue dans The Best Fan" },
+              { id: 2, title: "Adopte ton Fanz" },
+              { id: 3, title: "Collectionne les Cartes" },
+              { id: 4, title: "Gagne tes Duels" },
+              { id: 5, title: "Progression & Stats" },
+              { id: 6, title: "Ferveur et Récompenses" },
+            ].map((video) => (
               <div
-                key={`video-${num}`}
-                className="w-[160px] sm:w-[240px] shrink-0 aspect-[9/16] bg-black border border-white/10 rounded-2xl overflow-hidden snap-center relative shadow-xl"
+                key={`video-${video.id}`}
+                className="w-[160px] sm:w-[240px] shrink-0 aspect-[9/16] bg-black border border-white/10 rounded-2xl overflow-hidden snap-center relative shadow-xl flex flex-col"
               >
+                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-3 z-10 pointer-events-none">
+                  <h3 className="text-white font-black italic uppercase text-[10px] sm:text-xs leading-tight drop-shadow-md">
+                    {video.title}
+                  </h3>
+                </div>
                 <video
-                  src={`https://thebestfan.online/img/public/tuto/video${num}.mp4`}
+                  src={`https://thebestfan.online/img/public/tuto/video${video.id}.mp4`}
                   className="absolute inset-0 w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  loop
+                  controls
+                  preload="metadata"
                   playsInline
                 />
               </div>

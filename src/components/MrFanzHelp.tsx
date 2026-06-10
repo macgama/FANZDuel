@@ -190,17 +190,28 @@ export function MrFanzHelp({ contextId }: { contextId: string }) {
                     <Play size={14} /> Tutoriels Vidéos
                   </h4>
                   <div className="flex overflow-x-auto no-scrollbar gap-3 pb-2 snap-x">
-                    {[1, 2, 3, 4, 5].map((num) => (
+                    {[
+                      { id: 1, title: "Bienvenue dans The Best Fan" },
+                      { id: 2, title: "Adopte ton Fanz" },
+                      { id: 3, title: "Collectionne les Cartes" },
+                      { id: 4, title: "Gagne tes Duels" },
+                      { id: 5, title: "Progression & Stats" },
+                      { id: 6, title: "Ferveur et Récompenses" },
+                    ].map((video) => (
                       <div
-                        key={num}
+                        key={video.id}
                         className="min-w-[140px] shrink-0 aspect-[9/16] bg-black/50 border border-white/5 rounded-xl overflow-hidden snap-center relative flex items-center justify-center group"
                       >
+                        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-2 z-10 pointer-events-none">
+                          <h3 className="text-white font-black italic uppercase text-[9px] leading-tight drop-shadow-md">
+                            {video.title}
+                          </h3>
+                        </div>
                         <video
-                          src={`https://thebestfan.online/img/public/tuto/video${num}.mp4`}
+                          src={`https://thebestfan.online/img/public/tuto/video${video.id}.mp4`}
                           className="absolute inset-0 w-full h-full object-cover"
-                          autoPlay
-                          muted
-                          loop
+                          controls
+                          preload="metadata"
                           playsInline
                         />
                       </div>
