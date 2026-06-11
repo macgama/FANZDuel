@@ -2872,7 +2872,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               ? isEquipped
                                 ? "bg-white/5 border-2 border-white/10 opacity-50 grayscale"
                                 : `bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border}`
-                              : "bg-gradient-to-br from-gray-900 to-black border-2 border-white/15 opacity-75 hover:opacity-100 transition-all duration-300 hover:scale-[1.02]"
+                              : "bg-gradient-to-br from-gray-950 via-gray-900 to-[#1e1510] border-2 border-orange-500/45 shadow-[0_0_8px_rgba(249,115,22,0.15)] hover:border-orange-500 hover:shadow-[0_0_12px_rgba(249,115,22,0.3)] hover:scale-[1.02] transition-colors"
                           }`}
                         >
                           {isUnlocked && (
@@ -2893,41 +2893,36 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                             </div>
                           )}
                           {!isUnlocked && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center z-20 p-2 text-center bg-black/35 rounded-xl backdrop-blur-[0.5px]">
-                              <div className="bg-black/75 p-2 rounded-full border border-white/10 mb-1.5 shadow-lg">
-                                {canAfford ? (
-                                  <Unlock className="w-5 h-5 text-green-500" />
-                                ) : (
-                                  <Lock className="w-5 h-5 text-gray-300" />
-                                )}
+                            <>
+                              <div className="absolute top-2 left-2 z-20 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[7px] font-black uppercase px-2 py-1 rounded-full flex items-center gap-1 shadow-[0_0_8px_rgba(249,115,22,0.4)] animate-pulse">
+                                <span>À BLOQUER</span>
+                                <Lock className="w-2.5 h-2.5" />
                               </div>
-                              <div className="text-[8px] font-black text-white uppercase leading-tight bg-black/70 px-2 py-1 rounded-md border border-white/5 shadow-md">
+                              <div className="absolute bottom-2 left-2 right-2 z-20 bg-black/85 backdrop-blur-md px-2 py-1 rounded-md border border-orange-500/40 text-[7px] font-black uppercase text-white tracking-widest text-center shadow-lg">
                                 {card.price && card.price?.money ? (
-                                  <div className="flex items-center gap-1 justify-center">
+                                  <div className="flex items-center gap-1 justify-center text-orange-400">
                                     <img
                                       src={LOGOS.money}
                                       alt="Money"
                                       className="w-2.5 h-2.5 object-contain"
                                     />
-                                    {card.price.money}{" "}
-                                    {canAfford ? "(Acheter)" : ""}
+                                    {card.price.money} {canAfford ? "Acheter" : ""}
                                   </div>
                                 ) : requirements.length > 0 ? (
-                                  requirements.map((req, i) => (
-                                    <div key={i}>
-                                      {req.type === "skill" &&
-                                        `${statLabels[req.skillName as keyof typeof statLabels]} Niv. ${req.minLevel}`}
-                                      {req.type === "ferveur" &&
-                                        `Ferveur Niv. ${req.minLevel}`}
-                                      {req.type === "rank" &&
-                                        `Rang Fanz ${req.minLevel}`}
-                                    </div>
-                                  ))
+                                  <div className="text-amber-400 text-[6.5px]">
+                                    {requirements.map((req, i) => (
+                                      <span key={i} className="block truncate leading-tight">
+                                        {req.type === "skill" && `${statLabels[req.skillName as keyof typeof statLabels].substring(0,6)}. N.${req.minLevel}`}
+                                        {req.type === "ferveur" && `Ferv. N.${req.minLevel}`}
+                                        {req.type === "rank" && `Rang ${req.minLevel}`}
+                                      </span>
+                                    ))}
+                                  </div>
                                 ) : (
                                   "Verrouillé"
                                 )}
                               </div>
-                            </div>
+                            </>
                           )}
                           <div className="w-full aspect-[3/4] overflow-hidden bg-gray-900 shrink-0 relative">
                             {card.videoUrl ? (
@@ -3559,11 +3554,11 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                   )}
 
                   {!selectedMuseumCard.isUnlocked && (
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-2xl">
-                      <div className="bg-black/80 backdrop-blur-md p-4 rounded-full border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.6)] flex items-center justify-center">
-                        <Lock className="w-10 h-10 text-orange-500 animate-pulse" />
-                      </div>
+                    <div className="absolute top-4 left-4 z-20 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.4)] animate-pulse">
+                      <span>À DÉBLOQUER</span>
+                      <Lock className="w-3.5 h-3.5" />
                     </div>
+
                   )}
                 </motion.div>
 

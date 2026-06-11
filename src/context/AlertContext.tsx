@@ -21,6 +21,10 @@ export interface GameAlert {
   imageUrl?: string;
   rewards?: Reward[];
   type: 'success' | 'unlock' | 'level-up' | 'error';
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 interface AlertContextType {
@@ -190,13 +194,28 @@ function FullScreenAlert({ alert, onClose, dataSaver }: { alert: GameAlert; onCl
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.8 }}
-            className="pt-4 md:pt-8"
+            className="pt-4 md:pt-8 flex flex-col sm:flex-row gap-4 w-full justify-center"
           >
+            {alert.action && (
+              <button
+                onClick={() => {
+                  alert.action!.onClick();
+                  onClose();
+                }}
+                className="flex-1 px-8 py-4 bg-[#f97316] text-white font-black italic uppercase tracking-widest rounded-full hover:bg-orange-600 transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(249,115,22,0.3)]"
+              >
+                {alert.action.label}
+              </button>
+            )}
             <button
               onClick={onClose}
-              className="w-full md:w-auto px-12 py-4 bg-white text-black font-black italic uppercase tracking-widest rounded-full hover:bg-orange-500 hover:text-white transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.3)]"
+              className={`px-12 py-4 font-black italic uppercase tracking-widest rounded-full transition-all transform hover:scale-105 active:scale-95 border ${
+                alert.action 
+                  ? 'flex-1 bg-white/5 hover:bg-white/10 text-white border-white/20' 
+                  : 'w-full md:w-auto bg-white text-black hover:bg-orange-500 hover:text-white border-transparent shadow-[0_0_30px_rgba(255,255,255,0.3)]'
+              }`}
             >
-              Continuer
+              {alert.action ? 'Ignorer' : 'Continuer'}
             </button>
           </motion.div>
         </motion.div>

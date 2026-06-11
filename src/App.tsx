@@ -80,7 +80,7 @@ import { signOut } from "firebase/auth";
 
 import { AlertProvider } from "./context/AlertContext";
 import { RewardProvider } from "./context/RewardContext";
-import { SocketProvider } from "./context/SocketContext";
+import { SocketProvider, useSocket } from "./context/SocketContext";
 import { MediaViewerProvider } from "./context/MediaViewerContext";
 import { GlobalSocketListener } from "./components/GlobalSocketListener";
 
@@ -133,6 +133,7 @@ type ViewType =
   | "mrfanz";
 
 function AppContent() {
+  const { socket } = useSocket();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,6 +143,14 @@ function AppContent() {
   const [currentDuel, setCurrentDuel] = useState<any>(null);
   const [guestView, setGuestView] = useState<"landing" | "matches">("landing");
   const [resetCode, setResetCode] = useState<string | null>(null);
+
+  // Register user socket connection when profile / socket is ready
+  useEffect(() => {
+    if (socket && profile?.uid) {
+      socket.emit("register-user", { uid: profile.uid });
+      console.log(`[Client] Registered socket for user: ${profile.uid}`);
+    }
+  }, [socket, profile?.uid]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1785,6 +1794,26 @@ function AppContent() {
                 setIsDuelActive(true);
               }
             }
+          }}
+          onInvitationReceived={(invitation) => {
+            const displayType = invitation.type === 'training_1v1' ? "d'entraînement" : "réel";
+            showAlert({
+              type: "success",
+              title: "🔥 Duel Privé !",
+              subtitle: `${invitation.hostPseudo} t'attend pour un duel ${displayType} !`,
+              action: {
+                label: "Rejoindre",
+                onClick: () => {
+                  setJoiningDuel({
+                    id: invitation.duelId,
+                    type: invitation.type,
+                    matchId: invitation.matchId,
+                  });
+                  setSelectedMatchId(invitation.matchId);
+                  setView("matches");
+                },
+              },
+            });
           }}
         />
 

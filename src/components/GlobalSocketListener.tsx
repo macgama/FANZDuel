@@ -5,9 +5,10 @@ import { useAlert } from '../context/AlertContext';
 
 interface GlobalSocketListenerProps {
   onDuelStarting: (duelId: string, duelData: any) => void;
+  onInvitationReceived: (invitation: { duelId: string; type: string; matchId: number; hostPseudo: string }) => void;
 }
 
-export const GlobalSocketListener: React.FC<GlobalSocketListenerProps> = ({ onDuelStarting }) => {
+export const GlobalSocketListener: React.FC<GlobalSocketListenerProps> = ({ onDuelStarting, onInvitationReceived }) => {
   const { socket } = useSocket();
   const { showAlert } = useAlert();
 
@@ -37,16 +38,27 @@ export const GlobalSocketListener: React.FC<GlobalSocketListenerProps> = ({ onDu
       showAlert({ type: 'error', title: message });
     };
 
+    const handleDuelInvitation = ({ duelId, type, trainingType, hostPseudo, matchId }: { duelId: string, type: string, trainingType?: string, hostPseudo: string, matchId: number }) => {
+      onInvitationReceived({ 
+        duelId, 
+        type: (type === 'training' && trainingType === '1v1') ? 'training_1v1' : type, 
+        matchId, 
+        hostPseudo 
+      });
+    };
+
     socket.on('duel-starting', handleDuelStarting);
     socket.on('duel-update', handleDuelUpdate);
     socket.on('duel-error', handleDuelError);
+    socket.on('duel-invitation', handleDuelInvitation);
 
     return () => {
       socket.off('duel-starting', handleDuelStarting);
       socket.off('duel-update', handleDuelUpdate);
       socket.off('duel-error', handleDuelError);
+      socket.off('duel-invitation', handleDuelInvitation);
     };
-  }, [socket, onDuelStarting, showAlert]);
+  }, [socket, onDuelStarting, onInvitationReceived, showAlert]);
 
   return null;
 };

@@ -117,7 +117,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   useEffect(() => {
     const fetchActiveDuels = async () => {
       try {
-        const res = await fetch(`/api/duels/${fixtureId}`, { headers: { 'Accept': 'application/json' }});
+        const res = await fetch(`/api/duels/${fixtureId}${user ? `?uid=${user.uid}` : ''}`, { headers: { 'Accept': 'application/json' }});
         if (res.ok) {
           const contentType = res.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {

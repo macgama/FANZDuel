@@ -99,6 +99,8 @@ async function startServer() {
     botInterval?: NodeJS.Timeout;
     isPrivate?: boolean;
     inviteCode?: string;
+    trainingType?: string;
+    invitedUids?: string[];
     historicalParticipants?: Record<string, any>;
     lastActionCards?: any;
   }> = {};
@@ -399,11 +401,22 @@ async function startServer() {
     });
   }
 
+  // Map to track active sockets by user uid
+  const userSockets = new Map<string, string>();
+
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
+    // Register active user connection
+    socket.on("register-user", ({ uid }) => {
+      if (uid) {
+        userSockets.set(uid, socket.id);
+        console.log(`[Server] Registered user ${uid} to socket ${socket.id}`);
+      }
+    });
+
     socket.on("join-duel", (params: any) => {
-      const { duelId: clientDuelId, user, fanz, type, matchId, team: chosenTeam, isPrivate, inviteCode, teamAId, teamBId, teamA, teamB, leagueId, season, isBot } = params;
+      const { duelId: clientDuelId, user, fanz, type, trainingType, invitedUids, matchId, team: chosenTeam, isPrivate, inviteCode, teamAId, teamBId, teamA, teamB, leagueId, season, isBot } = params;
       
       // Check for reconnection
       if (clientDuelId && duels[clientDuelId]) {
@@ -444,7 +457,7 @@ async function startServer() {
           socket.emit("duel-error", { message: "Code d'invitation invalide ou duel expiré." });
           return;
         }
-      } else if (type === 'training') {
+      } else if (type === 'training' && trainingType !== '1v1') {
         duelId = clientDuelId || `training_${socket.id}`;
       } else if (type === 'war_of_kops') {
         duelId = clientDuelId || `war_of_kops_${matchId || 'global'}`;
@@ -461,7 +474,8 @@ async function startServer() {
           duelId = existingActiveDuel.id;
         } else {
           // Find a waiting public duel of same type and match
-          const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10 }[type as '1v1' | '2v2' | '5v5'] || 2;
+          const reqPlayersObj = { '1v1': 2, '2v2': 4, '5v5': 10 };
+          const requiredPlayers = (type === 'training' && trainingType === '1v1') ? 2 : (reqPlayersObj[type as '1v1' | '2v2' | '5v5'] || 2);
           const availableDuel = Object.values(duels).find(d => 
             d.type === type && 
             d.status === 'waiting' && 
@@ -486,7 +500,9 @@ async function startServer() {
         duels[duelId] = {
           id: duelId,
           type: type || '1v1',
-          status: (type === 'training' && !isPrivate) ? 'active' : 'waiting',
+          trainingType,
+          invitedUids,
+          status: (type === 'training' && trainingType !== '1v1') ? 'active' : 'waiting',
           progress: 50,
           participants: [],
           historicalParticipants: {},
@@ -518,7 +534,7 @@ async function startServer() {
       // Add participant if not already there
       if (!duel.participants.find(p => p.uid === user.uid)) {
         let team: 'A' | 'B' = 'A';
-        const maxPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 999;
+        const maxPerTeam = (duel.type === 'training' && duel.trainingType === '1v1') ? 1 : ({ '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 999);
         const teamACount = duel.participants.filter(p => p.team === 'A').length;
         const teamBCount = duel.participants.filter(p => p.team === 'B').length;
 
@@ -536,7 +552,7 @@ async function startServer() {
           }
         } else if (duel.type === 'war_of_kops') {
           team = teamACount <= teamBCount ? 'A' : 'B';
-        } else if (duel.type !== 'training') {
+        } else if (duel.type !== 'training' || duel.trainingType === '1v1') {
           if (teamACount < maxPerTeam) team = 'A';
           else if (teamBCount < maxPerTeam) team = 'B';
           else return; // Both teams full
@@ -544,6 +560,26 @@ async function startServer() {
         
         duel.participants.push({ ...user, fanz, team, socketId: socket.id });
         duel.historicalParticipants[user.uid] = { ...user, fanz, team };
+
+        // Send real-time notification to invited friends when the room is initially created by host
+        const isCreator = duel.participants.length === 1 && duel.participants[0].uid === user.uid;
+        if (isCreator && duel.isPrivate && duel.invitedUids && duel.invitedUids.length > 0) {
+          duel.invitedUids.forEach((invitedUid: string) => {
+            const invitedSocketId = userSockets.get(invitedUid);
+            if (invitedSocketId) {
+              io.to(invitedSocketId).emit("duel-invitation", {
+                duelId: duel.id,
+                type: duel.type,
+                trainingType: duel.trainingType,
+                hostPseudo: user.pseudo,
+                matchId: duel.matchId,
+                teamA: duel.teamA,
+                teamB: duel.teamB
+              });
+              console.log(`[Server] Invitation sent to user ${invitedUid} via socket ${invitedSocketId}`);
+            }
+          });
+        }
       }
 
       const participant = duel.participants.find(p => p.uid === user.uid);
@@ -574,7 +610,7 @@ async function startServer() {
         const hasTeamB = duel.participants.some(p => p.team === 'B');
         shouldStart = hasTeamA && hasTeamB;
       } else {
-        const requiredPlayers = { '1v1': 2, '2v2': 4, '5v5': 10, 'training': 1 }[duel.type as string] || 2;
+        const requiredPlayers = (duel.type === 'training' && duel.trainingType === '1v1') ? 2 : ({ '1v1': 2, '2v2': 4, '5v5': 10, 'training': 1 }[duel.type as string] || 2);
         shouldStart = duel.participants.length >= requiredPlayers;
       }
       
@@ -815,7 +851,7 @@ async function startServer() {
           };
         }
 
-        card.effects.forEach((effect: any) => {
+        (card.effects || []).forEach((effect: any) => {
           if (effect.type === 'push_rope' && effect.value && !card.fervorValue) {
             const maxEffectAllowed = Math.max(50, (baseCard.effects?.find((e: any) => e.type === 'push_rope')?.value || 0) * 4); // More balanced limit
             if (effect.value > maxEffectAllowed) {
@@ -905,6 +941,16 @@ async function startServer() {
 
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
+      
+      // Clean up userSockets map
+      for (const [uid, sid] of userSockets.entries()) {
+        if (sid === socket.id) {
+          userSockets.delete(uid);
+          console.log(`[Server] Unregistered user ${uid} of socket ${socket.id}`);
+          break;
+        }
+      }
+
       // Clean up participants
       Object.values(duels).forEach(duel => {
         const index = duel.participants.findIndex(p => p.socketId === socket.id);
@@ -1032,7 +1078,8 @@ async function startServer() {
         const isPublicWaiting = !d.isPrivate && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active'));
         const isUserParticipant = uid && d.participants.some(p => p.uid === uid);
         const isUserWaiting = isUserParticipant && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active'));
-        return isPublicWaiting || isUserWaiting;
+        const isUserInvited = d.isPrivate && uid && d.invitedUids && d.invitedUids.includes(uid) && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active'));
+        return isPublicWaiting || isUserWaiting || isUserInvited;
       })
       .map(d => getSafeDuel(d));
     res.json(waitingDuels);
@@ -1050,8 +1097,20 @@ async function startServer() {
 
   app.get("/api/duels/:matchId", (req, res) => {
     const matchIdStr = req.params.matchId;
+    const uid = req.query.uid as string;
     const activeDuels = Object.values(duels)
-      .filter(d => d.matchId?.toString() === matchIdStr && !d.isPrivate && (d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active')))
+      .filter(d => {
+        const isCorrectMatch = d.matchId?.toString() === matchIdStr;
+        if (!isCorrectMatch) return false;
+        
+        const isWaiting = d.status === 'waiting' || (d.type === 'war_of_kops' && d.status === 'active');
+        if (!isWaiting) return false;
+
+        const isPublic = !d.isPrivate;
+        const isUserInvited = d.isPrivate && uid && d.invitedUids && d.invitedUids.includes(uid);
+        
+        return isPublic || isUserInvited;
+      })
       .map(d => getSafeDuel(d));
     res.json(activeDuels);
   });

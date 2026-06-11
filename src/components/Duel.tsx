@@ -75,8 +75,15 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
   const isInfiniteEnergyActive = user.infiniteEnergyUntil && new Date(user.infiniteEnergyUntil) > new Date();
   const [selectedFanzId, setSelectedFanzId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
-  const [selectedArena, setSelectedArena] = useState<string | null>(initialDuelType && !initialDuelId ? initialDuelType : null);
+  const [selectedArena, setSelectedArena] = useState<string | null>(
+    initialDuelType && !initialDuelId 
+      ? (initialDuelType === 'training' && isPrivate ? 'training_1v1' : initialDuelType) 
+      : null
+  );
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(isPrivate);
+  const [friendsList, setFriendsList] = useState<UserProfile[]>([]);
+  const [invitedFriend, setInvitedFriend] = useState<UserProfile | null>(null);
+  const [loadingFriends, setLoadingFriends] = useState(false);
   const [userFanzs, setUserFanzs] = useState<Fanz[]>([]);
   const [duelConfig, setDuelConfig] = useState<DuelConfig>(DEFAULT_DUEL_CONFIG);
   const [loading, setLoading] = useState(true);
@@ -84,6 +91,41 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
   const [joiningDuelData, setJoiningDuelData] = useState<any | null>(null);
   const [inviteCode, setInviteCode] = useState('');
   const [showDeckError, setShowDeckError] = useState(false);
+
+  useEffect(() => {
+    if (isPrivateMode && friendsList.length === 0) {
+      const fetchFriendsList = async () => {
+        setLoadingFriends(true);
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            if (userData?.friends && userData.friends.length > 0) {
+              const fetchedFriends = await Promise.all(
+                userData.friends.map(async (fuid: string) => {
+                  try {
+                    const friendDoc = await getDoc(doc(db, 'users', fuid));
+                    if (friendDoc.exists()) {
+                      return { uid: fuid, ...friendDoc.data() } as UserProfile;
+                    }
+                  } catch (err) {
+                    console.error("Error fetching friend data:", err);
+                  }
+                  return null;
+                })
+              );
+              setFriendsList(fetchedFriends.filter(Boolean) as UserProfile[]);
+            }
+          }
+        } catch (err) {
+          console.error("Error listing friends for duel manager:", err);
+        } finally {
+          setLoadingFriends(false);
+        }
+      };
+      fetchFriendsList();
+    }
+  }, [isPrivateMode, user.uid, friendsList.length]);
 
   useEffect(() => {
     if (joiningDuelId) {
@@ -214,7 +256,10 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
       return;
     }
 
-    const baseCost = duelConfig.costs[type as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
+    const finalType = type as any === 'training_1v1' ? 'training' : type;
+    const trainingType = type as any === 'training_1v1' ? '1v1' : (type === 'training' ? 'solo' : undefined);
+
+    const baseCost = duelConfig.costs[finalType as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
     const skinBonus = (selectedFanz as any)._skinBonus;
     const energyReductionPct = skinBonus?.energyCostReduction || 0;
     const moneyReductionPct = skinBonus?.moneyCostReduction || 0;
@@ -236,15 +281,16 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
         energy: increment(-effectiveEnergyCost)
       });
 
-      if (costMoney > 0) await logTransaction(user.uid, 'money', -costMoney, `Inscription duel: ${type}`);
-      if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', -effectiveEnergyCost, `Inscription duel: ${type}`);
+      if (costMoney > 0) await logTransaction(user.uid, 'money', -costMoney, `Inscription duel: ${finalType}`);
+      if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', -effectiveEnergyCost, `Inscription duel: ${finalType}`);
 
-      const duelId = joiningDuelId || (type === 'training' ? `training_${user.uid}_${Date.now()}` : `${type}_${matchId}_${Math.random().toString(36).substring(7)}`);
+      const duelId = joiningDuelId || (finalType === 'training' ? `training_${user.uid}_${Date.now()}` : `${finalType}_${matchId}_${Math.random().toString(36).substring(7)}`);
       
       setJoiningDuelId(null);
       setActiveDuel({
         id: duelId,
-        type,
+        type: finalType,
+        trainingType,
         status: 'waiting',
         matchId,
         teamA: teamA,
@@ -253,8 +299,9 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
         participants: [],
         createdAt: new Date().toISOString(),
         isPrivate: joiningDuelData ? joiningDuelData.isPrivate : isPrivateMode,
-        inviteCode: (joiningDuelData && joiningDuelData.inviteCode) ? joiningDuelData.inviteCode : (inviteCode || undefined)
-      });
+        inviteCode: (joiningDuelData && joiningDuelData.inviteCode) ? joiningDuelData.inviteCode : (inviteCode || undefined),
+        invitedUids: isPrivateMode && invitedFriend ? [invitedFriend.uid] : undefined
+      } as any);
     } catch (err) {
       console.error("Error starting duel", err);
     }
@@ -390,12 +437,21 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
+                  { id: 'training_1v1', title: 'Entraînement 1v1', subtitle: '1 VS 1 Amical', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
                   { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
                   { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'background2v2.png', video: 'videoBackground2v2.mp4', fullWidth: false },
                   { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'background5v5.png', video: 'videoBackground5v5.mp4', fullWidth: false },
-                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'backgroundKOP.png', video: 'videoBackgroundKOP.mp4', fullWidth: true }
-                ].filter(arena => isLiveMatch || arena.id === 'training').map(arena => {
-                  const baseCost = duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || { money: 0, energy: 0 };
+                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'backgroundKOP.png', video: 'videoBackgroundKOP.mp4', fullWidth: false }
+                ].filter(arena => {
+                  if (isLiveMatch) {
+                    return arena.id !== 'training' && arena.id !== 'training_1v1';
+                  } else {
+                    return arena.id === 'training' || arena.id === 'training_1v1';
+                  }
+                }).map(arena => {
+                  const baseCost = (duelConfig?.costs[arena.id as keyof typeof duelConfig.costs] || 
+                                    (arena.id === 'training_1v1' ? duelConfig?.costs['training'] : null) || 
+                                    { money: 0, energy: 0 });
                   
                   const skinBonus = (selectedFanz as any)?._skinBonus;
                   const energyReductionPct = skinBonus?.energyCostReduction || 0;
@@ -406,12 +462,19 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
 
                   const baseUrl = 'https://thebestfan.online/img/public/background/';
                   const bgUrl = `${baseUrl}${arena.bg}`;
-                  const videoUrl = arena.video ? `${baseUrl}${arena.video}` : null;
                   
                   return (
                     <button
                       key={arena.id}
-                      onClick={() => setSelectedArena(arena.id)}
+                      onClick={() => {
+                        setSelectedArena(arena.id);
+                        if (arena.id === 'training') {
+                          setIsPrivateMode(false);
+                          setInvitedFriend(null);
+                        } else if (arena.id === 'training_1v1') {
+                          // training 1v1 can be public or private
+                        }
+                      }}
                       className={`relative overflow-hidden rounded-xl border-2 transition-all text-left min-h-[110px] sm:min-h-[130px] group p-0 ${
                         arena.fullWidth ? 'col-span-2' : 'col-span-1'
                       } ${
@@ -444,17 +507,69 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
               </div>
               
               {selectedArena && selectedArena !== 'training' && (
-                <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-black text-white">Duel Privé</h4>
-                    <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-widest">Jouez uniquement avec des amis</p>
+                <div className="space-y-3 mt-4">
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-white">Duel Privé</h4>
+                      <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-widest">Jouez uniquement avec un ami</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const nextMode = !isPrivateMode;
+                        setIsPrivateMode(nextMode);
+                        if (!nextMode) setInvitedFriend(null);
+                      }}
+                      className={`w-12 h-6 rounded-full transition-colors relative ${isPrivateMode ? 'bg-orange-500' : 'bg-gray-600'}`}
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-[4px] transition-transform ${isPrivateMode ? 'left-[26px]' : 'left-[4px]'}`} />
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => setIsPrivateMode(!isPrivateMode)}
-                    className={`w-12 h-6 rounded-full transition-colors relative ${isPrivateMode ? 'bg-orange-500' : 'bg-gray-600'}`}
-                  >
-                    <div className={`w-4 h-4 bg-white rounded-full absolute top-[4px] transition-transform ${isPrivateMode ? 'left-[26px]' : 'left-[4px]'}`} />
-                  </button>
+
+                  {isPrivateMode && (
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-3">
+                      <h4 className="text-xs font-black uppercase text-gray-300 tracking-wider">Inviter un Ami (Notification directe)</h4>
+                      {loadingFriends ? (
+                         <div className="text-xs text-gray-500 font-bold uppercase animate-pulse">Chargement de tes amis...</div>
+                      ) : friendsList.length === 0 ? (
+                         <div className="text-xs text-gray-500 font-bold uppercase italic">Tu n'as pas encore d'amis ajoutés dans l'onglet social.</div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1 no-scrollbar">
+                          {friendsList.map((friend) => {
+                            const isSelected = invitedFriend?.uid === friend.uid;
+                            return (
+                              <div key={friend.uid} className="flex items-center justify-between p-2 rounded-lg bg-black/40 border border-white/5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center font-extrabold text-xs text-orange-500">
+                                    {friend.pseudo?.substring(0, 2).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className="text-xs font-black text-white">{friend.pseudo}</div>
+                                    <div className="text-[8px] font-bold text-gray-400 uppercase">Niveau {friend.level || 1}</div>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setInvitedFriend(isSelected ? null : friend)}
+                                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                                    isSelected 
+                                      ? 'bg-green-600 text-white shadow-md shadow-green-600/20' 
+                                      : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
+                                  }`}
+                                >
+                                  {isSelected ? 'Invité ✓' : 'Inviter'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {invitedFriend && (
+                        <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-[10px] font-bold uppercase text-green-400">
+                          👉 Une notification directe sera envoyée à <strong className="font-extrabold">{invitedFriend.pseudo}</strong> dès le lancement !
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -770,6 +885,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [equippedDeck, setEquippedDeck] = useState<GameCard[]>([]);
   const allCardsRef = useRef<GameCard[]>([]);
   useEffect(() => { allCardsRef.current = allCards; }, [allCards]);
+  const equippedDeckRef = useRef<GameCard[]>([]);
+  useEffect(() => { equippedDeckRef.current = equippedDeck; }, [equippedDeck]);
   const [fanz, setFanz] = useState<Fanz | null>(null);
   const [duelConfig, setDuelConfig] = useState<DuelConfig | null>(null);
 
@@ -1261,14 +1378,17 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           botEnergyRef.current[bot.uid] = Math.min(10, currentEnergy + (duel.type === 'training' ? 1.2 : 0.8)); 
 
           // Random chance to play a card if enough energy
-          if (currentEnergy >= 2 && Math.random() < cardChance && allCards.length > 0) {
+          const currentAllCards = allCardsRef.current;
+          const currentEquippedDeck = equippedDeckRef.current;
+
+          if (currentEnergy >= 2 && Math.random() < cardChance && currentAllCards.length > 0) {
             // Pick a card from the user's exact equipped deck
-            const cardsToPickFrom = equippedDeck.length > 0 ? equippedDeck : allCards;
+            const cardsToPickFrom = currentEquippedDeck.length > 0 ? currentEquippedDeck : currentAllCards;
             
             const card = cardsToPickFrom[Math.floor(Math.random() * cardsToPickFrom.length)];
-            const cost = card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost;
+            const cost = card && typeof card.energyCost === 'number' ? (card.energyCost > 10 ? Math.max(1, Math.round(card.energyCost / 10)) : card.energyCost) : 3;
 
-            if (currentEnergy >= cost) {
+            if (card && currentEnergy >= cost) {
               botEnergyRef.current[bot.uid] -= cost;
               socket.emit('play-card', { 
                 duelId: currentDuelIdRef.current, 
@@ -1609,7 +1729,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                if (costMoney > 0) await logTransaction(user.uid, 'money', costMoney, `Remboursement victoire forfait`);
                if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', effectiveEnergyCost, `Remboursement victoire forfait`);
              }
-          } else if (isBotMatch && !isForfeitMatch) {
+          } else if (isBotMatch && !isForfeitMatch && duelType !== 'training') {
              // Bot Match (not forfeit)
              ferveurGainFanz = 0;
              ferveurGainGeneral = 0;
@@ -4835,14 +4955,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     <p className="text-xs text-red-400 font-bold">Défaite par forfait</p>
                     <p className="text-[10px] text-red-400/80 mt-1">Équipe déconnectée. Mise et points perdus.</p>
                   </div>
+                ) : duel.type === 'training' ? (
+                  <div className="bg-green-500/10 rounded-xl p-3 border border-green-500/20 mb-4 text-left">
+                    <p className="text-xs text-green-400 font-bold uppercase">Entraînement terminé !</p>
+                    <p className="text-[10px] text-green-400/80 mt-1">
+                      {duelResult.isBotMatch 
+                        ? "Entraînement réussi contre le bot. Vous gagnez 5 XP d'entraînement !" 
+                        : "Duel d'entraînement amical terminé !"}
+                    </p>
+                  </div>
                 ) : duelResult.isBotMatch && (
-                  <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/20 mb-4">
+                  <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/20 mb-4 text-left">
                     <p className="text-xs text-orange-400 font-bold">Match contre des Bots</p>
                     <p className="text-[10px] text-orange-400/80 mt-1">Les statistiques et l'XP ne sont pas enregistrées.</p>
                   </div>
                 )}
                 
-                {(!duelResult.isBotMatch || (duelResult.details?.isForfeit && duelResult.isWin)) && (
+                {(!duelResult.isBotMatch || duel.type === 'training' || (duelResult.details?.isForfeit && duelResult.isWin)) && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
                     <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains du Fanz</p>
                     <p className="text-3xl font-black text-yellow-400">+{duelResult.ferveurGain} XP</p>
