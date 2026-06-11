@@ -67,6 +67,30 @@ const BOT_PROFILES = [
   { pseudo: 'Yellow_Wall_Fan', level: 20, photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bot8' }
 ];
 
+const getDistinctTeamColors = (teamA: string, teamB: string) => {
+  const hash = (str: string) => str.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
+  
+  const colors = [
+    { text: 'text-blue-500', bg: 'bg-blue-600', border: 'border-blue-500', shadow: 'shadow-[0_0_20px_rgba(37,99,235,0.8)]', lg: 'from-blue-600', to: 'to-blue-600' },
+    { text: 'text-red-500', bg: 'bg-red-600', border: 'border-red-500', shadow: 'shadow-[0_0_20px_rgba(220,38,38,0.8)]', lg: 'from-red-600', to: 'to-red-600' },
+    { text: 'text-green-500', bg: 'bg-green-600', border: 'border-green-500', shadow: 'shadow-[0_0_20px_rgba(22,163,74,0.8)]', lg: 'from-green-600', to: 'to-green-600' },
+    { text: 'text-purple-500', bg: 'bg-purple-600', border: 'border-purple-500', shadow: 'shadow-[0_0_20px_rgba(147,51,234,0.8)]', lg: 'from-purple-600', to: 'to-purple-600' },
+    { text: 'text-orange-500', bg: 'bg-orange-600', border: 'border-orange-500', shadow: 'shadow-[0_0_20px_rgba(234,88,12,0.8)]', lg: 'from-orange-600', to: 'to-orange-600' },
+    { text: 'text-teal-500', bg: 'bg-teal-600', border: 'border-teal-500', shadow: 'shadow-[0_0_20px_rgba(13,148,136,0.8)]', lg: 'from-teal-600', to: 'to-teal-600' },
+    { text: 'text-pink-500', bg: 'bg-pink-600', border: 'border-pink-500', shadow: 'shadow-[0_0_20px_rgba(219,39,119,0.8)]', lg: 'from-pink-600', to: 'to-pink-600' },
+    { text: 'text-yellow-500', bg: 'bg-yellow-600', border: 'border-yellow-500', shadow: 'shadow-[0_0_20px_rgba(202,138,4,0.8)]', lg: 'from-yellow-600', to: 'to-yellow-600' },
+  ];
+  
+  let indexA = Math.abs(hash(teamA)) % colors.length;
+  let indexB = Math.abs(hash(teamB)) % colors.length;
+  
+  if (indexA === indexB) {
+    indexB = (indexB + 1) % colors.length;
+  }
+  
+  return { colorA: colors[indexA], colorB: colors[indexB] };
+};
+
 export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz, duelLeagueId, duelSeason }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void; duelLeagueId?: string; duelSeason?: string }) {
   const { showAlert } = useAlert();
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
@@ -716,6 +740,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const cardsPlayedCountRef = useRef(0);
   const emotesSentCountRef = useRef(0);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const { colorA, colorB } = React.useMemo(() => getDistinctTeamColors(duel.teamA || 'Team A', duel.teamB || 'Team B'), [duel.teamA, duel.teamB]);
 
   // Persistence: Store/Clear current duel
   useEffect(() => {
@@ -4513,7 +4538,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             <div className="flex justify-between items-center w-full px-2">
               <div className="flex flex-col items-center gap-2 flex-1">
                 <img src={matchDetails.teams.home.logo} alt={matchDetails.teams.home.name} className="w-12 h-12 object-contain drop-shadow-lg" />
-                <span className={`text-lg font-black italic uppercase text-center leading-tight ${progress > 50 ? 'text-orange-500' : 'text-white/80'}`}>{duel.teamA}</span>
+                <span className={`text-lg font-black italic uppercase text-center leading-tight ${progress > 50 ? colorA.text : 'text-white/80'}`}>{duel.teamA}</span>
               </div>
               <div className="flex flex-col items-center px-2">
                 <span className="font-black text-4xl drop-shadow-md">{matchDetails.goals.home ?? 0} - {matchDetails.goals.away ?? 0}</span>
@@ -4523,35 +4548,36 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               </div>
               <div className="flex flex-col items-center gap-2 flex-1">
                 <img src={matchDetails.teams.away.logo} alt={matchDetails.teams.away.name} className="w-12 h-12 object-contain drop-shadow-lg" />
-                <span className={`text-lg font-black italic uppercase text-center leading-tight ${progress < 50 ? 'text-orange-500' : 'text-white/80'}`}>{duel.teamB}</span>
+                <span className={`text-lg font-black italic uppercase text-center leading-tight ${progress < 50 ? colorB.text : 'text-white/80'}`}>{duel.teamB}</span>
               </div>
             </div>
           ) : (
             <div className="flex justify-between items-center w-full px-4 text-2xl font-black italic uppercase">
-              <span className={`text-center flex-1 leading-tight ${progress > 50 ? 'text-orange-500' : 'text-white/80'}`}>{duel.teamA}</span>
+              <span className={`text-center flex-1 leading-tight ${progress > 50 ? colorA.text : 'text-white/80'}`}>{duel.teamA}</span>
               <span className="text-gray-500 px-4 text-sm">VS</span>
-              <span className={`text-center flex-1 leading-tight ${progress < 50 ? 'text-orange-500' : 'text-white/80'}`}>{duel.teamB}</span>
+              <span className={`text-center flex-1 leading-tight ${progress < 50 ? colorB.text : 'text-white/80'}`}>{duel.teamB}</span>
             </div>
           )}
         </div>
 
         {/* Tug of War Bar */}
-        <div className={`w-full max-w-2xl relative h-8 bg-white/10 rounded-full border-2 border-white/20 overflow-hidden transition-opacity duration-500 ${isScoreHidden ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`w-full max-w-2xl relative h-8 ${colorB.bg} rounded-full border-2 border-white/20 overflow-hidden transition-opacity duration-500 ${isScoreHidden ? 'opacity-0' : 'opacity-100'} ${colorB.shadow}`}>
           {/* Center line */}
           <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-white/50 z-10" />
           
           {/* Progress bar */}
           <motion.div 
             animate={{ width: `${progress}%` }}
-            className="h-full bg-orange-600 shadow-[0_0_20px_rgba(255,102,0,0.5)]"
+            className={`h-full ${colorA.bg} ${colorA.shadow}`}
           />
 
           {/* Rope indicator */}
           <motion.div 
             animate={{ left: `${progress}%` }}
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center border-4 border-orange-500 z-20"
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center border-4 z-20 ${progress > 50 ? colorA.border : colorB.border}`}
           >
-            <Swords className="text-orange-600" size={24} />
+            <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${colorA.lg} ${colorB.to} opacity-20`} />
+            <Swords className={progress >= 50 ? colorA.text : colorB.text} size={24} />
           </motion.div>
         </div>
 

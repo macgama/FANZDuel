@@ -10,9 +10,6 @@ import sharp from "sharp";
 import { BASE_CARDS } from "./src/constants/cards.ts";
 import admin from 'firebase-admin';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { initializeApp as initClientApp } from 'firebase/app';
-import { getAuth as getClientAuth, signInAnonymously } from 'firebase/auth';
-import { getFirestore as getClientFirestore, collection as clientCollection, getCountFromServer } from 'firebase/firestore';
 
 dotenv.config();
 
@@ -973,45 +970,6 @@ async function startServer() {
     });
   });
 
-  // Lazy initialisation du SDK Client côté serveur pour fallback en cas d'absence de FIREBASE_SERVICE_ACCOUNT_KEY
-  let clientApp: any = null;
-  let clientDb: any = null;
-  let clientAuth: any = null;
-  let clientAuthPromise: Promise<any> | null = null;
-
-  async function getClientFirebase() {
-    if (clientDb && clientAuth) {
-      return { clientDb, clientAuth };
-    }
-    
-    if (fs.existsSync(configPath)) {
-      try {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        clientApp = initClientApp(config, "server-client-app");
-        clientDb = getClientFirestore(clientApp, config.firestoreDatabaseId);
-        clientAuth = getClientAuth(clientApp);
-        
-        if (!clientAuthPromise) {
-          clientAuthPromise = signInAnonymously(clientAuth)
-            .then((userCred) => {
-              console.log("Server signed in anonymously to pass rules:", userCred.user.uid);
-              return userCred;
-            })
-            .catch((err) => {
-              console.error("Server anonymous login failed:", err.message || err);
-              clientAuthPromise = null;
-              throw err;
-            });
-        }
-        await clientAuthPromise;
-        return { clientDb, clientAuth };
-      } catch (err: any) {
-        console.error("Error setting up server client Firebase fallback:", err.message || err);
-      }
-    }
-    return null;
-  }
-
   // API Routes
   app.get("/api/landing/stats", async (req, res) => {
     const BASE_SUPPORTERS = 0;
@@ -1036,27 +994,6 @@ async function startServer() {
         }
       } catch (err: any) {
         console.warn("Could not fetch real duels count via Admin SDK:", err.message || err);
-      }
-    }
-
-    // Fallback à l'aide de l'application cliente si l'Admin SDK est bloqué ou renvoie 0
-    if (supporters === BASE_SUPPORTERS || duelsTotal === BASE_DUELS) {
-      try {
-        const clientFb = await getClientFirebase();
-        if (clientFb && clientFb.clientDb) {
-          if (supporters === BASE_SUPPORTERS) {
-            const usersColl = clientCollection(clientFb.clientDb, "users");
-            const usersSnap = await getCountFromServer(usersColl);
-            supporters = BASE_SUPPORTERS + (usersSnap.data().count || 0);
-          }
-          if (duelsTotal === BASE_DUELS) {
-            const duelsColl = clientCollection(clientFb.clientDb, "duels");
-            const duelsSnap = await getCountFromServer(duelsColl);
-            duelsTotal = BASE_DUELS + (duelsSnap.data().count || 0);
-          }
-        }
-      } catch (err: any) {
-        console.warn("Fallback stats retrieval failed:", err.message || err);
       }
     }
 
