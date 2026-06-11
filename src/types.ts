@@ -598,6 +598,7 @@ export interface Duel {
   isPrivate?: boolean;
   inviteCode?: string;
   invitedUids?: string[];
+  trainingType?: '1v1' | 'solo';
 }
 
 export interface League {

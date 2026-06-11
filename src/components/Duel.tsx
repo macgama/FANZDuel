@@ -158,14 +158,15 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                   participants: duel.participants,
                   createdAt: duel.createdAt,
                   isPrivate: duel.isPrivate,
-                  inviteCode: duel.inviteCode
+                  inviteCode: duel.inviteCode,
+                  invitedUids: duel.invitedUids
                 });
                 return;
               }
 
               setJoiningDuelData(duel);
               // Auto-select team if only one is available
-              const maxPlayersPerTeam = { '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 999;
+              const maxPlayersPerTeam = (duel.type === 'training' && duel.trainingType === '1v1') ? 1 : ({ '1v1': 1, '2v2': 2, '5v5': 5 }[duel.type as '1v1' | '2v2' | '5v5'] || 999);
               const countA = duel.participants.filter((p: any) => p.team === 'A').length;
               const countB = duel.participants.filter((p: any) => p.team === 'B').length;
               
@@ -300,7 +301,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
         createdAt: new Date().toISOString(),
         isPrivate: joiningDuelData ? joiningDuelData.isPrivate : isPrivateMode,
         inviteCode: (joiningDuelData && joiningDuelData.inviteCode) ? joiningDuelData.inviteCode : (inviteCode || undefined),
-        invitedUids: isPrivateMode && invitedFriend ? [invitedFriend.uid] : undefined
+        invitedUids: joiningDuelData ? joiningDuelData.invitedUids : (isPrivateMode && invitedFriend ? [invitedFriend.uid] : undefined)
       } as any);
     } catch (err) {
       console.error("Error starting duel", err);
@@ -392,7 +393,9 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                 { name: teamA, id: 'A', logo: teamALogo },
                 { name: teamB, id: 'B', logo: teamBLogo }
               ].map(team => {
-                const maxPlayersPerTeam = joiningDuelData ? ({ '1v1': 1, '2v2': 2, '5v5': 5 }[joiningDuelData.type as '1v1' | '2v2' | '5v5'] || 999) : 999;
+                const maxPlayersPerTeam = joiningDuelData 
+                  ? ((joiningDuelData.type === 'training' && joiningDuelData.trainingType === '1v1') ? 1 : ({ '1v1': 1, '2v2': 2, '5v5': 5 }[joiningDuelData.type as '1v1' | '2v2' | '5v5'] || 999)) 
+                  : 999;
                 const currentCount = joiningDuelData ? joiningDuelData.participants.filter((p: any) => p.team === team.id).length : 0;
                 const isFull = currentCount >= maxPlayersPerTeam;
 
@@ -700,6 +703,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   const [status, setStatus] = useState<'waiting' | 'room_full' | 'starting' | 'active' | 'finished'>(duel.status as any);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [inviteCode, setInviteCode] = useState(duel.inviteCode);
+  const [invitedUids, setInvitedUids] = useState<string[]>(duel.invitedUids || []);
   const [participants, setParticipants] = useState<any[]>(duel.participants || []);
   const [currentDuelId, setCurrentDuelIdState] = useState<string>(duel.id);
   const currentDuelIdRef = useRef(duel.id);
@@ -1314,6 +1318,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         user: { uid: user.uid, pseudo: user.pseudo, photoURL: user.photoURL, level: user.level }, 
         fanz, 
         type: duel.type,
+        trainingType: duel.trainingType,
         matchId: duel.matchId,
         team: selectedTeam === teamA ? 'A' : 'B',
         isPrivate: duel.isPrivate,
@@ -1471,20 +1476,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
   }, [socket, isMaster, duel.type, participants, fanz, user.level]);
 
   useEffect(() => {
-    // Automatically launch bots in training
-    if (duel.type === 'training' && (status === 'waiting' || status === 'active') && isMaster && fanz && currentDuelIdRef.current) {
+    // Automatically launch bots in training (only if not training 1v1)
+    if (duel.type === 'training' && duel.trainingType !== '1v1' && (status === 'waiting' || status === 'active') && isMaster && fanz && currentDuelIdRef.current) {
       if (participants.length < 2) {
          // Add a small delay to ensure room is fully created on server before auto-filling
          const timer = setTimeout(fillWithBots, 500);
          return () => clearTimeout(timer);
       }
     }
-  }, [duel.type, status, isMaster, fanz, fillWithBots, participants.length]);
+  }, [duel.type, duel.trainingType, status, isMaster, fanz, fillWithBots, participants.length]);
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleDuelUpdate = (state: { duelId?: string; progress: number; status: any; participants?: any[]; inviteCode?: string; isPrivate?: boolean }) => {
+    const handleDuelUpdate = (state: { duelId?: string; progress: number; status: any; participants?: any[]; inviteCode?: string; isPrivate?: boolean; invitedUids?: string[] }) => {
       setProgress(state.progress);
       setStatus(state.status);
       if (state.duelId) {
@@ -1499,14 +1504,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       if (state.isPrivate !== undefined) {
         setIsPrivate(state.isPrivate);
       }
+      if (state.invitedUids) {
+        setInvitedUids(state.invitedUids);
+      }
     };
 
-    const handleDuelJoined = ({ status, participants, team, duelId: serverDuelId, inviteCode: serverInviteCode }: any) => {
+    const handleDuelJoined = ({ status, participants, team, duelId: serverDuelId, inviteCode: serverInviteCode, invitedUids: serverInvitedUids }: any) => {
       if (status) setStatus(status);
       if (participants) setParticipants(participants);
       if (team) setMyTeam(team);
       if (serverDuelId) setCurrentDuelId(serverDuelId);
       if (serverInviteCode) setInviteCode(serverInviteCode);
+      if (serverInvitedUids) setInvitedUids(serverInvitedUids);
     };
 
     socket.on('duel-joined', handleDuelJoined);
@@ -4440,7 +4449,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   </div>
                 )}
 
-                {inviteCode && (!duel.invitedUids || duel.invitedUids.length === 0) && (
+                {inviteCode && (!invitedUids || invitedUids.length === 0) && (
                   <div className="bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/10 flex flex-col items-center w-full">
                     <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Code d'invitation</span>
                     <div className="text-2xl font-black text-orange-500 tracking-[0.2em] mb-2">{inviteCode}</div>

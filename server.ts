@@ -439,7 +439,8 @@ async function startServer() {
             participants: existingDuel.participants,
             scores: existingDuel.scores,
             isPrivate: existingDuel.isPrivate,
-            inviteCode: existingDuel.inviteCode
+            inviteCode: existingDuel.inviteCode,
+            invitedUids: existingDuel.invitedUids
           });
           return;
         }
@@ -589,7 +590,8 @@ async function startServer() {
           duelId: duel.id, 
           participants: duel.participants,
           inviteCode: duel.inviteCode,
-          isPrivate: duel.isPrivate
+          isPrivate: duel.isPrivate,
+          invitedUids: duel.invitedUids
         });
       }
 
@@ -600,7 +602,8 @@ async function startServer() {
         participants: duel.participants,
         scores: duel.scores,
         inviteCode: duel.inviteCode,
-        isPrivate: duel.isPrivate
+        isPrivate: duel.isPrivate,
+        invitedUids: duel.invitedUids
       });
 
       // Check if duel should start
