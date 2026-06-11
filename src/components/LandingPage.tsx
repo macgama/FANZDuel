@@ -357,7 +357,7 @@ export function LandingPage({
             <img
               src="https://thebestfan.online/img/public/logo/teaser.png"
               alt="The Best Fan Teaser"
-              className="w-full h-auto object-cover max-h-[420px] transition-transform duration-700 group-hover:scale-105"
+              className="w-full h-auto transition-transform duration-700 group-hover:scale-105"
             />
           </motion.div>
 

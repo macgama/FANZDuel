@@ -17,6 +17,7 @@ import {
 import { Layout, Card, Button } from "./components/Layout";
 import { cn, safeLocalStorage, safeSessionStorage } from "./lib/utils";
 import { Auth } from "./components/Auth";
+import { ResetPassword } from "./components/ResetPassword";
 import { AdminZone } from "./components/AdminZone";
 import { MatchesPage } from "./components/MatchesPage";
 import { CompetitionsPage } from "./components/CompetitionsPage";
@@ -140,6 +141,16 @@ function AppContent() {
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [currentDuel, setCurrentDuel] = useState<any>(null);
   const [guestView, setGuestView] = useState<"landing" | "matches">("landing");
+  const [resetCode, setResetCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const oobCode = params.get("oobCode");
+    if (mode === "resetPassword" && oobCode) {
+      setResetCode(oobCode);
+    }
+  }, []);
 
   useEffect(() => {
     // Prevent the mobile back button from exiting the app
@@ -1492,6 +1503,18 @@ function AppContent() {
           </Button>
         </div>
       </Layout>
+    );
+  }
+
+  if (resetCode) {
+    return (
+      <ResetPassword
+        oobCode={resetCode}
+        onClose={() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setResetCode(null);
+        }}
+      />
     );
   }
 

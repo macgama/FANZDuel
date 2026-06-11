@@ -5,7 +5,8 @@ import {
   signInWithEmailAndPassword, 
   fetchSignInMethodsForEmail,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
@@ -28,10 +29,11 @@ const GoogleIcon = () => (
 
 export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   const { showAlert } = useAlert();
-  const [step, setStep] = useState<'initial' | 'login' | 'register'>('initial');
+  const [step, setStep] = useState<'initial' | 'login' | 'register' | 'forgot'>('initial');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pseudo, setPseudo] = useState('');
+  const [resetSuccess, setResetSuccess] = useState(false);
   
   const [teamSearch, setTeamSearch] = useState('');
   const [teamResults, setTeamResults] = useState<any[]>([]);
@@ -121,6 +123,27 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
         setError('La connexion par email n\'est pas activée. Veuillez contacter l\'administrateur.');
       } else {
         setError('Erreur de connexion. Veuillez réessayer.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setResetSuccess(false);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetSuccess(true);
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found') {
+        setError('Aucun compte trouvé avec cette adresse email.');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Adresse email invalide.');
+      } else {
+        setError('Erreur lors de l\'envoi de l\'email de réinitialisation. Veuillez réessayer.');
       }
     } finally {
       setLoading(false);
@@ -306,7 +329,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
     <div className="flex items-center justify-center flex-1 p-4">
       <Card className="w-full max-w-md">
         <h2 className="text-3xl font-black mb-6 text-center italic uppercase tracking-tighter">
-          {step === 'initial' ? 'Rejoindre le Kop' : step === 'login' ? 'Bon retour' : 'Créer un compte'}
+          {step === 'initial' ? 'Rejoindre le Kop' : step === 'login' ? 'Bon retour' : step === 'forgot' ? 'Réinitialisation' : 'Créer un compte'}
         </h2>
         
         {step === 'initial' && (
@@ -371,7 +394,20 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
             </div>
 
             <div>
-              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Mot de passe</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs uppercase font-bold text-gray-400">Mot de passe</label>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setError('');
+                    setResetSuccess(false);
+                    setStep('forgot');
+                  }}
+                  className="text-xs text-orange-500 hover:underline font-bold uppercase transition-colors"
+                >
+                  Mot de passe oublié ?
+                </button>
+              </div>
               <input 
                 type="password" 
                 value={password} 
@@ -398,6 +434,60 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Connexion...' : 'Se connecter'}
+            </Button>
+          </form>
+        )}
+
+        {step === 'forgot' && (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <button 
+                type="button" 
+                onClick={() => {
+                  setError('');
+                  setResetSuccess(false);
+                  setStep('login');
+                }}
+                className="p-1 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <span className="text-sm font-bold text-gray-400">Mot de passe oublié</span>
+            </div>
+
+            <p className="text-xs text-gray-400 leading-relaxed mb-1">
+              Saisissez l'adresse email de votre compte. Nous vous enverrons un lien pour réinitialiser votre mot de passe afin de pouvoir vous reconnecter.
+            </p>
+
+            <div>
+              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Email</label>
+              <input 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="votre@email.com"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:border-orange-500 outline-none"
+                required
+                autoFocus
+              />
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-red-500 text-sm">{error}</p>
+              </div>
+            )}
+
+            {resetSuccess && (
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <p className="text-green-500 text-sm leading-relaxed">
+                  Un email de réinitialisation vous a été envoyé. Vérifiez votre boîte de réception ainsi que vos courriers indésirables (spams) si nécessaire.
+                </p>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Envoi du lien...' : 'Réinitialiser mon mot de passe'}
             </Button>
           </form>
         )}
