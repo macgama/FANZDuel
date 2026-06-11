@@ -2872,7 +2872,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               ? isEquipped
                                 ? "bg-white/5 border-2 border-white/10 opacity-50 grayscale"
                                 : `bg-gradient-to-br ${typeStyle.bg} border-2 ${typeStyle.border}`
-                              : "bg-black/40 border-2 border-white/5 grayscale opacity-30 hover:opacity-50"
+                              : "bg-gradient-to-br from-gray-900 to-black border-2 border-white/15 opacity-75 hover:opacity-100 transition-all duration-300 hover:scale-[1.02]"
                           }`}
                         >
                           {isUnlocked && (
@@ -2893,15 +2893,17 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                             </div>
                           )}
                           {!isUnlocked && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center z-20 p-2 text-center bg-black/60 rounded-xl">
-                              {canAfford ? (
-                                <Unlock className="w-6 h-6 text-green-500 mb-1" />
-                              ) : (
-                                <Lock className="w-6 h-6 text-white/50 mb-1" />
-                              )}
-                              <div className="text-[7px] font-bold text-white uppercase leading-tight">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center z-20 p-2 text-center bg-black/35 rounded-xl backdrop-blur-[0.5px]">
+                              <div className="bg-black/75 p-2 rounded-full border border-white/10 mb-1.5 shadow-lg">
+                                {canAfford ? (
+                                  <Unlock className="w-5 h-5 text-green-500" />
+                                ) : (
+                                  <Lock className="w-5 h-5 text-gray-300" />
+                                )}
+                              </div>
+                              <div className="text-[8px] font-black text-white uppercase leading-tight bg-black/70 px-2 py-1 rounded-md border border-white/5 shadow-md">
                                 {card.price && card.price?.money ? (
-                                  <div className="flex items-center gap-1 mt-1 justify-center">
+                                  <div className="flex items-center gap-1 justify-center">
                                     <img
                                       src={LOGOS.money}
                                       alt="Money"
@@ -3557,8 +3559,10 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                   )}
 
                   {!selectedMuseumCard.isUnlocked && (
-                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-2xl backdrop-blur-sm">
-                      <Lock className="w-24 h-24 text-white/30" />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-2xl">
+                      <div className="bg-black/80 backdrop-blur-md p-4 rounded-full border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.6)] flex items-center justify-center">
+                        <Lock className="w-10 h-10 text-orange-500 animate-pulse" />
+                      </div>
                     </div>
                   )}
                 </motion.div>

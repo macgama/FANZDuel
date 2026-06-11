@@ -1615,9 +1615,17 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
              ferveurGainGeneral = 0;
              disableGlobalUpdates = true;
           } else if (duelType === 'training') {
-            // Pour l'entraînement, gain fixe de 5 points (ne dépend pas du score ni du résultat)
-            ferveurGainFanz = Math.round(5 * xpMultiplier * fervorModMultiplier);
-            ferveurGainGeneral = Math.round(5 * xpMultiplier * fervorModMultiplier);
+            const isAgainstFriend = participants.some(p => p && !p.isBot && p.uid !== user.uid);
+            if (isAgainstFriend) {
+              // Pour l'entraînement contre ami, gain fixe de 10 points pour le vainqueur et 5 pour le perdant
+              const fixedFervor = isWin ? 10 : 5;
+              ferveurGainFanz = Math.round(fixedFervor * xpMultiplier * fervorModMultiplier);
+              ferveurGainGeneral = Math.round(fixedFervor * xpMultiplier * fervorModMultiplier);
+            } else {
+              // Pour l'entraînement solo / bots, gain fixe de 5 points (ne dépend pas du score ni du résultat)
+              ferveurGainFanz = Math.round(5 * xpMultiplier * fervorModMultiplier);
+              ferveurGainGeneral = Math.round(5 * xpMultiplier * fervorModMultiplier);
+            }
             disableGlobalUpdates = true;
           } else if (isWin) {
             // L'XP gagnée est basée sur le score multiplié par le type de duel

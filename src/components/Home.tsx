@@ -64,6 +64,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
   const [templatesMap, setTemplatesMap] = useState<Map<string, FanzTemplate>>(new Map());
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
+  const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
   const [matchScores, setMatchScores] = useState<Record<string, { scoreA: number, scoreB: number }>>({});
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
   const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
@@ -397,16 +398,23 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
 
     let currentMatchIdsStr = "";
     
-    // Fetch some live matches
+    // Fetch some live matches and upcoming matches
     const fetchMatches = async () => {
       try {
-        const liveFixtures = await footballApi.getLiveFixtures();
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const tomorrowStr = format(new Date(Date.now() + 86400000), 'yyyy-MM-dd');
+
+        const [liveFixtures, todayFixtures, tomorrowFixtures] = await Promise.all([
+          footballApi.getLiveFixtures().catch(() => []),
+          footballApi.getFixturesByDate(todayStr).catch(() => []),
+          footballApi.getFixturesByDate(tomorrowStr).catch(() => [])
+        ]);
         
         // Fetch active leagues to filter
         const leaguesSnap = await getDocs(query(collection(db, 'leagues'), where('isActive', '==', true)));
         const activeLeagueIds = leaguesSnap.docs.map(doc => Number(doc.id));
         
-        const filteredFixtures = liveFixtures.filter((f: any) => activeLeagueIds.includes(f.league.id));
+        const filteredFixtures = (liveFixtures || []).filter((f: any) => activeLeagueIds.includes(f.league.id));
 
         // Sort live matches alphabetically by country name, but put favorite teams first
         filteredFixtures.sort((a: any, b: any) => {
@@ -421,6 +429,20 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
         });
         // Show all live matches
         setLiveMatches(filteredFixtures);
+
+        // Filter and sort upcoming
+        const allFetched = [...(todayFixtures || []), ...(tomorrowFixtures || [])];
+        const uniqueUpcomingMap = new Map();
+        allFetched.forEach((f: any) => {
+          if (f && f.fixture && ["NS", "TBD"].includes(f.fixture.status.short) && activeLeagueIds.includes(f.league.id)) {
+            uniqueUpcomingMap.set(f.fixture.id, f);
+          }
+        });
+        const upcomingFiltered = Array.from(uniqueUpcomingMap.values());
+        upcomingFiltered.sort((a: any, b: any) => {
+          return new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime();
+        });
+        setUpcomingMatches(upcomingFiltered);
         
         // Fetch scores for these matches via onSnapshot
         if (filteredFixtures.length > 0) {
@@ -974,6 +996,100 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                 </div>
               );
             })()
+          )}
+
+          {/* SECION MATCHES À VENIR S'IL N'Y A PAS DE MATCH LIVE */}
+          {liveMatches.length === 0 && upcomingMatches.length > 0 && (
+            <div className="px-4 sm:px-[30px] pt-4 border-t border-white/5 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-orange-500 animate-pulse" />
+                  <span className="text-xs font-black uppercase tracking-widest text-white drop-shadow-md">
+                    Matchs à venir
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-gray-400 bg-white/5 py-1 px-2.5 rounded-full border border-white/10 uppercase">
+                  🏆 Mode Entraînement
+                </span>
+              </div>
+
+              {/* Bot Message banner */}
+              <div className="bg-gradient-to-r from-orange-500/10 to-transparent border-l-2 border-orange-500/50 p-2.5 rounded-r-lg mb-3 flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black text-orange-400 uppercase tracking-tight">
+                    Va t'entraîner contre des Bots
+                  </span>
+                  <p className="text-[9px] text-gray-400">
+                    Gagne des points de ferveur à l'entraînement en solo ou défie un ami en 1v1 !
+                  </p>
+                </div>
+                <Users className="w-5 h-5 text-orange-400/40 shrink-0 ml-2" />
+              </div>
+
+              {/* Slider / List of upcoming matches */}
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 snap-x">
+                {upcomingMatches.slice(0, 10).map((match) => {
+                  const dateObj = new Date(match.fixture.date);
+                  const formattedTime = format(dateObj, 'HH:mm');
+                  const formattedDay = format(dateObj, 'dd/MM');
+                  
+                  return (
+                    <div 
+                      key={match.fixture.id} 
+                      className="snap-center shrink-0 w-[240px] bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:border-white/20 transition-all shrink-0 cursor-pointer"
+                      onClick={() => onMatchClick(match.fixture.id)}
+                    >
+                      {/* League info / Date */}
+                      <div className="flex justify-between items-center mb-2.5 border-b border-white/5 pb-1.5">
+                        <span className="text-[8px] font-bold text-gray-400 truncate max-w-[120px] uppercase">
+                          {translateLeagueName(match.league.name)}
+                        </span>
+                        <span className="text-[8px] font-black tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/10 uppercase">
+                          {formattedDay} • {formattedTime}
+                        </span>
+                      </div>
+
+                      {/* Teams */}
+                      <div className="flex flex-col gap-2 mb-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {match.teams.home.logo && (
+                              <img src={match.teams.home.logo} alt="" className="w-4 h-4 object-contain shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                            )}
+                            <span className="text-[10px] font-black text-white uppercase truncate">
+                              {match.teams.home.name}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {match.teams.away.logo && (
+                              <img src={match.teams.away.logo} alt="" className="w-4 h-4 object-contain shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                            )}
+                            <span className="text-[10px] font-black text-white uppercase truncate">
+                              {match.teams.away.name}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <button 
+                        className="w-full bg-orange-600 hover:bg-orange-500 text-white text-[9px] font-black uppercase py-1.5 rounded transition-all text-center flex items-center justify-center gap-1 shadow-md shadow-orange-600/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMatchClick(match.fixture.id);
+                        }}
+                      >
+                        <Swords className="w-3 h-3" />
+                        S'entraîner
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
 

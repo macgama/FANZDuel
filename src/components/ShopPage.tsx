@@ -213,9 +213,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           .filter(c => c.price && (c.price.money || c.price.gems))
           .filter(c => !(profile.cards || []).includes(c.id))
           .filter(c => {
-            // Only show cards if they are linked to our daily active FANZ selection
+            // Only show cards if they are linked to the FANZ currently owned by the USER
             if (c.fanzIds && c.fanzIds.length > 0) {
-              return c.fanzIds.some(fid => dailyFanzIds.includes(fid));
+              return c.fanzIds.some(fid => ownedFanzTemplateIds.includes(fid));
             }
             return false;
           })

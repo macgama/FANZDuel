@@ -486,7 +486,7 @@ async function startServer() {
         duels[duelId] = {
           id: duelId,
           type: type || '1v1',
-          status: type === 'training' ? 'active' : 'waiting',
+          status: (type === 'training' && !isPrivate) ? 'active' : 'waiting',
           progress: 50,
           participants: [],
           historicalParticipants: {},

@@ -498,15 +498,33 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         {/* Buttons */}
         <div className="flex flex-col gap-2 sm:gap-3 mt-4 sm:mt-6">
           {isUpcoming && (
-            <button 
-              className="w-full py-3 sm:py-4 rounded-xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-bold text-xs sm:text-sm uppercase tracking-widest transition-all"
-              onClick={() => handleDuelClick(() => setSelectedDuelType('training'))}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Target className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-                Entraînement Solo
-              </div>
-            </button>
+            <div className="flex flex-col gap-2.5">
+              <button 
+                className="w-full py-3 sm:py-4 rounded-xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-bold text-xs sm:text-sm uppercase tracking-widest transition-all"
+                onClick={() => handleDuelClick(() => {
+                  setIsPrivateDuel(false);
+                  setSelectedDuelType('training');
+                })}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Target className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+                  Entraînement contre des Bots (Solo)
+                </div>
+              </button>
+
+              <button 
+                className="w-full py-3 sm:py-4 rounded-xl border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-white font-bold text-xs sm:text-sm uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(59,130,246,0.15)]"
+                onClick={() => handleDuelClick(() => {
+                  setIsPrivateDuel(true);
+                  setSelectedDuelType('training');
+                })}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                  Entraînement entre Amis (1v1 Privé)
+                </div>
+              </button>
+            </div>
           )}
 
           {isLive && (
