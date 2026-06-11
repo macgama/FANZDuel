@@ -1318,6 +1318,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         team: selectedTeam === teamA ? 'A' : 'B',
         isPrivate: duel.isPrivate,
         inviteCode: duel.inviteCode,
+        invitedUids: duel.invitedUids,
         teamAId,
         teamBId,
         teamA,
@@ -4439,7 +4440,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   </div>
                 )}
 
-                {inviteCode && (
+                {inviteCode && (!duel.invitedUids || duel.invitedUids.length === 0) && (
                   <div className="bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/10 flex flex-col items-center w-full">
                     <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Code d'invitation</span>
                     <div className="text-2xl font-black text-orange-500 tracking-[0.2em] mb-2">{inviteCode}</div>

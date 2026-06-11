@@ -2193,6 +2193,13 @@ function AppContent() {
                 });
               }}
               onOpenStreak={() => setShowStreakModal(true)}
+              onJoinSpecificDuel={(duelId, type, matchId) => {
+                handleDuelIntent(() => {
+                  setJoiningDuel({ id: duelId, type, matchId });
+                  setSelectedMatchId(matchId);
+                  setView("matches");
+                });
+              }}
               onFanzClick={(fanzId, tab) => {
                 setSelectedFanzId(fanzId);
                 if (tab) {

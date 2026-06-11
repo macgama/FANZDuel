@@ -54,11 +54,12 @@ interface HomeProps {
   onLeagueClick?: (leagueId: number, season: number) => void;
   onTeamClick?: (teamId: number, season: number) => void;
   onJoinDuel: (matchId: number, isLive: boolean) => void;
+  onJoinSpecificDuel?: (duelId: string, type: string, matchId: number) => void;
   onOpenStreak: () => void;
   onFanzClick?: (fanzId: string, tab?: 'infos' | 'stats' | 'cards' | 'skins' | 'emotes' | 'rank' | 'ferveur') => void;
 }
 
-export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onOpenStreak, onFanzClick }: HomeProps) {
+export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onJoinSpecificDuel, onOpenStreak, onFanzClick }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [allFanz, setAllFanz] = useState<Fanz[]>([]);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
@@ -522,7 +523,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
 
     const fetchActiveDuels = async () => {
       try {
-        const res = await fetch('/api/duels/all', {
+        const res = await fetch(`/api/duels?uid=${profile.uid}`, {
           headers: {
             'Accept': 'application/json'
           }
@@ -533,7 +534,7 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
             const duelsData = await res.json();
             setActiveDuels(duelsData);
           } else {
-            console.warn("Expected JSON from /api/duels/all, got", contentType);
+            console.warn("Expected JSON from /api/duels, got", contentType);
           }
         }
       } catch (err: any) {
@@ -625,8 +626,33 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
       }
     }
 
+    // Invitations aux Duels Privés reçues
+    const privateInvites = activeDuels.filter(d => 
+      d.isPrivate && 
+      d.invitedUids && 
+      d.invitedUids.includes(profile.uid) && 
+      d.status === 'waiting' &&
+      !d.participants?.some((p: any) => p.uid === profile.uid)
+    );
+
+    privateInvites.forEach(d => {
+      const host = d.participants[0]?.pseudo || 'Un ami';
+      const displayType = d.type === 'training' || d.type === 'training_1v1' ? "amical (?)" : "réel";
+      alerts.push({
+        id: `duel-invite-${d.id}`,
+        message: `${host} t'invite en duel !`,
+        actionTitle: 'Rejoindre',
+        action: () => {
+          if (onJoinSpecificDuel) {
+             onJoinSpecificDuel(d.id, d.type, d.matchId);
+          }
+        },
+        Icon: Swords
+      });
+    });
+
     return alerts;
-  }, [allFanz, activeFanz, profile.money, profile.boostPoints, templatesMap, onNavigate, onFanzClick, dismissedAlertIDs]);
+  }, [allFanz, activeFanz, profile.money, profile.boostPoints, templatesMap, onNavigate, onFanzClick, dismissedAlertIDs, activeDuels, profile.uid, onJoinSpecificDuel]);
 
   return (
     <div className="h-full w-full max-w-[600px] mx-auto bg-transparent relative overflow-hidden flex flex-col font-sans text-white border-x border-white/5 shadow-2xl">

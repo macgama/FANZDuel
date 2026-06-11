@@ -597,6 +597,7 @@ export interface Duel {
   createdAt: string;
   isPrivate?: boolean;
   inviteCode?: string;
+  invitedUids?: string[];
 }
 
 export interface League {
