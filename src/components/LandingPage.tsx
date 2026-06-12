@@ -36,6 +36,8 @@ import {
   TrophyIcon,
 } from "lucide-react";
 
+import { APP_VERSION } from "../version";
+
 interface LandingPageProps {
   onShowLiveScores?: () => void;
   onMatchSelect?: (id: number) => void;
@@ -644,8 +646,9 @@ export function LandingPage({
         </div>
       </section>
 
-      <footer className="py-12 border-t border-white/5 text-center text-[10px] text-gray-600 font-bold uppercase tracking-widest bg-black/20">
-        © 2026 THEBESTFAN.ONLINE - Tous droits réservés
+      <footer className="py-12 border-t border-white/5 text-center flex flex-col items-center justify-center gap-2 text-[10px] text-gray-600 font-bold uppercase tracking-widest bg-black/20">
+        <div>© 2026 THEBESTFAN.ONLINE - Tous droits réservés</div>
+        <div className="text-[8px] opacity-20 mt-2">v{APP_VERSION}</div>
       </footer>
     </div>
   );
