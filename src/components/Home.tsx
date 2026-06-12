@@ -246,39 +246,30 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
 
   const handleInitiateDuel = (targetUser: UserProfile, isLiveInvite: boolean) => {
     let chosenMatch: any = null;
-    
-    // Use the fetched worldCupFixtures or fallback
-    const liveMatches = worldCupFixtures.filter(f => 
-      f.fixture && f.fixture.status && ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short)
-    );
-    const upcomingMatches = worldCupFixtures.filter(f => 
-      f.fixture && f.fixture.status && ['TBD', 'NS'].includes(f.fixture.status.short)
-    );
-    const finishedMatches = worldCupFixtures.filter(f => 
-      f.fixture && (!liveMatches.some(m => m.fixture?.id === f.fixture?.id) && 
-      !upcomingMatches.some(m => m.fixture?.id === f.fixture?.id))
-    );
 
     if (isLiveInvite) {
-      if (liveMatches.length > 0) {
+      if (liveMatches && liveMatches.length > 0) {
         chosenMatch = liveMatches[0];
-      } else if (upcomingMatches.length > 0) {
-        chosenMatch = upcomingMatches[0];
-      } else if (finishedMatches.length > 0) {
-        chosenMatch = finishedMatches[0];
       }
     } else {
-      if (upcomingMatches.length > 0) {
+      // Entraînement 1v1: tous les matchs à venir du jour
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const todayUpcoming = upcomingMatches.filter(f => f.fixture?.date && f.fixture.date.startsWith(todayStr));
+      
+      if (todayUpcoming.length > 0) {
+        chosenMatch = todayUpcoming[0];
+      } else if (upcomingMatches.length > 0) {
+        // Repli sur n'importe quel match à venir si rien aujourd'hui
         chosenMatch = upcomingMatches[0];
-      } else if (liveMatches.length > 0) {
-        chosenMatch = liveMatches[0];
-      } else if (finishedMatches.length > 0) {
-        chosenMatch = finishedMatches[0];
       }
     }
 
     if (!chosenMatch) {
-      alert("Aucun match de la Coupe du Monde n'est disponible pour démarrer le duel.");
+      if (isLiveInvite) {
+        alert("Aucun match en direct n'est disponible pour le moment.");
+      } else {
+        alert("Aucun match à venir n'est programmé pour aujourd'hui.");
+      }
       return;
     }
 
@@ -1850,7 +1841,10 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   </div>
 
                   {/* Duel invitations buttons */}
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+                  <div className={cn(
+                    "grid gap-2 pt-1 border-t border-white/5",
+                    liveMatches && liveMatches.length > 0 ? "grid-cols-2" : "grid-cols-1"
+                  )}>
                     <button
                       onClick={() => handleInitiateDuel(user, false)}
                       className="bg-stone-850 hover:bg-stone-800 text-stone-200 border border-stone-700/60 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-stone-500"
@@ -1858,13 +1852,15 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                       <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span>Entraînement 1v1</span>
                     </button>
-                    <button
-                      onClick={() => handleInitiateDuel(user, true)}
-                      className="bg-emerald-950/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-500/20 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-emerald-500/40"
-                    >
-                      <Swords className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>Duel Réel 1v1</span>
-                    </button>
+                    {liveMatches && liveMatches.length > 0 && (
+                      <button
+                        onClick={() => handleInitiateDuel(user, true)}
+                        className="bg-emerald-950/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-500/20 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-emerald-500/40"
+                      >
+                        <Swords className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>Duel Réel 1v1</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
