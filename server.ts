@@ -678,12 +678,16 @@ async function startServer() {
     socket.on("leave-duel", async ({ duelId, userId }) => {
       const duel = duels[duelId];
       if (duel) {
-        if (duel.status === 'waiting') {
+        if (duel.status === 'waiting' || duel.status === 'room_full') {
           const isParticipant = duel.participants.some(p => p.uid === userId);
           if (isParticipant) {
             duel.participants = duel.participants.filter(p => p.uid !== userId);
             socket.leave(duelId);
-            // Refund is now handled on the client side to avoid PERMISSION_DENIED
+            
+            if (duel.status === 'room_full') {
+              if (duel.timer) clearTimeout(duel.timer);
+              duel.status = 'waiting';
+            }
             
             io.to(duelId).emit("duel-update", { 
               duelId: duel.id, 
@@ -692,7 +696,7 @@ async function startServer() {
               participants: duel.participants 
             });
             
-            if (duel.participants.length === 0) {
+            if (duel.participants.length === 0 && duel.type !== 'war_of_kops') {
                if (duel.timer) clearTimeout(duel.timer);
                delete duels[duelId];
             }
@@ -739,7 +743,7 @@ async function startServer() {
 
     socket.on("cancel-duel", async ({ duelId, userId }) => {
       const duel = duels[duelId];
-      if (duel && duel.status === 'waiting') {
+      if (duel && (duel.status === 'waiting' || duel.status === 'room_full')) {
         const isParticipant = duel.participants.some(p => p.uid === userId);
         if (isParticipant) {
           if (duel.timer) clearTimeout(duel.timer);
@@ -967,11 +971,17 @@ async function startServer() {
         const index = duel.participants.findIndex(p => p.socketId === socket.id);
         if (index !== -1) {
           duel.participants.splice(index, 1);
+          
+          if (duel.status === 'room_full') {
+            if (duel.timer) clearTimeout(duel.timer);
+            duel.status = 'waiting';
+          }
+          
           if (duel.status === 'waiting' && duel.participants.length === 0 && duel.type !== 'war_of_kops') {
             if (duel.timer) clearTimeout(duel.timer);
             delete duels[duel.id];
           } else {
-            io.to(duel.id).emit("duel-update", { duelId: duel.id, participants: duel.participants });
+            io.to(duel.id).emit("duel-update", { duelId: duel.id, participants: duel.participants, status: duel.status });
             if (duel.status === 'active' || duel.status === 'starting') {
                checkAndForfeitDuel(duel.id);
             }
