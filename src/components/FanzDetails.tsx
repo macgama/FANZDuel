@@ -474,9 +474,21 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
     swap_hands: "Échange les mains",
     mimic: "Imite la dernière carte",
     lucky_draw: "Tirage chanceux",
-    vol_ballon: "Vol de Ballon",
-    regard_chien_battu: "Regard de Chien Battu",
-    zoomies_chaos: "Les Zoomies du Chaos",
+    steal_energy: "Vole de l'énergie",
+    cleanse: "Purge les malus",
+    vampirism: "Vampirisme",
+    fog_of_war: "Brouillard de guerre",
+    frenzy: "Frénésie",
+    sabotage: "Sabotage",
+    immunity: "Immunité",
+    critical_strike: "Coup critique",
+    momentum: "Dynamique",
+    overload: "Surcharge",
+    cancel_last_attack: "Annule la dernière attaque",
+    rage_quit_discard: "Défausse de rage",
+    meta_update: "Mise à jour méta",
+    invert_rope: "Inverse la corde",
+    blackout: "Blackout",
     stealth_jacket_flip: "Retournement de Veste Furtif",
     desert_crossing: "La Traversée du Désert",
     half_half_scarf: "L'Écharpe Half-Half",
@@ -495,6 +507,46 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
     prime_goat: "Le Prime (G.O.A.T)",
     attention_swipe: "Perte d'Attention (Swipe)",
     sterile_debate: "Le Débat Stérile sur les Réseaux",
+    curse: "Malédiction",
+    blessing: "Bénédiction",
+    confetti: "Confettis",
+    golden_goal: "But en or",
+    hypnosis: "Hypnose",
+    pacifier_drama: "Drame de la tétine",
+    draw_cards: "Pioche de cartes",
+    mascot_bazooka: "Bazooka de mascotte",
+    steal_best_card: "Vole la meilleure carte",
+    discard_random_cards: "Défausse aléatoire",
+    trade_stickers: "Échange d'autocollants",
+    stun: "Étourdissement",
+    heavy_ball_boost: "Boulet de canon",
+    throat_tackle: "Tacle à la gorge",
+    mammoth_charge: "Charge de mammouth",
+    mascot_bone_drum: "Tambour d'os",
+    scarves_wall: "Mur d'écharpes",
+    virage_host: "Virage hôte",
+    clapping_odin: "Clapping d'Odin",
+    corne_drakkar: "Corne de drakkar",
+    steal_object_card: "Vole une carte objet",
+    parrot_taunt: "Provocation du perroquet",
+    pumpkin_fog: "Brouillard de citrouille",
+    locker_room_curse: "Malédiction de vestiaire",
+    luminescent_standard: "Étendard luminescent",
+    buvette_grail: "Graal de buvette",
+    var_illusion: "Illusion de la VAR",
+    grimoire_chants: "Grimoire des chants",
+    chainsaw_megaphone: "Mégaphone tronçonneuse",
+    burning_seats: "Sièges en feu",
+    var_temporelle: "VAR temporelle",
+    tifo_holographique: "Tifo holographique",
+    capo_megaphone: "Mégaphone du capo",
+    craquage_massif: "Craquage massif",
+    vol_ballon: "Vol de Ballon",
+    regard_chien_battu: "Regard de Chien Battu",
+    zoomies_chaos: "Les Zoomies du Chaos",
+    transfusion_tactique: "Transfusion tactique",
+    eclipse_artificielle: "Éclipse artificielle",
+    coup_d_envoi_13h: "Coup d'envoi 13h"
   };
 
   const statLabels = {
@@ -3054,15 +3106,12 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                         className="text-[5px] font-bold text-gray-400 uppercase flex justify-between"
                                       >
                                         <span>
-                                          {effectLabels[effect.type] ||
-                                            effect.type}
+                                          {effectLabels[effect.type.toLowerCase()] ||
+                                            effect.type.replace(/_/g, ' ')}
                                         </span>
                                         <span className={typeStyle.text}>
                                           {effect.value
                                             ? `+${effect.value}`
-                                            : ""}
-                                          {effect.duration
-                                            ? ` (${effect.duration}s)`
                                             : ""}
                                         </span>
                                       </div>
@@ -3629,15 +3678,10 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                   Bloqué - Acheter
                                 </div>
                                 {card.price && (
-                                  <div className="mt-1 bg-black/85 px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 shadow-md">
-                                    <span className="text-[8px] font-black text-white">
-                                      {card.price.money || card.price.gems || card.price.boostPoints}
-                                    </span>
-                                    <img
-                                      src={card.price.gems ? LOGOS.gems : card.price.boostPoints ? LOGOS.boost : LOGOS.money}
-                                      alt="currency"
-                                      className="w-2.5 h-2.5"
-                                    />
+                                  <div className="mt-1 bg-black/85 px-1.5 py-0.5 rounded border border-white/10 flex flex-wrap justify-center gap-1 shadow-md max-w-full">
+                                    {card.price.money > 0 && <div className="flex items-center gap-0.5"><span className="text-[8px] font-black text-green-300">{card.price.money}</span><img src={LOGOS.money} alt="$" className="w-2.5 h-2.5" /></div>}
+                                    {card.price.gems > 0 && <div className="flex items-center gap-0.5"><span className="text-[8px] font-black text-blue-300">{card.price.gems}</span><img src={LOGOS.gems} alt="Gemmes" className="w-2.5 h-2.5" /></div>}
+                                    {card.price.boostPoints > 0 && <div className="flex items-center gap-0.5"><span className="text-[8px] font-black text-orange-300">{card.price.boostPoints}</span><span className="text-[8px]">🚀</span></div>}
                                   </div>
                                 )}
                               </div>
@@ -3741,10 +3785,9 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               key={i}
                               className={`text-sm font-black ${cardTypeStyles[selectedMuseumCard.card.type]?.text || "text-white"} bg-white/5 px-2 py-1 rounded uppercase tracking-wider`}
                             >
-                              {effectLabels[effect.type] || effect.type}{" "}
+                              {effectLabels[effect.type.toLowerCase()] || effect.type.replace(/_/g, ' ')}{" "}
                               {effect.value && effect.value > 0 ? "+" : ""}
-                              {effect.value}
-                              {effect.duration && ` (${effect.duration}s)`}
+                              {effect.value !== undefined && effect.value !== 0 ? effect.value : ""}
                             </div>
                           ))}
                         </div>
@@ -3785,21 +3828,16 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                             });
                           }}
                           disabled={!selectedMuseumCard.canAfford}
-                          className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black uppercase py-4 text-base shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                          className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black uppercase py-4 text-base flex flex-col justify-center items-center shadow-[0_0_20px_rgba(34,197,94,0.3)] disabled:from-gray-700 disabled:to-gray-800"
                         >
-                          {selectedMuseumCard.canAfford ? (
-                            <>
-                              Débloquer pour{" "}
-                              {selectedMuseumCard.card.price.money}{" "}
-                              <img
-                                src={LOGOS.money}
-                                alt="Money"
-                                className="w-4 h-4 ml-1 inline-block"
-                              />
-                            </>
-                          ) : (
-                            "Fonds insuffisants"
-                          )}
+                          <span className="flex items-center gap-1.5 leading-none">
+                            {selectedMuseumCard.canAfford ? "DÉBLOQUER POUR :" : "FONDS INSUFFISANTS :"}
+                          </span>
+                          <span className="flex items-center gap-2 mt-1 whitespace-nowrap overflow-x-auto no-scrollbar">
+                            {selectedMuseumCard.card.price?.money > 0 && <span className="flex items-center gap-0.5 text-green-300 drop-shadow-md"><span className="text-sm">{selectedMuseumCard.card.price.money}</span> <img src={LOGOS.money} alt="" className="w-3 h-3" /></span>}
+                            {selectedMuseumCard.card.price?.gems > 0 && <span className="flex items-center gap-0.5 text-blue-300 drop-shadow-md"><span className="text-sm">{selectedMuseumCard.card.price.gems}</span> <img src={LOGOS.gems} alt="" className="w-3 h-3" /></span>}
+                            {selectedMuseumCard.card.price?.boostPoints > 0 && <span className="flex items-center gap-0.5 text-orange-300 drop-shadow-md"><span className="text-sm">{selectedMuseumCard.card.price.boostPoints}</span> 🚀</span>}
+                          </span>
                         </Button>
                       ) : (
                         selectedMuseumCard.requirements.length > 0 && (
@@ -4101,7 +4139,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                   </>
                 ) : (
                   <>
-                    {purchaseConfirm.item.price?.money > 0 && (
+                    {purchaseConfirm.item.price && (
                       <Button
                         onClick={() =>
                           purchaseConfirm.type === "skin"
@@ -4112,36 +4150,26 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                         }
                         disabled={
                           purchasing ||
-                          (userProfile?.money || 0) <
-                            purchaseConfirm.item.price.money
+                          (purchaseConfirm.item.price?.money > 0 && (userProfile?.money || 0) < purchaseConfirm.item.price.money) ||
+                          (purchaseConfirm.item.price?.gems > 0 && (userProfile?.gems || 0) < purchaseConfirm.item.price.gems) ||
+                          (purchaseConfirm.item.price?.boostPoints > 0 && (userProfile?.boostPoints || 0) < purchaseConfirm.item.price.boostPoints)
                         }
-                        className="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase text-lg py-5 shadow-lg shadow-green-900/50"
+                        className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black uppercase text-base sm:text-lg py-4 sm:py-5 shadow-lg shadow-green-900/50 flex flex-col items-center justify-center disabled:from-gray-700 disabled:to-gray-800"
                       >
-                        {purchasing
-                          ? "Achat en cours..."
-                          : `Acheter pour ${purchaseConfirm.item.price.money} $`}
-                      </Button>
-                    )}
-
-                    {purchaseConfirm.item.price?.gems > 0 && (
-                      <Button
-                        onClick={() =>
-                          purchaseConfirm.type === "skin"
-                            ? handleBuySkin(purchaseConfirm.item)
-                            : purchaseConfirm.type === "emote"
-                              ? handleBuyEmote(purchaseConfirm.item)
-                              : handleBuyCard(purchaseConfirm.item)
-                        }
-                        disabled={
-                          purchasing ||
-                          (userProfile?.gems || 0) <
-                            purchaseConfirm.item.price.gems
-                        }
-                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black uppercase text-lg py-5 shadow-lg shadow-blue-900/50"
-                      >
-                        {purchasing
-                          ? "Achat en cours..."
-                          : `Acheter pour ${purchaseConfirm.item.price.gems} Gemmes`}
+                        {purchasing ? (
+                          "ACHAT EN COURS..."
+                        ) : (
+                          <>
+                            <span className="flex items-center gap-1.5 leading-none">
+                              ACHETER POUR :
+                            </span>
+                            <span className="flex items-center justify-center gap-3 mt-1.5 whitespace-nowrap overflow-x-auto no-scrollbar">
+                              {purchaseConfirm.item.price?.money > 0 && <span className="flex items-center gap-1 text-green-300 drop-shadow-md"><span className="text-base">{purchaseConfirm.item.price.money}</span> <img src={LOGOS.money} alt="$" className="w-4 h-4" /></span>}
+                              {purchaseConfirm.item.price?.gems > 0 && <span className="flex items-center gap-1 text-blue-300 drop-shadow-md"><span className="text-base">{purchaseConfirm.item.price.gems}</span> <img src={LOGOS.gems} alt="Gemmes" className="w-4 h-4" /></span>}
+                              {purchaseConfirm.item.price?.boostPoints > 0 && <span className="flex items-center gap-1 text-orange-300 drop-shadow-md"><span className="text-base">{purchaseConfirm.item.price.boostPoints}</span> 🚀</span>}
+                            </span>
+                          </>
+                        )}
                       </Button>
                     )}
 

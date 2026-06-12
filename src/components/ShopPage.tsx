@@ -553,21 +553,32 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       );
     }
 
-    // If the item has a full price object, we can render both if they exist
     if (item && item.fullPrice) {
-      const hasMoney = item.fullPrice.money > 0;
-      const hasGems = item.fullPrice.gems > 0;
+      const parts = [];
+      if (item.fullPrice.money > 0) parts.push({ type: 'money', value: item.fullPrice.money });
+      if (item.fullPrice.gems > 0) parts.push({ type: 'gems', value: item.fullPrice.gems });
+      if (item.fullPrice.boost > 0 || item.fullPrice.boostPoints > 0) parts.push({ type: 'boost', value: item.fullPrice.boost || item.fullPrice.boostPoints });
 
-      if (hasMoney && hasGems) {
+      if (parts.length > 0) {
         return (
           <button 
             onClick={() => setSelectedItem(item)}
-            className="w-full font-black uppercase text-[10px] bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white mt-3 py-2 px-3 rounded-lg whitespace-nowrap transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full font-black uppercase text-[10px] sm:text-[11px] bg-gradient-to-r from-stone-800 to-stone-700 hover:from-stone-700 hover:to-stone-600 text-white mt-3 py-2 px-2 rounded-lg whitespace-nowrap transition-all duration-200 border border-white/10"
           >
-            <span className="flex items-center justify-center gap-1 sm:gap-1.5">
-              <span className="flex items-center gap-0.5">{item.fullPrice.money} <span>$</span></span>
-              <span>+</span>
-              <span className="flex items-center gap-0.5">{item.fullPrice.gems} <img src={LOGOS.gems} alt="" className="w-3 h-3 drop-shadow-md" /></span>
+            <span className="flex items-center justify-center gap-2">
+              {parts.map((p, idx) => (
+                <span key={p.type} className="flex items-center gap-0.5 leading-none">
+                  <span className={cn(
+                    "font-black text-xs",
+                    p.type === 'gems' ? 'text-blue-400' : p.type === 'money' ? 'text-green-400' : 'text-orange-400'
+                  )}>
+                    {p.value}
+                  </span>
+                  {p.type === 'gems' && <img src={LOGOS.gems} alt="" className="w-3.5 h-3.5 drop-shadow-md" />}
+                  {p.type === 'money' && <span className="text-green-400 font-black text-xs">$</span>}
+                  {p.type === 'boost' && <span className="text-orange-400 text-xs">🚀</span>}
+                </span>
+              ))}
             </span>
           </button>
         );
@@ -589,7 +600,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           {price} 
           {currency === 'gems' && <img src={LOGOS.gems} alt="" className="w-3 h-3 drop-shadow-md" />}
           {currency === 'money' && <span>$</span>}
-          {currency === 'boost' && <span>Boosts</span>}
+          {currency === 'boost' && <span>🚀</span>}
         </span>
       </button>
     );
