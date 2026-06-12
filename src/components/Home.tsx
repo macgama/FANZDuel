@@ -69,6 +69,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
   const [showOnlineModal, setShowOnlineModal] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<UserProfile[]>([]);
   const [loadingOnlineUsers, setLoadingOnlineUsers] = useState(false);
+  const [matchSelectionUser, setMatchSelectionUser] = useState<UserProfile | null>(null);
+  const [matchSelectionType, setMatchSelectionType] = useState<'training' | '1v1' | null>(null);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
   const [templatesMap, setTemplatesMap] = useState<Map<string, FanzTemplate>>(new Map());
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
@@ -245,38 +247,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
   };
 
   const handleInitiateDuel = (targetUser: UserProfile, isLiveInvite: boolean) => {
-    let chosenMatch: any = null;
-
-    if (isLiveInvite) {
-      if (liveMatches && liveMatches.length > 0) {
-        chosenMatch = liveMatches[0];
-      }
-    } else {
-      // Entraînement 1v1: tous les matchs à venir du jour
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
-      const todayUpcoming = upcomingMatches.filter(f => f.fixture?.date && f.fixture.date.startsWith(todayStr));
-      
-      if (todayUpcoming.length > 0) {
-        chosenMatch = todayUpcoming[0];
-      } else if (upcomingMatches.length > 0) {
-        // Repli sur n'importe quel match à venir si rien aujourd'hui
-        chosenMatch = upcomingMatches[0];
-      }
-    }
-
-    if (!chosenMatch) {
-      if (isLiveInvite) {
-        alert("Aucun match en direct n'est disponible pour le moment.");
-      } else {
-        alert("Aucun match à venir n'est programmé pour aujourd'hui.");
-      }
-      return;
-    }
-
-    if (onStartDirectDuel) {
-      onStartDirectDuel(chosenMatch.fixture.id, isLiveInvite ? '1v1' : 'training', targetUser);
-      setShowOnlineModal(false);
-    }
+    setMatchSelectionUser(targetUser);
+    setMatchSelectionType(isLiveInvite ? '1v1' : 'training');
   };
 
   const getRelationStatus = (targetUser: UserProfile) => {
@@ -1737,17 +1709,44 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
         
         {/* Header */}
         <div className="p-5 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-400 font-sans">
-              Supporters en ligne ({onlineUsers.length})
-            </h2>
-          </div>
+          {matchSelectionUser ? (
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => {
+                  setMatchSelectionUser(null);
+                  setMatchSelectionType(null);
+                }}
+                className="text-stone-400 hover:text-white p-1 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                title="Retour aux supporters"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h2 className="text-xs font-black uppercase tracking-wider text-amber-500 font-sans leading-none mb-1">
+                  Défi : {matchSelectionUser.pseudo}
+                </h2>
+                <p className="text-[9px] text-stone-400 font-bold font-mono uppercase tracking-widest">
+                  {matchSelectionType === '1v1' ? '⚡️ Duel Réel Live' : '🎯 Entraînement'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-400 font-sans">
+                Supporters en ligne ({onlineUsers.length})
+              </h2>
+            </div>
+          )}
           <button
-            onClick={() => setShowOnlineModal(false)}
+            onClick={() => {
+              setShowOnlineModal(false);
+              setMatchSelectionUser(null);
+              setMatchSelectionType(null);
+            }}
             className="text-white/50 hover:text-white p-1 hover:bg-white/5 rounded-full transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -1755,123 +1754,254 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[250px] max-h-[60vh]">
-          {loadingOnlineUsers && onlineUsers.length === 0 ? (
-            <div className="h-48 flex flex-col items-center justify-center space-y-2">
-              <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-              <p className="text-xs text-white/50 font-mono">Recherche de supporters...</p>
-            </div>
-          ) : onlineUsers.length === 0 ? (
-            <div className="h-48 flex flex-col items-center justify-center text-center p-6 space-y-4">
-              <p className="text-sm text-stone-400">
-                Tu es le seul supporter en ligne en ce moment.
-              </p>
-              <button
-                onClick={handleShareInvite}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded-xl font-bold transition-all shadow-md shadow-emerald-950/40 cursor-pointer active:scale-95"
-              >
-                Inviter des Amis à Jouer
-              </button>
-            </div>
-          ) : (
-            onlineUsers.map((user) => {
-              const relation = getRelationStatus(user);
+        {matchSelectionUser ? (
+          (() => {
+            const isLive = matchSelectionType === '1v1';
+            let displayMatches: any[] = [];
+            if (isLive) {
+              displayMatches = liveMatches || [];
+            } else {
+              const todayStr = format(new Date(), 'yyyy-MM-dd');
+              const todayUpcoming = (upcomingMatches || []).filter(f => f.fixture?.date && f.fixture.date.startsWith(todayStr));
+              displayMatches = todayUpcoming.length > 0 ? todayUpcoming : (upcomingMatches || []);
+            }
+
+            if (displayMatches.length === 0) {
               return (
-                <div key={user.uid} className="bg-stone-800/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 hover:border-white/10 transition-colors">
-                  <div className="flex items-center justify-between">
-                    {/* User Profile Info */}
-                    <div className="flex items-center gap-2.5">
-                      <div className="relative">
-                        {user.photoURL ? (
-                          <img 
-                            src={getImageUrl(user.photoURL)} 
-                            alt={user.pseudo} 
-                            className="w-10 h-10 rounded-full object-cover border border-white/20 shadow-sm"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white text-sm border border-white/20 shadow-sm">
-                            {user.pseudo ? user.pseudo.substring(0, 2).toUpperCase() : "SP"}
+                <div className="h-48 flex flex-col items-center justify-center text-center p-6 space-y-4">
+                  <p className="text-sm text-stone-400">
+                    {isLive 
+                      ? "Aucun match n'est en direct pour le moment pour lancer un duel."
+                      : "Aucun match à venir n'est disponible aujourd'hui pour l'entraînement."
+                    }
+                  </p>
+                  <button
+                    onClick={() => {
+                      setMatchSelectionUser(null);
+                      setMatchSelectionType(null);
+                    }}
+                    className="bg-stone-850 hover:bg-stone-800 text-xs px-4 py-2 rounded-xl font-bold transition-all border border-stone-700/60 text-stone-200 cursor-pointer active:scale-95 duration-100"
+                  >
+                    Retour aux supporters
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[250px] max-h-[60vh] no-scrollbar">
+                <p className="text-[10px] text-stone-400 font-mono mb-2 uppercase text-center tracking-wider font-bold">
+                  Sélectionne un match pour initier le défi :
+                </p>
+                <div className="space-y-2.5 pb-2">
+                  {displayMatches.map((match) => {
+                    const dateObj = new Date(match.fixture.date);
+                    const timeStr = format(dateObj, 'HH:mm');
+                    const leagueName = match.league ? match.league.name : "";
+                    const isMatchLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(match.fixture?.status?.short);
+
+                    return (
+                      <button
+                        key={match.fixture.id}
+                        onClick={() => {
+                          if (onStartDirectDuel && matchSelectionUser && matchSelectionType) {
+                            onStartDirectDuel(match.fixture.id, matchSelectionType, matchSelectionUser);
+                            setShowOnlineModal(false);
+                            setMatchSelectionUser(null);
+                            setMatchSelectionType(null);
+                          }
+                        }}
+                        className="w-full text-left bg-stone-800/40 border border-white/5 rounded-xl p-3.5 flex flex-col gap-2.5 hover:bg-stone-800/90 hover:border-emerald-500/40 active:border-emerald-500 transition-all duration-200 cursor-pointer group shadow-sm"
+                      >
+                        {/* Competition context */}
+                        <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono border-b border-white/5 pb-1.5 group-hover:text-emerald-300 transition-colors">
+                          <span className="truncate max-w-[70%] font-semibold uppercase">{leagueName}</span>
+                          {isMatchLive ? (
+                            <span className="text-emerald-400 font-extrabold flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              LIVE {match.fixture?.status?.elapsed}'
+                            </span>
+                          ) : (
+                            <span>Aujourd'hui à {timeStr}</span>
+                          )}
+                        </div>
+
+                        {/* Match Opponents */}
+                        <div className="grid grid-cols-7 items-center gap-1 py-1">
+                          {/* Home Team */}
+                          <div className="col-span-3 flex flex-col items-center text-center gap-1.5">
+                            {match.teams?.home?.logo && (
+                              <img 
+                                src={getImageUrl(match.teams.home.logo, 50)} 
+                                alt="" 
+                                className="w-10 h-10 object-contain shadow-sm group-hover:scale-105 transition-transform" 
+                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                referrerPolicy="no-referrer"
+                              />
+                            )}
+                            <span className="text-xs font-bold leading-tight line-clamp-1 text-stone-200 group-hover:text-white transition-colors">
+                              {match.teams?.home?.name}
+                            </span>
                           </div>
-                        )}
-                        <div className="absolute -bottom-1 -right-1 bg-amber-500 text-[9px] font-black text-stone-950 px-1 rounded-full border border-stone-900 shadow-sm">
-                          N.{user.level || 1}
+
+                          {/* Mid Status Score */}
+                          <div className="col-span-1 flex flex-col items-center justify-center">
+                            {isMatchLive && match.goals ? (
+                              <div className="bg-stone-900 border border-emerald-500/25 px-2 py-1 rounded-md text-sm font-black text-emerald-400 font-mono">
+                                {match.goals.home ?? 0}-{match.goals.away ?? 0}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] font-black tracking-wider text-stone-500 font-mono text-center">
+                                VS
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Away Team */}
+                          <div className="col-span-3 flex flex-col items-center text-center gap-1.5">
+                            {match.teams?.away?.logo && (
+                              <img 
+                                src={getImageUrl(match.teams.away.logo, 50)} 
+                                alt="" 
+                                className="w-10 h-10 object-contain shadow-sm group-hover:scale-105 transition-transform" 
+                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                referrerPolicy="no-referrer"
+                              />
+                            )}
+                            <span className="text-xs font-bold leading-tight line-clamp-1 text-stone-200 group-hover:text-white transition-colors">
+                              {match.teams?.away?.name}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()
+        ) : (
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[250px] max-h-[60vh]">
+            {loadingOnlineUsers && onlineUsers.length === 0 ? (
+              <div className="h-48 flex flex-col items-center justify-center space-y-2">
+                <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                <p className="text-xs text-white/50 font-mono">Recherche de supporters...</p>
+              </div>
+            ) : onlineUsers.length === 0 ? (
+              <div className="h-48 flex flex-col items-center justify-center text-center p-6 space-y-4">
+                <p className="text-sm text-stone-400">
+                  Tu es le seul supporter en ligne en ce moment.
+                </p>
+                <button
+                  onClick={handleShareInvite}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded-xl font-bold transition-all shadow-md shadow-emerald-950/40 cursor-pointer active:scale-95"
+                >
+                  Inviter des Amis à Jouer
+                </button>
+              </div>
+            ) : (
+              onlineUsers.map((user) => {
+                const relation = getRelationStatus(user);
+                return (
+                  <div key={user.uid} className="bg-stone-800/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 hover:border-white/10 transition-colors">
+                    <div className="flex items-center justify-between">
+                      {/* User Profile Info */}
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative">
+                          {user.photoURL ? (
+                            <img 
+                              src={getImageUrl(user.photoURL)} 
+                              alt={user.pseudo} 
+                              className="w-10 h-10 rounded-full object-cover border border-white/20 shadow-sm"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white text-sm border border-white/20 shadow-sm">
+                              {user.pseudo ? user.pseudo.substring(0, 2).toUpperCase() : "SP"}
+                            </div>
+                          )}
+                          <div className="absolute -bottom-1 -right-1 bg-amber-500 text-[9px] font-black text-stone-950 px-1 rounded-full border border-stone-900 shadow-sm">
+                            N.{user.level || 1}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="font-bold text-sm text-stone-100 flex items-center gap-1.5">
+                            {user.pseudo}
+                          </div>
+                          <div className="text-[10px] text-emerald-400 font-medium font-mono">
+                            ● Actif en jeu
+                          </div>
                         </div>
                       </div>
-                      
+
+                      {/* Friend Add Button */}
                       <div>
-                        <div className="font-bold text-sm text-stone-100 flex items-center gap-1.5">
-                          {user.pseudo}
-                        </div>
-                        <div className="text-[10px] text-emerald-400 font-medium font-mono">
-                          ● Actif en jeu
-                        </div>
+                        {relation === 'friends' ? (
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">
+                            <UserCheck className="w-3.5 h-3.5" />
+                            Ami ✓
+                          </div>
+                        ) : relation === 'sent' ? (
+                          <div className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-400/20">
+                            Invité...
+                          </div>
+                        ) : relation === 'received' ? (
+                          <button
+                            onClick={() => acceptFriendRequest(user)}
+                            className="flex items-center gap-1 text-[10px] font-bold text-stone-950 bg-emerald-400 hover:bg-emerald-300 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                          >
+                            Accepter
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => sendFriendRequest(user)}
+                            className="flex items-center gap-1 text-[10px] font-bold text-stone-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg border border-white/10 transition-colors cursor-pointer active:scale-95"
+                            title="Demander en ami"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            Ajouter
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Friend Add Button */}
-                    <div>
-                      {relation === 'friends' ? (
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">
-                          <UserCheck className="w-3.5 h-3.5" />
-                          Ami ✓
-                        </div>
-                      ) : relation === 'sent' ? (
-                        <div className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-400/20">
-                          Invité...
-                        </div>
-                      ) : relation === 'received' ? (
+                    {/* Duel invitations buttons */}
+                    <div className={cn(
+                      "grid gap-2 pt-1 border-t border-white/5",
+                      liveMatches && liveMatches.length > 0 ? "grid-cols-2" : "grid-cols-1"
+                    )}>
+                      <button
+                        onClick={() => handleInitiateDuel(user, false)}
+                        className="bg-stone-855 hover:bg-stone-800 text-stone-200 border border-stone-700/60 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-stone-500"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>Entraînement 1v1</span>
+                      </button>
+                      {liveMatches && liveMatches.length > 0 && (
                         <button
-                          onClick={() => acceptFriendRequest(user)}
-                          className="flex items-center gap-1 text-[10px] font-bold text-stone-950 bg-emerald-400 hover:bg-emerald-300 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                          onClick={() => handleInitiateDuel(user, true)}
+                          className="bg-emerald-950/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-500/20 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-emerald-500/40"
                         >
-                          Accepter
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => sendFriendRequest(user)}
-                          className="flex items-center gap-1 text-[10px] font-bold text-stone-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg border border-white/10 transition-colors cursor-pointer active:scale-95"
-                          title="Demander en ami"
-                        >
-                          <UserPlus className="w-3.5 h-3.5" />
-                          Ajouter
+                          <Swords className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>Duel Réel 1v1</span>
                         </button>
                       )}
                     </div>
                   </div>
-
-                  {/* Duel invitations buttons */}
-                  <div className={cn(
-                    "grid gap-2 pt-1 border-t border-white/5",
-                    liveMatches && liveMatches.length > 0 ? "grid-cols-2" : "grid-cols-1"
-                  )}>
-                    <button
-                      onClick={() => handleInitiateDuel(user, false)}
-                      className="bg-stone-850 hover:bg-stone-800 text-stone-200 border border-stone-700/60 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-stone-500"
-                    >
-                      <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span>Entraînement 1v1</span>
-                    </button>
-                    {liveMatches && liveMatches.length > 0 && (
-                      <button
-                        onClick={() => handleInitiateDuel(user, true)}
-                        className="bg-emerald-950/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-500/20 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-emerald-500/40"
-                      >
-                        <Swords className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>Duel Réel 1v1</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                );
+              })
+            )}
+          </div>
+        )}
 
         {/* Footer info banner */}
         <div className="p-4 border-t border-white/5 bg-stone-950/40 text-center rounded-b-2xl">
           <p className="text-[10px] text-stone-400 font-mono">
-            * Les duels d'entraînement et réels sont lancés en mode privé exclusif.
+            {matchSelectionUser 
+              ? "* Le duel démarrera dès la sélection du match avec ton défi privé."
+              : "* Les duels d'entraînement et réels sont lancés en mode privé exclusif."
+            }
           </p>
         </div>
       </div>
