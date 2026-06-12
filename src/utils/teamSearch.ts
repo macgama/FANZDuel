@@ -1,3 +1,5 @@
+import { reverseTranslateCountryName, getEnglishCountrySearch } from './countryTranslations';
+
 export const TEAM_ALIASES: Record<string, string[]> = {
   // Germany
   "Bayern Munich": ["Bayern München", "Munich", "München", "Munique", "Bavaria"],
@@ -107,6 +109,17 @@ export function getSearchVariations(searchTerm: string): string[] {
   const normalizedSearch = normalizeString(searchTerm);
   const variations = new Set<string>();
   variations.add(searchTerm);
+
+  const reverseCountry = reverseTranslateCountryName(searchTerm);
+  if (reverseCountry !== searchTerm) {
+    variations.add(reverseCountry);
+  }
+
+  // Add all other matching English names via the partial French matched translation search
+  const countryMatches = getEnglishCountrySearch(searchTerm);
+  countryMatches.forEach(match => {
+    variations.add(match);
+  });
 
   for (const [key, aliases] of Object.entries(TEAM_ALIASES)) {
     const allVariations = [key, ...aliases].map(normalizeString);

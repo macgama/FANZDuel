@@ -16,6 +16,7 @@ import { AdminPassesTable } from './AdminPassesTable';
 import { BASE_CARDS } from '../constants/cards';
 import { ALL_FANZ } from '../constants/fanz';
 import { LOGOS } from '../constants';
+import { translateCountryName } from '../utils/countryTranslations';
 
 import { footballDataService } from '../services/footballDataService';
 
@@ -2164,16 +2165,16 @@ export function AdminZone() {
   };
 
   const filteredLeagues = leagues
-    .filter(l => l.league.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.country.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(l => l.league.name.toLowerCase().includes(searchTerm.toLowerCase()) || translateCountryName(l.country.name).toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
       let valA, valB;
       switch (leagueSort.column) {
         case 'id': valA = a.league.id; valB = b.league.id; break;
         case 'name': valA = a.league.name; valB = b.league.name; break;
-        case 'country': valA = a.country.name; valB = b.country.name; break;
+        case 'country': valA = translateCountryName(a.country.name); valB = translateCountryName(b.country.name); break;
         case 'season': valA = getSeasonStatusValue(a, selectedSeason); valB = getSeasonStatusValue(b, selectedSeason); break;
         case 'status': valA = a.league.isActive ? 1 : 0; valB = b.league.isActive ? 1 : 0; break;
-        default: valA = a.country.name; valB = b.country.name; break;
+        default: valA = translateCountryName(a.country.name); valB = translateCountryName(b.country.name); break;
       }
       if (valA < valB) return leagueSort.direction === 'asc' ? -1 : 1;
       if (valA > valB) return leagueSort.direction === 'asc' ? 1 : -1;
@@ -3123,7 +3124,7 @@ export function AdminZone() {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
                         {item.country.flag && <img src={item.country.flag} alt="" className="w-5 h-3.5 object-cover rounded-sm" />}
-                        <span>{item.country.name}</span>
+                        <span>{translateCountryName(item.country.name)}</span>
                       </div>
                     </td>
                     <td className="py-3 px-4">

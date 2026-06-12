@@ -419,7 +419,22 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
   return (
     <div className="space-y-4">
       {Object.entries(groupedStandings)
-        .sort(([a], [b]) => a.localeCompare(b))
+        .sort(([a], [b]) => {
+          const isSubdivision = (str: string) => /group\s+[a-z]\b|groupe\s+[a-z]\b/i.test(str);
+          const isGeneralStage = (str: string) => {
+            const clean = str.toLowerCase();
+            const genericKeywords = ['group stage', 'groupe stage', 'classement', 'phase de groupes'];
+            return genericKeywords.some(keyword => clean.includes(keyword)) && !isSubdivision(str);
+          };
+
+          const isGeneralStageA = isGeneralStage(a);
+          const isGeneralStageB = isGeneralStage(b);
+
+          if (isGeneralStageA && !isGeneralStageB) return 1;
+          if (!isGeneralStageA && isGeneralStageB) return -1;
+
+          return a.localeCompare(b);
+        })
         .map(([groupName, groupData]: [string, any]) => (
         <Card key={groupName} className="overflow-x-auto p-0 border border-white/10 bg-black/40 no-scrollbar">
           <div className="bg-white/10 px-4 py-2.5 border-b border-white/5">
@@ -886,13 +901,15 @@ function MatchesTab({ fixtures, standings, onTeamClick, onMatchClick, selectedSe
 
 function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: { fixtures: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number }) {
   const knockoutRounds = [
-    { key: '16', regex: /round of 16|8th|huiti|1\/8/i, title: 'Huitièmes' },
-    { key: '8', regex: /quarter|quart|1\/4/i, title: 'Quarts' },
-    { key: '4', regex: /semi|demi|1\/2/i, title: 'Demi-finales' },
-    { key: '2', regex: /^final$|^finale$|^3rd/i, title: 'Finale' },
+    { key: '32', regex: /round of 32|16th|seizi|seiz|1\/16/i, title: "16èmes de finale" },
+    { key: '16', regex: /round of 16|8th|huiti|1\/8/i, title: "Huitièmes de finale" },
+    { key: '8', regex: /quarter|quart|1\/4/i, title: "Quarts de finale" },
+    { key: '4', regex: /semi|demi|1\/2/i, title: "Demi-finales" },
+    { key: '2', regex: /^final$|^finale$|^3rd/i, title: "Finale" },
   ];
 
   const roundData: Record<string, any[]> = {
+    '32': [],
     '16': [],
     '8': [],
     '4': [],
@@ -911,7 +928,7 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
   });
 
   if (!hasKnockouts) {
-    return <Card className="py-10 text-center text-gray-500">Aucune phase finale disponible.</Card>;
+    return <Card className="py-10 text-center text-gray-500">Aucune phase finale disponible pour le moment.</Card>;
   }
 
   return (
@@ -925,11 +942,16 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
              <div key={r.key} className="flex flex-col gap-4 w-48 shrink-0 justify-around">
                <div className="text-center font-black uppercase tracking-widest text-orange-500 text-[10px] bg-white/5 py-1 rounded border border-white/5 mb-2 shadow-sm">{r.title}</div>
                {matches.map(f => {
+                  const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short);
                   const isFinished = f.fixture.status.short === 'FT' || f.fixture.status.short === 'AET' || f.fixture.status.short === 'PEN';
+                  const showScore = isLive || isFinished;
                   return (
                     <div key={f.fixture.id} className="flex flex-col gap-1 p-2 bg-black/60 rounded-lg border border-white/10 hover:border-orange-500/50 transition-colors cursor-pointer" onClick={() => onMatchClick && onMatchClick(f.fixture.id)}>
-                      <div className="text-[8px] text-gray-500 font-bold uppercase tracking-wider text-center border-b border-white/5 pb-1 mb-1">
-                        {format(new Date(f.fixture.date), 'dd/MM HH:mm')}
+                      <div className="text-[8px] text-gray-500 font-bold uppercase tracking-wider text-center border-b border-white/5 pb-1 mb-1 flex items-center justify-center gap-1">
+                        {isLive && <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />}
+                        <span className={isLive ? "text-red-500 animate-pulse font-black" : ""}>
+                          {isLive ? `LIVE ${f.fixture.status.elapsed ? `${f.fixture.status.elapsed}'` : ''}` : format(new Date(f.fixture.date), 'dd/MM HH:mm')}
+                        </span>
                       </div>
                       <div className="flex flex-col gap-1">
                         {/* Home Team */}
@@ -939,7 +961,7 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
                             <span className={`text-[10px] font-bold truncate group-hover/team:text-orange-500 transition-colors ${f.teams.home.winner ? 'text-white' : 'text-gray-300'}`}>{translateCountryName(f.teams.home.name)}</span>
                           </div>
                           <span className={`text-xs font-black ${f.teams.home.winner ? 'text-orange-500' : 'text-gray-400'}`}>
-                            {isFinished ? f.goals.home : '-'}
+                            {showScore ? f.goals.home : '-'}
                           </span>
                         </div>
                         {/* Away Team */}
@@ -949,7 +971,7 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
                             <span className={`text-[10px] font-bold truncate group-hover/team:text-orange-500 transition-colors ${f.teams.away.winner ? 'text-white' : 'text-gray-300'}`}>{translateCountryName(f.teams.away.name)}</span>
                           </div>
                           <span className={`text-xs font-black ${f.teams.away.winner ? 'text-orange-500' : 'text-gray-400'}`}>
-                            {isFinished ? f.goals.away : '-'}
+                            {showScore ? f.goals.away : '-'}
                           </span>
                         </div>
                       </div>
@@ -1133,7 +1155,22 @@ function TeamsTab({ teams, onTeamClick, selectedSeason, standings, fixtures }: {
     return (
       <div className="space-y-6">
         {Object.entries(groupedTeams)
-          .sort(([a], [b]) => a.localeCompare(b))
+          .sort(([a], [b]) => {
+            const isSubdivision = (str: string) => /group\s+[a-z]\b|groupe\s+[a-z]\b/i.test(str);
+            const isGeneralStage = (str: string) => {
+              const clean = str.toLowerCase();
+              const genericKeywords = ['group stage', 'groupe stage', 'classement', 'phase de groupes'];
+              return genericKeywords.some(keyword => clean.includes(keyword)) && !isSubdivision(str);
+            };
+
+            const isGeneralStageA = isGeneralStage(a);
+            const isGeneralStageB = isGeneralStage(b);
+
+            if (isGeneralStageA && !isGeneralStageB) return 1;
+            if (!isGeneralStageA && isGeneralStageB) return -1;
+
+            return a.localeCompare(b);
+          })
           .map(([groupName, groupTeams]) => (
           <div key={groupName}>
             <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">{translateCountryName(groupName.replace(/Group /i, 'Groupe '))}</h3>

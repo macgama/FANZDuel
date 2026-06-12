@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, UserPlus, Shield, Star, ShieldAlert, Check } from 'lucide-react';
-import { UserProfile } from '../types';
-import { getDoc, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { X, UserPlus, Shield, Star, ShieldAlert, Check, Zap } from 'lucide-react';
+import { UserProfile, Fanz } from '../types';
+import { getDoc, doc, updateDoc, arrayUnion, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
 import { footballApi } from '../services/footballApi';
@@ -19,6 +19,7 @@ export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicPr
   const [loading, setLoading] = useState(true);
   const [requestSent, setRequestSent] = useState(false);
   const [isBot, setIsBot] = useState(false);
+  const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -48,6 +49,28 @@ export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicPr
         claimedPassRewards: [],
         email: ''
       });
+      setActiveFanz({
+        id: 'bot_fanz',
+        name: 'FANZ Bot',
+        imageUrl: 'https://thebestfan.online/img/public/logo/logoFanz.png',
+        stats: {
+          force: Math.floor(Math.random() * 8) + 1,
+          endurance: Math.floor(Math.random() * 8) + 1,
+          mental: Math.floor(Math.random() * 8) + 1,
+          bluff: Math.floor(Math.random() * 8) + 1,
+          creativity: Math.floor(Math.random() * 8) + 1,
+          social: Math.floor(Math.random() * 8) + 1,
+          intelligence: Math.floor(Math.random() * 8) + 1,
+          charisma: Math.floor(Math.random() * 8) + 1,
+        },
+        templateId: '',
+        ownerUid: targetUid,
+        xp: 0,
+        equippedCards: [],
+        favoriteTeams: [],
+        gender: 'M',
+        unlockedSkins: [],
+      } as any);
       setLoading(false);
       return;
     }
@@ -74,6 +97,16 @@ export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicPr
               })
             );
             if (isMounted) setFavoriteTeamsInfo(teams.filter(Boolean));
+          }
+
+          // Charger le fanz actif de l'autre utilisateur
+          const fanzQuery = query(collection(db, 'fanz'), where('ownerUid', '==', targetUid));
+          const fanzSnap = await getDocs(fanzQuery);
+          if (!fanzSnap.empty && isMounted) {
+            const fanzList = fanzSnap.docs.map(d => ({ id: d.id, ...d.data() } as Fanz));
+            const activeId = targetData.activeFanzId || targetData.activeAction?.fanzId;
+            const foundActiveFanz = fanzList.find(f => f.id === activeId) || fanzList[0];
+            setActiveFanz(foundActiveFanz);
           }
         }
       } catch (e) {
@@ -176,7 +209,85 @@ export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicPr
                   )}
                 </div>
               </div>
-            )}
+            )}            {/* FANZ Actif & Jauges */}
+            {!loading && activeFanz && (() => {
+              const stats = (activeFanz.stats || {}) as any;
+              const getStatLvl = (xp: number) => Math.min(10, Math.floor((xp || 1) / 100) + 1);
+              const totalStats = 
+                getStatLvl(stats.force) +
+                getStatLvl(stats.endurance) +
+                getStatLvl(stats.mental) +
+                getStatLvl(stats.bluff) +
+                getStatLvl(stats.creativity) +
+                getStatLvl(stats.social) +
+                getStatLvl(stats.intelligence) +
+                getStatLvl(stats.charisma);
+
+              // calcul ferveur par défaut pour l'affichage modal
+              const currentFervor = activeFanz.ferveurPoints || 0;
+              const configToUse = 500; // Pas de template entier mais on sait que le niveau 1 -> 500
+              const currentLevel = Math.floor(currentFervor / configToUse) + 1;
+              const nextLevelPoints = currentLevel * configToUse;
+              const prevPoints = (currentLevel - 1) * configToUse;
+              const progressFervor = ((currentFervor - prevPoints) / configToUse) * 100;
+
+              const rank = activeFanz.rank ?? 1;
+
+              return (
+                <div className="w-full mt-6 bg-white/5 border border-white/10 rounded-xl p-3.5 flex flex-col gap-3">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">FANZ Actif</span>
+                    <span className="text-xs font-black italic uppercase text-orange-400">{activeFanz.name}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Jauge Ferveur */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-wider text-orange-400">
+                        <span>Ferveur</span>
+                        <span>{currentFervor}/{nextLevelPoints}</span>
+                      </div>
+                      <div className="h-2 w-full bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all duration-500 relative"
+                          style={{ width: `${Math.min(100, Math.max(0, progressFervor))}%` }}
+                        >
+                          <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Jauge Aptitudes */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-wider text-amber-400">
+                        <span>Stats</span>
+                        <span>{totalStats}/80</span>
+                      </div>
+                      <div className="h-2 w-full bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.max(12, (totalStats / 80) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Jauge Rang */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-wider text-rose-400">
+                        <span>Rang</span>
+                        <span>{rank}/10</span>
+                      </div>
+                      <div className="h-2 w-full bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.max(10, (rank / 10) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             
             {/* Stats */}
             {!loading && profile && (

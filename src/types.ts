@@ -19,6 +19,7 @@ export interface UserProfile {
   uid: string;
   pseudo: string;
   unlockedVideos?: string[]; // Array of strings like "skinId_victory" or "skinId_defeat"
+  seenMuseumItems?: string[]; // Permanent persistence for seen museum items
   displayName?: string;
   email: string;
   photoURL?: string;
@@ -46,6 +47,8 @@ export interface UserProfile {
   emotes_sent_count?: number;
   duels_training_count?: number;
   duels_training_win_count?: number;
+  duels_training_1v1_count?: number;
+  duels_training_1v1_win_count?: number;
   duels_1v1_count?: number;
   duels_1v1_win_count?: number;
   duels_2v2_count?: number;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { UserProfile, Fanz, FanzTemplate, LifeAction, GlobalFervorConfig } from '../types';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, getDoc, doc, getDocs, limit, setDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDoc, doc, getDocs, limit, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getImageUrl, cn } from '../lib/utils';
 import { BuyMeACoffee } from './BuyMeACoffee';
 // ... (rest of imports)
@@ -34,7 +34,9 @@ import {
   Swords,
   Megaphone,
   X,
-  Database
+  Database,
+  UserPlus,
+  UserCheck
 } from 'lucide-react';
 import { OptimizedMedia } from './OptimizedMedia';
 import { motion, AnimatePresence } from 'motion/react';
@@ -48,6 +50,7 @@ import { MrFanzHelp } from './MrFanzHelp';
 interface HomeProps {
   profile: UserProfile;
   claimableAlerts?: { missions: boolean; globalFervor: boolean; fanzFervor: boolean };
+  onlineCount?: number;
   onNavigate: (view: 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams' | 'waiting-room') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
@@ -57,11 +60,15 @@ interface HomeProps {
   onJoinSpecificDuel?: (duelId: string, type: string, matchId: number) => void;
   onOpenStreak: () => void;
   onFanzClick?: (fanzId: string, tab?: 'infos' | 'stats' | 'cards' | 'skins' | 'emotes' | 'rank' | 'ferveur') => void;
+  onStartDirectDuel?: (matchId: number, type: 'training' | '1v1', invitedFriend: UserProfile) => void;
 }
 
-export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onJoinSpecificDuel, onOpenStreak, onFanzClick }: HomeProps) {
+export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onJoinSpecificDuel, onOpenStreak, onFanzClick, onStartDirectDuel }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [allFanz, setAllFanz] = useState<Fanz[]>([]);
+  const [showOnlineModal, setShowOnlineModal] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<UserProfile[]>([]);
+  const [loadingOnlineUsers, setLoadingOnlineUsers] = useState(false);
   const [fanzTemplate, setFanzTemplate] = useState<FanzTemplate | null>(null);
   const [templatesMap, setTemplatesMap] = useState<Map<string, FanzTemplate>>(new Map());
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
@@ -177,6 +184,146 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!showOnlineModal) return;
+
+    const fetchOnlineUsers = async () => {
+      setLoadingOnlineUsers(true);
+      try {
+        const res = await fetch("/api/online-users");
+        if (res.ok) {
+          const data = await res.json();
+          const filtered = data.filter((u: any) => u.uid !== profile.uid);
+          setOnlineUsers(filtered);
+        }
+      } catch (err) {
+        console.error("Error loading online users:", err);
+      } finally {
+        setLoadingOnlineUsers(false);
+      }
+    };
+
+    fetchOnlineUsers();
+    const interval = setInterval(fetchOnlineUsers, 8000);
+    return () => clearInterval(interval);
+  }, [showOnlineModal, profile.uid]);
+
+  const sendFriendRequest = async (targetUser: UserProfile) => {
+    try {
+      await updateDoc(doc(db, 'users', targetUser.uid), {
+        friendRequests: arrayUnion(profile.uid)
+      });
+      setOnlineUsers(prev => prev.map(u => {
+        if (u.uid === targetUser.uid) {
+          return { ...u, friendRequests: [...(u.friendRequests || []), profile.uid] };
+        }
+        return u;
+      }));
+    } catch (err) {
+      console.error("Error sending friend request:", err);
+    }
+  };
+
+  const acceptFriendRequest = async (targetUser: UserProfile) => {
+    try {
+      await updateDoc(doc(db, 'users', profile.uid), {
+        friends: arrayUnion(targetUser.uid),
+        friendRequests: arrayRemove(targetUser.uid)
+      });
+      await updateDoc(doc(db, 'users', targetUser.uid), {
+        friends: arrayUnion(profile.uid)
+      });
+      setOnlineUsers(prev => prev.map(u => {
+        if (u.uid === targetUser.uid) {
+          return { ...u, friends: [...(u.friends || []), profile.uid] };
+        }
+        return u;
+      }));
+    } catch (err) {
+      console.error("Error accepting friend request:", err);
+    }
+  };
+
+  const handleInitiateDuel = (targetUser: UserProfile, isLiveInvite: boolean) => {
+    let chosenMatch: any = null;
+    
+    // Use the fetched worldCupFixtures or fallback
+    const liveMatches = worldCupFixtures.filter(f => 
+      f.fixture && f.fixture.status && ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture.status.short)
+    );
+    const upcomingMatches = worldCupFixtures.filter(f => 
+      f.fixture && f.fixture.status && ['TBD', 'NS'].includes(f.fixture.status.short)
+    );
+    const finishedMatches = worldCupFixtures.filter(f => 
+      f.fixture && (!liveMatches.some(m => m.fixture?.id === f.fixture?.id) && 
+      !upcomingMatches.some(m => m.fixture?.id === f.fixture?.id))
+    );
+
+    if (isLiveInvite) {
+      if (liveMatches.length > 0) {
+        chosenMatch = liveMatches[0];
+      } else if (upcomingMatches.length > 0) {
+        chosenMatch = upcomingMatches[0];
+      } else if (finishedMatches.length > 0) {
+        chosenMatch = finishedMatches[0];
+      }
+    } else {
+      if (upcomingMatches.length > 0) {
+        chosenMatch = upcomingMatches[0];
+      } else if (liveMatches.length > 0) {
+        chosenMatch = liveMatches[0];
+      } else if (finishedMatches.length > 0) {
+        chosenMatch = finishedMatches[0];
+      }
+    }
+
+    if (!chosenMatch) {
+      alert("Aucun match de la Coupe du Monde n'est disponible pour démarrer le duel.");
+      return;
+    }
+
+    if (onStartDirectDuel) {
+      onStartDirectDuel(chosenMatch.fixture.id, isLiveInvite ? '1v1' : 'training', targetUser);
+      setShowOnlineModal(false);
+    }
+  };
+
+  const getRelationStatus = (targetUser: UserProfile) => {
+    const friends = profile.friends || [];
+    const sentRequests = targetUser.friendRequests || [];
+    const receivedRequests = profile.friendRequests || [];
+
+    if (friends.includes(targetUser.uid)) {
+      return 'friends';
+    }
+    if (sentRequests.includes(profile.uid)) {
+      return 'sent';
+    }
+    if (receivedRequests.includes(targetUser.uid)) {
+      return 'received';
+    }
+    return 'none';
+  };
+
+  const handleShareInvite = async () => {
+    const shareData = {
+      title: 'Rejoins-moi sur TheBestFan!',
+      text: 'Viens défier les autres fans de foot sur TheBestFan.Online et deviens le meilleur fan!',
+      url: window.location.origin
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.origin);
+        alert('Lien d\'invitation copié ! Partage-le avec tes amis.');
+      }
+    } catch (err) {
+      console.error('Error sharing', err);
+    }
+  };
+
   const scroll = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
     if (ref.current) {
       const scrollAmount = direction === 'left' ? -ref.current.clientWidth : ref.current.clientWidth;
@@ -204,7 +351,15 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
         }
       }
     };
+    
     fetchWorldCup();
+    
+    // Refresh World Cup 2026 data every minute to keep live statuses and scores up-to-date
+    const interval = setInterval(() => {
+      fetchWorldCup();
+    }, 60 * 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -751,11 +906,9 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
             </div>
           )}
 
-          {/* Superimposed FANZ Rank (Top Right) - REMOVED AS PER REQUEST */}
-
           {/* Superimposed FANZ Name (Bottom) */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black via-black/50 to-transparent flex items-end justify-between">
-            <div className="flex-1">
+          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black via-black/50 to-transparent flex items-end justify-between gap-3">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
                 <h1 className="text-lg sm:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] flex items-center">
                   {activeFanz?.name || 'Mon FANZ'}
@@ -775,69 +928,137 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
               {activeFanz?.equippedSkin && fanzTemplate?.skins && (() => {
                 const skinData = fanzTemplate.skins.find(s => s.id === activeFanz.equippedSkin);
                 if (!skinData) return null;
+                const isDuplicatedName = skinData.name.trim().toLowerCase() === (activeFanz.name || '').trim().toLowerCase();
                 return (
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
-                      Skin: {skinData.name}
-                    </div>
-                    {skinData.energyBonus && (
+                    {!isDuplicatedName && (
+                      <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
+                        Skin: {skinData.name}
+                      </div>
+                    )}
+                    {skinData.energyBonus ? (
                       <div className="bg-blue-500/20 backdrop-blur-md border border-blue-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-blue-400 flex items-center gap-1 shadow-sm">
                         <Zap className="w-2.5 h-2.5" /> +{skinData.energyBonus} ENER Max
                       </div>
-                    )}
-                    {skinData.moneyBonus && (
+                    ) : null}
+                    {skinData.moneyBonus ? (
                       <div className="bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-yellow-400 shadow-sm">
                         +{skinData.moneyBonus}% CRÉDITS
                       </div>
-                    )}
-                    {skinData.fervorBonus && (
+                    ) : null}
+                    {skinData.fervorBonus ? (
                       <div className="bg-orange-500/20 backdrop-blur-md border border-orange-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-orange-400 shadow-sm">
                         +{skinData.fervorBonus}% FERV
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 );
               })()}
 
-              {!currentActiveAction && activeFanz && (() => {
-                const configToUse = fanzTemplate?.ferveurConfig || fanzFervorConfig;
-                const ferveurPath = configToUse 
-                  ? generateFervorPath(configToUse.ranges?.[configToUse.ranges.length - 1]?.max || 50000, configToUse)
-                  : fanzTemplate?.ferveurPath || [];
-                const nextStep = ferveurPath.find(l => (activeFanz.ferveurPoints || 0) < l.pointsRequired);
-                const nextLevelPoints = nextStep?.pointsRequired || (ferveurPath.length > 0 ? ferveurPath[ferveurPath.length - 1].pointsRequired : 1000);
-                const currentPoints = activeFanz.ferveurPoints || 0;
-                const prevStep = ferveurPath.filter(l => l.pointsRequired <= currentPoints).pop();
-                const prevPoints = prevStep ? prevStep.pointsRequired : 0;
-                
-                const progressPercent = nextStep 
-                  ? ((currentPoints - prevPoints) / (nextLevelPoints - prevPoints)) * 100 
-                  : 100;
-                
-                return (
-                  <div className="mt-2 w-full max-w-[150px] sm:max-w-[200px]">
-                    <div className="h-3 sm:h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
-                      <div 
-                        className="h-full bg-orange-500 rounded-full transition-all duration-500 relative"
-                        style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
-                      >
-                        <div className="absolute inset-0 bg-white/30 animate-[scan_2s_ease-in-out_infinite]" />
+              <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap items-center sm:gap-4 mt-3 w-full sm:w-auto">
+                {/* Jauge Ferveur */}
+                {!currentActiveAction && activeFanz && (() => {
+                  const configToUse = fanzTemplate?.ferveurConfig || fanzFervorConfig;
+                  const ferveurPath = configToUse 
+                    ? generateFervorPath(configToUse.ranges?.[configToUse.ranges.length - 1]?.max || 50000, configToUse)
+                    : fanzTemplate?.ferveurPath || [];
+                  const nextStep = ferveurPath.find(l => (activeFanz.ferveurPoints || 0) < l.pointsRequired);
+                  const nextLevelPoints = nextStep?.pointsRequired || (ferveurPath.length > 0 ? ferveurPath[ferveurPath.length - 1].pointsRequired : 1000);
+                  const currentPoints = activeFanz.ferveurPoints || 0;
+                  const prevStep = ferveurPath.filter(l => l.pointsRequired <= currentPoints).pop();
+                  const prevPoints = prevStep ? prevStep.pointsRequired : 0;
+                  
+                  const progressPercent = nextStep 
+                    ? ((currentPoints - prevPoints) / (nextLevelPoints - prevPoints)) * 100 
+                    : 100;
+                  
+                  return (
+                    <div className="flex flex-col gap-1 w-full sm:w-28">
+                      <div className="flex justify-between items-center text-[7.5px] sm:text-[9px] font-black uppercase tracking-wider text-orange-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                        <span>Ferveur</span>
+                        <span>{currentPoints}/{nextLevelPoints}</span>
                       </div>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                        <span className="text-[8px] sm:text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                          {currentPoints} / {nextLevelPoints}
-                        </span>
+                      <div className="h-2 bg-black/60 rounded-full border border-white/10 relative overflow-hidden shadow-inner">
+                        <div 
+                          className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all duration-500 relative"
+                          style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
+                        >
+                          <div className="absolute inset-0 bg-white/30 animate-[scan_2s_ease-in-out_infinite]" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
-            </div>
-            {activeFanz && (
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-full flex flex-col items-center justify-center border-2 border-white/10 shadow-xl shrink-0 mb-1 backdrop-blur-md">
-                <span className="text-sm sm:text-base font-black italic text-white leading-none">{activeFanz.rank ?? 0}</span>
+                  );
+                })()}
+
+                {/* Jauge Aptitudes / Compétences */}
+                {activeFanz && (() => {
+                  const stats = (activeFanz.stats || {}) as any;
+                  const getStatLvl = (xp: number) => Math.min(10, Math.floor((xp || 1) / 100) + 1);
+                  const totalLevels = 
+                    getStatLvl(stats.force) +
+                    getStatLvl(stats.endurance) +
+                    getStatLvl(stats.mental) +
+                    getStatLvl(stats.bluff) +
+                    getStatLvl(stats.creativity) +
+                    getStatLvl(stats.social) +
+                    getStatLvl(stats.intelligence) +
+                    getStatLvl(stats.charisma);
+                  return (
+                    <div className="flex flex-col gap-1 w-full sm:w-28">
+                      <div className="flex justify-between items-center text-[7.5px] sm:text-[9px] font-black uppercase tracking-wider text-amber-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                        <span>Stats</span>
+                        <span>{totalLevels}/80</span>
+                      </div>
+                      <div className="h-2 bg-black/60 rounded-full border border-white/10 relative overflow-hidden shadow-inner">
+                        <div 
+                          className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-500 relative"
+                          style={{ width: `${Math.min(100, Math.max(12, (totalLevels / 80) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Jauge Rang */}
+                {activeFanz && (() => {
+                  const rank = activeFanz.rank ?? 1;
+                  return (
+                    <div className="flex flex-col gap-1 w-full sm:w-28">
+                      <div className="flex justify-between items-center text-[7.5px] sm:text-[9px] font-black uppercase tracking-wider text-rose-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                        <span>Rang</span>
+                        <span>{rank}/10</span>
+                      </div>
+                      <div className="h-2 bg-black/60 rounded-full border border-white/10 relative overflow-hidden shadow-inner">
+                        <div 
+                          className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-full transition-all duration-500 relative"
+                          style={{ width: `${Math.min(100, Math.max(10, (rank / 10) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
-            )}
+            </div>
+
+            {/* Dynamic Online Supporters Count Pill */}
+            <div className="shrink-0 pb-1 flex flex-col items-end">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowOnlineModal(true);
+                }}
+                className="bg-black/80 backdrop-blur-md border border-emerald-500/30 rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 flex items-center gap-1.5 shadow-md shadow-emerald-950/30 cursor-pointer hover:bg-emerald-950/20 hover:border-emerald-500/60 hover:scale-105 active:scale-95 transition-all duration-200"
+                title="Supporters connectés en temps réel"
+              >
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] sm:text-xs font-bold uppercase text-emerald-400 tracking-wider font-mono">
+                  {onlineCount} en ligne
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1208,11 +1429,22 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                              <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-3 px-1">Matchs Prévus</div>
                              <div className="grid grid-cols-1 gap-2">
                                {groupFixtures.slice(0, 6).map((fx: any) => {
+                                 const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(fx.fixture.status.short);
                                  const isFinished = fx.fixture.status.short === 'FT' || fx.fixture.status.short === 'AET' || fx.fixture.status.short === 'PEN';
+                                 const showScore = isLive || isFinished;
+                                 const elapsedStr = fx.fixture.status.elapsed ? `${fx.fixture.status.elapsed}'` : '';
                                  return (
-                                 <div key={fx.fixture.id} className="flex flex-col gap-1.5 p-2.5 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 hover:bg-white/10 transition-colors cursor-pointer group" onClick={() => onMatchClick && onMatchClick(fx.fixture.id)}>
-                                   <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-orange-400 transition-colors">
-                                     {new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(fx.fixture.date))}
+                                 <div key={fx.fixture.id} className={`flex flex-col gap-1.5 p-2.5 bg-white/5 rounded-lg border transition-colors cursor-pointer group ${isLive ? 'border-red-500/30 bg-red-500/5 shadow-inner' : 'border-white/5 hover:border-white/10 hover:bg-white/10'}`} onClick={() => onMatchClick && onMatchClick(fx.fixture.id)}>
+                                   <div className="flex justify-between items-center w-full">
+                                     <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-orange-400 transition-colors">
+                                       {new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(fx.fixture.date))}
+                                     </div>
+                                     {isLive && (
+                                       <div className="flex items-center gap-1 bg-red-500/10 text-red-500 border border-red-500/20 text-[8px] font-black uppercase px-2 py-0.5 rounded-full animate-pulse">
+                                         <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
+                                         <span>LIVE {elapsedStr}</span>
+                                       </div>
+                                     )}
                                    </div>
                                    <div className="flex flex-col gap-1.5">
                                       <div className="flex justify-between items-center">
@@ -1220,14 +1452,14 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
                                            <img src={getImageUrl(fx.teams.home.logo, 20)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />
                                            <span className="text-xs text-white font-bold truncate">{translateCountryName(fx.teams.home.name)}</span>
                                          </div>
-                                         <span className="text-xs font-black text-gray-300 ml-2">{isFinished ? fx.goals.home : '-'}</span>
+                                         <span className={`text-xs font-black ml-2 ${isLive ? 'text-red-500 font-extrabold animate-pulse' : 'text-gray-300'}`}>{showScore ? fx.goals.home : '-'}</span>
                                       </div>
                                       <div className="flex justify-between items-center">
                                          <div className="flex items-center gap-2 overflow-hidden">
                                            <img src={getImageUrl(fx.teams.away.logo, 20)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />
                                            <span className="text-xs text-white font-bold truncate">{translateCountryName(fx.teams.away.name)}</span>
                                          </div>
-                                         <span className="text-xs font-black text-gray-300 ml-2">{isFinished ? fx.goals.away : '-'}</span>
+                                         <span className={`text-xs font-black ml-2 ${isLive ? 'text-red-500 font-extrabold animate-pulse' : 'text-gray-300'}`}>{showScore ? fx.goals.away : '-'}</span>
                                       </div>
                                    </div>
                                  </div>
@@ -1503,6 +1735,148 @@ export function Home({ profile, claimableAlerts, onNavigate, onMenuClick, onMatc
           >
             Fermer
           </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {showOnlineModal && (
+    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-stone-900 border border-white/10 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] text-white relative animate-in zoom-in-95 duration-200">
+        
+        {/* Header */}
+        <div className="p-5 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-400 font-sans">
+              Supporters en ligne ({onlineUsers.length})
+            </h2>
+          </div>
+          <button
+            onClick={() => setShowOnlineModal(false)}
+            className="text-white/50 hover:text-white p-1 hover:bg-white/5 rounded-full transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[250px] max-h-[60vh]">
+          {loadingOnlineUsers && onlineUsers.length === 0 ? (
+            <div className="h-48 flex flex-col items-center justify-center space-y-2">
+              <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+              <p className="text-xs text-white/50 font-mono">Recherche de supporters...</p>
+            </div>
+          ) : onlineUsers.length === 0 ? (
+            <div className="h-48 flex flex-col items-center justify-center text-center p-6 space-y-4">
+              <p className="text-sm text-stone-400">
+                Tu es le seul supporter en ligne en ce moment.
+              </p>
+              <button
+                onClick={handleShareInvite}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded-xl font-bold transition-all shadow-md shadow-emerald-950/40 cursor-pointer active:scale-95"
+              >
+                Inviter des Amis à Jouer
+              </button>
+            </div>
+          ) : (
+            onlineUsers.map((user) => {
+              const relation = getRelationStatus(user);
+              return (
+                <div key={user.uid} className="bg-stone-800/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 hover:border-white/10 transition-colors">
+                  <div className="flex items-center justify-between">
+                    {/* User Profile Info */}
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative">
+                        {user.photoURL ? (
+                          <img 
+                            src={getImageUrl(user.photoURL)} 
+                            alt={user.pseudo} 
+                            className="w-10 h-10 rounded-full object-cover border border-white/20 shadow-sm"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white text-sm border border-white/20 shadow-sm">
+                            {user.pseudo ? user.pseudo.substring(0, 2).toUpperCase() : "SP"}
+                          </div>
+                        )}
+                        <div className="absolute -bottom-1 -right-1 bg-amber-500 text-[9px] font-black text-stone-950 px-1 rounded-full border border-stone-900 shadow-sm">
+                          N.{user.level || 1}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="font-bold text-sm text-stone-100 flex items-center gap-1.5">
+                          {user.pseudo}
+                        </div>
+                        <div className="text-[10px] text-emerald-400 font-medium font-mono">
+                          ● Actif en jeu
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Friend Add Button */}
+                    <div>
+                      {relation === 'friends' ? (
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Ami ✓
+                        </div>
+                      ) : relation === 'sent' ? (
+                        <div className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-400/20">
+                          Invité...
+                        </div>
+                      ) : relation === 'received' ? (
+                        <button
+                          onClick={() => acceptFriendRequest(user)}
+                          className="flex items-center gap-1 text-[10px] font-bold text-stone-950 bg-emerald-400 hover:bg-emerald-300 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Accepter
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => sendFriendRequest(user)}
+                          className="flex items-center gap-1 text-[10px] font-bold text-stone-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg border border-white/10 transition-colors cursor-pointer active:scale-95"
+                          title="Demander en ami"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          Ajouter
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Duel invitations buttons */}
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+                    <button
+                      onClick={() => handleInitiateDuel(user, false)}
+                      className="bg-stone-850 hover:bg-stone-800 text-stone-200 border border-stone-700/60 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-stone-500"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Entraînement 1v1</span>
+                    </button>
+                    <button
+                      onClick={() => handleInitiateDuel(user, true)}
+                      className="bg-emerald-950/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-500/20 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-emerald-500/40"
+                    >
+                      <Swords className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>Duel Réel 1v1</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer info banner */}
+        <div className="p-4 border-t border-white/5 bg-stone-950/40 text-center rounded-b-2xl">
+          <p className="text-[10px] text-stone-400 font-mono">
+            * Les duels d'entraînement et réels sont lancés en mode privé exclusif.
+          </p>
         </div>
       </div>
     </div>

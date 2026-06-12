@@ -5,6 +5,7 @@ import { Card } from './Layout';
 import { Trophy, Users, Shield, Medal, Activity, ChevronDown, Search } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { translateCountryName } from '../utils/countryTranslations';
 
 interface RankingEntry {
   id: string;
@@ -159,7 +160,7 @@ export function Rankings({ onBack }: RankingsProps) {
                 leaguesList.push({ 
                   id, 
                   name: apiLeague.league.name,
-                  countryName: apiLeague.country.name,
+                  countryName: translateCountryName(apiLeague.country.name),
                   countryFlag: apiLeague.country.flag
                 });
               } else {
@@ -229,7 +230,7 @@ export function Rankings({ onBack }: RankingsProps) {
                      name = teamData.team.name;
                      imageUrl = teamData.team.logo;
                      if (teamData.team.country) {
-                        countryName = teamData.team.country;
+                        countryName = translateCountryName(teamData.team.country);
                      }
                    }
                  } catch (e) {

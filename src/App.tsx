@@ -143,6 +143,9 @@ function AppContent() {
   const [currentDuel, setCurrentDuel] = useState<any>(null);
   const [guestView, setGuestView] = useState<"landing" | "matches">("landing");
   const [resetCode, setResetCode] = useState<string | null>(null);
+  const [onlineUsersCount, setOnlineUsersCount] = useState<number>(1);
+  const [initialInvitedFriend, setInitialInvitedFriend] = useState<UserProfile | null>(null);
+  const [initialPrivateDuel, setInitialPrivateDuel] = useState<boolean>(false);
 
   // Register user socket connection when profile / socket is ready
   useEffect(() => {
@@ -151,6 +154,20 @@ function AppContent() {
       console.log(`[Client] Registered socket for user: ${profile.uid}`);
     }
   }, [socket, profile?.uid]);
+
+  // Listen to live online users count updates
+  useEffect(() => {
+    if (!socket) return;
+    const handleOnlineCount = (data: { count: number }) => {
+      if (data && typeof data.count === 'number') {
+        setOnlineUsersCount(data.count);
+      }
+    };
+    socket.on("online-users-count", handleOnlineCount);
+    return () => {
+      socket.off("online-users-count", handleOnlineCount);
+    };
+  }, [socket]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -306,6 +323,7 @@ function AppContent() {
   const [hasLiveFavoriteMatch, setHasLiveFavoriteMatch] = useState(false);
   const [hasNewMuseumItems, setHasNewMuseumItems] = useState(false);
   const [userFanzCount, setUserFanzCount] = useState(0);
+  const [activeMissionIds, setActiveMissionIds] = useState<string[]>([]);
   const [claimableAlerts, setClaimableAlerts] = useState({
     missions: false,
     globalFervor: false,
@@ -332,6 +350,19 @@ function AppContent() {
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
+
+  // Recalculer les alertes de missions en cas de changement de profil ou de liste de missions actives
+  useEffect(() => {
+    if (!profile) {
+      setClaimableAlerts((prev) => ({ ...prev, missions: false }));
+      return;
+    }
+    const hasMissionsAlert = activeMissionIds.some((mId) => {
+      const p = profile?.missionsProgress?.[mId];
+      return p?.isCompleted && !p?.isClaimed;
+    });
+    setClaimableAlerts((prev) => ({ ...prev, missions: hasMissionsAlert }));
+  }, [profile, activeMissionIds]);
 
   // Empêcher le rechargement de page et la navigation accidentelle uniquement pendant un duel
   useEffect(() => {
@@ -375,11 +406,7 @@ function AppContent() {
       (snap) => {
         if (!isMounted) return;
         const activeIds = snap.docs.map((d) => d.id);
-        const hasMissionsAlert = activeIds.some((mId) => {
-          const p = profileRef.current?.missionsProgress?.[mId];
-          return p?.isCompleted && !p?.isClaimed;
-        });
-        setClaimableAlerts((prev) => ({ ...prev, missions: hasMissionsAlert }));
+        setActiveMissionIds(activeIds);
       },
       () => {},
     );
@@ -2158,6 +2185,15 @@ function AppContent() {
             <Home
               profile={profile}
               claimableAlerts={claimableAlerts}
+              onlineCount={onlineUsersCount}
+              onStartDirectDuel={(matchId, type, invitedFriend) => {
+                setInitialInvitedFriend(invitedFriend);
+                setInitialPrivateDuel(true);
+                setJoiningDuel(null);
+                setSelectedMatchId(matchId);
+                setSelectedMatchTab("duels");
+                setView("matches");
+              }}
               onNavigate={(v) => {
                 setView(v);
                 setSelectedLeague(null);
@@ -2327,10 +2363,14 @@ function AppContent() {
                           initialDuelType={joiningDuel?.type}
                           onDuelStatusChange={setIsDuelActive}
                           onDuelIntent={handleDuelIntent}
+                          initialPrivateDuel={initialPrivateDuel}
+                          initialInvitedFriend={initialInvitedFriend}
                           onBack={() => {
                             setSelectedMatchId(null);
                             setSelectedMatchTab("summary");
                             setJoiningDuel(null);
+                            setInitialInvitedFriend(null);
+                            setInitialPrivateDuel(false);
                           }}
                           onTeamClick={(id, season) => {
                             setSelectedTeam({ id, season });

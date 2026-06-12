@@ -91,7 +91,7 @@ const getDistinctTeamColors = (teamA: string, teamB: string) => {
   return { colorA: colors[indexA], colorB: colors[indexB] };
 };
 
-export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz, duelLeagueId, duelSeason }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void; duelLeagueId?: string; duelSeason?: string }) {
+export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz, duelLeagueId, duelSeason, initialInvitedFriend }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void; duelLeagueId?: string; duelSeason?: string; initialInvitedFriend?: UserProfile }) {
   const { showAlert } = useAlert();
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
   
@@ -106,7 +106,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
   );
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(isPrivate);
   const [friendsList, setFriendsList] = useState<UserProfile[]>([]);
-  const [invitedFriend, setInvitedFriend] = useState<UserProfile | null>(null);
+  const [invitedFriend, setInvitedFriend] = useState<UserProfile | null>(initialInvitedFriend || null);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [userFanzs, setUserFanzs] = useState<Fanz[]>([]);
   const [duelConfig, setDuelConfig] = useState<DuelConfig>(DEFAULT_DUEL_CONFIG);
@@ -1873,9 +1873,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 updates.emotes_sent_count = increment(emotesSentCountRef.current);
               }
               if (duelType) {
-                updates[`duels_${duelType}_count`] = increment(1);
+                const statDuelType = (duelType === 'training' && duel.trainingType === '1v1') ? 'training_1v1' : duelType;
+                updates[`duels_${statDuelType}_count`] = increment(1);
                 if (isWin) {
-                  updates[`duels_${duelType}_win_count`] = increment(1);
+                  updates[`duels_${statDuelType}_win_count`] = increment(1);
                 }
               }
               if ((userData.antiMalusMatches || 0) > 0) {

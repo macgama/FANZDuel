@@ -508,6 +508,17 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
     charisma: "Charisme",
   };
 
+  const statDuelDescriptions = {
+    force: "Augmente la puissance des clics et l'excitation de départ en duel.",
+    endurance: "Augmente l'excitation max et sa vitesse de récupération par seconde.",
+    mental: "Allonge la durée de tous les malus infligés à l'adversaire.",
+    bluff: "Prolonge les effets visuels indésirables infligés à l'adversaire.",
+    creativity: "Réduit le coût en excitation de toutes vos cartes d'action.",
+    social: "Booste la Ferveur et le score générés lors d'un duel.",
+    intelligence: "Améliore les chances d'obtenir des cartes d'action plus rares.",
+    charisma: "Renforce la puissance globale et le bonus de vos cartes jouées.",
+  };
+
   const handleBuySkin = async (skin: FanzSkin) => {
     if (!fanz || !userProfile) return;
 
@@ -694,10 +705,16 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
       const skin = template.skins?.find((s) => s.id === skinId);
       const newName = skin ? skin.name : template.name;
 
-      await updateDoc(fanzRef, {
+      const fanzUpdates: any = {
         equippedSkin: skinId || null,
         name: newName,
-      });
+      };
+
+      if (skinId && !fanz.unlockedSkins?.includes(skinId)) {
+        fanzUpdates.unlockedSkins = arrayUnion(skinId);
+      }
+
+      await updateDoc(fanzRef, fanzUpdates);
 
       if (userProfile.activeFanzId === fanz.id) {
         // We no longer automatically change the user's avatar when they equip a skin
@@ -877,32 +894,38 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
               </p>
             )}
 
-            {equippedSkinData && (
-              <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1">
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
-                  Skin: {equippedSkinData.name}
+            {equippedSkinData && (() => {
+              const isDuplicatedName = equippedSkinData.name.trim().toLowerCase() === (fanz.name || '').trim().toLowerCase();
+              return (
+                <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1">
+                  {!isDuplicatedName && (
+                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
+                      Skin: {equippedSkinData.name}
+                    </div>
+                  )}
+                  {equippedSkinData.energyBonus ? (
+                    <div className="bg-blue-500/20 backdrop-blur-md border border-blue-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-blue-400 flex items-center gap-1 shadow-sm">
+                      <Zap className="w-2.5 h-2.5" /> +
+                      {equippedSkinData.energyBonus} ENER Max
+                    </div>
+                  ) : null}
+                  {equippedSkinData.moneyBonus ? (
+                    <div className="bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-yellow-400 shadow-sm">
+                      +{equippedSkinData.moneyBonus}% CRÉDITS
+                    </div>
+                  ) : null}
+                  {equippedSkinData.fervorBonus ? (
+                    <div className="bg-orange-500/20 backdrop-blur-md border border-orange-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-orange-400 shadow-sm">
+                      +{equippedSkinData.fervorBonus}% FERV
+                    </div>
+                  ) : null}
                 </div>
-                {equippedSkinData.energyBonus && (
-                  <div className="bg-blue-500/20 backdrop-blur-md border border-blue-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-blue-400 flex items-center gap-1 shadow-sm">
-                    <Zap className="w-2.5 h-2.5" /> +
-                    {equippedSkinData.energyBonus} ENER Max
-                  </div>
-                )}
-                {equippedSkinData.moneyBonus && (
-                  <div className="bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-yellow-400 shadow-sm">
-                    +{equippedSkinData.moneyBonus}% CRÉDITS
-                  </div>
-                )}
-                {equippedSkinData.fervorBonus && (
-                  <div className="bg-orange-500/20 backdrop-blur-md border border-orange-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-orange-400 shadow-sm">
-                    +{equippedSkinData.fervorBonus}% FERV
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
 
-            {!activeAction &&
-              (() => {
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-3">
+              {/* Jauge Ferveur */}
+              {(() => {
                 const nextStep = ferveurPath.find(
                   (l) => (fanz.ferveurPoints || 0) < l.pointsRequired,
                 );
@@ -926,31 +949,78 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                 return (
                   <div
                     onClick={() => setActiveTab("ferveur")}
-                    className="mt-2 sm:mt-3 w-full max-w-[150px] sm:max-w-[200px] cursor-pointer group/ferveur overflow-hidden"
+                    className="flex flex-col gap-1 w-24 sm:w-28 cursor-pointer select-none"
                   >
-                    <div className="h-3 sm:h-4 bg-black/60 rounded-full border border-white/10 relative overflow-hidden group-hover/ferveur:border-orange-500/50 transition-colors">
-                      <div
-                        className="h-full bg-orange-600 rounded-full transition-all duration-500 relative"
-                        style={{
-                          width: `${Math.min(100, Math.max(0, progressPercent))}%`,
-                        }}
+                    <div className="flex justify-between items-center text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-orange-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      <span>Ferveur</span>
+                      <span>{currentPoints}/{nextLevelPoints}</span>
+                    </div>
+                    <div className="h-2.5 bg-black/60 rounded-full border border-white/15 relative overflow-hidden shadow-inner">
+                      <div 
+                        className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all duration-500 relative"
+                        style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
                       >
                         <div className="absolute inset-0 bg-white/30 animate-[scan_2s_ease-in-out_infinite]" />
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                        <span className="text-[8px] sm:text-[10px] font-black text-white italic uppercase tracking-tighter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                          {currentPoints} / {nextLevelPoints}
-                        </span>
                       </div>
                     </div>
                   </div>
                 );
               })()}
-          </div>
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-full flex flex-col items-center justify-center border-2 border-white/10 shadow-xl shrink-0 mb-1 backdrop-blur-md">
-            <span className="text-sm sm:text-base font-black italic text-white leading-none">
-              {fanz.rank ?? 0}
-            </span>
+
+              {/* Jauge Aptitudes / Compétences */}
+              {(() => {
+                const stats = (fanz.stats || {}) as any;
+                const getStatLvl = (xp: number) => Math.min(10, Math.floor((xp || 1) / 100) + 1);
+                const totalLevels = 
+                  getStatLvl(stats.force) +
+                  getStatLvl(stats.endurance) +
+                  getStatLvl(stats.mental) +
+                  getStatLvl(stats.bluff) +
+                  getStatLvl(stats.creativity) +
+                  getStatLvl(stats.social) +
+                  getStatLvl(stats.intelligence) +
+                  getStatLvl(stats.charisma);
+                return (
+                  <div
+                    onClick={() => setActiveTab("stats")}
+                    className="flex flex-col gap-1 w-24 sm:w-28 cursor-pointer select-none"
+                  >
+                    <div className="flex justify-between items-center text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-amber-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      <span>Stats</span>
+                      <span>{totalLevels}/80</span>
+                    </div>
+                    <div className="h-2.5 bg-black/60 rounded-full border border-white/15 relative overflow-hidden shadow-inner">
+                      <div 
+                        className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-500 relative"
+                        style={{ width: `${Math.min(100, Math.max(12, (totalLevels / 80) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Jauge Rang */}
+              {(() => {
+                const rank = fanz.rank ?? 1;
+                return (
+                  <div
+                    onClick={() => setActiveTab("rank")}
+                    className="flex flex-col gap-1 w-24 sm:w-28 cursor-pointer select-none"
+                  >
+                    <div className="flex justify-between items-center text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-rose-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      <span>Rang</span>
+                      <span>{rank}/10</span>
+                    </div>
+                    <div className="h-2.5 bg-black/60 rounded-full border border-white/15 relative overflow-hidden shadow-inner">
+                      <div 
+                        className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-full transition-all duration-500 relative"
+                        style={{ width: `${Math.min(100, Math.max(10, (rank / 10) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       </div>
@@ -1213,6 +1283,10 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                 </span>
                               </div>
                             </div>
+
+                            <p className="text-[10px] font-bold text-gray-400 mt-2 bg-white/5 p-1.5 rounded border border-white/5 leading-snug">
+                              {statDuelDescriptions[stat as keyof typeof statDuelDescriptions]}
+                            </p>
                           </div>
                         </Card>
                       );
@@ -3450,16 +3524,65 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                         const card = allCards.find((c) => c.id === cardId);
                         if (!card) return null;
 
+                        const requirements = card.unlockRequirements || [];
+                        const hasRequirements = requirements.length > 0;
+                        const metRequirements =
+                          hasRequirements &&
+                          requirements.every((req: any) => {
+                            if (req.type === "skill" && req.skillName) {
+                              const xp = fanz.stats[req.skillName] || 0;
+                              const level = Math.min(
+                                10,
+                                Math.floor(xp / 100) + 1,
+                              );
+                              return level >= req.minLevel;
+                            }
+                            if (req.type === "ferveur") {
+                              return fanz.ferveurLevel >= req.minLevel;
+                            }
+                            if (req.type === "rank") {
+                              return (fanz.rank ?? 0) >= req.minLevel;
+                            }
+                            return true;
+                          });
+                        const isUnlocked =
+                          userProfile.cards?.includes(card.id) ||
+                          metRequirements ||
+                          (!hasRequirements && card.rarity === "common");
+                        const canAfford =
+                          !isUnlocked &&
+                          userProfile &&
+                          card.price &&
+                          (!card.price.money ||
+                            (userProfile.money || 0) >= card.price.money) &&
+                          (!card.price.gems ||
+                            (userProfile.gems || 0) >= card.price.gems) &&
+                          (!card.price.boostPoints ||
+                            (userProfile.boostPoints || 0) >=
+                              card.price.boostPoints);
+
                         return (
                           <div
                             key={card.id}
-                            className="relative aspect-[2/3] max-w-[200px] w-full mx-auto bg-gray-800 rounded-lg overflow-hidden border-2 border-white/10"
+                            onClick={() =>
+                              setSelectedMuseumCard({
+                                card,
+                                isUnlocked,
+                                requirements,
+                                canAfford,
+                              })
+                            }
+                            className={`group relative aspect-[2/3] max-w-[200px] w-full mx-auto bg-gray-800 rounded-lg overflow-hidden border-2 cursor-pointer transition-all hover:scale-[1.03] select-none ${
+                              isUnlocked
+                                ? "border-white/10 hover:border-orange-500/50"
+                                : "border-orange-500/40 shadow-[0_0_8px_rgba(249,115,22,0.15)] hover:border-orange-500 hover:shadow-[0_0_12px_rgba(249,115,22,0.3)]"
+                            }`}
                           >
                             {card.imageUrl ? (
                               <img
                                 src={getImageUrl(card.imageUrl)}
                                 alt={card.name}
-                                className="w-full h-full object-cover"
+                                className={`w-full h-full object-cover transition-opacity ${!isUnlocked ? "opacity-30 grayscale" : ""}`}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gray-700">
@@ -3497,6 +3620,28 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                 {card.description}
                               </p>
                             </div>
+
+                            {/* Locked overlay info */}
+                            {!isUnlocked && (
+                              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-2 text-center group-hover:bg-black/30 transition-colors">
+                                <Lock className="w-7 h-7 text-orange-400 mb-1 drop-shadow-md animate-pulse" />
+                                <div className="text-[8px] font-black uppercase text-orange-400 tracking-wider drop-shadow-md">
+                                  Bloqué - Acheter
+                                </div>
+                                {card.price && (
+                                  <div className="mt-1 bg-black/85 px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 shadow-md">
+                                    <span className="text-[8px] font-black text-white">
+                                      {card.price.money || card.price.gems || card.price.boostPoints}
+                                    </span>
+                                    <img
+                                      src={card.price.gems ? LOGOS.gems : card.price.boostPoints ? LOGOS.boost : LOGOS.money}
+                                      alt="currency"
+                                      className="w-2.5 h-2.5"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -3722,11 +3867,14 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                 <h3 className="text-xl font-black italic uppercase text-white mb-4">
                   {purchaseConfirm &&
                   ((purchaseConfirm.type === "skin" &&
-                    fanz.unlockedSkins?.includes(purchaseConfirm.item.id)) ||
+                    (fanz.unlockedSkins?.includes(purchaseConfirm.item.id) ||
+                      userProfile?.skins?.includes(purchaseConfirm.item.id))) ||
                     (purchaseConfirm.type === "emote" &&
-                      fanz.unlockedEmotes?.includes(purchaseConfirm.item.id)) ||
+                      (fanz.unlockedEmotes?.includes(purchaseConfirm.item.id) ||
+                        userProfile?.emotes?.includes(purchaseConfirm.item.id))) ||
                     (purchaseConfirm.type === "card" &&
                       (purchaseConfirm.item.rarity === "common" ||
+                        userProfile?.cards?.includes(purchaseConfirm.item.id) ||
                         (fanz.cardProgress &&
                           fanz.cardProgress[purchaseConfirm.item.id] !==
                             undefined))))
@@ -3753,11 +3901,14 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                 {purchaseConfirm &&
                   !(
                     (purchaseConfirm.type === "skin" &&
-                      fanz.unlockedSkins?.includes(purchaseConfirm.item.id)) ||
+                      (fanz.unlockedSkins?.includes(purchaseConfirm.item.id) ||
+                        userProfile?.skins?.includes(purchaseConfirm.item.id))) ||
                     (purchaseConfirm.type === "emote" &&
-                      fanz.unlockedEmotes?.includes(purchaseConfirm.item.id)) ||
+                      (fanz.unlockedEmotes?.includes(purchaseConfirm.item.id) ||
+                        userProfile?.emotes?.includes(purchaseConfirm.item.id))) ||
                     (purchaseConfirm.type === "card" &&
                       (purchaseConfirm.item.rarity === "common" ||
+                        userProfile?.cards?.includes(purchaseConfirm.item.id) ||
                         (fanz.cardProgress &&
                           fanz.cardProgress[purchaseConfirm.item.id] !==
                             undefined)))
@@ -3914,11 +4065,14 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
               <div className="flex flex-col gap-3">
                 {purchaseConfirm &&
                 ((purchaseConfirm.type === "skin" &&
-                  fanz.unlockedSkins?.includes(purchaseConfirm.item.id)) ||
+                  (fanz.unlockedSkins?.includes(purchaseConfirm.item.id) ||
+                    userProfile?.skins?.includes(purchaseConfirm.item.id))) ||
                   (purchaseConfirm.type === "emote" &&
-                    fanz.unlockedEmotes?.includes(purchaseConfirm.item.id)) ||
+                    (fanz.unlockedEmotes?.includes(purchaseConfirm.item.id) ||
+                      userProfile?.emotes?.includes(purchaseConfirm.item.id))) ||
                   (purchaseConfirm.type === "card" &&
                     (purchaseConfirm.item.rarity === "common" ||
+                      userProfile?.cards?.includes(purchaseConfirm.item.id) ||
                       (fanz.cardProgress &&
                         fanz.cardProgress[purchaseConfirm.item.id] !==
                           undefined)))) ? (
@@ -4984,10 +5138,15 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                           }
                           setClaimingReward(null);
                         }}
-                        className="p-4 bg-white/5 border border-white/10 rounded-xl flex items-center gap-3 hover:border-white/30 hover:bg-white/10 transition-all text-left"
+                        className="p-4 bg-white/5 border border-white/10 rounded-xl flex flex-col items-start gap-2 hover:border-white/30 hover:bg-white/10 transition-all text-left group"
                       >
-                        {statIcons[key as keyof typeof statIcons]}
-                        <span className="font-bold text-sm">{label}</span>
+                        <div className="flex items-center gap-3">
+                          {statIcons[key as keyof typeof statIcons]}
+                          <span className="font-black text-sm uppercase italic tracking-wider">{label}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1 leading-normal group-hover:text-white/80 transition-colors">
+                          {statDuelDescriptions[key as keyof typeof statDuelDescriptions]}
+                        </p>
                       </button>
                     ))}
                   </div>

@@ -3,6 +3,7 @@ import { UserProfile, Fanz } from '../types';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { getImageUrl } from '../lib/utils';
+import { translateCountryName } from '../utils/countryTranslations';
 import { footballApi } from '../services/footballApi';
 import { 
   Trophy, 
@@ -152,6 +153,12 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
       label: 'Entraînement Solo',
       subtitle: 'Contre un BOT IA',
       icon: <Gamepad2 className="w-5 h-5 text-gray-400" />
+    },
+    {
+      key: 'training_1v1',
+      label: 'Entraînement 1v1',
+      subtitle: '1 VS 1 Amical',
+      icon: <Users className="w-5 h-5 text-orange-400" />
     },
     {
       key: '1v1',
@@ -315,49 +322,88 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
                 <StatBox icon={<Trophy className="text-purple-500" />} label="Rareté Max" value={bestFanz?.rarity || 'Commun'} />
               </div>
 
-              {/* Best Fanz */}
+              {/* Mes Fanz */}
               <section className="bg-neutral-900 border border-white/5 rounded-3xl p-4 sm:p-5 shadow-lg">
                 <div className="flex items-center gap-2 mb-4">
-                  <Star className="w-4 h-4 text-yellow-500" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-neutral-300">Mon meilleur Fanz</h3>
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-neutral-300 font-sans">Mes Fanz</h3>
                 </div>
-                {bestFanz ? (
-                  <div className="bg-black/60 border border-white/5 rounded-2xl p-3 sm:p-4 flex gap-3 sm:gap-5 items-center">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-neutral-800 rounded-xl overflow-hidden shrink-0 border border-white/10 flex items-center justify-center relative shadow-md">
-                      {(bestFanz.imageUrl || (bestFanz as any).image) ? (
-                        <img src={getImageUrl(bestFanz.imageUrl || (bestFanz as any).image)} alt="" className="w-full h-full object-cover" />
-                      ) : bestFanz.videoUrl ? (
-                        <video src={getImageUrl(bestFanz.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                      ) : (
-                        <Star className="w-8 h-8 text-neutral-600" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm sm:text-base font-black italic uppercase tracking-tighter text-white truncate">{bestFanz.name}</div>
-                      <div className="text-[9px] font-black uppercase text-yellow-500 tracking-widest mb-2 flex items-center gap-1">
-                        <span>Niveau {bestFanz.level || 1}</span>
-                        <span>•</span>
-                        <span>{bestFanz.rarity}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                        <div className="flex justify-between text-[9px] font-bold border-b border-white/5 py-1">
-                          <span className="text-neutral-500">FORCE</span>
-                          <span className="text-neutral-200">{bestFanz.stats?.force || 1}</span>
+                {userFanz.length > 0 ? (
+                  <div className="space-y-4">
+                    {userFanz.map(fanz => {
+                      const stats: any = fanz.stats || {};
+                      const getStatLvl = (xp: number) => Math.min(10, Math.floor((xp || 1) / 100) + 1);
+                      const totalLevels = 
+                        getStatLvl(stats.force) +
+                        getStatLvl(stats.endurance) +
+                        getStatLvl(stats.mental) +
+                        getStatLvl(stats.bluff) +
+                        getStatLvl(stats.creativity) +
+                        getStatLvl(stats.social) +
+                        getStatLvl(stats.intelligence) +
+                        getStatLvl(stats.charisma);
+
+                      return (
+                        <div key={fanz.id} className="bg-black/60 border border-white/5 rounded-2xl p-3 sm:p-4 flex flex-col md:flex-row gap-3 sm:gap-4 items-stretch md:items-center">
+                          {/* Visual & Ranks info */}
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-neutral-800 rounded-xl overflow-hidden shrink-0 border border-white/10 flex items-center justify-center relative shadow-md">
+                              {(fanz.imageUrl || (fanz as any).image) ? (
+                                <img src={getImageUrl(fanz.imageUrl || (fanz as any).image)} alt="" className="w-full h-full object-cover" />
+                              ) : fanz.videoUrl ? (
+                                <video src={getImageUrl(fanz.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                              ) : (
+                                <Star className="w-8 h-8 text-neutral-600" />
+                              )}
+                              {/* Level badge */}
+                              <div className="absolute bottom-0 inset-x-0 bg-black/75 text-center py-0.5 border-t border-white/5">
+                                <span className="text-[7px] font-black uppercase text-yellow-400">Niv.{fanz.level || 1}</span>
+                              </div>
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="text-sm font-black italic uppercase tracking-tighter text-white truncate max-w-[150px] sm:max-w-none">{fanz.name}</div>
+                              <div className="text-[9px] font-black uppercase text-neutral-400 tracking-widest flex items-center gap-1.5 mt-0.5">
+                                <span className="text-yellow-500">{fanz.rarity || 'COMMUN'}</span>
+                                <span>•</span>
+                                <span className="text-rose-400">Rang {fanz.rank || 1}/10</span>
+                              </div>
+                              <div className="text-[8px] font-black uppercase text-orange-400 tracking-wider flex items-center gap-1 mt-1">
+                                <Flame className="w-3 h-3 text-orange-500 shrink-0" />
+                                <span>Ferveur : {fanz.ferveurPoints || 0} pts</span>
+                              </div>
+                              <div className="text-[8px] font-black uppercase text-amber-500 tracking-wider flex items-center gap-1 mt-0.5">
+                                <Activity className="w-3 h-3 text-amber-500 shrink-0 animate-pulse" />
+                                <span>Aptitudes : {totalLevels}/80</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Quick stats GRID */}
+                          <div className="flex-1 grid grid-cols-4 gap-1.5 bg-neutral-900/60 p-2 rounded-xl border border-white/5">
+                            {[
+                              { label: 'FOR', val: stats.force || 0, color: 'text-red-400' },
+                              { label: 'END', val: stats.endurance || 0, color: 'text-blue-400' },
+                              { label: 'MEN', val: stats.mental || 0, color: 'text-purple-400' },
+                              { label: 'BLU', val: stats.bluff || 0, color: 'text-yellow-400' },
+                              { label: 'CRE', val: stats.creativity || 0, color: 'text-emerald-400' },
+                              { label: 'SOC', val: stats.social || 0, color: 'text-pink-400' },
+                              { label: 'INT', val: stats.intelligence || 0, color: 'text-cyan-400' },
+                              { label: 'CHA', val: stats.charisma || 0, color: 'text-orange-400' },
+                            ].map(st => {
+                              const lvl = getStatLvl(st.val);
+                              return (
+                                <div key={st.label} className="flex flex-col items-center justify-center py-1 px-0.5 bg-black/45 rounded-lg border border-white/5 hover:bg-black/60 transition-colors">
+                                  <span className="text-[7px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-0.5">{st.label}</span>
+                                  <span className={`text-[10px] font-black ${st.color} leading-none`}>{lvl}</span>
+                                  <span className="text-[6.5px] text-neutral-400 font-mono scale-[0.85] leading-none mt-0.5">({st.val})</span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <div className="flex justify-between text-[9px] font-bold border-b border-white/5 py-1">
-                          <span className="text-neutral-500 font-mono">MENTAL</span>
-                          <span className="text-neutral-200">{bestFanz.stats?.mental || 1}</span>
-                        </div>
-                        <div className="flex justify-between text-[9px] font-bold border-b border-white/5 py-1">
-                          <span className="text-neutral-500">BLUFF</span>
-                          <span className="text-neutral-200">{bestFanz.stats?.bluff || 1}</span>
-                        </div>
-                        <div className="flex justify-between text-[9px] font-bold border-b border-white/5 py-1">
-                          <span className="text-neutral-500">SOCIAL</span>
-                          <span className="text-neutral-200">{bestFanz.stats?.social || 1}</span>
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-6 bg-black/40 border border-dashed border-white/10 rounded-2xl">
@@ -380,8 +426,8 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
                           <img src={getImageUrl(team.logo, 100)} alt="" className="w-full h-full object-contain" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black uppercase truncate text-neutral-200">{team.name}</div>
-                          <div className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest">{team.country}</div>
+                          <div className="text-xs font-black uppercase truncate text-neutral-200">{translateCountryName(team.name)}</div>
+                          <div className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest">{translateCountryName(team.country)}</div>
                         </div>
                       </div>
                     ))

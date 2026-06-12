@@ -27,9 +27,9 @@ const CATEGORIES = [
 
 // Mock Data for Boosts and Gems
 const MOCK_BOOSTS = [
-  { id: 'b1', type: 'boost', name: 'Boost XP x2', duration: '24h', price: 100, currency: 'gems', icon: <TrendingUp className="w-8 h-8 text-blue-500" />, color: 'blue' },
-  { id: 'b2', type: 'boost', name: 'Énergie Infinie', duration: '1h', price: 50, currency: 'gems', icon: <Zap className="w-8 h-8 text-yellow-500" />, color: 'yellow' },
-  { id: 'b3', type: 'boost', name: 'Bouclier Anti-Malus', duration: '3 Matchs', price: 150, currency: 'gems', icon: <Shield className="w-8 h-8 text-green-500" />, color: 'green' },
+  { id: 'b1', type: 'boost', name: 'Boost XP x2', duration: '24h', price: 100, currency: 'gems', icon: <TrendingUp className="w-8 h-8 text-blue-500" />, color: 'blue', imageUrl: 'https://thebestfan.online/img/public/logo/boostxpx2.png' },
+  { id: 'b2', type: 'boost', name: 'Énergie Infinie', duration: '1h', price: 50, currency: 'gems', icon: <Zap className="w-8 h-8 text-yellow-500" />, color: 'yellow', imageUrl: 'https://thebestfan.online/img/public/logo/infinityenergy.png' },
+  { id: 'b3', type: 'boost', name: 'Bouclier Anti-Malus', duration: '3 Matchs', price: 150, currency: 'gems', icon: <Shield className="w-8 h-8 text-green-500" />, color: 'green', imageUrl: 'https://thebestfan.online/img/public/logo/bouclierantimalus.png' },
 ];
 
 const RARITY_COLORS = {
@@ -129,7 +129,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
         const dailyFanzs = getDailyFanzs(fanzData);
         const dailyFanzIds = dailyFanzs.map(f => f.id);
         
-        const fanzForSale = dailyFanzs
+        const fanzForSale = fanzData
           .filter(f => f.price && (f.price.money || f.price.gems))
           .filter(f => !ownedFanzTemplateIds.includes(f.id))
           .map(f => ({
@@ -209,13 +209,44 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           return card;
         });
         
+        const allSkins: any[] = [];
+        fanzData.forEach(fanz => {
+          if (fanz.skins && Array.isArray(fanz.skins)) {
+            fanz.skins.forEach(s => {
+              allSkins.push({ ...s, fanzId: fanz.id });
+            });
+          }
+        });
+
+        const userOwnedSkins = profile.skins || [];
+
         const cardsForSale = cardsData
           .filter(c => c.price && (c.price.money || c.price.gems))
           .filter(c => !(profile.cards || []).includes(c.id))
           .filter(c => {
             // Only show cards if they are linked to the FANZ currently owned by the USER
             if (c.fanzIds && c.fanzIds.length > 0) {
-              return c.fanzIds.some(fid => ownedFanzTemplateIds.includes(fid));
+              const matchedFanz = c.fanzIds.some(fid => ownedFanzTemplateIds.includes(fid));
+              if (!matchedFanz) return false;
+
+              // Check for skin constraint
+              if (c.skinId) {
+                const ownsSkin = userOwnedSkins.includes(c.skinId);
+                if (!ownsSkin) return false;
+              }
+
+              // Check for skin theme constraint
+              if (c.skinTheme) {
+                const theme = c.skinTheme.toLowerCase();
+                const ownsThemedSkin = userOwnedSkins.some(ownedSkinId => {
+                  if (ownedSkinId.toLowerCase().includes(theme)) return true;
+                  const skinObj = allSkins.find(s => s.id === ownedSkinId);
+                  return !!(skinObj && skinObj.name && skinObj.name.toLowerCase().includes(theme));
+                });
+                if (!ownsThemedSkin) return false;
+              }
+
+              return true;
             }
             return false;
           })
@@ -597,7 +628,35 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             )}
             {type === 'skin' && (item.image?.startsWith('http') || item.image?.startsWith('/') || item.video ? <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.image || null} poster={item.image} className="w-full h-full object-cover relative z-10 scale-110" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.image}</div>)}
             {type === 'emote' && (item.icon?.startsWith('http') || item.icon?.startsWith('/') || item.video ? <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.icon || null} poster={item.icon} className="w-full h-full object-contain p-2 relative z-10" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.icon}</div>)}
-            {type === 'boost' && <div className="w-full h-full flex items-center justify-center relative z-10">{item.icon}</div>}
+            {type === 'boost' && (() => {
+              let imgUrl = item.imageUrl;
+              if (!imgUrl) {
+                const nameLower = (item.name || '').toLowerCase();
+                if (item.id === 'b1' || nameLower.includes('xp')) {
+                  imgUrl = 'https://thebestfan.online/img/public/logo/boostxpx2.png';
+                } else if (item.id === 'b2' || nameLower.includes('infini')) {
+                  imgUrl = 'https://thebestfan.online/img/public/logo/infinityenergy.png';
+                } else if (item.id === 'b3' || nameLower.includes('bouclier') || nameLower.includes('malus')) {
+                  imgUrl = 'https://thebestfan.online/img/public/logo/bouclierantimalus.png';
+                }
+              }
+
+              if (imgUrl) {
+                return (
+                  <OptimizedMedia 
+                    type="image" 
+                    src={imgUrl} 
+                    className="w-full h-full object-contain p-3.5 relative z-10 scale-105" 
+                  />
+                );
+              }
+
+              return (
+                <div className="w-full h-full flex items-center justify-center relative z-10 text-white">
+                  {item.icon}
+                </div>
+              );
+            })()}
             {type === 'card' && (item.image?.startsWith('http') || item.image?.startsWith('/') || item.video ? <OptimizedMedia type={item.video ? 'video' : 'image'} src={item.video || item.image || null} poster={item.image} className="w-full h-full object-cover relative z-10 scale-110" /> : <div className="w-full h-full flex items-center justify-center text-6xl relative z-10">{item.image}</div>)}
             
             {item.isActive === false && (

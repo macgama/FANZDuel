@@ -10,6 +10,8 @@ import { Button, Card } from './Layout';
 import { useAlert } from '../context/AlertContext';
 import { handleFirestoreError, OperationType } from '../firebase';
 import { logTransaction } from '../services/transactionService';
+import { translateCountryName } from '../utils/countryTranslations';
+import { getSearchVariations } from '../utils/teamSearch';
 
 interface FavoriteTeamsPageProps {
   profile: UserProfile;
@@ -161,8 +163,26 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
       }
       setIsSearching(true);
       try {
-        const results = await footballApi.searchTeams(searchQuery);
-        setSearchResults(results || []);
+        const variations = getSearchVariations(searchQuery);
+        let results: any[] = [];
+        
+        // Execute queries for all variations in parallel and combine/deduplicate
+        const queryPromises = variations.map(v => footballApi.searchTeams(v).catch(() => []));
+        const allRes = await Promise.all(queryPromises);
+        
+        const seenIds = new Set<number>();
+        allRes.forEach((resList) => {
+          if (resList) {
+            resList.forEach((item: any) => {
+              if (item?.team?.id && !seenIds.has(item.team.id)) {
+                seenIds.add(item.team.id);
+                results.push(item);
+              }
+            });
+          }
+        });
+
+        setSearchResults(results);
       } catch (err) {
         console.error(err);
       } finally {
@@ -300,7 +320,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-black text-white text-lg sm:text-xl italic uppercase tracking-tighter truncate">{team.name}</h3>
+                      <h3 className="font-black text-white text-lg sm:text-xl italic uppercase tracking-tighter truncate">{translateCountryName(team.name)}</h3>
                       <Star className="w-4 h-4 text-orange-500 fill-orange-500" />
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-1">
@@ -436,8 +456,8 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                       <img src={getImageUrl(result.team.logo, 100)} alt={result.team.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-bold text-white text-sm truncate">{result.team.name}</h4>
-                      <p className="text-xs text-gray-500 truncate">{result.team.country}</p>
+                      <h4 className="font-bold text-white text-sm truncate">{translateCountryName(result.team.name)}</h4>
+                      <p className="text-xs text-gray-500 truncate">{translateCountryName(result.team.country)}</p>
                     </div>
                   </div>
                   <Button 

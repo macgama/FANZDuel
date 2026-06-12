@@ -586,7 +586,7 @@ function CompetitionsTab({ leagues, onLeagueClick, selectedSeason }: { leagues: 
               <h3 className="font-black text-sm sm:text-base uppercase text-orange-500 truncate">{l.league.name}</h3>
               <div className="flex items-center gap-2 mt-1">
                 {l.country.flag && <img src={l.country.flag} alt="" className="w-3 h-3 object-contain rounded-sm" />}
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.country.name}</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{translateCountryName(l.country.name)}</p>
                 <span className="text-gray-600 text-[10px]">&bull;</span>
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{l.league.type === 'League' ? 'Championnat' : l.league.type === 'Cup' ? 'Coupe' : l.league.type}</p>
               </div>
@@ -642,7 +642,7 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: an
                     <h3 className="font-black text-sm sm:text-base uppercase text-orange-500 truncate">{l.league.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
                       {l.country.flag && <img src={l.country.flag} alt="" className="w-3 h-3 object-contain rounded-sm" />}
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.country.name}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{translateCountryName(l.country.name)}</p>
                       <span className="text-gray-600 text-[10px]">&bull;</span>
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{l.league.type === 'League' ? 'Championnat' : l.league.type === 'Cup' ? 'Coupe' : l.league.type}</p>
                     </div>
@@ -683,7 +683,7 @@ function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerCli
             <div className="flex-1 space-y-3">
               <h2 className="text-2xl sm:text-3xl font-black uppercase text-orange-500 tracking-tight">{team.name}</h2>
               <div className="flex justify-center sm:justify-start gap-4 flex-wrap text-xs sm:text-sm text-gray-300">
-                {team.country && <span className="font-bold flex items-center gap-1.5 opacity-80"><img src={`https://media.api-sports.io/flags/${team.country.toLowerCase()}.svg`} className="w-4 h-4 object-contain rounded-sm" onError={(e) => e.currentTarget.style.display='none'} alt="" /> {team.country}</span>}
+                {team.country && <span className="font-bold flex items-center gap-1.5 opacity-80"><img src={`https://media.api-sports.io/flags/${team.country.toLowerCase()}.svg`} className="w-4 h-4 object-contain rounded-sm" onError={(e) => e.currentTarget.style.display='none'} alt="" /> {translateCountryName(team.country)}</span>}
                 {team.founded && <span className="font-bold opacity-80">Fondé en {team.founded}</span>}
                 {team.venue?.name && <span className="font-bold opacity-80">Stade: {team.venue.name}</span>}
                 {team.venue?.city && <span className="font-bold opacity-80">Ville: {team.venue.city}</span>}

@@ -281,6 +281,34 @@ export function translateCountryName(name: string): string {
   return countryTranslations[name] || name;
 }
 
+export function reverseTranslateCountryName(name: string): string {
+  if (!name) return name;
+  const normalizedName = name.toLowerCase();
+  for (const [en, fr] of Object.entries(countryTranslations)) {
+    if (fr.toLowerCase() === normalizedName) return en;
+  }
+  return name;
+}
+
+export function getEnglishCountrySearch(query: string): string[] {
+  if (!query) return [];
+  const normalizedQuery = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  const matches: string[] = [];
+  
+  for (const [en, fr] of Object.entries(countryTranslations)) {
+    const normalizedFr = fr.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const normalizedEn = en.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    if (normalizedFr.includes(normalizedQuery) || normalizedEn.includes(normalizedQuery)) {
+      if (!matches.includes(en)) {
+        matches.push(en);
+      }
+    }
+  }
+  return matches;
+}
+
 export function translateLeagueName(name: string): string {
   if (!name) return name;
   return leagueTranslations[name] || name;

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TeamDetails } from './TeamDetails';
 import { format } from 'date-fns';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
+import { getSearchVariations } from '../utils/teamSearch';
 
 // Simple continent mapping helper
 const getContinent = (country: string): string => {
@@ -76,8 +77,18 @@ export function TeamsPage({ onTeamClick }: { onTeamClick: (id: number, season: n
       
       setLoadingSearch(true);
       try {
-        const data = await footballApi.searchTeams(searchTerm);
-        setSearchResults(data);
+        const variations = getSearchVariations(searchTerm);
+        let results: any[] = [];
+        
+        for (const variation of variations) {
+          const res = await footballApi.searchTeams(variation);
+          if (res && res.length > 0) {
+            results = res;
+            break;
+          }
+        }
+        
+        setSearchResults(results);
       } catch (err) {
         console.error('Failed to search teams', err);
       } finally {

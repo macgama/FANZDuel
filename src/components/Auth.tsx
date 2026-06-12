@@ -17,6 +17,7 @@ import { Search, ChevronLeft, Star } from 'lucide-react';
 import { useAlert } from '../context/AlertContext';
 import { safeSessionStorage } from '../lib/utils';
 import { getSearchVariations } from '../utils/teamSearch';
+import { translateCountryName } from '../utils/countryTranslations';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -559,7 +560,7 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
                   <div className="flex items-center justify-between bg-white/5 border border-orange-500 rounded-lg px-4 py-3">
                     <div className="flex items-center gap-3">
                       <img src={selectedTeam.team.logo} alt="" className="w-6 h-6 object-contain" />
-                      <span className="font-bold">{selectedTeam.team.name}</span>
+                      <span className="font-bold">{translateCountryName(selectedTeam.team.name)}</span>
                     </div>
                     <button 
                       type="button" 
@@ -596,8 +597,8 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
                           >
                             <img src={result.team.logo} alt="" className="w-8 h-8 object-contain" />
                             <div className="flex flex-col">
-                              <span className="font-bold text-sm">{result.team.name}</span>
-                              <span className="text-[10px] text-gray-500 uppercase tracking-widest">{result.team.country}</span>
+                              <span className="font-bold text-sm">{translateCountryName(result.team.name)}</span>
+                              <span className="text-[10px] text-gray-500 uppercase tracking-widest">{translateCountryName(result.team.country)}</span>
                             </div>
                           </div>
                         ))}

@@ -3,6 +3,7 @@ import { UserProfile, Fanz } from '../types';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { getImageUrl } from '../lib/utils';
+import { translateCountryName } from '../utils/countryTranslations';
 import { 
   Trophy, 
   Swords, 
@@ -161,7 +162,7 @@ export function UserStats({ user, onBack }: UserStatsProps) {
                     </div>
                     <div className="min-w-0">
                       <div className="text-xs font-black uppercase truncate">{team.name}</div>
-                      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{team.country}</div>
+                      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{translateCountryName(team.country)}</div>
                     </div>
                   </div>
                 ))

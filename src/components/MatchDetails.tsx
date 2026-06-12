@@ -67,9 +67,11 @@ interface MatchDetailsProps {
   onDuelIntent?: (callback: () => void) => void;
   onFanzClick?: (fanzId: string) => void;
   onPlayerClick?: (playerId: number, season: number) => void;
+  initialPrivateDuel?: boolean;
+  initialInvitedFriend?: UserProfile | null;
 }
 
-export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick, initialTab = 'summary', initialDuelId, initialDuelType, onDuelStatusChange, onDuelIntent, onFanzClick, onPlayerClick }: MatchDetailsProps) {
+export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick, initialTab = 'summary', initialDuelId, initialDuelType, onDuelStatusChange, onDuelIntent, onFanzClick, onPlayerClick, initialPrivateDuel = false, initialInvitedFriend = null }: MatchDetailsProps) {
   const [details, setDetails] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [lineups, setLineups] = useState<any[]>([]);
@@ -83,7 +85,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   const [showDuelsList, setShowDuelsList] = useState(false);
   const [showCreateDuel, setShowCreateDuel] = useState(false);
   const [newDuelType, setNewDuelType] = useState<'1v1' | '2v2' | '5v5'>('1v1');
-  const [isPrivateDuel, setIsPrivateDuel] = useState(false);
+  const [isPrivateDuel, setIsPrivateDuel] = useState(initialPrivateDuel);
   const [duelHistory, setDuelHistory] = useState<any[]>([]);
   const [selectedDuelDetails, setSelectedDuelDetails] = useState<string | null>(null);
 
@@ -286,6 +288,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         onNavigateToFanz={onFanzClick}
         duelLeagueId={details.league.id.toString()}
         duelSeason={details.league.season.toString()}
+        initialInvitedFriend={initialInvitedFriend || undefined}
       />
     );
   }

@@ -7,6 +7,8 @@ import {
   getDocs,
   onSnapshot,
   doc,
+  updateDoc,
+  arrayUnion,
 } from "firebase/firestore";
 import { Card, Button } from "./Layout";
 import {
@@ -62,23 +64,74 @@ export function CollectionPage({ user }: CollectionPageProps) {
     return new Set();
   });
 
-  const [hasInitializedSeenItems, setHasInitializedSeenItems] = useState(
-    !!localStorage.getItem(`seen_museum_${user.uid}`),
-  );
+  // Dynamically determine if the user has once initialized their seen items in Firestore / localStorage
+  const hasInitializedSeenItems = useMemo(() => {
+    if (userDoc && Array.isArray(userDoc.seenMuseumItems)) {
+      return true;
+    }
+    try {
+      return !!localStorage.getItem(`seen_museum_${user.uid}`);
+    } catch (e) {
+      return false;
+    }
+  }, [userDoc, user.uid]);
+
+  // Sync seen items from Firestore UserProfile
+  useEffect(() => {
+    if (userDoc && Array.isArray(userDoc.seenMuseumItems)) {
+      setSeenItems((prev) => {
+        const next = new Set(prev);
+        let changed = false;
+        userDoc.seenMuseumItems!.forEach((item) => {
+          if (!next.has(item)) {
+            next.add(item);
+            changed = true;
+          }
+        });
+        if (changed) {
+          try {
+            localStorage.setItem(
+              `seen_museum_${user.uid}`,
+              JSON.stringify(Array.from(next)),
+            );
+          } catch (e) {
+            console.error(e);
+          }
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [userDoc, user.uid]);
 
   const markAsSeen = useCallback(
-    (type: string, id: string) => {
+    async (type: string, id: string) => {
       const key = `${type}_${id}`;
       if (!seenItems.has(key)) {
+        // Snappy local UI update
         setSeenItems((prev) => {
           const next = new Set(prev);
           next.add(key);
-          localStorage.setItem(
-            `seen_museum_${user.uid}`,
-            JSON.stringify(Array.from(next)),
-          );
+          try {
+            localStorage.setItem(
+              `seen_museum_${user.uid}`,
+              JSON.stringify(Array.from(next)),
+            );
+          } catch (e) {
+            console.error("Failed to save to localStorage:", e);
+          }
           return next;
         });
+
+        // Save permanently to Firestore so it resists iframe limitations and survives across devices
+        try {
+          const userRef = doc(db, "users", user.uid);
+          await updateDoc(userRef, {
+            seenMuseumItems: arrayUnion(key),
+          });
+        } catch (err) {
+          console.error("Error setting seen item in Firestore: ", err);
+        }
       }
     },
     [seenItems, user.uid],
@@ -497,8 +550,8 @@ export function CollectionPage({ user }: CollectionPageProps) {
       userDoc !== null &&
       fanzList.length >= 0
     ) {
-      const timer = setTimeout(() => {
-        const all = new Set([
+      const timer = setTimeout(async () => {
+        const allList = [
           ...Array.from(ownedTemplates).map((id) => `fanz_${id}`),
           ...skins
             .filter((s) => checkSkinOwned(s))
@@ -512,13 +565,27 @@ export function CollectionPage({ user }: CollectionPageProps) {
           ...expandedActions
             .filter((a) => checkActionOwned(a))
             .map((a) => `action_${a.uniqueItemKey}`),
-        ]);
+        ];
+        const all = new Set(allList);
         setSeenItems(all);
-        localStorage.setItem(
-          `seen_museum_${user.uid}`,
-          JSON.stringify(Array.from(all)),
-        );
-        setHasInitializedSeenItems(true);
+        try {
+          localStorage.setItem(
+            `seen_museum_${user.uid}`,
+            JSON.stringify(allList),
+          );
+        } catch (e) {
+          console.error(e);
+        }
+
+        // Initialize seenMuseumItems in Firestore
+        try {
+          const userRef = doc(db, "users", user.uid);
+          await updateDoc(userRef, {
+            seenMuseumItems: allList,
+          });
+        } catch (err) {
+          console.error("Error initializing seenMuseumItems in Firestore: ", err);
+        }
       }, 500);
       return () => clearTimeout(timer);
     }

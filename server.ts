@@ -404,11 +404,16 @@ async function startServer() {
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
+    // Send immediate initial count
+    socket.emit("online-users-count", { count: Math.max(1, userSockets.size) });
+
     // Register active user connection
     socket.on("register-user", ({ uid }) => {
       if (uid) {
         userSockets.set(uid, socket.id);
         console.log(`[Server] Registered user ${uid} to socket ${socket.id}`);
+        // Broadcast new online count to all clients
+        io.emit("online-users-count", { count: Math.max(1, userSockets.size) });
       }
     });
 
@@ -943,12 +948,18 @@ async function startServer() {
       console.log("User disconnected:", socket.id);
       
       // Clean up userSockets map
+      let changed = false;
       for (const [uid, sid] of userSockets.entries()) {
         if (sid === socket.id) {
           userSockets.delete(uid);
           console.log(`[Server] Unregistered user ${uid} of socket ${socket.id}`);
+          changed = true;
           break;
         }
+      }
+
+      if (changed) {
+        io.emit("online-users-count", { count: Math.max(1, userSockets.size) });
       }
 
       // Clean up participants
@@ -977,6 +988,7 @@ async function startServer() {
     let supporters = BASE_SUPPORTERS;
     let duelsTotal = BASE_DUELS;
     const duelsActive = Object.values(duels).filter(d => d.status !== 'finished').length;
+    const usersOnline = Math.max(1, userSockets.size);
 
     if (db) {
       try {
@@ -1000,8 +1012,67 @@ async function startServer() {
     res.json({
       supporters,
       duelsTotal,
-      duelsActive
+      duelsActive,
+      usersOnline
     });
+  });
+
+  app.get("/api/online-users", async (req, res) => {
+    const uids = Array.from(userSockets.keys());
+    if (uids.length === 0) {
+      return res.json([]);
+    }
+
+    const usersList: any[] = [];
+    if (db) {
+      try {
+        // Doc chunks of 30 due to Firestore database 'in' limit, or getAll for precise docs
+        const chunks: string[][] = [];
+        for (let i = 0; i < uids.length; i += 30) {
+          chunks.push(uids.slice(i, i + 30));
+        }
+
+        for (const chunk of chunks) {
+          const refs = chunk.map(uid => db.collection('users').doc(uid));
+          const docs = await db.getAll(...refs);
+          docs.forEach(doc => {
+            if (doc.exists) {
+              const data = doc.data();
+              usersList.push({
+                uid: doc.id,
+                pseudo: data?.pseudo || data?.displayName || "Supporter Anonyme",
+                displayName: data?.displayName || data?.pseudo || "Supporter Anonyme",
+                level: data?.level || 1,
+                favoriteTeams: data?.favoriteTeams || [],
+                photoURL: data?.photoURL || null,
+                friends: data?.friends || [],
+                friendRequests: data?.friendRequests || [],
+              });
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching online user profiles:", err);
+      }
+    }
+
+    // Fallback if no profiles found but keys are present
+    if (usersList.length === 0) {
+      uids.forEach(uid => {
+        usersList.push({
+          uid,
+          pseudo: `Supporter #${uid.substring(0, 4)}`,
+          displayName: `Supporter #${uid.substring(0, 4)}`,
+          level: 1,
+          favoriteTeams: [],
+          photoURL: null,
+          friends: [],
+          friendRequests: [],
+        });
+      });
+    }
+
+    res.json(usersList);
   });
 
   app.get("/api/duels/all", (req, res) => {
@@ -1192,9 +1263,13 @@ async function startServer() {
 
     // 2. Fixtures
     if (endpoint.includes("fixtures")) {
-      // Live matches
-      if (queryParams.live === 'all' || queryParams.live) {
-        return 60 * 1000; // 60 seconds (quick update for active matches)
+      // Live matches or World Cup 2026 fixtures (League 1, Season 2026)
+      if (
+        queryParams.live === 'all' || 
+        queryParams.live || 
+        (String(queryParams.league) === '1' && String(queryParams.season) === '2026')
+      ) {
+        return 60 * 1000; // 60 seconds (quick update for active matches/World Cup 2026)
       }
 
       // Querying a specific fixture (by id or ids)

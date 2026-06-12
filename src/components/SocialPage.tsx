@@ -9,6 +9,7 @@ import { useAlert } from '../context/AlertContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { getImageUrl } from '../lib/utils';
 import { MrFanzHelp } from './MrFanzHelp';
+import { PublicProfileModal } from './PublicProfileModal';
 
 interface SocialPageProps {
   user: UserProfile;
@@ -34,6 +35,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
   const [loading, setLoading] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
   const [friendToRemove, setFriendToRemove] = useState<UserProfile | null>(null);
+  const [viewingProfileUid, setViewingProfileUid] = useState<string | null>(null);
   const { showAlert } = useAlert();
 
   const friendsStr = JSON.stringify(user.friends || []);
@@ -355,10 +357,13 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
           ) : (
             friends.map(friend => (
               <div key={friend.uid} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div 
+                  className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"
+                  onClick={() => setViewingProfileUid(friend.uid)}
+                >
                   <img src={getImageUrl(friend.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} alt={friend.pseudo} className="w-10 h-10 rounded-full bg-white/10" referrerPolicy="no-referrer" />
                   <div>
-                    <div className="font-black text-white">{friend.pseudo}</div>
+                    <div className="font-black text-white hover:text-blue-400 transition-colors">{friend.pseudo}</div>
                     <div className="text-[10px] text-gray-500 uppercase font-bold">Niv. {friend.level}</div>
                   </div>
                 </div>
@@ -379,10 +384,13 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
           ) : (
             requests.map(request => (
               <div key={request.uid} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div 
+                  className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"
+                  onClick={() => setViewingProfileUid(request.uid)}
+                >
                   <img src={getImageUrl(request.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.uid}`} alt={request.pseudo} className="w-10 h-10 rounded-full bg-white/10" referrerPolicy="no-referrer" />
                   <div>
-                    <div className="font-black text-white">{request.pseudo}</div>
+                    <div className="font-black text-white hover:text-blue-400 transition-colors">{request.pseudo}</div>
                     <div className="text-[10px] text-gray-500 uppercase font-bold">Niv. {request.level}</div>
                   </div>
                 </div>
@@ -427,10 +435,13 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
                 
                 return (
                   <div key={result.uid} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3 sm:gap-4">
+                    <div 
+                      className="flex items-center gap-3 sm:gap-4 cursor-pointer hover:opacity-85 transition-opacity"
+                      onClick={() => setViewingProfileUid(result.uid)}
+                    >
                       <img src={getImageUrl(result.photoURL) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${result.uid}`} alt={result.pseudo} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10" referrerPolicy="no-referrer" />
                       <div>
-                        <div className="font-black text-white sm:text-lg">{result.pseudo}</div>
+                        <div className="font-black text-white sm:text-lg hover:text-blue-400 transition-colors">{result.pseudo}</div>
                         <div className="text-[10px] sm:text-xs text-gray-500 uppercase font-bold">Niv. {result.level}</div>
                       </div>
                     </div>
@@ -480,6 +491,17 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
           </div>
         )}
       </div>
+
+      {/* Public Profile Modal */}
+      <AnimatePresence>
+        {viewingProfileUid && (
+          <PublicProfileModal
+            targetUid={viewingProfileUid}
+            currentUser={user}
+            onClose={() => setViewingProfileUid(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Remove Friend Confirmation Modal */}
       <AnimatePresence>
