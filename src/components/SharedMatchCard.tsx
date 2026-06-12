@@ -170,7 +170,7 @@ export function SharedMatchCard({
         <div 
           className={cn(
             "flex flex-col items-center gap-2 flex-1 cursor-pointer group/team min-w-0 transition-all duration-300",
-            isAwayWinner ? "opacity-35 grayscale-[20%] scale-95" : isHomeWinner ? "scale-105" : ""
+            isAwayWinner ? "opacity-75 grayscale-[10%] scale-95" : isHomeWinner ? "scale-105" : ""
           )}
           onClick={(e) => {
             e.stopPropagation();
@@ -208,7 +208,7 @@ export function SharedMatchCard({
               isHomeWinner 
                 ? "bg-gradient-to-r from-orange-500/20 to-orange-600/30 border-2 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.4)] scale-110" 
                 : isAwayWinner 
-                  ? "bg-gray-800/20 border border-gray-800/10 opacity-30 scale-90"
+                  ? "bg-stone-800/60 border border-white/5 opacity-90 scale-90"
                   : "bg-orange-500/10 border border-orange-500/20"
             )}>
               <Flame className={cn("w-3 h-3 text-orange-500", isHomeWinner && "animate-bounce")} />
@@ -274,7 +274,7 @@ export function SharedMatchCard({
         <div 
           className={cn(
             "flex flex-col items-center gap-2 flex-1 cursor-pointer group/team min-w-0 transition-all duration-300",
-            isHomeWinner ? "opacity-35 grayscale-[20%] scale-95" : isAwayWinner ? "scale-105" : ""
+            isHomeWinner ? "opacity-75 grayscale-[10%] scale-95" : isAwayWinner ? "scale-105" : ""
           )}
           onClick={(e) => {
             e.stopPropagation();
@@ -312,7 +312,7 @@ export function SharedMatchCard({
               isAwayWinner 
                 ? "bg-gradient-to-r from-blue-500/20 to-blue-600/30 border-2 border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.4)] scale-110" 
                 : isHomeWinner 
-                  ? "bg-gray-800/20 border border-gray-800/10 opacity-30 scale-90"
+                  ? "bg-stone-800/60 border border-white/5 opacity-90 scale-90"
                   : "bg-blue-500/10 border border-blue-500/20"
             )}>
               <Flame className={cn("w-3 h-3 text-blue-500", isAwayWinner && "animate-bounce")} />

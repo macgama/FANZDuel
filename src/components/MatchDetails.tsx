@@ -360,7 +360,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
               </div>
             )}
             <span className={`font-black text-center uppercase tracking-tight text-[10px] sm:text-xs transition-colors line-clamp-2 w-full leading-tight ${
-              isHomeWinner ? 'text-orange-400 font-extrabold sm:text-xs' : isAwayWinner ? 'text-gray-500 font-medium' : 'text-white group-hover:text-orange-500'
+              isHomeWinner ? 'text-orange-400 font-extrabold sm:text-xs' : isAwayWinner ? 'text-stone-300 font-bold opacity-80' : 'text-white group-hover:text-orange-500'
             }`}>
               {details.teams.home.name}
             </span>
@@ -368,10 +368,10 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
               isHomeWinner 
                 ? 'bg-gradient-to-r from-orange-600 to-orange-500 border border-orange-400/30 text-white shadow-lg shadow-orange-500/10 scale-105' 
                 : isAwayWinner 
-                ? 'bg-[#2a2a2a]/40 border border-white/5 text-gray-500 scale-95 opacity-50'
+                ? 'bg-[#2a2a2a]/80 border border-white/10 text-stone-200 scale-95 opacity-90'
                 : 'bg-[#2a2a2a] border border-orange-500/20 text-orange-500'
             }`}>
-              <span className={isAwayWinner ? 'opacity-30' : ''}>🔥</span>
+              <span className={isAwayWinner ? 'opacity-70' : ''}>🔥</span>
               <span className="font-black text-[9px] sm:text-[10px]">{hasScore ? scoreHome : '0'}{isHomeWinner ? ' PTS' : ''}</span>
             </div>
           </div>
@@ -430,7 +430,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
               </div>
             )}
             <span className={`font-black text-center uppercase tracking-tight text-[10px] sm:text-xs transition-colors line-clamp-2 w-full leading-tight ${
-              isAwayWinner ? 'text-blue-400 font-extrabold sm:text-xs' : isHomeWinner ? 'text-gray-500 font-medium' : 'text-white group-hover:text-blue-500'
+              isAwayWinner ? 'text-blue-400 font-extrabold sm:text-xs' : isHomeWinner ? 'text-stone-300 font-bold opacity-80' : 'text-white group-hover:text-blue-500'
             }`}>
               {details.teams.away.name}
             </span>
@@ -438,10 +438,10 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
               isAwayWinner 
                 ? 'bg-gradient-to-r from-blue-600 to-blue-500 border border-blue-400/30 text-white shadow-lg shadow-blue-500/10 scale-105' 
                 : isHomeWinner 
-                ? 'bg-[#2a2a2a]/40 border border-white/5 text-gray-500 scale-95 opacity-50'
+                ? 'bg-[#2a2a2a]/80 border border-white/10 text-stone-200 scale-95 opacity-90'
                 : 'bg-[#2a2a2a] border border-blue-500/20 text-blue-500'
             }`}>
-              <span className={isHomeWinner ? 'opacity-30' : ''}>🔥</span>
+              <span className={isHomeWinner ? 'opacity-70' : ''}>🔥</span>
               <span className="font-black text-[9px] sm:text-[10px]">{hasScore ? scoreAway : '0'}{isAwayWinner ? ' PTS' : ''}</span>
             </div>
           </div>
