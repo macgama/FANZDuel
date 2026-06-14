@@ -60,6 +60,8 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
       content:
         "Les duels sont le cœur du jeu. Tu affrontes d'autres fans en temps réel pendant un match. Le but est de tirer la barre de ferveur vers ton équipe en cliquant le plus vite possible.",
       tips: [
+        "Les matchs d'entraînement (contre bots/amis) se créent sur les matchs \"À Venir\".",
+        "Les modes classés (1v1, 2v2, 5v5, Kops) se jouent sur les matchs \"En Cours (Live)\".",
         "Utilise tes cartes au bon moment pour bloquer l'adversaire.",
         "Surveille ton énergie (Excitation), elle ne remonte pas instantanément.",
         "Si personne n'est là, des Bots (IA) viendront te défier !",

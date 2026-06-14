@@ -1859,6 +1859,11 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               ferveurPoints: newUserPoints,
               level: newUserLevel
             };
+            
+            if (duelType === 'training') {
+              updates.duels_training_count = increment(1);
+            }
+            
             if (!disableGlobalUpdates) {
               updates.totalScore = increment(myScore);
               updates.matchesPlayed = increment(1);

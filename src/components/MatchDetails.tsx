@@ -15,7 +15,8 @@ import {
   Trophy,
   Target,
   X,
-  MonitorPlay
+  MonitorPlay,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -266,6 +267,8 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
   const isUpcoming = ['TBD', 'NS'].includes(details.fixture.status.short);
   const isFinished = !isLive && !isUpcoming;
 
+  const isDidacticielStep3 = user && (user.matchesParticipated || 0) === 0 && (user.duels_training_count || 0) === 0;
+
   if (selectedDuelType && user) {
     return (
       <DuelManager 
@@ -503,7 +506,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           {isUpcoming && (
             <div className="flex flex-col gap-2.5">
               <button 
-                className="w-full py-3 sm:py-4 rounded-xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-bold text-xs sm:text-sm uppercase tracking-widest transition-all"
+                className={`w-full py-3 sm:py-4 rounded-xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-white font-bold text-xs sm:text-sm uppercase tracking-widest transition-all ${isDidacticielStep3 ? 'ring-4 ring-orange-500 animate-pulse ring-offset-2 ring-offset-black' : ''}`}
                 onClick={() => handleDuelClick(() => {
                   setIsPrivateDuel(false);
                   setSelectedDuelType('training');

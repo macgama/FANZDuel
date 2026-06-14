@@ -350,7 +350,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
                   <h2 className="text-sm font-black italic uppercase tracking-tighter leading-tight text-white">
                     {team.team.name}
                   </h2>
-                  {profile?.favoriteTeams?.some(id => id.toString() === teamId.toString()) && (
+                  {profile?.favoriteTeams?.some(id => id?.toString() === teamId?.toString()) && (
                     <Star className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
                   )}
                 </div>

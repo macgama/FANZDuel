@@ -60,8 +60,8 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
       case 'gems': return <img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" />;
       case 'boost': return <img src={LOGOS.boost} alt="Boost" className="w-4 h-4 object-contain" />;
       case 'energy': return <img src={LOGOS.energy} alt="Energy" className="w-4 h-4 object-contain" />;
-      case 'ferveur_general': return <img src={LOGOS.ferveur} alt="Ferveur" className="w-4 h-4 object-contain" />;
-      case 'ferveur_fanz': return <img src={LOGOS.ferveur} alt="Ferveur FANZ" className="w-4 h-4 object-contain" />;
+      case 'ferveur_general': return <img src={LOGOS.xp} alt="Ferveur" className="w-4 h-4 object-contain" />;
+      case 'ferveur_fanz': return <img src={LOGOS.xp} alt="Ferveur FANZ" className="w-4 h-4 object-contain" />;
       default: return null;
     }
   };

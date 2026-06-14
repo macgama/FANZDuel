@@ -225,7 +225,6 @@ export function Auth({ onAuthSuccess }: { onAuthSuccess: () => void }) {
           favoriteTeams: [teamId],
           ferveurPoints: ferveurBonus,
           cards: initialCards,
-          activeFanzId: fanzId,
           photoURL: 'https://thebestfan.online/img/public/fanz/imageFanz001Skin000.png',
           lastEnergyRefill: new Date().toISOString(),
           role: (() => {

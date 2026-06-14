@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getImageUrl } from "../lib/utils";
 import { db, handleFirestoreError, OperationType } from "../firebase";
+import { cn } from "../lib/utils";
 import {
   doc,
   getDoc,
@@ -881,7 +882,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
           {userProfile.activeFanzId !== fanz.id ? (
             <button
               onClick={handleSetActiveFanz}
-              className="px-2 py-0.5 sm:px-3 sm:py-1 bg-orange-500/20 hover:bg-orange-500/40 backdrop-blur-md rounded-full border border-orange-500/50 transition-colors"
+              className={cn("px-2 py-0.5 sm:px-3 sm:py-1 bg-orange-500/20 hover:bg-orange-500/40 backdrop-blur-md rounded-full border border-orange-500/50 transition-colors relative", !userProfile.activeFanzId && "ring-4 ring-orange-500 animate-pulse ring-offset-2 ring-offset-black")}
             >
               <span className="text-[8px] sm:text-[10px] font-black italic uppercase tracking-widest text-orange-500">
                 Définir Actif

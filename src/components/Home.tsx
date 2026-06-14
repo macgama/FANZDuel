@@ -51,7 +51,7 @@ interface HomeProps {
   profile: UserProfile;
   claimableAlerts?: { missions: boolean; globalFervor: boolean; fanzFervor: boolean };
   onlineCount?: number;
-  onNavigate: (view: 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams' | 'waiting-room') => void;
+  onNavigate: (view: 'home' | 'admin' | 'matches' | 'competitions' | 'teams' | 'fanz' | 'transactions' | 'social' | 'fervor-path' | 'shop' | 'missions' | 'pass' | 'favorite-teams' | 'waiting-room' | 'mrfanz') => void;
   onMenuClick: () => void;
   onMatchClick: (matchId: number) => void;
   onLeagueClick?: (leagueId: number, season: number) => void;
@@ -62,6 +62,8 @@ interface HomeProps {
   onFanzClick?: (fanzId: string, tab?: 'infos' | 'stats' | 'cards' | 'skins' | 'emotes' | 'rank' | 'ferveur') => void;
   onStartDirectDuel?: (matchId: number, type: 'training' | '1v1', invitedFriend: UserProfile) => void;
 }
+
+import { DidacticielBanner } from "./DidacticielBanner";
 
 export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onJoinSpecificDuel, onOpenStreak, onFanzClick, onStartDirectDuel }: HomeProps) {
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
@@ -535,13 +537,21 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
         
         const filteredFixtures = (liveFixtures || []).filter((f: any) => activeLeagueIds.includes(f.league.id));
 
-        // Sort live matches alphabetically by country name, but put favorite teams first
+        // Sort live matches alphabetically by country name, but put favorite teams first, then favorite leagues
         filteredFixtures.sort((a: any, b: any) => {
           const favoriteIds = profile.favoriteTeams?.map((id: any) => id.toString()) || [];
-          const aIsFav = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
-          const bIsFav = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
-          if (aIsFav && !bIsFav) return -1;
-          if (!aIsFav && bIsFav) return 1;
+          const favoriteLeagues = profile.favoriteLeagues || [];
+          
+          const aIsFavTeam = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
+          const bIsFavTeam = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
+          if (aIsFavTeam && !bIsFavTeam) return -1;
+          if (!aIsFavTeam && bIsFavTeam) return 1;
+
+          const aIsFavLeague = favoriteLeagues.includes(a.league.id.toString());
+          const bIsFavLeague = favoriteLeagues.includes(b.league.id.toString());
+          if (aIsFavLeague && !bIsFavLeague) return -1;
+          if (!aIsFavLeague && bIsFavLeague) return 1;
+
           const countryA = translateCountryName(a.league.country || '');
           const countryB = translateCountryName(b.league.country || '');
           return countryA.localeCompare(countryB);
@@ -559,6 +569,19 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
         });
         const upcomingFiltered = Array.from(uniqueUpcomingMap.values());
         upcomingFiltered.sort((a: any, b: any) => {
+          const favoriteIds = profile.favoriteTeams?.map((id: any) => id.toString()) || [];
+          const favoriteLeagues = profile.favoriteLeagues || [];
+          
+          const aIsFavTeam = favoriteIds.includes(a.teams.home.id.toString()) || favoriteIds.includes(a.teams.away.id.toString());
+          const bIsFavTeam = favoriteIds.includes(b.teams.home.id.toString()) || favoriteIds.includes(b.teams.away.id.toString());
+          if (aIsFavTeam && !bIsFavTeam) return -1;
+          if (!aIsFavTeam && bIsFavTeam) return 1;
+
+          const aIsFavLeague = favoriteLeagues.includes(a.league.id.toString());
+          const bIsFavLeague = favoriteLeagues.includes(b.league.id.toString());
+          if (aIsFavLeague && !bIsFavLeague) return -1;
+          if (!aIsFavLeague && bIsFavLeague) return 1;
+
           return new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime();
         });
         setUpcomingMatches(upcomingFiltered);
@@ -1027,6 +1050,19 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
 
         {/* Content Below Video (Live Matches or Life Actions) */}
         <div className="flex-1 flex flex-col justify-evenly gap-4 py-4 shrink-0 min-h-[400px]">
+          
+          <DidacticielBanner
+            profile={profile}
+            onClickStep1={(fanzId) => fanzId ? onFanzClick?.(fanzId) : onNavigate('fanz')}
+            onClickStep2={(fanzId) => onFanzClick?.(fanzId, 'cards')}
+            onClickStep3={(matchId) => onMatchClick(matchId)}
+            onClickStep4={() => onNavigate('favorite-teams')}
+            onClickStep5={(fanzId) => onFanzClick?.(fanzId, 'stats')}
+            onClickStep6={() => onNavigate('social')}
+            onClickStep7={() => onNavigate('shop')}
+            onClickStep8={() => onNavigate('mrfanz')} 
+          />
+
           {/* Official News Button Indicator */}
           {news.length > 0 && (
             <div className="px-4 sm:px-8 shrink-0 animate-in fade-in slide-in-from-bottom-4 duration-500">

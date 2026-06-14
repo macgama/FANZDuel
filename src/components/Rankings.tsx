@@ -155,7 +155,7 @@ export function Rankings({ onBack }: RankingsProps) {
 
           for (const id of uniqueLeagueIds) {
             if (id !== 'global') {
-              const apiLeague = apiLeagues.find((l: any) => l.league.id.toString() === id);
+              const apiLeague = apiLeagues.find((l: any) => l.league?.id?.toString() === id?.toString());
               if (apiLeague) {
                 leaguesList.push({ 
                   id, 

@@ -99,6 +99,7 @@ import { CollectionPage } from "./components/CollectionPage";
 import { CommercialAlertOverlay } from "./components/CommercialAlertOverlay";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { OnboardingTutorial } from "./components/OnboardingTutorial";
+import { DidacticielBanner } from "./components/DidacticielBanner";
 
 export default function App() {
   return (
@@ -150,10 +151,20 @@ function AppContent() {
   // Register user socket connection when profile / socket is ready
   useEffect(() => {
     if (socket && profile?.uid) {
-      socket.emit("register-user", { uid: profile.uid });
+      const safeProfile = {
+        uid: profile.uid,
+        pseudo: profile.pseudo,
+        displayName: profile.displayName,
+        level: profile.level,
+        favoriteTeams: profile.favoriteTeams,
+        photoURL: profile.photoURL,
+        friends: profile.friends,
+        friendRequests: profile.friendRequests
+      };
+      socket.emit("register-user", { uid: profile.uid, profile: safeProfile });
       console.log(`[Client] Registered socket for user: ${profile.uid}`);
     }
-  }, [socket, profile?.uid]);
+  }, [socket, profile?.uid, profile?.pseudo, profile?.displayName, profile?.level, profile?.photoURL]);
 
   // Listen to live online users count updates
   useEffect(() => {

@@ -2,13 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { footballApi } from '../services/footballApi';
 import { footballDataService } from '../services/footballDataService';
 import { Card, Button } from './Layout';
-import { Search, Trophy, Globe, ChevronRight, History, ChevronDown, RefreshCw, Clock, Settings, Download, Trash2 } from 'lucide-react';
+import { Search, Trophy, Globe, ChevronRight, History, ChevronDown, RefreshCw, Clock, Settings, Download, Trash2, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LeagueDetails } from './LeagueDetails';
 import { format } from 'date-fns';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { db } from '../firebase';
-import { writeBatch, doc, deleteDoc } from 'firebase/firestore';
+import { writeBatch, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
 
 // Simple continent mapping helper
 const getContinent = (country: string): string => {
@@ -49,6 +49,7 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
   const [manualLeagueId, setManualLeagueId] = useState('');
   const [importSeason, setImportSeason] = useState(footballDataService.getCurrentSeasonYear().toString());
   const [importStatus, setImportStatus] = useState<{type: 'success' | 'error' | 'info', message: string} | null>(null);
+  const [favTeamLeagueIds, setFavTeamLeagueIds] = useState<Set<string>>(new Set());
 
   const fetchLeagues = async (force = false) => {
     if (force) setRefreshing(true);
@@ -59,6 +60,25 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
       setLeagues(data);
       const updated = await footballDataService.getLastUpdated('leagues_list');
       setLastUpdated(updated);
+      
+      // Fetch favorite team league IDs
+      if (profile?.favoriteTeams?.length) {
+        const ids = new Set<string>();
+        await Promise.all(profile.favoriteTeams.map(async (teamIdStr: string) => {
+          try {
+            const teamDocSnap = await getDoc(doc(db, 'teams', teamIdStr));
+            if (teamDocSnap.exists()) {
+               const data = teamDocSnap.data();
+               if (data.leagueIds && Array.isArray(data.leagueIds)) {
+                 data.leagueIds.forEach((l: any) => ids.add(l.toString()));
+               }
+            }
+          } catch (e) {
+            console.error("Failed to fetch favorite team league", e);
+          }
+        }));
+        setFavTeamLeagueIds(ids);
+      }
     } catch (err) {
       console.error('Failed to fetch leagues', err);
     } finally {
@@ -123,6 +143,26 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
     fetchLeagues(true);
   };
 
+  const handleToggleFavoriteLeague = async (id: number) => {
+    if (!profile) return;
+    
+    const favLeagues = profile.favoriteLeagues || [];
+    const idStr = id.toString();
+    const isFav = favLeagues.includes(idStr);
+    
+    const newFavs = isFav 
+      ? favLeagues.filter((lId: string) => lId !== idStr)
+      : [...favLeagues, idStr];
+      
+    try {
+      await updateDoc(doc(db, 'users', profile.uid), {
+        favoriteLeagues: newFavs
+      });
+    } catch (e) {
+      console.error("Error updating favorite leagues", e);
+    }
+  };
+
   const toggleCountry = (country: string) => {
     const next = new Set(expandedCountries);
     if (next.has(country)) next.delete(country);
@@ -132,16 +172,32 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
 
   const groupedLeagues = useMemo(() => {
     const continents: Record<string, Record<string, { flag: string; leagues: any[] }>> = {};
+    const favoriteContinent = "Favoris";
     
     (leagues || []).forEach(l => {
+      const isFavTeamLeague = favTeamLeagueIds.has(l.league.id.toString());
+      const isFav = profile?.favoriteLeagues?.includes(l.league.id.toString());
+      
+      const processLeague = (targetContinent: string, targetCountry: string, flag: string) => {
+        if (!continents[targetContinent]) continents[targetContinent] = {};
+        if (!continents[targetContinent][targetCountry]) {
+          continents[targetContinent][targetCountry] = { flag, leagues: [] };
+        }
+        continents[targetContinent][targetCountry].leagues.push(l);
+      };
+
       const continent = getContinent(l.country.name);
       const country = translateCountryName(l.country.name);
       
-      if (!continents[continent]) continents[continent] = {};
-      if (!continents[continent][country]) {
-        continents[continent][country] = { flag: l.country.flag, leagues: [] };
+      // We process into normal region
+      processLeague(continent, country, l.country.flag);
+      
+      // We process into Favorites category based on priority 
+      if (isFavTeamLeague) {
+        processLeague(favoriteContinent, "Ligues Équipes Favorites", "");
+      } else if (isFav) {
+        processLeague(favoriteContinent, "Compétitions Favorites", "");
       }
-      continents[continent][country].leagues.push(l);
     });
 
     // Sort leagues within each country alphabetically
@@ -152,7 +208,7 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
     });
 
     return continents;
-  }, [leagues]);
+  }, [leagues, profile?.favoriteLeagues, favTeamLeagueIds]);
 
   const filteredContinents = useMemo(() => {
     let result = groupedLeagues;
@@ -183,11 +239,21 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
     }
 
     // Sort the final result:
-    // 1. Sort continents alphabetically
-    const sortedContinents = Object.keys(result).sort().reduce((acc, continent) => {
+    // 1. Sort continents alphabetically, but 'Favoris' should always go first
+    const sortedContinents = Object.keys(result).sort((a, b) => {
+      if (a === "Favoris") return -1;
+      if (b === "Favoris") return 1;
+      return a.localeCompare(b);
+    }).reduce((acc, continent) => {
       // 2. Sort countries within continent alphabetically
       const countries = result[continent];
-      const sortedCountries = Object.keys(countries).sort().reduce((cAcc, country) => {
+      const sortedCountries = Object.keys(countries).sort((a, b) => {
+        if (continent === "Favoris") {
+          if (a === "Ligues Équipes Favorites") return -1;
+          if (b === "Ligues Équipes Favorites") return 1;
+        }
+        return a.localeCompare(b);
+      }).reduce((cAcc, country) => {
         cAcc[country] = countries[country];
         return cAcc;
       }, {} as typeof countries);
@@ -318,7 +384,7 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
                       className="w-full flex items-center justify-between p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all group"
                     >
                       <div className="flex items-center gap-2.5">
-                        {data.flag ? (
+                        {country === "Ligues Équipes Favorites" ? "⭐" : country === "Compétitions Favorites" ? "🌟" : data.flag ? (
                           <img src={data.flag} alt="" className="w-5 h-3.5 object-cover rounded-xs shadow-sm border border-white/5" />
                         ) : (
                           <Globe className="w-3.5 h-3.5 text-gray-500" />
@@ -349,6 +415,17 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
                                   onClick={() => onLeagueClick(l.league.id, latestSeason)}
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleFavoriteLeague(l.league.id);
+                                      }}
+                                      className="p-1.5 focus:outline-none"
+                                    >
+                                      <Star 
+                                        className={`w-4 h-4 transition-colors ${profile?.favoriteLeagues?.includes(l.league.id.toString()) ? 'text-orange-500 fill-orange-500' : 'text-gray-500 hover:text-gray-300'}`} 
+                                      />
+                                    </button>
                                     <div className="w-7 h-7 bg-white rounded-lg p-1 flex items-center justify-center group-hover:scale-110 transition-transform">
                                       <img src={l.league.logo} alt="" className="w-full h-full object-contain" />
                                     </div>

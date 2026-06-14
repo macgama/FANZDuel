@@ -53,6 +53,14 @@ const HELP_CONTENT: Record<string, HelpContext> = {
     description: "Trouve ou crée des duels pour affronter la communauté.",
     features: [
       {
+        name: "Matchs d'entraînement",
+        desc: "Disponibles UNIQUEMENT sur les matchs 'À Venir'.",
+      },
+      {
+        name: "Matchs Classés",
+        desc: "Disponibles UNIQUEMENT sur les matchs 'En Cours (Live)'. Ce sont les seuls qui comptent pour le classement Rank.",
+      },
+      {
         name: "Rejoindre",
         desc: "Entre dans un salon 1v1, 2v2 ou 5v5 pour jouer.",
       },

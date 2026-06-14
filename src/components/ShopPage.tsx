@@ -722,7 +722,10 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border rounded-full whitespace-nowrap transition-all",
                 activeTab === cat.id 
                   ? "bg-orange-600 border-orange-500 shadow-[0_0_15px_rgba(234,88,12,0.4)]" 
-                  : "bg-white/5 border-white/10 hover:bg-white/10"
+                  : "bg-white/5 border-white/10 hover:bg-white/10",
+                cat.id === 'emotes' && !profile?.hasCompletedDidacticiel && activeTab !== 'emotes' 
+                  ? "ring-2 ring-orange-500 animate-pulse" 
+                  : ""
               )}
             >
               <div className={cn(

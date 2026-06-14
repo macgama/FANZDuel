@@ -5,6 +5,7 @@ export const LOGOS = {
   energy: 'https://thebestfan.online/img/public/logo/logoEnergy.png',
   level: 'https://thebestfan.online/img/public/logo/logoLevel.png',
   ferveur: 'https://thebestfan.online/img/public/logo/logoFerveur.png',
+  xp: 'https://thebestfan.online/img/public/logo/xp.png',
 };
 
 export const COLORS = {

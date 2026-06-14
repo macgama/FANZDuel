@@ -303,7 +303,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
         </button>
         <button 
           onClick={() => setActiveTab('search')}
-          className={`flex-1 px-1 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === 'search' ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+          className={`flex-1 px-1 py-2 rounded-lg font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all ${activeTab === 'search' ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'} ${!user.hasCompletedDidacticiel && activeTab !== 'search' ? 'ring-2 ring-orange-500 animate-pulse' : ''}`}
         >
           Ajouter
         </button>
@@ -413,7 +413,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
                 <input 
                   type="text"
                   placeholder="Rechercher par pseudo..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm font-bold focus:outline-none focus:border-blue-500/50 transition-all text-white"
+                  className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm font-bold focus:outline-none focus:border-blue-500/50 transition-all text-white ${!user.hasCompletedDidacticiel && searchTerm === '' ? 'ring-2 ring-orange-500' : ''}`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -478,7 +478,7 @@ export function SocialPage({ user, onBack }: SocialPageProps) {
                         </button>
                         <button 
                           onClick={() => sendFriendRequest(result)}
-                          className="p-2 sm:p-2.5 bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20 transition-colors"
+                          className={`p-2 sm:p-2.5 bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20 transition-colors ${!user.hasCompletedDidacticiel && result.pseudo === 'TheBestFan' ? 'ring-2 ring-orange-500 animate-pulse' : ''}`}
                         >
                           <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>

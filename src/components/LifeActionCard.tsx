@@ -64,6 +64,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
   const activeAction = userProfile.activeAction;
   const isThisActionActive = activeAction?.actionId === action.id && activeAction?.fanzId === fanz.id;
   const isAnyActionActive = !!activeAction;
+  const isFirstLifeAction = !userProfile.activeAction && (fanz.xp || 0) === 0 && Object.keys(fanz.lifeActionProgress || {}).length === 0 && (userProfile.unlockedActions?.length || 0) === 0;
 
   const actionProgress = fanz.lifeActionProgress?.[action.id] || { level: 1, xp: 0 };
   const currentLevel = actionProgress.level;
@@ -545,7 +546,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
           </div>
         </div>
         <button 
-          className="w-full py-3 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors shadow-lg"
+          className={`w-full py-3 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors shadow-lg ${isFirstLifeAction ? 'animate-[pulse_1.5s_ease-in-out_infinite] ring-4 ring-orange-500 ring-offset-2 ring-offset-black scale-105' : 'hover:bg-gray-200'}`}
         >
           Lancer l'action
         </button>

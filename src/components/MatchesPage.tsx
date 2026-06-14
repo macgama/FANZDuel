@@ -239,8 +239,18 @@ export function MatchesPage({
   const availableCountries = useMemo(() => {
     const countryMap = new Map<
       string,
-      { name: string; flag: string | null; count: number }
+      { name: string; flag: string | null; count: number; orderIndex: number }
     >();
+
+    const favoriteIds = profile?.favoriteTeams?.map((id) => id.toString()) || [];
+    const favoriteLeagues = profile?.favoriteLeagues || [];
+    
+    // First pass: identify all leagues that have a favorite team playing today
+    const favTeamLeagues = new Set<string>();
+    fixtures.forEach(f => {
+      const isFavTeamMatch = favoriteIds.includes(f.teams.home.id.toString()) || favoriteIds.includes(f.teams.away.id.toString());
+      if (isFavTeamMatch) favTeamLeagues.add(f.league.id.toString());
+    });
 
     fixtures.forEach((f) => {
       if (
@@ -265,18 +275,36 @@ export function MatchesPage({
         if (!isFinished) return;
       }
 
-      const name = f.league.country;
-      const current = countryMap.get(name);
+      const leagueIdStr = f.league.id.toString();
+      const isFavTeamLeague = favTeamLeagues.has(leagueIdStr);
+      const isFavLeague = favoriteLeagues.includes(leagueIdStr);
+      
+      let categoryName = f.league.country;
+      let orderIndex = 3;
+      let flag = f.league.flag || null;
+      
+      if (isFavTeamLeague) {
+        categoryName = "Ligues Équipes Favorites";
+        orderIndex = 1;
+        flag = null; // Don't show a specific country flag for this generalized category
+      } else if (isFavLeague) {
+        categoryName = "Compétitions Favorites";
+        orderIndex = 2;
+        flag = null; // Don't show a specific flag here either
+      }
+
+      const current = countryMap.get(categoryName);
       if (!current) {
-        countryMap.set(name, {
-          name,
-          flag: f.league.flag || null,
+        countryMap.set(categoryName, {
+          name: categoryName,
+          flag,
           count: 1,
+          orderIndex,
         });
       } else {
         current.count += 1;
-        if (!current.flag && f.league.flag) {
-          current.flag = f.league.flag;
+        if (!current.flag && flag) {
+          current.flag = flag;
         }
       }
     });
@@ -284,6 +312,7 @@ export function MatchesPage({
     const countriesArray = Array.from(countryMap.values());
 
     countriesArray.sort((a, b) => {
+      if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
       if (a.name === "World") return -1;
       if (b.name === "World") return 1;
 
@@ -293,7 +322,7 @@ export function MatchesPage({
     });
 
     return countriesArray;
-  }, [fixtures, activeLeagueIds, statusFilter]);
+  }, [fixtures, activeLeagueIds, statusFilter, profile]);
 
   const totalFilteredCount = useMemo(() => {
     return fixtures.filter((f) => {
@@ -328,6 +357,14 @@ export function MatchesPage({
   const filteredFixtures = useMemo(() => {
     const favoriteIds =
       profile?.favoriteTeams?.map((id) => id.toString()) || [];
+    const favoriteLeagues = profile?.favoriteLeagues || [];
+    
+    // Identical pass for categories
+    const favTeamLeagues = new Set<string>();
+    fixtures.forEach(f => {
+      const isFavTeamMatch = favoriteIds.includes(f.teams.home.id.toString()) || favoriteIds.includes(f.teams.away.id.toString());
+      if (isFavTeamMatch) favTeamLeagues.add(f.league.id.toString());
+    });
 
     return fixtures
       .filter((f) => {
@@ -340,7 +377,15 @@ export function MatchesPage({
           return false;
         }
 
-        if (selectedCountry && f.league.country !== selectedCountry) {
+        const leagueIdStr = f.league.id.toString();
+        let categoryName = f.league.country;
+        if (favTeamLeagues.has(leagueIdStr)) {
+          categoryName = "Ligues Équipes Favorites";
+        } else if (favoriteLeagues.includes(leagueIdStr)) {
+          categoryName = "Compétitions Favorites";
+        }
+
+        if (selectedCountry && categoryName !== selectedCountry) {
           return false;
         }
 
@@ -495,42 +540,67 @@ export function MatchesPage({
     const countries: {
       [key: string]: {
         name: string;
+        orderIndex: number;
         leagues: { [key: string]: { league: any; matches: any[] } };
       };
     } = {};
 
+    const favoriteIds = profile?.favoriteTeams?.map((id) => id.toString()) || [];
+    const favoriteLeagues = profile?.favoriteLeagues || [];
+    
+    // First pass: identify all leagues that have a favorite team playing today
+    const favTeamLeagues = new Set<string>();
+    filteredFixtures.forEach(f => {
+      const isFavTeamMatch = favoriteIds.includes(f.teams.home.id.toString()) || favoriteIds.includes(f.teams.away.id.toString());
+      if (isFavTeamMatch) favTeamLeagues.add(f.league.id.toString());
+    });
+
     filteredFixtures.forEach((f) => {
-      const countryName = f.league.country;
-      if (!countries[countryName]) {
-        countries[countryName] = {
-          name: countryName,
+      const leagueIdStr = f.league.id.toString();
+      const isFavTeamLeague = favTeamLeagues.has(leagueIdStr);
+      const isFavLeague = favoriteLeagues.includes(leagueIdStr);
+      
+      let categoryName = f.league.country;
+      let orderIndex = 3;
+      
+      if (isFavTeamLeague) {
+        categoryName = "Ligues Équipes Favorites";
+        orderIndex = 1;
+      } else if (isFavLeague) {
+        categoryName = "Compétitions Favorites";
+        orderIndex = 2;
+      }
+
+      if (!countries[categoryName]) {
+        countries[categoryName] = {
+          name: categoryName,
+          orderIndex,
           leagues: {},
         };
       }
 
       const leagueKey = `${f.league.id}-${f.league.season}`;
-      if (!countries[countryName].leagues[leagueKey]) {
-        countries[countryName].leagues[leagueKey] = {
+      if (!countries[categoryName].leagues[leagueKey]) {
+        countries[categoryName].leagues[leagueKey] = {
           league: f.league,
           matches: [],
         };
       }
-      countries[countryName].leagues[leagueKey].matches.push(f);
+      countries[categoryName].leagues[leagueKey].matches.push(f);
     });
 
     return Object.values(countries)
-      .sort((a, b) =>
-        translateCountryName(a.name).localeCompare(
-          translateCountryName(b.name),
-        ),
-      )
+      .sort((a, b) => {
+        if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
+        return translateCountryName(a.name).localeCompare(translateCountryName(b.name));
+      })
       .map((country) => ({
         ...country,
         leagues: Object.values(country.leagues).sort((a, b) =>
           a.league.name.localeCompare(b.league.name),
         ),
       }));
-  }, [filteredFixtures]);
+  }, [filteredFixtures, profile]);
 
   const liveMatches = useMemo(() => {
     const favoriteIds =
@@ -666,13 +736,13 @@ export function MatchesPage({
                         : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white",
                     )}
                   >
-                    {c.name === "World" ? (
+                    {["World", "Ligues Équipes Favorites", "Compétitions Favorites"].includes(c.name) ? (
                       <span
                         className="text-sm leading-none shrink-0"
                         role="img"
-                        aria-label="World"
+                        aria-label={c.name}
                       >
-                        🌐
+                        {c.name === "World" ? "🌐" : c.name === "Ligues Équipes Favorites" ? "⭐" : "🌟"}
                       </span>
                     ) : (
                       <img
@@ -782,7 +852,7 @@ function CountrySection({
       >
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-gray-800 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">
-            {country.name.substring(0, 2).toUpperCase()}
+            {country.name === "Ligues Équipes Favorites" ? "⭐" : country.name === "Compétitions Favorites" ? "🌟" : country.name.substring(0, 2).toUpperCase()}
           </div>
           <h2 className="font-black italic uppercase tracking-wider text-[11px] sm:text-xs">
             {translateCountryName(country.name)}

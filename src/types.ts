@@ -27,6 +27,7 @@ export interface UserProfile {
   dataSaver?: boolean;
   isMuted?: boolean;
   favoriteTeams: string[];
+  favoriteLeagues?: string[];
   money: number;
   gems: number;
   boostPoints: number;
@@ -86,6 +87,7 @@ export interface UserProfile {
   friendRequests?: string[];
   activeFanzId?: string;
   hasCompletedOnboarding?: boolean;
+  hasCompletedDidacticiel?: boolean;
 }
 
 export interface FanzStats {

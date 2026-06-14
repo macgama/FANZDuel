@@ -125,7 +125,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                 const standingsRes = await footballApi.getStandings(primaryLeague, leagueSeason).catch(() => []);
                 if (standingsRes && standingsRes[0] && standingsRes[0].league && standingsRes[0].league.standings) {
                   const flatStandings = standingsRes[0].league.standings.flat();
-                  const teamStanding = flatStandings.find((s: any) => s.team.id.toString() === data.id.toString());
+                  const teamStanding = flatStandings.find((s: any) => s.team?.id?.toString() === data.id?.toString());
                   if (teamStanding) {
                     standing = { ...teamStanding, leagueName: standingsRes[0].league.name };
                   }
@@ -345,7 +345,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                     <div className="flex gap-1">
                       {team.summary?.lastMatches && team.summary.lastMatches.length > 0 ? (
                         team.summary.lastMatches.map((m: any, i: number) => {
-                          const isHome = m.teams.home.id.toString() === team.id.toString();
+                          const isHome = m.teams?.home?.id?.toString() === team.id?.toString();
                           const teamGoals = isHome ? m.goals.home : m.goals.away;
                           const opponentGoals = isHome ? m.goals.away : m.goals.home;
                           const win = teamGoals > opponentGoals;
@@ -434,7 +434,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher une équipe (ex: Paris)"
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors"
+              className={`w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors ${(profile?.favoriteTeams?.length || 0) < 2 && !profile?.hasCompletedDidacticiel ? 'ring-4 ring-orange-500 animate-pulse ring-offset-2 ring-offset-[#0a0a0b]' : ''}`}
             />
           </div>
 
