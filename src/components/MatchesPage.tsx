@@ -6,6 +6,7 @@ import { format, addDays, subDays, isSameDay } from "date-fns";
 import { motion, AnimatePresence } from "motion/react";
 import { db } from "../firebase";
 import { SharedMatchCard } from "./SharedMatchCard";
+import { FavoriteLeagueStar } from "./FavoriteLeagueStar";
 import {
   collection,
   query,
@@ -885,21 +886,28 @@ function CountrySection({
                 key={`${group.league.id}-${group.league.season}`}
                 className="space-y-2 relative"
               >
-                <button
-                  onClick={() =>
-                    onLeagueClick(group.league.id, group.league.season)
-                  }
-                  className="flex items-center gap-2 hover:text-orange-500 transition-colors group px-1"
-                >
-                  <img
-                    src={group.league.logo}
-                    alt=""
-                    className="w-4 h-4 object-contain"
+                <div className="flex items-center gap-2 px-1">
+                  <FavoriteLeagueStar 
+                    leagueId={group.league.id} 
+                    profile={profile} 
+                    className="p-1 -ml-1" 
                   />
-                  <h3 className="font-bold italic uppercase text-[9px] sm:text-[10px] tracking-widest text-gray-500 group-hover:text-orange-500 transition-colors">
-                    {translateLeagueName(group.league.name)}
-                  </h3>
-                </button>
+                  <button
+                    onClick={() =>
+                      onLeagueClick(group.league.id, group.league.season)
+                    }
+                    className="flex items-center gap-2 hover:text-orange-500 transition-colors group flex-1"
+                  >
+                    <img
+                      src={group.league.logo}
+                      alt=""
+                      className="w-4 h-4 object-contain"
+                    />
+                    <h3 className="font-bold italic uppercase text-[9px] sm:text-[10px] tracking-widest text-gray-500 group-hover:text-orange-500 transition-colors">
+                      {translateLeagueName(group.league.name)}
+                    </h3>
+                  </button>
+                </div>
 
                 <div className="relative group/scroll">
                   {group.matches.length > 1 && (

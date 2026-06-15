@@ -15,6 +15,7 @@ import { footballApi } from '../services/footballApi';
 import { MatchEvents } from './MatchEvents';
 import { LifeActionCard } from './LifeActionCard';
 import { LiveMatchesSlider } from './LiveMatchesSlider';
+import { FavoriteLeagueStar } from './FavoriteLeagueStar';
 import { generateFervorPath } from '../utils/fervorPath';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { 
@@ -1287,9 +1288,17 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                     >
                       {/* League info / Date */}
                       <div className="flex justify-between items-center mb-2.5 border-b border-white/5 pb-1.5">
-                        <span className="text-[8px] font-bold text-gray-400 truncate max-w-[120px] uppercase">
-                          {translateLeagueName(match.league.name)}
-                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <FavoriteLeagueStar 
+                            leagueId={match.league.id} 
+                            profile={profile} 
+                            className="p-1 -ml-1" 
+                            iconClassName="w-3 h-3"
+                          />
+                          <span className="text-[8px] font-bold text-gray-400 truncate max-w-[100px] uppercase">
+                            {translateLeagueName(match.league.name)}
+                          </span>
+                        </div>
                         <span className="text-[8px] font-black tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/10 uppercase">
                           {formattedDay} • {formattedTime}
                         </span>

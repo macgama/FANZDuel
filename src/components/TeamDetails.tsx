@@ -33,6 +33,7 @@ import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
 import { SharedMatchCard } from './SharedMatchCard';
 import { LiveMatchesSlider } from './LiveMatchesSlider';
+import { FavoriteLeagueStar } from './FavoriteLeagueStar';
 import { TbfoRankingsTab } from './LeagueDetails';
 import { UserProfile } from '../types';
 
@@ -530,10 +531,10 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               {activeTab === 'infos' && <InfosTab team={team} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} fixtures={fixtures} />}
               {activeTab === 'matches' && <MatchesTab fixtures={fixtures} onTeamClick={onTeamClick} onLeagueClick={onLeagueClick} onMatchClick={onMatchClick} selectedSeason={selectedSeason} profile={profile} selectedLeagueId={selectedLeagueId} />}
               {activeTab === 'standings' && <StandingsTab standings={standings} teamId={teamId} onTeamClick={onTeamClick} selectedSeason={selectedSeason} fixtures={fixtures} effectiveLeagueId={effectiveLeagueId} />}
-              {activeTab === 'competitions' && <CompetitionsTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
+              {activeTab === 'competitions' && <CompetitionsTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} profile={profile} />}
               {activeTab === 'effectif' && <EffectifTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />}
               {activeTab === 'stats' && <StatsTab stats={selectedLeagueId === null ? aggregatedStats : stats} teamId={teamId} selectedSeason={selectedSeason} />}
-              {activeTab === 'historique' && <HistoriqueTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} />}
+              {activeTab === 'historique' && <HistoriqueTab leagues={teamLeagues} onLeagueClick={onLeagueClick} selectedSeason={selectedSeason} profile={profile} />}
               {activeTab === 'tbfo' && effectiveLeagueId ? (
                 <TbfoRankingsTab leagueId={effectiveLeagueId} selectedSeason={selectedSeason} onTeamClick={onTeamClick} highlightTeamId={teamId} />
               ) : activeTab === 'tbfo' ? (
@@ -565,7 +566,7 @@ function TabButton({ active, onClick, icon, label, highlight }: { active: boolea
   );
 }
 
-function CompetitionsTab({ leagues, onLeagueClick, selectedSeason }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number }) {
+function CompetitionsTab({ leagues, onLeagueClick, selectedSeason, profile }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number, profile?: UserProfile | null }) {
   if (!leagues || leagues.length === 0) {
     return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">Aucune compétition trouvée.</Card>;
   }
@@ -579,8 +580,16 @@ function CompetitionsTab({ leagues, onLeagueClick, selectedSeason }: { leagues: 
       {displayLeagues.map((l: any) => (
         <Card key={l.league.id} className="p-4 bg-black/40 border-white/10 hover:border-orange-500/50 cursor-pointer transition-colors group" onClick={() => onLeagueClick(l.league.id, selectedSeason)}>
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 p-2 group-hover:bg-white/10 transition-colors">
-              <img src={l.league.logo} alt="" className="w-full h-full object-contain drop-shadow-md" />
+            <div className="flex items-center gap-2">
+              <FavoriteLeagueStar 
+                leagueId={l.league.id}
+                profile={profile}
+                className="p-1 -ml-2"
+                iconClassName="w-4 h-4"
+              />
+              <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 p-2 group-hover:bg-white/10 transition-colors">
+                <img src={l.league.logo} alt="" className="w-full h-full object-contain drop-shadow-md" />
+              </div>
             </div>
             <div>
               <h3 className="font-black text-sm sm:text-base uppercase text-orange-500 truncate">{l.league.name}</h3>
@@ -602,7 +611,7 @@ function EffectifTab({ squad, players, selectedLeagueId, selectedSeason, onPlaye
   return <PlayersTab squad={squad} players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} />;
 }
 
-function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number }) {
+function HistoriqueTab({ leagues, onLeagueClick, selectedSeason, profile }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number, profile?: UserProfile | null }) {
   if (!leagues || leagues.length === 0) {
     return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">Aucun historique trouvé.</Card>;
   }
@@ -635,8 +644,16 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason }: { leagues: an
             {seasonsMap[year].map((l: any) => (
               <Card key={`${year}-${l.league.id}`} className="p-4 bg-black/40 border-white/10 hover:border-orange-500/50 cursor-pointer transition-colors group" onClick={() => onLeagueClick(l.league.id, year)}>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 p-2 group-hover:bg-white/10 transition-colors">
-                    <img src={l.league.logo} alt="" className="w-full h-full object-contain drop-shadow-md" />
+                  <div className="flex items-center gap-2">
+                    <FavoriteLeagueStar 
+                      leagueId={l.league.id}
+                      profile={profile}
+                      className="p-1 -ml-2"
+                      iconClassName="w-4 h-4"
+                    />
+                    <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 p-2 group-hover:bg-white/10 transition-colors">
+                      <img src={l.league.logo} alt="" className="w-full h-full object-contain drop-shadow-md" />
+                    </div>
                   </div>
                   <div>
                     <h3 className="font-black text-sm sm:text-base uppercase text-orange-500 truncate">{l.league.name}</h3>

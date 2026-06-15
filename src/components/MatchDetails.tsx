@@ -28,6 +28,7 @@ import { getImageUrl } from '../lib/utils';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
+import { FavoriteLeagueStar } from './FavoriteLeagueStar';
 
 const getMatchStatusLabel = (status: any) => {
   if (!status) return '';
@@ -334,6 +335,12 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
             <span className="truncate">{translateCountryName(details.league.country)}</span>
           </div>
           <div className="flex items-center gap-1 text-right cursor-pointer hover:text-orange-500 transition-colors min-w-0" onClick={() => onLeagueClick(details.league.id, details.league.season)}>
+            <FavoriteLeagueStar 
+              leagueId={details.league.id} 
+              profile={user} 
+              className="p-1 -mr-1" 
+              iconClassName="w-3.5 h-3.5"
+            />
             {details.league.logo && <img src={getImageUrl(details.league.logo, 40)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 object-contain flex-shrink-0" />}
             <span className="truncate">{translateLeagueName(details.league.name)} - {details.league.round}</span>
           </div>

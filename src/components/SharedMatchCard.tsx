@@ -4,6 +4,7 @@ import { Flame, Star, Activity, CircleDot, ArrowRightLeft, MonitorPlay, X, Alert
 import { cn, getImageUrl } from '../lib/utils';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { Card } from './ui/card';
+import { FavoriteLeagueStar } from './FavoriteLeagueStar';
 
 const getMatchStatusLabel = (status: any) => {
   if (!status) return '';
@@ -152,6 +153,14 @@ export function SharedMatchCard({
               }
             }}
           >
+            {match.league && (
+              <FavoriteLeagueStar 
+                leagueId={match.league.id} 
+                profile={profile}
+                className="p-1 -mr-0.5 z-10" 
+                iconClassName="w-3.5 h-3.5"
+              />
+            )}
             {match.league?.logo && <img src={getImageUrl(match.league.logo, 40)} alt="" className="w-4 h-4 object-contain shrink-0" referrerPolicy="no-referrer" />}
             <span className="truncate">{translateLeagueName(match.league?.name || '')}</span>
           </div>

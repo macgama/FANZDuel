@@ -127,6 +127,9 @@ export function Rankings({ onBack }: RankingsProps) {
           if (data.leagueIds && Array.isArray(data.leagueIds)) {
              data.leagueIds.forEach((lid: any) => leagueIdsSet.add(lid.toString()));
           }
+          if (data.leagueId) {
+             leagueIdsSet.add(data.leagueId.toString());
+          }
         });
 
         if (seasonsSet.size === 0) {

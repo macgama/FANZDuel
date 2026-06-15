@@ -18,17 +18,19 @@ import {
   Clock,
   Shield,
   Medal,
-  Flame
+  Flame,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
-import { collection, query, where, orderBy, limit, getDocs, getDoc, doc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, getDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
 import { SharedMatchCard } from './SharedMatchCard';
 import { LiveMatchesSlider } from './LiveMatchesSlider';
+import { FavoriteLeagueStar } from './FavoriteLeagueStar';
 
 interface LeagueDetailsProps {
   leagueId: number;
@@ -206,6 +208,12 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <FavoriteLeagueStar 
+              leagueId={leagueId} 
+              profile={profile} 
+              className="p-2 -ml-2" 
+              iconClassName="w-5 h-5" 
+            />
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-white rounded-lg p-1.5 flex items-center justify-center shadow-lg">
                 <img src={league.league.logo} alt="" className="w-full h-full object-contain" />

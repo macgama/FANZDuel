@@ -5,10 +5,11 @@ import { Card, Button } from './Layout';
 import { Search, Trophy, Globe, ChevronRight, History, ChevronDown, RefreshCw, Clock, Settings, Download, Trash2, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LeagueDetails } from './LeagueDetails';
+import { FavoriteLeagueStar } from './FavoriteLeagueStar';
 import { format } from 'date-fns';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { db } from '../firebase';
-import { writeBatch, doc, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { writeBatch, doc, deleteDoc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 
 // Simple continent mapping helper
 const getContinent = (country: string): string => {
@@ -66,11 +67,42 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
         const ids = new Set<string>();
         await Promise.all(profile.favoriteTeams.map(async (teamIdStr: string) => {
           try {
-            const teamDocSnap = await getDoc(doc(db, 'teams', teamIdStr));
-            if (teamDocSnap.exists()) {
-               const data = teamDocSnap.data();
-               if (data.leagueIds && Array.isArray(data.leagueIds)) {
-                 data.leagueIds.forEach((l: any) => ids.add(l.toString()));
+            let teamDocSnap = await getDoc(doc(db, 'teams', teamIdStr));
+            let data = teamDocSnap.exists() ? teamDocSnap.data() : null;
+            
+            let hasLeagueIds = !!(data && Array.isArray(data.leagueIds) && data.leagueIds.length > 0);
+            
+            // Auto-heal missing leagueIds for old profiles
+            if (!hasLeagueIds) {
+              try {
+                const leaguesData = await footballApi.getLeaguesByTeam(Number(teamIdStr));
+                if (leaguesData && leaguesData.length > 0) {
+                  const newLeagueIds = leaguesData.map((l: any) => l.league.id);
+                  await setDoc(doc(db, 'teams', teamIdStr), { leagueIds: newLeagueIds }, { merge: true });
+                  newLeagueIds.forEach((id: any) => ids.add(id.toString()));
+                  hasLeagueIds = true;
+                  data = data || {};
+                  data.leagueIds = newLeagueIds;
+                }
+              } catch (e) {
+                console.warn(`Could not heal leagueIds for team ${teamIdStr}`, e);
+              }
+            }
+
+            if (hasLeagueIds && data) {
+               data.leagueIds.forEach((l: any) => ids.add(l.toString()));
+            } else if (!hasLeagueIds) {
+               // Fallback checks
+               if (data?.leagueId) {
+                 ids.add(data.leagueId.toString());
+               }
+               // Try to extract from api_teams cache
+               const apiTeamSnap = await getDoc(doc(db, 'api_teams', teamIdStr));
+               if (apiTeamSnap.exists()) {
+                 const apiData = apiTeamSnap.data();
+                 if (apiData?.team?.league?.id) {
+                   ids.add(apiData.team.league.id.toString());
+                 }
                }
             }
           } catch (e) {
@@ -141,26 +173,6 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
 
   const handleRefresh = () => {
     fetchLeagues(true);
-  };
-
-  const handleToggleFavoriteLeague = async (id: number) => {
-    if (!profile) return;
-    
-    const favLeagues = profile.favoriteLeagues || [];
-    const idStr = id.toString();
-    const isFav = favLeagues.includes(idStr);
-    
-    const newFavs = isFav 
-      ? favLeagues.filter((lId: string) => lId !== idStr)
-      : [...favLeagues, idStr];
-      
-    try {
-      await updateDoc(doc(db, 'users', profile.uid), {
-        favoriteLeagues: newFavs
-      });
-    } catch (e) {
-      console.error("Error updating favorite leagues", e);
-    }
   };
 
   const toggleCountry = (country: string) => {
@@ -410,22 +422,16 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
                               const latestSeason = l.seasons?.sort((a: any, b: any) => b.year - a.year)[0]?.year || footballDataService.getCurrentSeasonYear();
                               return (
                                 <div 
-                                  key={l.league.id} 
+                                  key={`${continent}-${country}-${l.league.id}`} 
                                   className="flex items-center justify-between p-2 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-lg cursor-pointer group transition-all"
                                   onClick={() => onLeagueClick(l.league.id, latestSeason)}
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleToggleFavoriteLeague(l.league.id);
-                                      }}
-                                      className="p-1.5 focus:outline-none"
-                                    >
-                                      <Star 
-                                        className={`w-4 h-4 transition-colors ${profile?.favoriteLeagues?.includes(l.league.id.toString()) ? 'text-orange-500 fill-orange-500' : 'text-gray-500 hover:text-gray-300'}`} 
-                                      />
-                                    </button>
+                                    <FavoriteLeagueStar 
+                                      leagueId={l.league.id} 
+                                      profile={profile} 
+                                      className="p-1.5" 
+                                    />
                                     <div className="w-7 h-7 bg-white rounded-lg p-1 flex items-center justify-center group-hover:scale-110 transition-transform">
                                       <img src={l.league.logo} alt="" className="w-full h-full object-contain" />
                                     </div>

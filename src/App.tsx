@@ -1018,7 +1018,11 @@ function AppContent() {
           liveTeamIds.has(teamId.split("_")[0]),
         );
         setHasLiveFavoriteMatch(hasLive);
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.message?.includes("Failed to fetch")) {
+          // Ignore normal network disconnection errors during periodic fetching
+          return;
+        }
         console.error("Failed to check live favorite matches", err);
       }
     };
