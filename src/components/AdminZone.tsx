@@ -17,6 +17,8 @@ import { BASE_CARDS } from '../constants/cards';
 import { ALL_FANZ } from '../constants/fanz';
 import { LOGOS } from '../constants';
 import { translateCountryName } from '../utils/countryTranslations';
+import { getSearchVariations } from '../utils/teamSearch';
+import { logTransaction } from '../services/transactionService';
 
 import { footballDataService } from '../services/footballDataService';
 
@@ -178,6 +180,10 @@ export function AdminZone() {
 
   // User Management state
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [selectedUserForAdmin, setSelectedUserForAdmin] = useState<UserProfile | null>(null);
+  const [userFanz, setUserFanz] = useState<Fanz[]>([]);
+  const [loadingUserFanz, setLoadingUserFanz] = useState<boolean>(false);
+  const [userAdminSearchTerm, setUserAdminSearchTerm] = useState<string>('');
   const [missions, setMissions] = useState<Mission[]>([]);
   const [passes, setPasses] = useState<Pass[]>([]);
   const [userFervorConfig, setUserFervorConfig] = useState<GlobalFervorConfig | null>(null);
@@ -187,6 +193,104 @@ export function AdminZone() {
   const [editingMission, setEditingMission] = useState<Mission | null>(null);
   const [editingPass, setEditingPass] = useState<Pass | null>(null);
   const [shopConfig, setShopConfig] = useState<any | null>(null);
+
+  // States et Effects de recherche d'équipes favorites pour l'administration
+  const [cachedTeams, setCachedTeams] = useState<Record<string, {name: string, logo?: string}>>({});
+  const [adminTeamSearchQuery, setAdminTeamSearchQuery] = useState('');
+  const [adminTeamSearchResults, setAdminTeamSearchResults] = useState<any[]>([]);
+  const [isAdminTeamSearching, setIsAdminTeamSearching] = useState(false);
+
+  useEffect(() => {
+    if (!selectedUserForAdmin?.favoriteTeams || selectedUserForAdmin.favoriteTeams.length === 0) return;
+    const fetchFavoriteTeamsDetails = async () => {
+      const favoriteTeams = selectedUserForAdmin.favoriteTeams;
+      const newCached = { ...cachedTeams };
+      let changed = false;
+
+      for (const teamId of favoriteTeams) {
+        if (!teamId) continue;
+        const idStr = teamId.toString();
+        if (!newCached[idStr]) {
+          try {
+            const teamDoc = await getDoc(doc(db, 'teams', idStr));
+            if (teamDoc.exists()) {
+              newCached[idStr] = {
+                name: teamDoc.data().name || idStr,
+                logo: teamDoc.data().logo
+              };
+              changed = true;
+            } else {
+              if (!isNaN(Number(idStr))) {
+                try {
+                  const res = await footballApi.getTeamInfo(Number(idStr));
+                  if (res && res.team) {
+                    newCached[idStr] = {
+                      name: res.team.name,
+                      logo: res.team.logo
+                    };
+                    await setDoc(doc(db, 'teams', idStr), {
+                      name: res.team.name,
+                      logo: res.team.logo,
+                      updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                    changed = true;
+                  }
+                } catch (apiErr) {
+                  console.error(`Error resolving team from API for ${idStr}:`, apiErr);
+                }
+              } else {
+                newCached[idStr] = { name: idStr };
+                changed = true;
+              }
+            }
+          } catch (err) {
+            console.error(`Error loading team doc for ${idStr}:`, err);
+          }
+        }
+      }
+
+      if (changed) {
+        setCachedTeams(newCached);
+      }
+    };
+
+    fetchFavoriteTeamsDetails();
+  }, [selectedUserForAdmin?.favoriteTeams]);
+
+  useEffect(() => {
+    const search = async () => {
+      if (adminTeamSearchQuery.length < 3) {
+        setAdminTeamSearchResults([]);
+        return;
+      }
+      setIsAdminTeamSearching(true);
+      try {
+        const variations = getSearchVariations(adminTeamSearchQuery);
+        let results: any[] = [];
+        const queryPromises = variations.map(v => footballApi.searchTeams(v).catch(() => []));
+        const allRes = await Promise.all(queryPromises);
+        const seenIds = new Set<number>();
+        allRes.forEach((resList) => {
+          if (resList) {
+            resList.forEach((item: any) => {
+              if (item?.team?.id && !seenIds.has(item.team.id)) {
+                seenIds.add(item.team.id);
+                results.push(item);
+              }
+            });
+          }
+        });
+        setAdminTeamSearchResults(results);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsAdminTeamSearching(false);
+      }
+    };
+
+    const timeoutId = setTimeout(search, 500);
+    return () => clearTimeout(timeoutId);
+  }, [adminTeamSearchQuery]);
 
 
 
@@ -865,11 +969,119 @@ export function AdminZone() {
       await setDoc(userRef, { role: newRole }, { merge: true });
       setStatus({ type: 'success', message: 'Rôle utilisateur mis à jour !' });
       fetchUsers();
+      if (selectedUserForAdmin?.uid === uid) {
+        refreshSelectedUser(uid);
+      }
     } catch (err) {
       console.error("Error updating user role", err);
       handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserFanz = async (uid: string) => {
+    setLoadingUserFanz(true);
+    try {
+      const q = query(collection(db, 'fanz'), where('ownerUid', '==', uid));
+      const snap = await getDocs(q);
+      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Fanz));
+      setUserFanz(list);
+    } catch (err) {
+      console.error("Error loading user fanz", err);
+      handleFirestoreError(err, OperationType.GET, 'fanz');
+    } finally {
+      setLoadingUserFanz(false);
+    }
+  };
+
+  const handleAddFanzToUser = async (templateId: string) => {
+    if (!selectedUserForAdmin) return;
+    const template = fanzTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    setLoading(true);
+    try {
+      const newFanzId = `fanz-${Date.now()}`;
+      const newFanz = {
+        id: newFanzId,
+        templateId: templateId,
+        ownerUid: selectedUserForAdmin.uid,
+        name: template.name,
+        sport: template.sport || 'Football',
+        imageUrl: template.image || '',
+        videoUrl: template.video || '',
+        stats: template.baseStats || { force: 10, endurance: 10, mental: 10, bluff: 10, creativity: 10, social: 10, intelligence: 10, charisma: 10 },
+        xp: 0,
+        level: 1,
+        rank: 1,
+        ferveurPoints: 0,
+        ferveurLevel: 1,
+        energy: 100,
+        equippedCards: [],
+        deck: [],
+        unlockedSkins: [],
+        unlockedEmotes: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, 'fanz', newFanzId), newFanz);
+      setStatus({ type: 'success', message: `FANZ ${template.name} attribué avec succès !` });
+      fetchUserFanz(selectedUserForAdmin.uid);
+    } catch (err) {
+      console.error("Error adding fanz", err);
+      handleFirestoreError(err, OperationType.WRITE, `fanz`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUserFanzItem = async (fanzId: string) => {
+    if (!selectedUserForAdmin) return;
+    if (!window.confirm("Voulez-vous vraiment supprimer définitivement cette carte FANZ du compte de l'utilisateur ?")) return;
+
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, 'fanz', fanzId));
+      setStatus({ type: 'success', message: 'Carte FANZ retirée avec succès !' });
+      fetchUserFanz(selectedUserForAdmin.uid);
+    } catch (err) {
+      console.error("Error deleting user fanz", err);
+      handleFirestoreError(err, OperationType.DELETE, `fanz/${fanzId}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateUserFanzItem = async (fanzId: string, updates: Partial<Fanz>) => {
+    if (!selectedUserForAdmin) return;
+
+    setLoading(true);
+    try {
+      const fanzRef = doc(db, 'fanz', fanzId);
+      await updateDoc(fanzRef, updates);
+      setStatus({ type: 'success', message: 'Statistiques du FANZ mises à jour !' });
+      fetchUserFanz(selectedUserForAdmin.uid);
+    } catch (err) {
+      console.error("Error updating user fanz", err);
+      handleFirestoreError(err, OperationType.WRITE, `fanz/${fanzId}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshSelectedUser = async (uid: string) => {
+    try {
+      const docRef = doc(db, 'users', uid);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const updatedUser = { ...snap.data() } as UserProfile;
+        setSelectedUserForAdmin(updatedUser);
+        setUsers(prev => prev.map(u => u.uid === uid ? updatedUser : u));
+      }
+    } catch (err) {
+      console.error("Error refreshing selected user", err);
     }
   };
 
@@ -2336,62 +2548,861 @@ export function AdminZone() {
           </div>
 
           {activeUserSubTab === 'profiles' && (
-            <Card className="p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-bold">Gestion des Utilisateurs</h3>
-                  <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
-                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Actualiser
-                  </Button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-800">
-                        <th className="py-3 px-4 font-bold text-gray-400 uppercase text-[10px]">Utilisateur</th>
-                        <th className="py-3 px-4 font-bold text-gray-400 uppercase text-[10px]">Email</th>
-                        <th className="py-3 px-4 font-bold text-gray-400 uppercase text-[10px]">Rôle</th>
-                        <th className="py-3 px-4 font-bold text-gray-400 uppercase text-[10px]">Points Ferveur</th>
-                        <th className="py-3 px-4 font-bold text-gray-400 uppercase text-[10px]">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map(user => (
-                        <tr key={user.uid} className="border-b border-gray-800 hover:bg-gray-900/50 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs uppercase">
-                                {(user.pseudo || user.displayName || 'U').charAt(0)}
+            <div className="space-y-6">
+              {!selectedUserForAdmin ? (
+                <Card className="p-6">
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div>
+                        <h3 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
+                          <Users className="w-5 h-5 text-blue-500" /> Gestion des Utilisateurs
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-1">Recherchez et gérez les comptes, les avoirs, les bannissements et les collections des joueurs.</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading} className="shrink-0 bg-gray-900 border-white/10 hover:bg-white/5">
+                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Actualiser
+                      </Button>
+                    </div>
+
+                    <div className="relative">
+                      <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
+                      <input
+                        type="text"
+                        placeholder="Rechercher par pseudo ou adresse email..."
+                        value={userAdminSearchTerm}
+                        onChange={(e) => setUserAdminSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-black border border-white/10 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition-all font-sans"
+                      />
+                    </div>
+
+                    <div className="overflow-x-auto no-scrollbar">
+                      <table className="w-full text-left text-sm border-collapse min-w-[700px]">
+                        <thead>
+                          <tr className="border-b border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            <th className="py-3 px-4 text-white">Utilisateur</th>
+                            <th className="py-3 px-4">Adresse Email</th>
+                            <th className="py-3 px-4 text-center">Rôle</th>
+                            <th className="py-3 px-4 text-center font-mono">Pièces & Gemmes</th>
+                            <th className="py-3 px-4 text-center">Statut</th>
+                            <th className="py-3 px-4 text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {users
+                            .filter(user => 
+                              (user.pseudo || '').toLowerCase().includes(userAdminSearchTerm.toLowerCase()) ||
+                              (user.email || '').toLowerCase().includes(userAdminSearchTerm.toLowerCase())
+                            )
+                            .map(user => (
+                              <tr key={user.uid} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-full bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 font-bold text-sm uppercase">
+                                      {(user.pseudo || user.displayName || 'U').charAt(0)}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="font-bold text-white text-xs sm:text-sm uppercase italic tracking-wide">{user.pseudo || 'Sans Pseudo'}</span>
+                                      <span className="text-[9px] font-mono text-gray-500">UID: {user.uid.substring(0, 10)}...</span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4 text-xs text-gray-300 font-sans">{user.email}</td>
+                                <td className="py-3 px-4 text-center">
+                                  <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                    user.role === 'admin' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                    user.role === 'moderator' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
+                                    'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                  }`}>
+                                    {user.role || 'client'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-center text-xs font-mono font-bold text-orange-400">
+                                  🪙 {user.money?.toLocaleString() || 0} / 💎 {user.gems?.toLocaleString() || 0}
+                                </td>
+                                <td className="py-3 px-4 text-center">
+                                  {user.isBanned ? (
+                                    <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-600 text-white animate-pulse">
+                                      BANNI
+                                    </span>
+                                  ) : (
+                                    <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-500/20 text-green-400 border border-green-500/30">
+                                      Actif
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 text-center">
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold uppercase italic text-[10px] tracking-wider py-1 px-3 h-8"
+                                    onClick={() => {
+                                      setSelectedUserForAdmin(user);
+                                      fetchUserFanz(user.uid);
+                                    }}
+                                  >
+                                    <UserCog className="w-3.5 h-3.5 mr-1" /> Administrer
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  {/* Banner / Header */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-950 p-6 rounded-2xl border border-white/10 shadow-2xl">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-2xl font-black uppercase italic tracking-tight text-white">{selectedUserForAdmin.pseudo || 'Joueur'}</h2>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase italic ${selectedUserForAdmin.role === 'admin' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
+                          {selectedUserForAdmin.role || 'client'}
+                        </span>
+                        {selectedUserForAdmin.isBanned && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-700 text-white">Banni</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
+                        <span>Email : <strong className="text-white font-sans">{selectedUserForAdmin.email}</strong></span>
+                        <span className="hidden md:inline font-mono text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-500">UID : {selectedUserForAdmin.uid}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => refreshSelectedUser(selectedUserForAdmin.uid)} className="bg-gray-900 border-white/10 hover:bg-white/5 h-10 px-4">
+                        <RefreshCw className="w-4 h-4 mr-1 text-gray-400" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSelectedUserForAdmin(null)}
+                        className="bg-gray-900 border-white/10 text-white hover:bg-white/5 font-black uppercase italic tracking-wider h-10 px-4"
+                      >
+                        Retour à la liste
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Actions Rapides & Modératrices */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="p-6 space-y-4">
+                      <h4 className="text-sm font-black uppercase tracking-widest text-orange-500 flex items-center gap-2">
+                        <Shield className="w-4 h-4" /> Statut & Modération
+                      </h4>
+                      <p className="text-xs text-gray-400">Contrôlez les autorisations et le niveau d'accès du compte.</p>
+                      
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        {/* Ban / Unban */}
+                        <button
+                          onClick={async () => {
+                            const newStatus = !selectedUserForAdmin.isBanned;
+                            await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { isBanned: newStatus }, { merge: true });
+                            setStatus({ type: 'success', message: `Le compte a été ${newStatus ? 'Banni' : 'Débanni'} !` });
+                            refreshSelectedUser(selectedUserForAdmin.uid);
+                          }}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider italic text-xs transition duration-200 cursor-pointer border ${
+                            selectedUserForAdmin.isBanned
+                              ? 'bg-green-600/25 border-green-500/40 text-green-400 hover:bg-green-600/40' 
+                              : 'bg-red-600/25 border-red-500/40 text-red-400 hover:bg-red-600/40'
+                          }`}
+                        >
+                          {selectedUserForAdmin.isBanned ? 'Débannir le Compte' : 'Bannir le Compte'}
+                        </button>
+
+                        {/* Mute / Unmute */}
+                        <button
+                          onClick={async () => {
+                            const newStatus = !selectedUserForAdmin.isMuted;
+                            await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { isMuted: newStatus }, { merge: true });
+                            setStatus({ type: 'success', message: `${newStatus ? 'Sourdine activée' : 'Partie vocale réactivée'} !` });
+                            refreshSelectedUser(selectedUserForAdmin.uid);
+                          }}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider italic text-xs transition duration-200 cursor-pointer border ${
+                            selectedUserForAdmin.isMuted
+                              ? 'bg-purple-600/25 border-purple-500/40 text-purple-400 hover:bg-purple-600/40' 
+                              : 'bg-gray-800 border-white/10 text-gray-300 hover:bg-white/5'
+                          }`}
+                        >
+                          {selectedUserForAdmin.isMuted ? 'Enlever Sourdine' : 'Mettre en Sourdine'}
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5 pt-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Attribuer un Rôle de sécurité :</label>
+                        <select
+                          value={selectedUserForAdmin.role || 'client'}
+                          onChange={(e) => handleUpdateUserRole(selectedUserForAdmin.uid, e.target.value as any)}
+                          className="w-full p-2.5 bg-black border border-white/10 rounded-xl text-sm font-bold text-white uppercase italic tracking-wide"
+                        >
+                          <option value="client">Client (Joueur normal)</option>
+                          <option value="moderator">Modérateur</option>
+                          <option value="admin">Administrateur</option>
+                        </select>
+                      </div>
+                    </Card>
+
+                    {/* Quick Adjustments */}
+                    <Card className="p-6 space-y-4">
+                      <h4 className="text-sm font-black uppercase tracking-widest text-blue-500 flex items-center gap-2">
+                        <Activity className="w-4 h-4" /> Ajusteurs Rapides d'Économie
+                      </h4>
+                      <p className="text-xs text-gray-400">Appliquez des actions prédéfinies d'ajustement de ressources.</p>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                        <Button 
+                          onClick={async () => {
+                            const userRef = doc(db, 'users', selectedUserForAdmin.uid);
+                            const maxEn = selectedUserForAdmin.maxEnergy || 100;
+                            await setDoc(userRef, { energy: maxEn }, { merge: true });
+                            await logTransaction(selectedUserForAdmin.uid, 'energy', maxEn - (selectedUserForAdmin.energy || 0), 'Recharge complète énergie admin');
+                            setStatus({ type: 'success', message: 'Énergie rechargée à son maximum !' });
+                            refreshSelectedUser(selectedUserForAdmin.uid);
+                          }}
+                          className="bg-blue-600/10 border-blue-500/20 text-blue-400 text-xs font-bold font-sans uppercase italic h-11 hover:bg-blue-600/20"
+                        >
+                          ⚡ Énergie à 100%
+                        </Button>
+
+                        <Button 
+                          onClick={async () => {
+                            const userRef = doc(db, 'users', selectedUserForAdmin.uid);
+                            await setDoc(userRef, { 
+                              money: (selectedUserForAdmin.money || 0) + 1000,
+                              gems: (selectedUserForAdmin.gems || 0) + 100
+                            }, { merge: true });
+                            await logTransaction(selectedUserForAdmin.uid, 'money', 1000, 'Pack Admin Rapide : Argent');
+                            await logTransaction(selectedUserForAdmin.uid, 'gems', 100, 'Pack Admin Rapide : Gemmes');
+                            setStatus({ type: 'success', message: '+1000 Argent & +100 Gemmes ajoutés !' });
+                            refreshSelectedUser(selectedUserForAdmin.uid);
+                          }}
+                          className="bg-yellow-500/10 border-yellow-500/20 text-yellow-400 text-xs font-bold font-sans uppercase italic h-11 hover:bg-yellow-500/20"
+                        >
+                          🪙 +1K Argent & 100 💎
+                        </Button>
+
+                        <Button 
+                          onClick={async () => {
+                            const userRef = doc(db, 'users', selectedUserForAdmin.uid);
+                            const newFerv = (selectedUserForAdmin.ferveurPoints || 0) + 500;
+                            // Estimate level increment
+                            const currentLvl = selectedUserForAdmin.level || 1;
+                            const nextLvl = Math.floor(newFerv / 1000) + 1;
+                            await setDoc(userRef, { 
+                              ferveurPoints: newFerv,
+                              level: nextLvl > currentLvl ? nextLvl : currentLvl
+                            }, { merge: true });
+                            await logTransaction(selectedUserForAdmin.uid, 'ferveur_general', 500, 'Ferveur ajoutée par admin');
+                            setStatus({ type: 'success', message: '+500 Ferveur générale ajoutée !' });
+                            refreshSelectedUser(selectedUserForAdmin.uid);
+                          }}
+                          className="bg-red-500/10 border-red-500/20 text-red-400 text-xs font-bold font-sans uppercase italic h-11 hover:bg-red-500/20"
+                        >
+                          🔥 +500 Ferveur
+                        </Button>
+
+                        <Button 
+                          onClick={async () => {
+                            if (!window.confirm("Voulez-vous débloquer l'ensemble des skins, emotes et cartes duel pour ce joueur ?")) return;
+                            const allSkins: string[] = [];
+                            const allEmotes: string[] = [];
+                            fanzTemplates.forEach(t => {
+                              t.skins?.forEach(s => allSkins.push(s.id));
+                              t.emotes?.forEach(e => allEmotes.push(e.id));
+                            });
+                            const allCards = BASE_CARDS.map(c => c.id);
+
+                            await setDoc(doc(db, 'users', selectedUserForAdmin.uid), {
+                              skins: Array.from(new Set([...(selectedUserForAdmin.skins || []), ...allSkins])),
+                              emotes: Array.from(new Set([...(selectedUserForAdmin.emotes || []), ...allEmotes])),
+                              cards: Array.from(new Set([...(selectedUserForAdmin.cards || []), ...allCards]))
+                            }, { merge: true });
+
+                            setStatus({ type: 'success', message: 'Toutes les collections ont été débloquées !' });
+                            refreshSelectedUser(selectedUserForAdmin.uid);
+                          }}
+                          className="bg-purple-500/10 border-purple-500/20 text-purple-400 text-xs font-bold font-sans uppercase italic h-11 hover:bg-purple-500/20 animate-pulse"
+                        >
+                          ⭐️ Tout débloquer (Skins/Emotes)
+                        </Button>
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Formulaire complet d'Avoirs / Argent et Energie */}
+                  <Card className="p-6">
+                    <form 
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        const moneyVal = Number(formData.get('money'));
+                        const gemsVal = Number(formData.get('gems'));
+                        const boostVal = Number(formData.get('boostPoints'));
+                        const energyVal = Number(formData.get('energy'));
+                        const maxEnVal = Number(formData.get('maxEnergy'));
+                        const fervorVal = Number(formData.get('ferveurPoints'));
+                        const levelVal = Number(formData.get('level'));
+                        const teamSlotsVal = Number(formData.get('teamSlots'));
+
+                        const prevMoney = selectedUserForAdmin.money || 0;
+                        const prevGems = selectedUserForAdmin.gems || 0;
+                        const prevBoost = selectedUserForAdmin.boostPoints || 0;
+                        const prevEnergy = selectedUserForAdmin.energy || 0;
+                        const prevFervor = selectedUserForAdmin.ferveurPoints || 0;
+
+                        setLoading(true);
+                        try {
+                          if (moneyVal !== prevMoney) await logTransaction(selectedUserForAdmin.uid, 'money', moneyVal - prevMoney, 'Modification Admin d\'Avoir');
+                          if (gemsVal !== prevGems) await logTransaction(selectedUserForAdmin.uid, 'gems', gemsVal - prevGems, 'Modification Admin d\'Avoir');
+                          if (boostVal !== prevBoost) await logTransaction(selectedUserForAdmin.uid, 'boost', boostVal - prevBoost, 'Modification Admin d\'Avoir');
+                          if (energyVal !== prevEnergy) await logTransaction(selectedUserForAdmin.uid, 'energy', energyVal - prevEnergy, 'Modification Admin d\'Avoir');
+                          if (fervorVal !== prevFervor) await logTransaction(selectedUserForAdmin.uid, 'ferveur_general', fervorVal - prevFervor, 'Modification Admin de Ferveur');
+
+                          await setDoc(doc(db, 'users', selectedUserForAdmin.uid), {
+                            money: moneyVal,
+                            gems: gemsVal,
+                            boostPoints: boostVal,
+                            energy: energyVal,
+                            maxEnergy: maxEnVal,
+                            ferveurPoints: fervorVal,
+                            level: levelVal,
+                            teamSlots: teamSlotsVal
+                          }, { merge: true });
+
+                          setStatus({ type: 'success', message: 'Avoirs et ressources sauvegardés avec succès !' });
+                          refreshSelectedUser(selectedUserForAdmin.uid);
+                        } catch (err) {
+                          console.error(err);
+                          handleFirestoreError(err, OperationType.WRITE, `users/${selectedUserForAdmin.uid}`);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <h4 className="text-sm font-black uppercase tracking-widest text-yellow-500 flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" /> Gérer Ressources & Économie Générale
+                      </h4>
+                      <p className="text-xs text-gray-400">Modifiez précisément les valeurs bancaires, d'énergie, de ferveur et de niveau du profil.</p>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Argent 🪙</label>
+                          <input 
+                            type="number" 
+                            name="money" 
+                            defaultValue={selectedUserForAdmin.money || 0}
+                            className="w-full bg-black border border-white/10 rounded-xl p-2.5 text-sm font-mono text-white" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Gemmes 💎</label>
+                          <input 
+                            type="number" 
+                            name="gems" 
+                            defaultValue={selectedUserForAdmin.gems || 0}
+                            className="w-full bg-black border border-white/10 rounded-xl p-2.5 text-sm font-mono text-white" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Points Boost ⭐</label>
+                          <input 
+                            type="number" 
+                            name="boostPoints" 
+                            defaultValue={selectedUserForAdmin.boostPoints || 0}
+                            className="w-full bg-black border border-white/10 rounded-xl p-2.5 text-sm font-mono text-white" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Énergie Joueur ⚡</label>
+                          <input 
+                            type="number" 
+                            name="energy" 
+                            defaultValue={selectedUserForAdmin.energy || 0}
+                            className="w-full bg-black border border-white/10 rounded-xl p-2.5 text-sm font-mono text-white" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Énergie Max Joueur</label>
+                          <input 
+                            type="number" 
+                            name="maxEnergy" 
+                            defaultValue={selectedUserForAdmin.maxEnergy || 100}
+                            className="w-full bg-black border border-white/10 rounded-xl p-2.5 text-sm font-mono text-white" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">XP Ferveur Général 🔥</label>
+                          <input 
+                            type="number" 
+                            name="ferveurPoints" 
+                            defaultValue={selectedUserForAdmin.ferveurPoints || 0}
+                            className="w-full bg-black border border-white/10 rounded-xl p-2.5 text-sm font-mono text-white" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Niveau Général</label>
+                          <input 
+                            type="number" 
+                            name="level" 
+                            defaultValue={selectedUserForAdmin.level || 1}
+                            className="w-full bg-black border border-white/10 rounded-xl p-2.5 text-sm font-mono text-white" 
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Nombre Slots Équipe</label>
+                          <input 
+                            type="number" 
+                            name="teamSlots" 
+                            defaultValue={selectedUserForAdmin.teamSlots || 5}
+                            className="w-full bg-black border border-white/10 rounded-xl p-2.5 text-sm font-mono text-white" 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <Button type="submit" disabled={loading} className="font-bold uppercase italic tracking-widest bg-yellow-500 hover:bg-yellow-600 text-black">
+                          <Save className="w-4 h-4 mr-2" /> Enregistrer les Ressources de l'Utilisateur
+                        </Button>
+                      </div>
+                    </form>
+                  </Card>
+
+                  {/* Gestion des Équipes Favorites */}
+                  <Card className="p-6 space-y-4">
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
+                        <Trophy className="w-4 h-4" /> Équipes Favorites ({selectedUserForAdmin.favoriteTeams?.length || 0} / {selectedUserForAdmin.teamSlots || 5})
+                      </h4>
+                      <p className="text-xs text-gray-400">Modifiez le catalogue des clubs supportés par l'utilisateur.</p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {(selectedUserForAdmin.favoriteTeams || []).map(teamId => {
+                        const idStr = teamId.toString();
+                        const teamInfo = cachedTeams[idStr];
+                        return (
+                          <div key={teamId} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-white font-bold uppercase italic text-[10px]">
+                            {teamInfo?.logo && (
+                              <img 
+                                src={getImageUrl(teamInfo.logo, 40)} 
+                                alt="" 
+                                className="w-4 h-4 object-contain" 
+                                referrerPolicy="no-referrer" 
+                              />
+                            )}
+                            <span>{teamInfo?.name ? translateCountryName(teamInfo.name) : idStr}</span>
+                            <span className="text-white/30 text-[8px] font-mono">({idStr})</span>
+                            <button 
+                              onClick={async () => {
+                                const updated = (selectedUserForAdmin.favoriteTeams || []).filter(id => id !== teamId);
+                                await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { favoriteTeams: updated }, { merge: true });
+                                setStatus({ type: 'success', message: 'Équipe favorite retirée !' });
+                                refreshSelectedUser(selectedUserForAdmin.uid);
+                              }}
+                              className="text-red-500 hover:text-red-400 cursor-pointer ml-1 font-sans"
+                              title="Retirer cette équipe"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {(selectedUserForAdmin.favoriteTeams || []).length === 0 && (
+                        <div className="text-gray-500 text-xs italic">Aucune équipe favorite enregistrée.</div>
+                      )}
+                    </div>
+
+                    {/* Dynamic Team Search (Same as FavoriteTeamsPage) */}
+                    <div className="pt-4 border-t border-white/5 space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-extrabold text-blue-400 uppercase tracking-widest flex items-center gap-1">
+                          <Search className="w-3 h-3" /> Rechercher et ajouter une équipe :
+                        </label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <input
+                            type="text"
+                            value={adminTeamSearchQuery}
+                            onChange={(e) => setAdminTeamSearchQuery(e.target.value)}
+                            placeholder="Entrez le nom d'un club ou pays (ex: Paris, Real, Marseille, France...)"
+                            className="w-full bg-black border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs text-white placeholder:text-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      {isAdminTeamSearching && (
+                        <div className="text-center py-4 text-gray-500 font-bold animate-pulse text-xs uppercase tracking-widest italic col-span-full">
+                          Recherche en cours...
+                        </div>
+                      )}
+
+                      {adminTeamSearchResults.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                          {adminTeamSearchResults.map((result) => {
+                            const resultIdStr = result.team.id.toString();
+                            const isAlreadyFav = selectedUserForAdmin?.favoriteTeams?.some(t => t.toString() === resultIdStr);
+                            
+                            return (
+                              <div 
+                                key={result.team.id}
+                                className="bg-black/40 border border-white/10 rounded-xl p-2.5 flex items-center justify-between hover:border-blue-500/50 transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-8 h-8 shrink-0 bg-white/5 rounded-lg p-1 flex items-center justify-center">
+                                    <img src={getImageUrl(result.team.logo, 60)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h5 className="font-bold text-white text-xs truncate">{translateCountryName(result.team.name)}</h5>
+                                    <p className="text-[10px] text-gray-500 truncate">{translateCountryName(result.team.country)}</p>
+                                  </div>
+                                </div>
+                                <Button 
+                                  onClick={async () => {
+                                    if (isAlreadyFav) return;
+                                    const favoriteTeams = selectedUserForAdmin.favoriteTeams || [];
+                                    const updated = [...favoriteTeams, resultIdStr];
+                                    
+                                    // Instantly update local cache state
+                                    setCachedTeams(prev => ({
+                                      ...prev,
+                                      [resultIdStr]: {
+                                        name: result.team.name,
+                                        logo: result.team.logo
+                                      }
+                                    }));
+                                    
+                                    // Fetch leagues and create/update team record in Firestore teams collection
+                                    try {
+                                      const teamRef = doc(db, 'teams', resultIdStr);
+                                      const teamDoc = await getDoc(teamRef);
+                                      if (!teamDoc.exists()) {
+                                        let leagueIds: number[] = [];
+                                        try {
+                                          const leaguesData = await footballApi.getLeaguesByTeam(result.team.id);
+                                          leagueIds = leaguesData.map((l: any) => l.league.id);
+                                        } catch (e) {
+                                          console.error("Failed to fetch leagues in admin", e);
+                                        }
+                                        await setDoc(teamRef, {
+                                          name: result.team.name,
+                                          logo: result.team.logo,
+                                          userCount: 1,
+                                          averageFerveur: 10,
+                                          ferveurEarned: 0,
+                                          totalScoreGiven: 0,
+                                          matchesPlayed: 0,
+                                          leagueIds: leagueIds,
+                                          updatedAt: new Date().toISOString()
+                                        });
+                                      }
+                                    } catch (saveErr) {
+                                      console.error("Error creating/updating team doc:", saveErr);
+                                    }
+
+                                    await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { favoriteTeams: updated }, { merge: true });
+                                    setStatus({ type: 'success', message: `${result.team.name} ajouté aux favoris de l'utilisateur !` });
+                                    refreshSelectedUser(selectedUserForAdmin.uid);
+                                    setAdminTeamSearchQuery('');
+                                    setAdminTeamSearchResults([]);
+                                  }}
+                                  disabled={isAlreadyFav}
+                                  className={`shrink-0 ml-2 font-extrabold uppercase text-[9px] px-2.5 py-1.5 h-auto ${
+                                    isAlreadyFav 
+                                      ? 'bg-gray-800 text-gray-500 border-transparent cursor-not-allowed' 
+                                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                  }`}
+                                >
+                                  {isAlreadyFav ? 'Acquis' : 'Ajouter'}
+                                </Button>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-white">{user.pseudo || 'Utilisateur'}</span>
-                                {user.displayName && <span className="text-[10px] text-gray-400">{user.displayName}</span>}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Gestion des FANZ (Ferveur par fanz, etc.) */}
+                  <Card className="p-6 space-y-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-orange-500 flex items-center gap-2">
+                          <Flame className="w-5 h-5 text-orange-500" /> Cartes Fanz du Joueur & Ferveur de FANZ
+                        </h4>
+                        <p className="text-xs text-gray-400">Gérez le niveau d'XP de combat (XP), le rang de carte, les points de ferveur spécifiques et le niveau de ferveur pour chaque carte FANZ appartenant à l'utilisateur.</p>
+                      </div>
+                      <div className="w-64 space-y-1 shrink-0">
+                        <label className="text-[9px] font-bold text-gray-500 uppercase">Attribuer un nouveau FANZ :</label>
+                        <select
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            if (!val) return;
+                            await handleAddFanzToUser(val);
+                            e.target.value = '';
+                          }}
+                          className="w-full p-2 bg-black border border-white/10 rounded-lg text-xs font-bold text-white uppercase italic"
+                        >
+                          <option value="">-- Choisir un FANZ à injecter --</option>
+                          {fanzTemplates
+                            .filter(t => !userFanz.find(f => f.templateId === t.id))
+                            .map(t => (
+                              <option key={t.id} value={t.id}>{t.name} (Rareté : {t.rarity || 'commune'})</option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {loadingUserFanz ? (
+                      <div className="flex justify-center py-6">
+                        <RefreshCw className="w-8 h-8 text-orange-500 animate-spin" />
+                      </div>
+                    ) : userFanz.length === 0 ? (
+                      <div className="text-center text-sm py-8 text-gray-500 bg-black/40 border border-white/5 rounded-2xl border-dashed">
+                        Cet utilisateur ne possède pas encore de cartes FANZ. Sélectionnez un FANZ dans le menu ci-dessus pour lui en assigner un.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        {userFanz.map(fanz => {
+                          const template = fanzTemplates.find(t => t.id === fanz.templateId);
+                          return (
+                            <div key={fanz.id} className="bg-black/60 border border-white/10 rounded-2xl p-5 space-y-4 hover:border-orange-500/30 transition shadow-xl relative overflow-hidden flex flex-col justify-between">
+                              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-2xl rounded-full" />
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3 relative z-10">
+                                  <img 
+                                    src={fanz.imageUrl || template?.image || ''} 
+                                    alt="" 
+                                    className="w-12 h-12 object-contain rounded-xl bg-white/5 p-1 border border-white/10 shrink-0" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <h5 className="font-extrabold uppercase italic inline-block text-white text-base tracking-wide">{fanz.name}</h5>
+                                      <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider ${
+                                        fanz.rarity === 'legendary' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
+                                        fanz.rarity === 'epic' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
+                                        fanz.rarity === 'rare' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                                        'bg-zinc-500/20 text-zinc-400 border border-zinc-500/30'
+                                      }`}>
+                                        {fanz.rarity || 'common'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">{fanz.sport} • ID : {fanz.id.substring(0, 10)}...</p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDeleteUserFanzItem(fanz.id)}
+                                    className="text-red-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-xl border border-transparent transition cursor-pointer"
+                                    title="Supprimer cette carte FANZ du compte joueur"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 xs:grid-cols-3 gap-2.5 pt-2">
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-extrabold text-orange-400 uppercase tracking-widest">Niveau (FANZ)</label>
+                                    <input 
+                                      type="number"
+                                      id={`fanz-level-${fanz.id}`}
+                                      defaultValue={fanz.level || 1}
+                                      className="w-full bg-black/60 border border-white/10 rounded-xl p-2 text-xs font-mono font-bold text-white text-center"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest">XP combat (FANZ)</label>
+                                    <input 
+                                      type="number"
+                                      id={`fanz-xp-${fanz.id}`}
+                                      defaultValue={fanz.xp || 0}
+                                      className="w-full bg-black/60 border border-white/10 rounded-xl p-2 text-xs font-mono font-bold text-white text-center"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-extrabold text-yellow-400 uppercase tracking-widest">Rang (FANZ)</label>
+                                    <input 
+                                      type="number"
+                                      id={`fanz-rank-${fanz.id}`}
+                                      defaultValue={fanz.rank || 1}
+                                      className="w-full bg-black/60 border border-white/10 rounded-xl p-2 text-xs font-mono font-bold text-white text-center"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-extrabold text-orange-500 uppercase tracking-widest">Ferveur FANZ (XP)</label>
+                                    <input 
+                                      type="number"
+                                      id={`fanz-fervpoints-${fanz.id}`}
+                                      defaultValue={fanz.ferveurPoints || 0}
+                                      className="w-full bg-black/60 border border-white/10 rounded-xl p-2 text-xs font-mono font-bold text-white text-center"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-extrabold text-blue-400 uppercase tracking-widest">Niv Ferveur FANZ</label>
+                                    <input 
+                                      type="number"
+                                      id={`fanz-fervlvl-${fanz.id}`}
+                                      defaultValue={fanz.ferveurLevel || 1}
+                                      className="w-full bg-black/60 border border-white/10 rounded-xl p-2 text-xs font-mono font-bold text-white text-center"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-extrabold text-green-400 uppercase tracking-widest">Énergie (FANZ)</label>
+                                    <input 
+                                      type="number"
+                                      id={`fanz-energy-${fanz.id}`}
+                                      defaultValue={fanz.energy !== undefined ? fanz.energy : 100}
+                                      className="w-full bg-black/60 border border-white/10 rounded-xl p-2 text-xs font-mono font-bold text-white text-center"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="pt-2 flex justify-end">
+                                <Button
+                                  onClick={async () => {
+                                    const lvl = Number((document.getElementById(`fanz-level-${fanz.id}`) as HTMLInputElement)?.value);
+                                    const xpVal = Number((document.getElementById(`fanz-xp-${fanz.id}`) as HTMLInputElement)?.value);
+                                    const rnk = Number((document.getElementById(`fanz-rank-${fanz.id}`) as HTMLInputElement)?.value);
+                                    const fPts = Number((document.getElementById(`fanz-fervpoints-${fanz.id}`) as HTMLInputElement)?.value);
+                                    const fLvl = Number((document.getElementById(`fanz-fervlvl-${fanz.id}`) as HTMLInputElement)?.value);
+                                    const enVal = Number((document.getElementById(`fanz-energy-${fanz.id}`) as HTMLInputElement)?.value);
+
+                                    await handleUpdateUserFanzItem(fanz.id, {
+                                      level: lvl,
+                                      xp: xpVal,
+                                      rank: rnk,
+                                      ferveurPoints: fPts,
+                                      ferveurLevel: fLvl,
+                                      energy: enVal
+                                    });
+                                  }}
+                                  className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white font-black uppercase italic tracking-widest text-[10px] py-2 px-4 h-9"
+                                >
+                                  Sauvegarder les Stats du FANZ
+                                </Button>
                               </div>
                             </div>
-                          </td>
-                          <td className="py-3 px-4 text-gray-300">{user.email}</td>
-                          <td className="py-3 px-4">
-                            <select
-                              value={user.role || 'client'}
-                              onChange={(e) => handleUpdateUserRole(user.uid, e.target.value as any)}
-                              className="p-1.5 bg-gray-800 rounded text-xs font-bold border border-gray-700 text-white"
-                            >
-                              <option value="client">Client</option>
-                              <option value="moderator">Modérateur</option>
-                              <option value="admin">Admin</option>
-                            </select>
-                          </td>
-                          <td className="py-3 px-4 font-mono font-bold text-white">{user.ferveurPoints || 0}</td>
-                          <td className="py-3 px-4">
-                            <span className="text-xs text-gray-500 italic">À venir</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* Gestion des déblocages de skins / emotes / cartes duel */}
+                  <Card className="p-6 space-y-6">
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-widest text-[#a855f7] flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-[#a855f7]" /> Déblocages de Collections Globales
+                      </h4>
+                      <p className="text-xs text-gray-400">Cochez ou décochez les éléments spéciaux pour les déverrouiller instantanément sur le compte du joueur.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* SKINS COCHABLES */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 flex items-center gap-2">
+                          🖌️ Skins Débloqués ({(selectedUserForAdmin.skins || []).length} actifs)
+                        </span>
+                        <div className="max-h-60 overflow-y-auto border border-white/5 bg-black/30 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 no-scrollbar">
+                          {fanzTemplates.flatMap(t => t.skins?.map(skin => ({ ...skin, templateName: t.name })) || []).map((skin, idx) => {
+                            const isUnlocked = selectedUserForAdmin.skins?.includes(skin.id);
+                            return (
+                              <label key={`${skin.id}-${idx}`} className="flex items-center gap-2.5 p-2 bg-neutral-900/60 border border-white/5 rounded-lg hover:bg-neutral-800/80 transition-colors cursor-pointer text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={isUnlocked}
+                                  onChange={async () => {
+                                    const current = selectedUserForAdmin.skins || [];
+                                    const updated = current.includes(skin.id) 
+                                      ? current.filter(id => id !== skin.id)
+                                      : [...current, skin.id];
+                                    await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { skins: updated }, { merge: true });
+                                    setStatus({ type: 'success', message: `Skin ${skin.name} mis à jour !` });
+                                    refreshSelectedUser(selectedUserForAdmin.uid);
+                                  }}
+                                  className="rounded border-zinc-700 text-purple-600 focus:ring-purple-600 cursor-pointer w-4 h-4"
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-white uppercase italic text-[10px]">{skin.name}</span>
+                                  <span className="text-[8px] text-zinc-500 font-sans tracking-wide shrink-0">({skin.templateName})</span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* EMOTES COCHABLES */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#3b82f6] flex items-center gap-2">
+                          💬 Emotes Débloquées ({(selectedUserForAdmin.emotes || []).length} actives)
+                        </span>
+                        <div className="max-h-60 overflow-y-auto border border-white/5 bg-black/30 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 no-scrollbar">
+                          {fanzTemplates.flatMap(t => t.emotes?.map(emote => ({ ...emote, templateName: t.name })) || []).map((emote, idx) => {
+                            const isUnlocked = selectedUserForAdmin.emotes?.includes(emote.id);
+                            return (
+                              <label key={`${emote.id}-${idx}`} className="flex items-center gap-2.5 p-2 bg-neutral-900/60 border border-white/5 rounded-lg hover:bg-neutral-800/80 transition-colors cursor-pointer text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={isUnlocked}
+                                  onChange={async () => {
+                                    const current = selectedUserForAdmin.emotes || [];
+                                    const updated = current.includes(emote.id) 
+                                      ? current.filter(id => id !== emote.id)
+                                      : [...current, emote.id];
+                                    await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { emotes: updated }, { merge: true });
+                                    setStatus({ type: 'success', message: `Emote ${emote.name} mise à jour !` });
+                                    refreshSelectedUser(selectedUserForAdmin.uid);
+                                  }}
+                                  className="rounded border-zinc-700 text-blue-600 focus:ring-blue-600 cursor-pointer w-4 h-4"
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-white uppercase italic text-[10px]">{emote.name}</span>
+                                  <span className="text-[8px] text-zinc-500 font-sans shrink-0">({emote.templateName})</span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* CARTES DUEL COCHABLES */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#eab308] flex items-center gap-2">
+                          🃏 Cartes Duel Débloquées ({(selectedUserForAdmin.cards || []).length} actives)
+                        </span>
+                        <div className="max-h-60 overflow-y-auto border border-white/5 bg-black/30 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 no-scrollbar">
+                          {(duelCards.length > 0 ? duelCards : BASE_CARDS).map((card, idx) => {
+                            const isUnlocked = selectedUserForAdmin.cards?.includes(card.id);
+                            return (
+                              <label key={`${card.id}-${idx}`} className="flex items-center gap-2.5 p-2 bg-neutral-900/60 border border-white/5 rounded-lg hover:bg-neutral-800/80 transition-colors cursor-pointer text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={isUnlocked}
+                                  onChange={async () => {
+                                    const current = selectedUserForAdmin.cards || [];
+                                    const updated = current.includes(card.id) 
+                                      ? current.filter(id => id !== card.id)
+                                      : [...current, card.id];
+                                    await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { cards: updated }, { merge: true });
+                                    setStatus({ type: 'success', message: `Carte ${card.name} mise à jour !` });
+                                    refreshSelectedUser(selectedUserForAdmin.uid);
+                                  }}
+                                  className="rounded border-zinc-700 text-yellow-600 focus:ring-yellow-600 cursor-pointer w-4 h-4"
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-white uppercase italic text-[10px]">{card.name}</span>
+                                  <span className="text-[8px] text-zinc-500 font-sans italic tracking-wide shrink-0">({card.rarity})</span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
                 </div>
-              </div>
-            </Card>
+              )}
+            </div>
           )}
 
           {activeUserSubTab === 'fervor' && userFervorConfig && (

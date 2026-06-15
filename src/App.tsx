@@ -1844,6 +1844,35 @@ function AppContent() {
     );
   }
 
+  if (profile?.isBanned) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="max-w-md p-8 bg-zinc-900 border border-red-900/40 rounded-2xl shadow-2xl flex flex-col items-center gap-6">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 text-2xl">
+            <AlertCircle className="w-8 h-8 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black uppercase text-red-500 tracking-tighter">Compte Suspendu</h1>
+            <p className="text-zinc-400 text-sm">
+              Votre accès au jeu a été suspendu par l'administration de Fanz.
+            </p>
+          </div>
+          <div className="p-4 bg-black/40 border border-zinc-800 rounded-xl w-full text-left text-xs font-mono text-zinc-500 space-y-1">
+            <div>UID: {profile.uid}</div>
+            <div>EMAIL: {profile.email}</div>
+            <div>STATUS: BANNI</div>
+          </div>
+          <Button 
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold h-11 border-none shadow-[0_4px_12px_rgba(220,38,38,0.3)] transition-all cursor-pointer"
+            onClick={() => signOut(auth)}
+          >
+            Se déconnecter
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <AnimatePresence>

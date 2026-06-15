@@ -446,16 +446,27 @@ export function CollectionPage({ user }: CollectionPageProps) {
       return false;
     }
 
-    const requirements = card.unlockRequirements || [];
+    const requirements = card.unlockRequirements || card.requirements || [];
     const hasRequirements = requirements.length > 0;
     if (!hasRequirements && card.rarity === "common") return true;
 
     if (hasRequirements) {
       return allowedFanzList.some((fanz) => {
         return requirements.every((req: any) => {
-          if (req.type === "fanzLevel")
+          if (req.type === "skill" && req.skillName) {
+            const xp = fanz.stats[req.skillName] || 0;
+            const level = Math.min(10, Math.floor(xp / 100) + 1);
+            return level >= req.minLevel;
+          }
+          if (req.type === "ferveur") {
+            return (fanz.ferveurLevel || 1) >= req.minLevel;
+          }
+          if (req.type === "fanzLevel" || req.type === "level") {
             return (fanz.level || 1) >= req.minLevel;
-          if (req.type === "rank") return (fanz.rank ?? 0) >= req.minLevel;
+          }
+          if (req.type === "rank") {
+            return (fanz.rank ?? 0) >= req.minLevel;
+          }
           return true;
         });
       });

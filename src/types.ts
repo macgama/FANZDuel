@@ -26,6 +26,7 @@ export interface UserProfile {
   language?: string;
   dataSaver?: boolean;
   isMuted?: boolean;
+  isBanned?: boolean;
   favoriteTeams: string[];
   favoriteLeagues?: string[];
   money: number;

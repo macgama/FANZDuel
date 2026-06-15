@@ -1206,6 +1206,16 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           let equippedCardsForDeck = [];
           if (fanzData.equippedCards && Array.isArray(fanzData.equippedCards) && fanzData.equippedCards.length > 0) {
             equippedCardsForDeck = fanzAvailableCards.filter(c => fanzData.equippedCards?.includes(c.id));
+            if (equippedCardsForDeck.length < 8) {
+              const remainingCards = fanzAvailableCards.filter(c => !equippedCardsForDeck.some(ec => ec.id === c.id));
+              remainingCards.sort((a, b) => {
+                if (a.rarity === 'common' && b.rarity !== 'common') return -1;
+                if (a.rarity !== 'common' && b.rarity === 'common') return 1;
+                return 0;
+              });
+              const needCount = 8 - equippedCardsForDeck.length;
+              equippedCardsForDeck = [...equippedCardsForDeck, ...remainingCards.slice(0, needCount)];
+            }
             cardsToUse = equippedCardsForDeck;
           } else {
             equippedCardsForDeck = fanzAvailableCards;
@@ -1765,9 +1775,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                if (effectiveEnergyCost > 0) await logTransaction(user.uid, 'energy', effectiveEnergyCost, `Remboursement victoire forfait`);
              }
           } else if (isBotMatch && !isForfeitMatch && duelType !== 'training') {
-             // Bot Match (not forfeit)
-             ferveurGainFanz = 0;
-             ferveurGainGeneral = 0;
+             // Bot Match (not forfeit) - Donner de la ferveur pour le jeu contre les bots
+             const baseFervor = isWin ? 10 : 5;
+             ferveurGainFanz = Math.round(baseFervor * xpMultiplier * fervorModMultiplier);
+             ferveurGainGeneral = Math.round(baseFervor * xpMultiplier * fervorModMultiplier);
              disableGlobalUpdates = true;
           } else if (duelType === 'training') {
             const isAgainstFriend = participants.some(p => p && !p.isBot && p.uid !== user.uid);
@@ -1796,16 +1807,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           if (fanzData && fanzId && ferveurGainFanz > 0) {
               const fanzRef = doc(db, 'fanz', fanzId);
               let newFanzPoints = Math.max(0, (fanzData.ferveurPoints || 0) + ferveurGainFanz);
-              let newFanzLevel = fanzData.ferveurLevel || 1;
-              
               const ferveurPath = fanzFervorConfig 
                 ? generateFervorPath(fanzFervorConfig.ranges?.[fanzFervorConfig.ranges.length - 1]?.max || 50000, fanzFervorConfig)
                 : template?.ferveurPath || [];
 
-              const nextLevel = ferveurPath.find(p => p.level === newFanzLevel + 1);
-              if (nextLevel && newFanzPoints >= nextLevel.pointsRequired) {
-                newFanzLevel += 1;
+              let tempLevel = fanzData.ferveurLevel || 1;
+              while (true) {
+                const nextStep = ferveurPath.find(p => p.level === tempLevel + 1);
+                if (nextStep && newFanzPoints >= nextStep.pointsRequired) {
+                  tempLevel += 1;
+                } else {
+                  break;
+                }
               }
+              let newFanzLevel = tempLevel;
               
               await updateDoc(fanzRef, {
                 ferveurPoints: newFanzPoints,
