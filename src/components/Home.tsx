@@ -91,6 +91,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
   const [dismissedAlertIDs, setDismissedAlertIDs] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const worldCupScrollRef = useRef<HTMLDivElement>(null);
+  const upcomingMatchesScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // load from local storage
@@ -1157,33 +1158,53 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
           ) : (
             (() => {
               const isActionInProgress = !!(activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id);
+              
+              // Pré-calcul de la liste d'actions disponibles pour un filtrage robuste et propre
+              const equippedSkinData = activeFanz?.equippedSkin && fanzTemplate ? fanzTemplate.skins?.find((s: any) => s.id === activeFanz.equippedSkin) : null;
+              const filteredActions = activeFanz && fanzTemplate && !profile.activeAction ? (
+                lifeActions
+                  .filter(action => {
+                    const isTemplateMatch = action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId;
+                    const isSkinMatch = !action.skinId || action.skinId === activeFanz.equippedSkin;
+                    const isSpecialAction = action.id === equippedSkinData?.specialActionId;
+                    return (isTemplateMatch && isSkinMatch) || isSpecialAction;
+                  })
+                  .reduce((acc, action) => {
+                    const existingIdx = acc.findIndex(a => a.name === action.name);
+                    if (existingIdx !== -1) {
+                        if (action.skinId && !acc[existingIdx].skinId) {
+                          acc[existingIdx] = action;
+                        }
+                    } else {
+                      acc.push(action);
+                    }
+                    return acc;
+                  }, [] as LifeAction[])
+              ) : [];
+
+              const showArrows = !isActionInProgress && filteredActions.length > 1;
+
               return (
                 <div className="relative w-full pb-4">
-                  {!isActionInProgress && (
+                  {showArrows && (
                     <button 
                       onClick={() => scroll(scrollContainerRef, 'left')}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+                      className="absolute left-1/2 -translate-x-[calc(50%+160px)] sm:-translate-x-[calc(50%+220px)] md:left-2 md:-translate-x-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/95 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
                     >
-                      <ChevronLeft className="w-5 h-5" />
+                      <ChevronLeft className="w-6 h-6" />
                     </button>
                   )}
 
                   <div 
                     ref={scrollContainerRef}
-                    className={isActionInProgress 
-                      ? "w-full flex justify-center px-4" 
-                      : "w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
-                    }
+                    className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
                   >
-                    <div className={isActionInProgress 
-                      ? "w-full flex justify-center py-2" 
-                      : "flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch"
-                    }>
-                      {activeFanz && fanzTemplate && profile.activeAction?.fanzId === activeFanz.id ? (
+                    <div className="flex flex-nowrap w-full items-stretch py-2">
+                      {isActionInProgress ? (
                         lifeActions
                           .filter(action => action.id === profile.activeAction?.actionId)
                           .map(action => (
-                            <div key={action.id} className="w-full max-w-[500px] shrink-0">
+                            <div key={action.id} className="snap-center shrink-0 w-full flex items-stretch px-4 sm:px-[30px]">
                               <LifeActionCard 
                                 action={action} 
                                 fanz={activeFanz} 
@@ -1193,37 +1214,16 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                             </div>
                           ))
                       ) : activeFanz && fanzTemplate && !profile.activeAction ? (
-                        (() => {
-                          const equippedSkinData = activeFanz.equippedSkin ? fanzTemplate.skins?.find((s: any) => s.id === activeFanz.equippedSkin) : null;
-                          return lifeActions
-                            .filter(action => {
-                              const isTemplateMatch = action.fanzTemplateId === fanzTemplate.id || !action.fanzTemplateId;
-                              const isSkinMatch = !action.skinId || action.skinId === activeFanz.equippedSkin;
-                              const isSpecialAction = action.id === equippedSkinData?.specialActionId;
-                              return (isTemplateMatch && isSkinMatch) || isSpecialAction;
-                            })
-                            .reduce((acc, action) => {
-                              const existingIdx = acc.findIndex(a => a.name === action.name);
-                              if (existingIdx !== -1) {
-                                if (action.skinId && !acc[existingIdx].skinId) {
-                                  acc[existingIdx] = action;
-                                }
-                              } else {
-                                acc.push(action);
-                              }
-                              return acc;
-                            }, [] as LifeAction[])
-                            .map(action => (
-                              <div key={action.id} className="snap-center shrink-0 w-[calc(100vw-80px)] max-w-[400px]">
-                                <LifeActionCard 
-                                  action={action} 
-                                  fanz={activeFanz} 
-                                  userProfile={profile} 
-                                  fanzTemplate={fanzTemplate}
-                                />
-                              </div>
-                            ));
-                        })()
+                        filteredActions.map(action => (
+                          <div key={action.id} className="snap-center shrink-0 w-full flex items-stretch px-4 sm:px-[30px]">
+                            <LifeActionCard 
+                              action={action} 
+                              fanz={activeFanz} 
+                              userProfile={profile} 
+                              fanzTemplate={fanzTemplate}
+                            />
+                          </div>
+                        ))
                       ) : (
                         <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-[30px]">
                           Aucun match en direct et aucun FANZ actif
@@ -1232,12 +1232,12 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                     </div>
                   </div>
                   
-                  {!isActionInProgress && (
+                  {showArrows && (
                     <button 
                       onClick={() => scroll(scrollContainerRef, 'right')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+                      className="absolute left-1/2 translate-x-[calc(50%+120px)] sm:translate-x-[calc(50%+180px)] md:right-2 md:left-auto md:translate-x-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/95 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
                     >
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-6 h-6" />
                     </button>
                   )}
                 </div>
@@ -1247,8 +1247,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
 
           {/* SECION MATCHES À VENIR S'IL N'Y A PAS DE MATCH LIVE */}
           {liveMatches.length === 0 && upcomingMatches.length > 0 && (
-            <div className="px-4 sm:px-[30px] pt-4 border-t border-white/5 mt-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="pt-4 border-t border-white/5 mt-4">
+              <div className="flex items-center justify-between mb-3 px-4 sm:px-[30px]">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-orange-500 animate-pulse" />
                   <span className="text-xs font-black uppercase tracking-widest text-white drop-shadow-md">
@@ -1261,88 +1261,119 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
               </div>
 
               {/* Bot Message banner */}
-              <div className="bg-gradient-to-r from-orange-500/10 to-transparent border-l-2 border-orange-500/50 p-2.5 rounded-r-lg mb-3 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-black text-orange-400 uppercase tracking-tight">
-                    Va t'entraîner contre des Bots
-                  </span>
-                  <p className="text-[9px] text-gray-400">
-                    Gagne des points de ferveur à l'entraînement en solo ou défie un ami en 1v1 !
-                  </p>
+              <div className="mx-4 sm:mx-[30px]">
+                <div className="bg-gradient-to-r from-orange-500/10 to-transparent border-l-2 border-orange-500/50 p-2.5 rounded-r-lg mb-3 flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black text-orange-400 uppercase tracking-tight">
+                      Va t'entraîner contre des Bots
+                    </span>
+                    <p className="text-[9px] text-gray-400">
+                      Gagne des points de ferveur à l'entraînement en solo ou défie un ami en 1v1 !
+                    </p>
+                  </div>
+                  <Users className="w-5 h-5 text-orange-400/40 shrink-0 ml-2" />
                 </div>
-                <Users className="w-5 h-5 text-orange-400/40 shrink-0 ml-2" />
               </div>
 
               {/* Slider / List of upcoming matches */}
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 snap-x">
-                {upcomingMatches.slice(0, 10).map((match) => {
-                  const dateObj = new Date(match.fixture.date);
-                  const formattedTime = format(dateObj, 'HH:mm');
-                  const formattedDay = format(dateObj, 'dd/MM');
-                  
-                  return (
-                    <div 
-                      key={match.fixture.id} 
-                      className="snap-center shrink-0 w-[240px] bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:border-white/20 transition-all shrink-0 cursor-pointer"
-                      onClick={() => onMatchClick(match.fixture.id)}
-                    >
-                      {/* League info / Date */}
-                      <div className="flex justify-between items-center mb-2.5 border-b border-white/5 pb-1.5">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <FavoriteLeagueStar 
-                            leagueId={match.league.id} 
-                            profile={profile} 
-                            className="p-1 -ml-1" 
-                            iconClassName="w-3 h-3"
-                          />
-                          <span className="text-[8px] font-bold text-gray-400 truncate max-w-[100px] uppercase">
-                            {translateLeagueName(match.league.name)}
-                          </span>
-                        </div>
-                        <span className="text-[8px] font-black tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/10 uppercase">
-                          {formattedDay} • {formattedTime}
-                        </span>
-                      </div>
+              <div className="relative w-full pb-2 shrink-0">
+                {upcomingMatches.length > 1 && (
+                  <button 
+                    onClick={() => scroll(upcomingMatchesScrollRef, 'left')}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/90 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                )}
 
-                      {/* Teams */}
-                      <div className="flex flex-col gap-2 mb-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {match.teams.home.logo && (
-                              <img src={match.teams.home.logo} alt="" className="w-4 h-4 object-contain shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                            )}
-                            <span className="text-[10px] font-black text-white uppercase truncate">
-                              {match.teams.home.name}
-                            </span>
+                <div 
+                  ref={upcomingMatchesScrollRef}
+                  className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
+                >
+                  <div className="flex flex-nowrap w-full items-stretch py-2">
+                    {upcomingMatches.slice(0, 10).map((match) => {
+                      const dateObj = new Date(match.fixture.date);
+                      const formattedTime = format(dateObj, 'HH:mm');
+                      const formattedDay = format(dateObj, 'dd/MM');
+                      
+                      return (
+                        <div 
+                          key={match.fixture.id} 
+                          className="snap-center shrink-0 w-full flex items-stretch px-4 sm:px-[30px]"
+                        >
+                          <div 
+                            className="w-full bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:border-white/20 transition-all cursor-pointer"
+                            onClick={() => onMatchClick(match.fixture.id)}
+                          >
+                            {/* League info / Date */}
+                            <div className="flex justify-between items-center mb-2.5 border-b border-white/5 pb-1.5">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <FavoriteLeagueStar 
+                                  leagueId={match.league.id} 
+                                  profile={profile} 
+                                  className="p-1 -ml-1" 
+                                  iconClassName="w-3 h-3"
+                                />
+                                <span className="text-[8px] font-bold text-gray-400 truncate max-w-[100px] uppercase">
+                                  {translateLeagueName(match.league.name)}
+                                </span>
+                              </div>
+                              <span className="text-[8px] font-black tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/10 uppercase">
+                                {formattedDay} • {formattedTime}
+                              </span>
+                            </div>
+
+                            {/* Teams */}
+                            <div className="flex flex-col gap-2 mb-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {match.teams.home.logo && (
+                                    <img src={match.teams.home.logo} alt="" className="w-4 h-4 object-contain shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                                  )}
+                                  <span className="text-[10px] font-black text-white uppercase truncate">
+                                    {match.teams.home.name}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {match.teams.away.logo && (
+                                    <img src={match.teams.away.logo} alt="" className="w-4 h-4 object-contain shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                                  )}
+                                  <span className="text-[10px] font-black text-white uppercase truncate">
+                                    {match.teams.away.name}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Action Button */}
+                            <button 
+                              className="w-full bg-orange-600 hover:bg-orange-500 text-white text-[9px] font-black uppercase py-1.5 rounded transition-all text-center flex items-center justify-center gap-1 shadow-md shadow-orange-600/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMatchClick(match.fixture.id);
+                              }}
+                            >
+                              <Swords className="w-3 h-3" />
+                              S'entraîner
+                            </button>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {match.teams.away.logo && (
-                              <img src={match.teams.away.logo} alt="" className="w-4 h-4 object-contain shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                            )}
-                            <span className="text-[10px] font-black text-white uppercase truncate">
-                              {match.teams.away.name}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Button */}
-                      <button 
-                        className="w-full bg-orange-600 hover:bg-orange-500 text-white text-[9px] font-black uppercase py-1.5 rounded transition-all text-center flex items-center justify-center gap-1 shadow-md shadow-orange-600/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMatchClick(match.fixture.id);
-                        }}
-                      >
-                        <Swords className="w-3 h-3" />
-                        S'entraîner
-                      </button>
-                    </div>
-                  );
-                })}
+                {upcomingMatches.length > 1 && (
+                  <button 
+                    onClick={() => scroll(upcomingMatchesScrollRef, 'right')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/90 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1374,23 +1405,27 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
           
           <div className="relative z-10">
             {/* Left Scroll Button */}
-            <button 
-              onClick={() => scroll(worldCupScrollRef, 'left')}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+            {worldCupStandings && worldCupStandings.length > 1 && (
+              <button 
+                onClick={() => scroll(worldCupScrollRef, 'left')}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/95 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
 
-            <div className="px-4 sm:px-[30px]">
+            <div className="w-full">
               {worldCupStandings && worldCupStandings.length > 0 ? (
                 <div 
                   ref={worldCupScrollRef}
-                  className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth no-scrollbar"
+                  className="w-full overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth no-scrollbar"
                 >
-                  {worldCupStandings.map((group: any[], index: number) => {
-                  const groupName = group[0]?.group || `Groupe ${String.fromCharCode(65 + index)}`;
-                  return (
-                    <div key={index} className="snap-center shrink-0 w-[85vw] sm:w-[320px] max-w-[340px] bg-black/40 border border-white/10 rounded-xl overflow-hidden flex flex-col">
+                  <div className="flex flex-nowrap w-full items-stretch">
+                    {worldCupStandings.map((group: any[], index: number) => {
+                      const groupName = group[0]?.group || `Groupe ${String.fromCharCode(65 + index)}`;
+                      return (
+                        <div key={index} className="snap-center shrink-0 w-full flex flex-col px-4 sm:px-[30px]">
+                          <div className="w-full bg-black/40 border border-white/10 rounded-xl overflow-hidden flex flex-col">
                       <div className="bg-white/5 px-3 py-2 text-xs font-black uppercase tracking-widest text-orange-500 border-b border-white/5 flex justify-between items-center">
                         <span>{groupName}</span>
                         <span className="text-[10px] text-gray-500">PHASES DE POULES</span>
@@ -1461,8 +1496,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                                            <span className="text-xs text-white font-bold truncate">{translateCountryName(fx.teams.home.name)}</span>
                                          </div>
                                          <span className={`text-xs font-black ml-2 ${isLive ? 'text-red-500 font-extrabold animate-pulse' : 'text-gray-300'}`}>{showScore ? fx.goals.home : '-'}</span>
-                                      </div>
-                                      <div className="flex justify-between items-center">
+                                       </div>
+                                       <div className="flex justify-between items-center">
                                          <div className="flex items-center gap-2 overflow-hidden">
                                            <img src={getImageUrl(fx.teams.away.logo, 20)} alt="" className="w-4 h-4 object-contain rounded-sm" referrerPolicy="no-referrer" />
                                            <span className="text-xs text-white font-bold truncate">{translateCountryName(fx.teams.away.name)}</span>
@@ -1471,34 +1506,40 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                                       </div>
                                    </div>
                                  </div>
-                               )})}
+                                )})}
                              </div>
                           </div>
                         );
                       })()}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="w-full h-32 flex items-center justify-center border border-white/5 rounded-xl bg-white/5">
-                <div className="flex flex-col items-center gap-2 text-gray-500">
-                  <div className="w-6 h-6 border-2 border-orange-500/50 border-t-orange-500 rounded-full animate-spin" />
-                  <span className="text-xs font-bold uppercase">Chargement des poules...</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="mx-4 sm:mx-[30px]">
+                  <div className="w-full h-32 flex items-center justify-center border border-white/5 rounded-xl bg-white/5">
+                    <div className="flex flex-col items-center gap-2 text-gray-500">
+                      <div className="w-6 h-6 border-2 border-orange-500/50 border-t-orange-500 rounded-full animate-spin" />
+                      <span className="text-xs font-bold uppercase">Chargement des poules...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Right Scroll Button */}
-            <button 
-              onClick={() => scroll(worldCupScrollRef, 'right')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+            {worldCupStandings && worldCupStandings.length > 1 && (
+              <button 
+                onClick={() => scroll(worldCupScrollRef, 'right')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/95 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
           </div>
         </div>
-      </div>
 
     </div>
   </div>

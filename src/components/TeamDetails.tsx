@@ -997,27 +997,64 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
       )}
 
       {/* Matches Grid */}
-      {Object.entries(groupedByMonth).map(([month, monthFixtures]) => (
-        <div key={month} className="space-y-3">
-          <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm pl-2 border-l-2 border-orange-500">{month}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {monthFixtures.map(match => (
-              <SharedMatchCard
-                key={match.fixture.id}
-                match={{ ...match, events: match.events || matchEvents[match.fixture.id] || [] }}
-                hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
-                matchScore={matchScores[match.fixture.id.toString()]}
-                onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
-                onJoinDuel={() => {}}
-                onTeamClick={onTeamClick}
-                profile={profile}
-                showLeagueHeader={true}
-                showDate={true}
-              />
-            ))}
+      {Object.entries(groupedByMonth).map(([month, monthFixtures]) => {
+        const monthId = `scroll-month-${month.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        return (
+          <div key={month} className="space-y-3 relative group/scroll">
+            <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm pl-2 border-l-2 border-orange-500">{month}</h3>
+            
+            {monthFixtures.length > 1 && (
+              <>
+                <button
+                  onClick={() => {
+                    const container = document.getElementById(monthId);
+                    if (container) {
+                      container.scrollBy({ left: -container.clientWidth, behavior: 'smooth' });
+                    }
+                  }}
+                  className="absolute left-1/2 -translate-x-[calc(50%+160px)] sm:-translate-x-[calc(50%+220px)] md:left-2 md:-translate-x-0 top-[180px] z-20 w-10 h-10 bg-black/95 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={() => {
+                    const container = document.getElementById(monthId);
+                    if (container) {
+                      container.scrollBy({ left: container.clientWidth, behavior: 'smooth' });
+                    }
+                  }}
+                  className="absolute left-1/2 translate-x-[calc(50%+120px)] sm:translate-x-[calc(50%+180px)] md:right-2 md:left-auto md:translate-x-0 top-[180px] z-20 w-10 h-10 bg-black/95 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+
+            <div
+              id={monthId}
+              className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
+            >
+              <div className="flex flex-nowrap w-full items-stretch py-2">
+                {monthFixtures.map(match => (
+                  <div key={match.fixture.id} className="snap-center shrink-0 w-full px-4 sm:px-[30px] flex items-stretch">
+                    <SharedMatchCard
+                      match={{ ...match, events: match.events || matchEvents[match.fixture.id] || [] }}
+                      hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
+                      matchScore={matchScores[match.fixture.id.toString()]}
+                      onClick={(tab) => onMatchClick && onMatchClick(match.fixture.id, tab)}
+                      onJoinDuel={() => {}}
+                      onTeamClick={onTeamClick}
+                      profile={profile}
+                      showLeagueHeader={true}
+                      showDate={true}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -56,9 +56,9 @@ export function LiveMatchesSlider({
         {matches.length > 1 && (
           <button 
             onClick={() => scroll('left')}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/90 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-6 h-6" />
           </button>
         )}
 
@@ -66,9 +66,9 @@ export function LiveMatchesSlider({
           ref={scrollContainerRef}
           className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
         >
-          <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
+          <div className="flex flex-nowrap w-full items-stretch py-2">
             {matches.map(match => (
-              <div key={match.fixture.id} className={`snap-center shrink-0 flex items-stretch ${matches.length > 1 ? 'w-[85vw] sm:w-[360px]' : 'w-[calc(100vw-32px)] max-w-[388px]'}`}>
+              <div key={match.fixture.id} className="snap-center shrink-0 w-full flex items-stretch px-4 sm:px-[30px]">
                 <SharedMatchCard
                   match={match}
                   hasActiveDuel={activeDuels.some(d => d.matchId === match.fixture.id)}
@@ -88,9 +88,9 @@ export function LiveMatchesSlider({
         {matches.length > 1 && (
           <button 
             onClick={() => scroll('right')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-white/10 transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/90 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-6 h-6" />
           </button>
         )}
       </div>

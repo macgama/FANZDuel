@@ -846,7 +846,7 @@ function CountrySection({
   };
 
   return (
-    <div className="space-y-2 max-w-[420px] mx-auto w-full px-4">
+    <div className="space-y-2 w-full px-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors group"
@@ -913,29 +913,39 @@ function CountrySection({
                   {group.matches.length > 1 && (
                     <>
                       <button
-                        onClick={() => scroll("left")}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+                        onClick={() => {
+                          const container = document.getElementById(`scroll-league-${group.league.id}`);
+                          if (container) {
+                            container.scrollBy({ left: -container.clientWidth, behavior: "smooth" });
+                          }
+                        }}
+                        className="absolute left-1/2 -translate-x-[calc(50%+160px)] sm:-translate-x-[calc(50%+220px)] md:left-2 md:-translate-x-0 top-[180px] z-20 w-10 h-10 bg-black/95 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
                       >
-                        <ChevronLeft className="w-4 h-4" />
+                        <ChevronLeft className="w-6 h-6" />
                       </button>
                       <button
-                        onClick={() => scroll("right")}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover/scroll:opacity-100 transition-opacity"
+                        onClick={() => {
+                          const container = document.getElementById(`scroll-league-${group.league.id}`);
+                          if (container) {
+                            container.scrollBy({ left: container.clientWidth, behavior: "smooth" });
+                          }
+                        }}
+                        className="absolute left-1/2 translate-x-[calc(50%+120px)] sm:translate-x-[calc(50%+180px)] md:right-2 md:left-auto md:translate-x-0 top-[180px] z-20 w-10 h-10 bg-black/95 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all shadow-[0_0_12px_rgba(0,0,0,0.5)] cursor-pointer"
                       >
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="w-6 h-6" />
                       </button>
                     </>
                   )}
 
                   <div
-                    ref={scrollContainerRef}
+                    id={`scroll-league-${group.league.id}`}
                     className="w-full overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
                   >
-                    <div className="flex flex-nowrap gap-4 px-4 py-2 w-fit items-stretch">
+                    <div className="flex flex-nowrap w-full items-stretch py-2">
                       {group.matches.map((match: any) => (
                         <div
                           key={match.fixture.id}
-                          className="snap-center shrink-0 flex items-stretch w-[85vw] sm:w-[360px] max-w-[calc(100vw-32px)]"
+                          className="snap-center shrink-0 w-full px-4 sm:px-[30px] flex items-stretch"
                         >
                           <SharedMatchCard
                             match={match}
