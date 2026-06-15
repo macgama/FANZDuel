@@ -627,6 +627,19 @@ export function CollectionPage({ user }: CollectionPageProps) {
     (a) => checkActionOwned(a) && !seenItems.has(`action_${a.uniqueItemKey}`),
   ).length;
 
+  // Sync total unseen items count to localStorage and dispatch custom event to keep sidebar red dot in sync
+  useEffect(() => {
+    if (!loading) {
+      const totalUnseen = unseenFanz + unseenSkins + unseenEmotes + unseenCards + unseenActions;
+      try {
+        localStorage.setItem(`museum_unseen_count_${user.uid}`, totalUnseen.toString());
+      } catch (e) {
+        console.error(e);
+      }
+      window.dispatchEvent(new CustomEvent("museum-unseen-changed", { detail: totalUnseen }));
+    }
+  }, [unseenFanz, unseenSkins, unseenEmotes, unseenCards, unseenActions, loading, user.uid]);
+
   const tabs = [
     {
       id: "fanz",

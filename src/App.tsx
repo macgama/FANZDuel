@@ -332,7 +332,30 @@ function AppContent() {
   const [waitingDuelsCount, setWaitingDuelsCount] = useState(0);
   const [unreadSocialCount, setUnreadSocialCount] = useState(0);
   const [hasLiveFavoriteMatch, setHasLiveFavoriteMatch] = useState(false);
-  const [hasNewMuseumItems, setHasNewMuseumItems] = useState(false);
+  const [unseenMuseumCount, setUnseenMuseumCount] = useState<number>(0);
+  const [hasNewMuseumHeuristic, setHasNewMuseumHeuristic] = useState(false);
+  const hasNewMuseumItems = unseenMuseumCount > 0 || hasNewMuseumHeuristic;
+
+  useEffect(() => {
+    if (user?.uid) {
+      try {
+        const stored = localStorage.getItem(`museum_unseen_count_${user.uid}`);
+        setUnseenMuseumCount(stored ? parseInt(stored, 10) : 0);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    const handleUnseenChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setUnseenMuseumCount(customEvent.detail || 0);
+    };
+    window.addEventListener("museum-unseen-changed", handleUnseenChange);
+    return () => window.removeEventListener("museum-unseen-changed", handleUnseenChange);
+  }, []);
+
   const [userFanzCount, setUserFanzCount] = useState(0);
   const [activeMissionIds, setActiveMissionIds] = useState<string[]>([]);
   const [claimableAlerts, setClaimableAlerts] = useState({
@@ -1066,11 +1089,11 @@ function AppContent() {
         `museum_last_count_${user.uid}`,
         totalItems.toString(),
       );
-      setHasNewMuseumItems(false);
+      setHasNewMuseumHeuristic(false);
     } else if (totalItems > lastSeenCount) {
-      setHasNewMuseumItems(true);
+      setHasNewMuseumHeuristic(true);
     } else {
-      setHasNewMuseumItems(false);
+      setHasNewMuseumHeuristic(false);
     }
   }, [
     profile?.cards,

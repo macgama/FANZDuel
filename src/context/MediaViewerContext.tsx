@@ -54,8 +54,8 @@ export function MediaViewerProvider({ children }: { children: ReactNode }) {
         // Skip if explicitly ignored (legacy)
         if (mediaElem.dataset.viewerIgnore) return;
 
-        // Ensure we stop propagation if we successfully intercept an img click
-        e.stopPropagation();
+        // Let click event propagate so parent React elements can catch the click to mark things as seen (e.g. in museum)
+        // e.stopPropagation();
 
         const url = mediaElem.dataset.viewerVideoUrl ? getImageUrl(mediaElem.dataset.viewerVideoUrl) : mediaElem.src;
         const type = mediaElem.dataset.viewerVideoUrl ? 'video' : (target.tagName === 'VIDEO' ? 'video' : 'image');

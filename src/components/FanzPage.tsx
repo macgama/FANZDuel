@@ -371,9 +371,9 @@ function FanzCard({
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
       className={`relative group ${(!isOwned && template.isActive === false) ? "" : "cursor-pointer"}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -386,25 +386,35 @@ function FanzCard({
             : "border-white/5 grayscale hover:grayscale-0 hover:border-orange-500/50"
         }`}
       >
-        <div className="aspect-[3/4] relative">
+        <div className="aspect-[3/4] relative overflow-hidden">
           {hasClaimableFerveur && (
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-20" />
           )}
-          {currentVideoUrl && isHovered ? (
-            <OptimizedMedia
-              type="video"
-              src={currentVideoUrl}
-              dataSaver={userProfile.dataSaver}
-              className="absolute inset-0 w-full h-full object-cover"
-              forceUnmuted={true}
-            />
-          ) : (
-            <OptimizedMedia
-              type="image"
-              src={currentImageUrl || ""}
-              alt={equippedSkinData?.name || template.name}
-              className="w-full h-full object-cover"
-            />
+          
+          {/* Image de fond permanente pour éviter tout clignotement ou déchargement d'image */}
+          <OptimizedMedia
+            type="image"
+            src={currentImageUrl || ""}
+            alt={equippedSkinData?.name || template.name}
+            className="w-full h-full object-cover"
+          />
+
+          {/* Vidéo superposée au survol fluide */}
+          {currentVideoUrl && !userProfile?.dataSaver && (
+            <div
+              className={`absolute inset-0 w-full h-full transition-opacity duration-300 z-10 ${
+                isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+            >
+              <OptimizedMedia
+                type="video"
+                src={currentVideoUrl}
+                dataSaver={userProfile?.dataSaver}
+                className="w-full h-full object-cover"
+                forceUnmuted={true}
+                autoPlay={isHovered}
+              />
+            </div>
           )}
 
           {/* Overlay Gradient */}
