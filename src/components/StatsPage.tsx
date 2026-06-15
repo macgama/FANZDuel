@@ -87,8 +87,13 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
 
         // Fetch Favorite Teams
         if (profile.favoriteTeams && profile.favoriteTeams.length > 0) {
+          const uniqueFavIds = Array.from(new Set(
+            profile.favoriteTeams
+              .map((id: any) => id?.toString()?.trim() || "")
+              .filter((id: string) => id !== "" && id !== "undefined" && id !== "null")
+          ));
           const teams = await Promise.all(
-            profile.favoriteTeams.map(async (id) => {
+            uniqueFavIds.map(async (id) => {
               try {
                 const res = await footballApi.getTeamInfo(Number(id));
                 return res?.team;
@@ -420,8 +425,8 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {favoriteTeamsInfo.length > 0 ? (
-                    favoriteTeamsInfo.map(team => (
-                      <div key={team.id} className="bg-black/40 border border-white/5 rounded-xl p-2.5 sm:p-3 flex items-center gap-2.5 sm:gap-3.5 group hover:bg-neutral-800 transition-colors">
+                    favoriteTeamsInfo.map((team, idx) => (
+                      <div key={`${team.id}-${idx}`} className="bg-black/40 border border-white/5 rounded-xl p-2.5 sm:p-3 flex items-center gap-2.5 sm:gap-3.5 group hover:bg-neutral-800 transition-colors">
                         <div className="w-10 h-10 flex items-center justify-center shrink-0 bg-neutral-900/60 rounded-lg p-1.5">
                           <img src={getImageUrl(team.logo, 100)} alt="" className="w-full h-full object-contain" />
                         </div>

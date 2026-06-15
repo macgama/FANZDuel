@@ -575,9 +575,18 @@ function CompetitionsTab({ leagues, onLeagueClick, selectedSeason, profile }: { 
   let displayLeagues = leagues.filter(l => l.seasons && l.seasons.some((s: any) => s.year === selectedSeason));
   if (displayLeagues.length === 0) displayLeagues = leagues;
 
+  // De-duplicate leagues by league.id to avoid duplicate key errors
+  const seenIds = new Set<number>();
+  const uniqueDisplayLeagues = displayLeagues.filter((l: any) => {
+    if (!l?.league?.id) return false;
+    if (seenIds.has(l.league.id)) return false;
+    seenIds.add(l.league.id);
+    return true;
+  });
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {displayLeagues.map((l: any) => (
+      {uniqueDisplayLeagues.map((l: any) => (
         <Card key={l.league.id} className="p-4 bg-black/40 border-white/10 hover:border-orange-500/50 cursor-pointer transition-colors group" onClick={() => onLeagueClick(l.league.id, selectedSeason)}>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -623,7 +632,10 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason, profile }: { le
       l.seasons.forEach((s: any) => {
         if (s.year !== selectedSeason) {
           if (!seasonsMap[s.year]) seasonsMap[s.year] = [];
-          seasonsMap[s.year].push(l);
+          // Avoid duplicate leagues in the same season array
+          if (!seasonsMap[s.year].some((existingL: any) => existingL.league?.id === l.league?.id)) {
+            seasonsMap[s.year].push(l);
+          }
         }
       });
     }

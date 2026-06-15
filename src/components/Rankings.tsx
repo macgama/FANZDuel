@@ -145,12 +145,14 @@ export function Rankings({ onBack }: RankingsProps) {
           }
         }
 
-        const uniqueLeagueIds = Array.from(leagueIdsSet);
-        const leaguesList: AvailableLeague[] = [];
-
-        if (uniqueLeagueIds.includes('global') || uniqueLeagueIds.length === 0) {
-          leaguesList.push({ id: 'global', name: 'Global (Toutes compétitions)', countryName: 'Toutes les régions', countryFlag: null });
-        }
+        const uniqueLeagueIds = Array.from(new Set(
+          Array.from(leagueIdsSet)
+            .map(id => id?.toString()?.trim() || "")
+            .filter(id => id !== "" && id !== "undefined" && id !== "null")
+        ));
+        const leaguesList: AvailableLeague[] = [
+          { id: 'global', name: 'Global (Toutes compétitions)', countryName: 'Toutes les régions', countryFlag: null }
+        ];
 
         if (uniqueLeagueIds.some(id => id !== 'global')) {
           const { footballApi } = await import('../services/footballApi');
@@ -160,14 +162,19 @@ export function Rankings({ onBack }: RankingsProps) {
             if (id !== 'global') {
               const apiLeague = apiLeagues.find((l: any) => l.league?.id?.toString() === id?.toString());
               if (apiLeague) {
-                leaguesList.push({ 
-                  id, 
-                  name: apiLeague.league.name,
-                  countryName: translateCountryName(apiLeague.country.name),
-                  countryFlag: apiLeague.country.flag
-                });
+                // Ensure no duplicate has been mistakenly added
+                if (!leaguesList.some(comp => comp.id === id)) {
+                  leaguesList.push({ 
+                    id, 
+                    name: apiLeague.league.name,
+                    countryName: translateCountryName(apiLeague.country.name),
+                    countryFlag: apiLeague.country.flag
+                  });
+                }
               } else {
-                leaguesList.push({ id, name: `Compétition ${id}`, countryName: 'Inconnue', countryFlag: null });
+                if (!leaguesList.some(comp => comp.id === id)) {
+                  leaguesList.push({ id, name: `Compétition ${id}`, countryName: 'Inconnue', countryFlag: null });
+                }
               }
             }
           }

@@ -74,8 +74,13 @@ export function UserStats({ user, onBack }: UserStatsProps) {
 
         // Fetch Favorite Teams
         if (user.favoriteTeams && user.favoriteTeams.length > 0) {
+          const uniqueFavIds = Array.from(new Set(
+            user.favoriteTeams
+              .map((id: any) => id?.toString()?.trim() || "")
+              .filter((id: string) => id !== "" && id !== "undefined" && id !== "null")
+          ));
           const teams = await Promise.all(
-            user.favoriteTeams.map(async (id) => {
+            uniqueFavIds.map(async (id) => {
               try {
                 const res = await footballApi.getTeamInfo(Number(id));
                 return res?.team;
@@ -155,8 +160,8 @@ export function UserStats({ user, onBack }: UserStatsProps) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {favoriteTeamsInfo.length > 0 ? (
-                favoriteTeamsInfo.map(team => (
-                  <div key={team.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 group hover:bg-white/10 transition-colors">
+                favoriteTeamsInfo.map((team, idx) => (
+                  <div key={`${team.id}-${idx}`} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 group hover:bg-white/10 transition-colors">
                     <div className="w-12 h-12 flex items-center justify-center shrink-0 drop-shadow-md">
                       <img src={getImageUrl(team.logo, 100)} alt="" className="w-8 h-8 object-contain" />
                     </div>

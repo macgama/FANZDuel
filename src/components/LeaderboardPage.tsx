@@ -86,7 +86,14 @@ export function LeaderboardPage() {
           }
         });
 
-        const filteredLeagues = data.filter((l: any) => activeLeagueIds.has(l.league.id));
+        const seenLeagues = new Set<number>();
+        const filteredLeagues = data.filter((l: any) => {
+          if (l?.league?.id && activeLeagueIds.has(l.league.id) && !seenLeagues.has(l.league.id)) {
+            seenLeagues.add(l.league.id);
+            return true;
+          }
+          return false;
+        });
         
         setLeagues(filteredLeagues);
         if (filteredLeagues.length > 0) {

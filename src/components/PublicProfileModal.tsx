@@ -86,8 +86,13 @@ export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicPr
           }
           
           if (targetData.favoriteTeams && targetData.favoriteTeams.length > 0) {
+            const uniqueFavIds = Array.from(new Set(
+              targetData.favoriteTeams
+                .map((id: any) => id?.toString()?.trim() || "")
+                .filter((id: string) => id !== "" && id !== "undefined" && id !== "null")
+            ));
             const teams = await Promise.all(
-              targetData.favoriteTeams.map(async (id) => {
+              uniqueFavIds.map(async (id) => {
                 try {
                   const res = await footballApi.getTeamInfo(Number(id));
                   return res?.team;
@@ -194,14 +199,14 @@ export function PublicProfileModal({ targetUid, currentUser, onClose }: PublicPr
               <div className="w-full mt-6">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 border-b border-white/5 pb-1">Équipes Favorites</h3>
                 <div className="flex flex-wrap gap-2">
-                  {favoriteTeamsInfo.length > 0 ? favoriteTeamsInfo.map((team: any) => (
-                    <span key={team.id} className="text-xs font-medium text-white bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                  {favoriteTeamsInfo.length > 0 ? favoriteTeamsInfo.map((team: any, idx: number) => (
+                    <span key={`${team.id}-${idx}`} className="text-xs font-medium text-white bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2">
                       <img src={team.logo} alt={team.name} className="w-4 h-4 object-contain" />
                       {team.name}
                     </span>
                   )) : (
-                    profile.favoriteTeams.map((teamId: string) => (
-                      <span key={teamId} className="text-xs font-medium text-white bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                    profile.favoriteTeams.map((teamId: string, idx: number) => (
+                      <span key={`${teamId}-${idx}`} className="text-xs font-medium text-white bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2">
                         <Shield className="w-3 h-3 text-emerald-400" />
                         Chargement...
                       </span>

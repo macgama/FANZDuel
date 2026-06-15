@@ -1341,6 +1341,19 @@ function AppContent() {
                 needsUpdate = true;
               }
 
+              // Auto-heal duplicate favorite teams
+              if (data.favoriteTeams && Array.isArray(data.favoriteTeams)) {
+                const uniqueFavTeams = Array.from(new Set(
+                  data.favoriteTeams
+                    .map(id => id?.toString()?.trim() || "")
+                    .filter(id => id !== "" && id !== "undefined" && id !== "null")
+                ));
+                if (uniqueFavTeams.length !== data.favoriteTeams.length) {
+                  updatedData.favoriteTeams = uniqueFavTeams;
+                  needsUpdate = true;
+                }
+              }
+
               // Date Strings
               const today = new Date().toISOString().split("T")[0];
               const lastLogin = data.lastLoginDate;
