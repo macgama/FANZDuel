@@ -1239,34 +1239,34 @@ function StandingsTab({ standings, teamId, onTeamClick, selectedSeason, fixtures
   }
 
   return (
-    <Card className="overflow-x-auto p-0">
-      <table className="w-full text-left border-collapse">
+    <Card className="overflow-x-auto p-0 border border-white/10 bg-black/40 no-scrollbar">
+      <table className="w-full text-left border-collapse min-w-[320px] sm:min-w-full">
         <thead>
-          <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-gray-400">
-            <th className="px-3 py-3 w-8 text-center">#</th>
-            <th className="px-3 py-3">Équipe</th>
-            <th className="px-3 py-3 text-center">J</th>
-            <th className="px-3 py-3 text-center">G</th>
-            <th className="px-3 py-3 text-center">N</th>
-            <th className="px-3 py-3 text-center">P</th>
-            <th className="px-3 py-3 text-center">Pts</th>
+          <tr className="bg-white/5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-white/10">
+            <th className="px-2 py-2 sm:px-3 sm:py-3 w-8 sm:w-10 text-center text-orange-500">#</th>
+            <th className="px-2 py-2 sm:px-3 sm:py-3 text-white">Équipe</th>
+            <th className="px-1.5 py-2 sm:px-3 sm:py-3 text-center w-8 sm:w-10" title="Matchs Joués">J</th>
+            <th className="px-1.5 py-2 sm:px-3 sm:py-3 text-center w-8 sm:w-10 text-green-500" title="Gagnés">G</th>
+            <th className="px-1.5 py-2 sm:px-3 sm:py-3 text-center w-8 sm:w-10 text-gray-500" title="Nuls">N</th>
+            <th className="px-1.5 py-2 sm:px-3 sm:py-3 text-center w-8 sm:w-10 text-red-500" title="Perdus">P</th>
+            <th className="px-2 py-2 sm:px-3 sm:py-3 text-center w-10 sm:w-12 text-white">Pts</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
           {standings.map((s) => (
             <tr key={s.team.id} className={`hover:bg-white/5 transition-colors cursor-pointer group ${s.team.id === teamId ? 'bg-orange-500/10' : ''}`} onClick={() => onTeamClick(s.team.id, selectedSeason)}>
-              <td className="px-2 py-2 text-center font-black italic text-xs text-orange-500">{s.rank}</td>
-              <td className="px-2 py-2">
-                <div className="flex items-center gap-2">
-                  <img src={s.team.logo} alt="" className="w-5 h-5 object-contain" />
-                  <span className={`font-bold text-xs group-hover:text-orange-500 transition-colors ${s.team.id === teamId ? 'text-orange-500' : ''}`}>{s.team.name}</span>
+              <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-black italic text-xs text-orange-500">{s.rank}</td>
+              <td className="px-2 py-2.5 sm:px-3 sm:py-3">
+                <div className="flex items-center gap-1.5 sm:gap-2.5">
+                  <img src={s.team.logo} alt="" className="w-5 h-5 object-contain shrink-0" />
+                  <span className={`font-bold text-[10px] sm:text-xs uppercase italic transition-colors group-hover:text-orange-500 truncate max-w-[85px] xs:max-w-[120px] sm:max-w-none block sm:inline ${s.team.id === teamId ? 'text-orange-500' : ''}`}>{translateCountryName(s.team.name)}</span>
                 </div>
               </td>
-              <td className="px-2 py-2 text-center text-[10px] font-bold">{s.all.played}</td>
-              <td className="px-2 py-2 text-center text-[10px] font-bold text-green-500">{s.all.win}</td>
-              <td className="px-2 py-2 text-center text-[10px] font-bold text-gray-500">{s.all.draw}</td>
-              <td className="px-2 py-2 text-center text-[10px] font-bold text-red-500">{s.all.lose}</td>
-              <td className="px-2 py-2 text-center font-black text-xs">{s.points}</td>
+              <td className="px-1.5 py-2.5 sm:px-3 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-400">{s.all.played}</td>
+              <td className="px-1.5 py-2.5 sm:px-3 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-green-600">{s.all.win}</td>
+              <td className="px-1.5 py-2.5 sm:px-3 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500">{s.all.draw}</td>
+              <td className="px-1.5 py-2.5 sm:px-3 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-red-600">{s.all.lose}</td>
+              <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-black text-xs sm:text-sm text-orange-400">{s.points}</td>
             </tr>
           ))}
         </tbody>

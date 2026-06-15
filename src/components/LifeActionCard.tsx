@@ -296,7 +296,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
 
   if (isThisActionActive) {
     return (
-      <Card className="p-0 border-orange-500 relative overflow-hidden bg-black min-h-[380px] flex flex-col justify-end">
+      <Card className="w-full p-0 border-orange-500 relative overflow-hidden bg-black min-h-[380px] flex flex-col justify-end">
         {/* Background Image (No video when active as requested) */}
         <div className="absolute inset-0 z-0">
           {resolvedImage ? (
@@ -462,7 +462,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
   }
 
   return (
-    <Card className={`p-0 overflow-hidden relative group min-h-[380px] flex flex-col justify-end ${isAnyActionActive ? 'opacity-50 grayscale pointer-events-none' : 'cursor-pointer hover:border-orange-500 transition-colors'}`} onClick={handleStartAction}>
+    <Card className={`w-full p-0 overflow-hidden relative group min-h-[380px] flex flex-col justify-end ${isAnyActionActive ? 'opacity-50 grayscale pointer-events-none' : 'cursor-pointer hover:border-orange-500 transition-colors'}`} onClick={handleStartAction}>
       {/* Background Video/Image */}
       <div className="absolute inset-0 z-0">
         {resolvedVideoUrl ? (

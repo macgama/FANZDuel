@@ -108,15 +108,40 @@ export const footballDataService = {
     const path = `leagues/${leagueId}/seasons/${season}/standings`;
     try {
       if (!forceRefresh) {
-        const snapshot = await getDocs(collection(db, path));
-        if (!snapshot.empty) {
-          const cachedStandings = snapshot.docs.map(doc => doc.data()).sort((a, b) => a.rank - b.rank);
-          // If it's a major tournament and we seem to only have 1 group cached due to a previous bug, ignore cache
-          const uniqueGroups = new Set(cachedStandings.map(s => s.group)).size;
-          if (leagueId === 1 && uniqueGroups <= 1 && cachedStandings.length <= 4) {
-             console.log("Incomplete cache detected, forcing refresh from API...");
-          } else {
-             return cachedStandings;
+        const lastUpdated = await this.getLastUpdated(cacheKey);
+        if (lastUpdated) {
+          const snapshot = await getDocs(collection(db, path));
+          if (!snapshot.empty) {
+            const cachedStandings = snapshot.docs.map(doc => doc.data()).sort((a, b) => a.rank - b.rank);
+            
+            // Heuristique d'incomplétude du cache pour éviter des classements tronqués
+            const uniqueGroups = new Set(cachedStandings.map(s => s.group || 'Default')).size;
+            let isCacheIncomplete = false;
+
+            if (cachedStandings.length < 8) {
+              isCacheIncomplete = true;
+            } else if (uniqueGroups > 1) {
+              const teamsPerGroupMap = new Map<string, number>();
+              cachedStandings.forEach(s => {
+                const gName = s.group || 'Default';
+                teamsPerGroupMap.set(gName, (teamsPerGroupMap.get(gName) || 0) + 1);
+              });
+              const teamCounts = Array.from(teamsPerGroupMap.values());
+              const maxTeamsInAGroup = Math.max(...teamCounts);
+              const minTeamsInAGroup = Math.min(...teamCounts);
+              
+              // Si le groupe le plus petit a moins de 3 équipes (par exemple, 1 ou 2), 
+              // ou s'il y a une grosse disparité entre groupes, le cache est incomplet.
+              if (minTeamsInAGroup < 3 || (maxTeamsInAGroup - minTeamsInAGroup > 1)) {
+                isCacheIncomplete = true;
+              }
+            }
+
+            if (isCacheIncomplete) {
+              console.warn("Incomplete cache detected for standings, forcing refresh from API...");
+            } else {
+              return cachedStandings;
+            }
           }
         }
       }
@@ -161,9 +186,16 @@ export const footballDataService = {
     const path = `leagues/${leagueId}/seasons/${season}/slim_fixtures`;
     try {
       if (!forceRefresh) {
-        const snapshot = await getDocs(collection(db, path));
-        if (!snapshot.empty) {
-          return snapshot.docs.map(doc => doc.data()).sort((a, b) => a.timestamp - b.timestamp);
+        const lastUpdated = await this.getLastUpdated(cacheKey);
+        if (lastUpdated) {
+          const snapshot = await getDocs(collection(db, path));
+          if (!snapshot.empty) {
+            const cachedFixtures = snapshot.docs.map(doc => doc.data()).sort((a, b) => a.timestamp - b.timestamp);
+            // Heuristique : une ligue ou coupe a normalement au moins 10 matchs pour une saison entière.
+            if (cachedFixtures.length > 5) {
+              return cachedFixtures;
+            }
+          }
         }
       }
 
@@ -209,9 +241,16 @@ export const footballDataService = {
     const path = `leagues/${leagueId}/seasons/${season}/teams`;
     try {
       if (!forceRefresh) {
-        const snapshot = await getDocs(collection(db, path));
-        if (!snapshot.empty) {
-          return snapshot.docs.map(doc => doc.data());
+        const lastUpdated = await this.getLastUpdated(cacheKey);
+        if (lastUpdated) {
+          const snapshot = await getDocs(collection(db, path));
+          if (!snapshot.empty) {
+            const cachedTeams = snapshot.docs.map(doc => doc.data());
+            // Heuristique : au moins 6 équipes
+            if (cachedTeams.length >= 6) {
+              return cachedTeams;
+            }
+          }
         }
       }
 
@@ -235,7 +274,7 @@ export const footballDataService = {
 
       return teams || [];
     } catch (error: any) {
-      if (error.message?.includes('API Data Error')) {
+      if (error.message?.includes('API Data Error border-red-500')) {
         console.error('API Error in getTeams:', error.message);
       } else {
         handleFirestoreError(error, OperationType.LIST, path);

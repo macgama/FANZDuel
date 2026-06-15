@@ -451,39 +451,39 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
             </h3>
           </div>
           <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left border-collapse min-w-[600px] sm:min-w-full">
+            <table className="w-full text-left border-collapse min-w-[340px] sm:min-w-full">
               <thead>
                 <tr className="border-b border-white/10 text-[9px] font-black uppercase tracking-widest text-gray-400 bg-white/5">
-                  <th className="px-3 py-3 w-10 text-center text-orange-500">#</th>
-                  <th className="px-3 py-3 text-white">Équipe</th>
-                  <th className="px-2 py-3 w-10 text-center" title="Matchs Joués">MP</th>
-                  <th className="px-1 py-3 w-8 text-center" title="Gagnés">W</th>
-                  <th className="px-1 py-3 w-8 text-center" title="Nuls">D</th>
-                  <th className="px-1 py-3 w-8 text-center" title="Perdus">L</th>
-                  <th className="px-2 py-3 w-14 text-center" title="Buts Marqués : Encaissés">G</th>
-                  <th className="px-1 py-3 w-10 text-center" title="Différence de buts">+/-</th>
-                  <th className="px-2 py-3 w-12 text-center text-white">PTS</th>
-                  <th className="px-3 py-3 w-28 text-center">FORM</th>
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 w-8 sm:w-10 text-center text-orange-500">#</th>
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 text-white">Équipe</th>
+                  <th className="px-1 py-2 sm:px-2 sm:py-3 w-8 sm:w-10 text-center" title="Matchs Joués">MP</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Gagnés">W</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Nuls">D</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Perdus">L</th>
+                  <th className="hidden sm:table-cell px-2 py-3 w-14 text-center" title="Buts Marqués : Encaissés">G</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-8 sm:w-10 text-center" title="Différence de buts">+/-</th>
+                  <th className="px-2 py-2 sm:px-2 sm:py-3 w-10 sm:w-12 text-center text-white">PTS</th>
+                  <th className="hidden md:table-cell px-3 py-3 w-28 text-center">FORM</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {(groupData as any[]).sort((a,b) => a.rank - b.rank).map((s) => (
                   <tr key={s.team.id} className="hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => onTeamClick(s.team.id, selectedSeason)}>
-                    <td className="px-3 py-3 text-center font-black italic text-xs text-white group-hover:text-orange-500">{s.rank}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-3">
-                        <img src={s.team.logo} alt="" className="w-6 h-6 object-contain shrink-0" referrerPolicy="no-referrer" />
-                        <span className="font-bold text-xs text-gray-200 group-hover:text-white transition-colors uppercase italic whitespace-nowrap">{translateCountryName(s.team.name)}</span>
+                    <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-black italic text-xs text-white group-hover:text-orange-500">{s.rank}</td>
+                    <td className="px-2 py-2.5 sm:px-3 sm:py-3">
+                      <div className="flex items-center gap-1.5 sm:gap-3">
+                        <img src={s.team.logo} alt="" className="w-5 h-5 sm:w-6 h-6 object-contain shrink-0" referrerPolicy="no-referrer" />
+                        <span className="font-bold text-[10px] sm:text-xs text-gray-200 group-hover:text-white transition-colors uppercase italic truncate max-w-[85px] xs:max-w-[120px] sm:max-w-none block sm:inline">{translateCountryName(s.team.name)}</span>
                       </div>
                     </td>
-                    <td className="px-2 py-3 text-center text-xs font-bold text-gray-400">{s.all.played}</td>
-                    <td className="px-1 py-3 text-center text-xs font-bold text-gray-500">{s.all.win}</td>
-                    <td className="px-1 py-3 text-center text-xs font-bold text-gray-500">{s.all.draw}</td>
-                    <td className="px-1 py-3 text-center text-xs font-bold text-gray-500">{s.all.lose}</td>
-                    <td className="px-2 py-3 text-center text-[10px] font-bold text-gray-500 tabular-nums">{s.all.goals.for}:{s.all.goals.against}</td>
-                    <td className="px-1 py-3 text-center text-xs font-bold text-gray-400 tabular-nums">{s.goalsDiff > 0 ? `+${s.goalsDiff}` : s.goalsDiff}</td>
-                    <td className="px-2 py-3 text-center font-black text-sm text-orange-400">{s.points}</td>
-                    <td className="px-3 py-3">
+                    <td className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-400">{s.all.played}</td>
+                    <td className="px-1 py-2.5 sm:px-1 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500">{s.all.win}</td>
+                    <td className="px-1 py-2.5 sm:px-1 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500">{s.all.draw}</td>
+                    <td className="px-1 py-2.5 sm:px-1 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500">{s.all.lose}</td>
+                    <td className="hidden sm:table-cell px-2 py-3 text-center text-[10px] font-bold text-gray-500 tabular-nums">{s.all.goals.for}:{s.all.goals.against}</td>
+                    <td className="px-1 py-2.5 sm:px-1 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-400 tabular-nums">{s.goalsDiff > 0 ? `+${s.goalsDiff}` : s.goalsDiff}</td>
+                    <td className="px-2 py-2.5 sm:px-2 sm:py-3 text-center font-black text-xs sm:text-sm text-orange-400">{s.points}</td>
+                    <td className="hidden md:table-cell px-3 py-3">
                       <div className="flex justify-center gap-1">
                         {(s.form?.split('') || []).map((f: string, i: number) => (
                           <span 
@@ -1391,9 +1391,29 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
   const totalMatches = standings.reduce((acc, s) => acc + s.all.played, 0) / 2;
   const avgGoals = totalMatches > 0 ? (totalGoals / totalMatches).toFixed(2) : '0';
   
-  const totalWins = standings.reduce((acc, s) => acc + s.all.win, 0);
-  const totalDraws = standings.reduce((acc, s) => acc + s.all.draw, 0);
-  const totalLoses = standings.reduce((acc, s) => acc + s.all.lose, 0);
+  // Utilisation des statistiques de classement pour une ventilation exacte et sans double comptage à l'échelle des matches réels de la compétition
+  const rawWins = standings.reduce((acc, s) => acc + (s.all?.win || 0), 0);
+  const rawDraws = standings.reduce((acc, s) => acc + (s.all?.draw || 0), 0);
+  const rawLoses = standings.reduce((acc, s) => acc + (s.all?.lose || 0), 0);
+
+  const hasHomeStats = standings.some(s => 
+    s.home && 
+    typeof s.home.win === 'number' && 
+    s.home.win !== null && 
+    (s.home.win > 0 || s.home.draw > 0 || s.home.lose > 0)
+  );
+
+  const homeWins = hasHomeStats 
+    ? standings.reduce((acc, s) => acc + (s.home?.win || 0), 0)
+    : Math.round(rawWins / 2);
+    
+  const homeDraws = hasHomeStats
+    ? standings.reduce((acc, s) => acc + (s.home?.draw || 0), 0)
+    : Math.round(rawDraws / 2);
+    
+  const homeLoses = hasHomeStats
+    ? standings.reduce((acc, s) => acc + (s.home?.lose || 0), 0)
+    : Math.round(rawLoses / 2);
 
   return (
     <div className="space-y-4">
@@ -1423,19 +1443,19 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
             </Card>
 
             <Card className="col-span-2 md:col-span-3 p-4">
-              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-2 mb-4 tracking-widest">Résultats Globaux</h3>
+              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-2 mb-4 tracking-widest">Résultats Globaux (par match)</h3>
               <div className="grid grid-cols-3 gap-2">
                 <div className="text-center">
-                  <div className="text-xl font-black text-green-500">{totalWins}</div>
-                  <div className="text-[8px] font-bold text-gray-500 uppercase">Victoires</div>
+                  <div className="text-xl font-black text-green-500">{homeWins}</div>
+                  <div className="text-[8px] font-bold text-gray-500 uppercase">Victoires Domicile</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-black text-gray-400">{totalDraws}</div>
-                  <div className="text-[8px] font-bold text-gray-500 uppercase">Nuls</div>
+                  <div className="text-xl font-black text-gray-400">{homeDraws}</div>
+                  <div className="text-[8px] font-bold text-gray-500 uppercase">Matchs Nuls</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-black text-red-500">{totalLoses}</div>
-                  <div className="text-[8px] font-bold text-gray-500 uppercase">Défaites</div>
+                  <div className="text-xl font-black text-red-500">{homeLoses}</div>
+                  <div className="text-[8px] font-bold text-gray-500 uppercase">Victoires Extérieur</div>
                 </div>
               </div>
             </Card>
