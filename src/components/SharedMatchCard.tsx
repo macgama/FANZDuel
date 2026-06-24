@@ -66,35 +66,34 @@ export function SharedMatchCard({
   const awayIsFav = favoriteIds.includes(match.teams.away.id.toString());
 
   // Extract and translate details for events
-  const translateDetail = (type: string, detail: string) => {
-    if (!detail) return null;
-    const d = detail.toLowerCase();
+  const translateDetail = (type: string, detail: string, comments?: string) => {
+    const combined = `${detail || ''} ${comments || ''}`.toLowerCase();
     if (type === 'Goal') {
-      if (d.includes('missed penalty')) return 'Penalty manqué';
-      if (d.includes('own goal')) return 'CSC';
-      if (d.includes('penalty')) return 'Penalty';
-      if (d.includes('cancelled')) return 'But annulé (VAR)';
+      if (combined.includes('missed penalty')) return 'Penalty manqué';
+      if (combined.includes('own goal') || combined.includes('csc')) return 'CSC';
+      if (combined.includes('penalty')) return 'Penalty';
+      if (combined.includes('cancelled')) return 'But annulé (VAR)';
       return null;
     }
     if (type === 'Card') {
-      if (d.includes('second yellow')) return '2ème jaune';
-      if (d.includes('red')) return 'Rouge';
+      if (combined.includes('second yellow')) return '2ème jaune';
+      if (combined.includes('red')) return 'Rouge';
       return null;
     }
     if (type === 'Var') {
-      if (d.includes('goal cancelled')) return 'But annulé';
-      if (d.includes('penalty confirmed')) return 'Penalty conf.';
-      if (d.includes('card review')) return 'Arbitre';
+      if (combined.includes('goal cancelled')) return 'But annulé';
+      if (combined.includes('penalty confirmed')) return 'Penalty conf.';
+      if (combined.includes('card review')) return 'Arbitre';
       return detail;
     }
     return null;
   };
 
-  const getEventIcon = (type: string, detail: string) => {
-    const d = detail?.toLowerCase() || '';
+  const getEventIcon = (type: string, detail: string, comments?: string) => {
+    const combined = `${detail || ''} ${comments || ''}`.toLowerCase();
     switch (type) {
       case 'Goal':
-        if (d.includes('missed penalty')) {
+        if (combined.includes('missed penalty')) {
           return <X className="w-3 h-3 text-red-500 shrink-0" />;
         }
         return <CircleDot className="w-3 h-3 text-green-500 shrink-0" />;
@@ -103,7 +102,7 @@ export function SharedMatchCard({
           <div 
             className={cn(
               "w-1.5 h-2.5 rounded-[1px] shrink-0", 
-              d.includes('yellow') ? "bg-yellow-500" : "bg-red-500"
+              combined.includes('yellow') ? "bg-yellow-500" : "bg-red-500"
             )} 
           />
         );
@@ -337,16 +336,18 @@ export function SharedMatchCard({
           {/* Home team events */}
           <div className="flex-1 flex flex-col items-start gap-1 min-w-0">
             {homeEvents.map((e: any, idx: number) => {
-              const detailMsg = translateDetail(e.type, e.detail);
-              const showAssist = e.type === 'Goal' && e.assist.name && e.assist.name !== e.player.name && !e.detail?.toLowerCase().includes('penalty') && !e.detail?.toLowerCase().includes('own goal');
-              const showSubst = e.type === 'subst' && e.assist.name;
+              const detailMsg = translateDetail(e.type, e.detail, e.comments);
+              const combinedDetail = `${e.detail || ''} ${e.comments || ''}`.toLowerCase();
+              const showAssist = e.type === 'Goal' && e.assist.name && e.assist.name !== e.player?.name && !combinedDetail.includes('penalty') && !combinedDetail.includes('own goal') && !combinedDetail.includes('csc');
+              const showSubst = e.type === 'subst' && e.assist?.name;
+              const playerName = e.player?.name || (combinedDetail.includes('own goal') || combinedDetail.includes('csc') ? "Joueur Inconnu" : "Inconnu");
               
               return (
                 <div key={idx} className="flex flex-col items-start gap-0.5 w-full min-w-0">
                   <div className="flex items-center gap-1.5 w-full min-w-0">
                     <span className="text-gray-500 font-bold tabular-nums shrink-0">{e.time.elapsed}'</span>
-                    {getEventIcon(e.type, e.detail)}
-                    <span className="truncate font-bold text-white/95 shrink">{e.player.name}</span>
+                    {getEventIcon(e.type, e.detail, e.comments)}
+                    <span className="truncate font-bold text-white/95 shrink">{playerName}</span>
                     {detailMsg && (
                       <span className="text-[7px] leading-tight font-black text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded uppercase font-sans shrink-0 tracking-wider">
                         {detailMsg}
@@ -370,9 +371,11 @@ export function SharedMatchCard({
           {/* Away team events */}
           <div className="flex-1 flex flex-col items-end gap-1 min-w-0">
             {awayEvents.map((e: any, idx: number) => {
-              const detailMsg = translateDetail(e.type, e.detail);
-              const showAssist = e.type === 'Goal' && e.assist.name && e.assist.name !== e.player.name && !e.detail?.toLowerCase().includes('penalty') && !e.detail?.toLowerCase().includes('own goal');
-              const showSubst = e.type === 'subst' && e.assist.name;
+              const detailMsg = translateDetail(e.type, e.detail, e.comments);
+              const combinedDetail = `${e.detail || ''} ${e.comments || ''}`.toLowerCase();
+              const showAssist = e.type === 'Goal' && e.assist.name && e.assist.name !== e.player?.name && !combinedDetail.includes('penalty') && !combinedDetail.includes('own goal') && !combinedDetail.includes('csc');
+              const showSubst = e.type === 'subst' && e.assist?.name;
+              const playerName = e.player?.name || (combinedDetail.includes('own goal') || combinedDetail.includes('csc') ? "Joueur Inconnu" : "Inconnu");
               
               return (
                 <div key={idx} className="flex flex-col items-end gap-0.5 w-full min-w-0">
@@ -382,8 +385,8 @@ export function SharedMatchCard({
                         {detailMsg}
                       </span>
                     )}
-                    <span className="truncate font-bold text-white/95 text-right shrink">{e.player.name}</span>
-                    {getEventIcon(e.type, e.detail)}
+                    <span className="truncate font-bold text-white/95 text-right shrink">{playerName}</span>
+                    {getEventIcon(e.type, e.detail, e.comments)}
                     <span className="text-gray-500 font-bold tabular-nums shrink-0 text-right">{e.time.elapsed}'</span>
                   </div>
                   {showAssist && (

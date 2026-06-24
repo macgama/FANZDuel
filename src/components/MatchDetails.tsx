@@ -711,31 +711,32 @@ function SummaryTab({ events, teams, status }: { events: any[]; teams: any; stat
         {events.map((event, idx) => {
           const isHome = event.team.id === teams.home.id;
           
-          const translateDetail = (type: string, detail: string) => {
-            if (!detail) return null;
-            const d = detail.toLowerCase();
+          const translateDetail = (type: string, detail: string, comments?: string) => {
+            const combined = `${detail || ''} ${comments || ''}`.toLowerCase();
             if (type === 'Goal') {
-              if (d.includes('missed penalty')) return 'Penalty manqué';
-              if (d.includes('penalty')) return 'Penalty';
-              if (d.includes('own goal')) return 'Contre son camp';
-              if (d.includes('cancelled')) return 'But annulé (VAR)';
+              if (combined.includes('missed penalty')) return 'Penalty manqué';
+              if (combined.includes('penalty')) return 'Penalty';
+              if (combined.includes('own goal') || combined.includes('csc')) return 'Contre son camp';
+              if (combined.includes('cancelled')) return 'But annulé (VAR)';
               return null; // Don't show "Normal Goal"
             }
             if (type === 'Card') {
-              if (d.includes('second yellow')) return '2ème carton jaune';
-              if (d.includes('red')) return 'Carton rouge';
+              if (combined.includes('second yellow')) return '2ème carton jaune';
+              if (combined.includes('red')) return 'Carton rouge';
               return null; // Don't explicitly write "Yellow Card" as the icon is obvious
             }
             if (type === 'Var') {
-              if (d.includes('goal cancelled')) return 'But annulé';
-              if (d.includes('penalty confirmed')) return 'Penalty confirmé';
-              if (d.includes('card review')) return 'Révision arbitre';
+              if (combined.includes('goal cancelled')) return 'But annulé';
+              if (combined.includes('penalty confirmed')) return 'Penalty confirmé';
+              if (combined.includes('card review')) return 'Révision arbitre';
               return detail;
             }
             return null; // Ignore subst, etc. as it's handled
           };
 
-          const detailMsg = translateDetail(event.type, event.detail);
+          const detailMsg = translateDetail(event.type, event.detail, event.comments);
+          const combinedDetail = `${event.detail || ''} ${event.comments || ''}`.toLowerCase();
+          const playerName = event.player?.name || (combinedDetail.includes('own goal') || combinedDetail.includes('csc') ? "Joueur Inconnu" : "Inconnu");
 
           return (
             <motion.div 
@@ -749,13 +750,13 @@ function SummaryTab({ events, teams, status }: { events: any[]; teams: any; stat
               </div>
               <div className={`flex-1 flex items-center gap-2 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}>
                 <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2 ${isHome ? 'flex-row' : 'flex-row-reverse'}`}>
-                  <EventIcon type={event.type} detail={event.detail} />
+                  <EventIcon type={event.type} detail={event.detail} comments={event.comments} />
                   <div className={`flex flex-col ${isHome ? 'items-start' : 'items-end'}`}>
                     <span className="font-bold text-xs leading-tight">
-                      {event.player.name}
+                      {playerName}
                       {detailMsg && <span className="ml-1 text-[8px] font-bold text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded tracking-widest uppercase">{detailMsg}</span>}
                     </span>
-                    {event.type === 'Goal' && event.assist.name && event.assist.name !== event.player.name && !event.detail?.toLowerCase().includes('penalty') && !event.detail?.toLowerCase().includes('own goal') && (
+                    {event.type === 'Goal' && event.assist.name && event.assist.name !== event.player?.name && !combinedDetail.includes('penalty') && !combinedDetail.includes('own goal') && !combinedDetail.includes('csc') && (
                       <span className="text-[9px] text-gray-500 italic leading-tight">Passe: {event.assist.name}</span>
                     )}
                     {event.type === 'subst' && (
@@ -980,15 +981,16 @@ function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; 
   );
 }
 
-function EventIcon({ type, detail }: { type: string; detail: string }) {
+function EventIcon({ type, detail, comments }: { type: string; detail: string; comments?: string }) {
+  const combined = `${detail || ''} ${comments || ''}`.toLowerCase();
   switch (type) {
     case 'Goal':
-      if (detail?.toLowerCase().includes('missed penalty')) {
+      if (combined.includes('missed penalty')) {
         return <X className="w-4 h-4 text-red-500" />;
       }
       return <CircleDot className="w-4 h-4 text-green-500" />;
     case 'Card':
-      return <Square className={`w-4 h-4 ${detail?.includes('Yellow') ? 'text-yellow-500 fill-yellow-500' : 'text-red-500 fill-red-500'}`} />;
+      return <Square className={`w-4 h-4 ${combined.includes('yellow') ? 'text-yellow-500 fill-yellow-500' : 'text-red-500 fill-red-500'}`} />;
     case 'subst':
       return <ArrowRightLeft className="w-4 h-4 text-blue-500" />;
     case 'Var':
