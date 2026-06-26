@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getImageUrl, cn } from "../lib/utils";
+import { useLanguage } from "../context/LanguageContext";
 import { db } from "../firebase";
 import {
   collection,
@@ -34,6 +35,7 @@ interface FanzPageProps {
 }
 
 export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps) {
+  const { t } = useLanguage();
   const [ownedFanz, setOwnedFanz] = useState<Map<string, Fanz>>(new Map()); // templateId -> Fanz object
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [fanzFervorConfig, setFanzFervorConfig] = useState<
@@ -119,7 +121,7 @@ export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
         <p className="text-gray-500 font-bold animate-pulse">
-          Chargement de votre musée...
+          {t("fanz.loading_museum", "Chargement de votre musée...")}
         </p>
       </div>
     );
@@ -149,7 +151,7 @@ export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps
                   {ownedCount}
                 </div>
                 <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
-                  Gagnés
+                  {t("fanz.earned", "Gagnés")}
                 </div>
               </button>
               <div className="h-4 w-px bg-white/10"></div>
@@ -168,7 +170,7 @@ export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps
                   {totalCount - ownedCount}
                 </div>
                 <div className="text-[7px] font-bold text-gray-500 uppercase tracking-widest">
-                  À Gagner ou Acheter
+                  {t("fanz.to_earn_or_buy", "À Gagner ou Acheter")}
                 </div>
               </button>
             </div>
@@ -204,7 +206,7 @@ export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps
             <div className="space-y-6">
               <div className="flex items-center gap-3 border-b border-white/10 pb-2">
                 <h2 className="text-xl font-black italic uppercase tracking-wider">
-                  FANZ Gagnés
+                  {t("fanz.earned_title", "FANZ Gagnés")}
                 </h2>
                 <span className="text-xs font-bold px-2 py-0.5 bg-orange-500/20 text-orange-500 rounded-full">
                   {ownedCount}
@@ -266,7 +268,7 @@ export function FanzPage({ userProfile, onFanzClick, onNavigate }: FanzPageProps
                 <div className="flex items-center gap-3 border-b border-white/10 pb-2">
                   <Lock className="w-5 h-5 text-gray-500" />
                   <h2 className="text-xl font-black italic uppercase tracking-wider text-gray-500">
-                    FANZ à Gagner ou Acheter
+                    {t("fanz.to_earn_or_buy_title", "FANZ à Gagner ou Acheter")}
                   </h2>
                   <span className="text-xs font-bold px-2 py-0.5 bg-white/10 text-gray-500 rounded-full">
                     {totalCount - ownedCount}
@@ -328,6 +330,7 @@ function FanzCard({
   userProfile?: UserProfile;
   globalFerveurPath?: any[];
 }) {
+  const { t, tDb } = useLanguage();
   const [isHovered, setIsHovered] = useState(false);
 
   const equippedSkinData = template.skins?.find(
@@ -395,7 +398,7 @@ function FanzCard({
           <OptimizedMedia
             type="image"
             src={currentImageUrl || ""}
-            alt={equippedSkinData?.name || template.name}
+            alt={tDb(equippedSkinData?.name || template.name)}
             className="w-full h-full object-cover"
           />
 
@@ -432,13 +435,16 @@ function FanzCard({
                     : "bg-gray-500 text-white"
             }`}
           >
-            {template.rarity}
+            {template.rarity === "legendary" ? t("rarity.legendary", "Légendaire") :
+             template.rarity === "epic" ? t("rarity.epic", "Épique") :
+             template.rarity === "rare" ? t("rarity.rare", "Rare") :
+             t("rarity.common", "Commun")}
           </div>
 
           {/* Rank Badge (Owned only) */}
           {isOwned && fanz && (
             <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-orange-600 text-white text-[7px] sm:text-[9px] font-black uppercase z-10 shadow-lg">
-              Rang {fanz.rank}
+              {t("fanz.rank_level", "Rang {rank}").replace("{rank}", fanz.rank.toString())}
             </div>
           )}
 
@@ -446,14 +452,14 @@ function FanzCard({
           {isActive ? (
             <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-green-500 text-white text-[7px] sm:text-[9px] font-black uppercase z-10 shadow-lg flex items-center gap-1">
               <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3" />
-              Actif
+              {t("fanz.active_status", "Actif")}
             </div>
           ) : isOwned && fanz && onSetActive && template.isActive !== false ? (
             <button
               onClick={onSetActive}
               className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-orange-500/80 hover:bg-orange-500 text-white text-[7px] sm:text-[9px] font-black uppercase z-10 shadow-lg transition-colors opacity-0 group-hover:opacity-100"
             >
-              Définir Actif
+              {t("fanz.set_active", "Définir Actif")}
             </button>
           ) : null}
 
@@ -461,7 +467,7 @@ function FanzCard({
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity z-20">
               <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white/50" />
               <span className="text-[8px] sm:text-[10px] font-black uppercase italic text-white/50 mt-1 text-center px-2">
-                À GAGNER OU ACHETER
+                {t("fanz.to_earn_or_buy_uppercase", "À GAGNER OU ACHETER")}
               </span>
             </div>
           )}
@@ -470,7 +476,7 @@ function FanzCard({
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-20">
               <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white/50 mb-2" />
               <div className="bg-orange-500 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg">
-                Bientôt dispo
+                {t("fanz.soon_available", "Bientôt dispo")}
               </div>
             </div>
           )}
@@ -480,7 +486,7 @@ function FanzCard({
             {isOwned && fanz && (
               <div className="space-y-1 mb-1 sm:mb-2">
                 <div className="flex items-center justify-between text-[6px] sm:text-[8px] font-black uppercase text-orange-400">
-                  <span>Ferveur</span>
+                  <span>{t("home.fervor", "Ferveur")}</span>
                   <span>{fanz.ferveurPoints} pts</span>
                 </div>
                 <div className="h-1 sm:h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
@@ -494,11 +500,11 @@ function FanzCard({
               </div>
             )}
             <h3 className="font-black italic uppercase text-[10px] sm:text-xs leading-tight truncate text-white">
-              {equippedSkinData?.name || template.name}
+              {tDb(equippedSkinData?.name || template.name)}
             </h3>
             <div className="flex items-center justify-between">
               <span className="text-[7px] sm:text-[9px] font-bold text-gray-300 uppercase tracking-widest">
-                {isOwned ? "Collectionné" : "Verrouillé"}
+                {isOwned ? t("fanz.collected", "Collectionné") : t("fanz.locked", "Verrouillé")}
               </span>
               <Info className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-gray-400 cursor-help" />
             </div>

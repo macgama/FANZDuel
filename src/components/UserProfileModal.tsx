@@ -4,8 +4,9 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, query, collection, where, onSnapshot, getDoc } from 'firebase/firestore';
 import { Card, Button } from './Layout';
 import { X, User as UserIcon, Check } from 'lucide-react';
-import { FLAG_AVATARS, FANZ_AVATARS, SKIN_AVATARS, LANGUAGES } from '../constants/avatars';
+import { FLAG_AVATARS, FANZ_AVATARS, SKIN_AVATARS } from '../constants/avatars';
 import { getImageUrl } from '../lib/utils';
+import { useLanguage } from '../context/LanguageContext';
 
 interface UserProfileModalProps {
   profile: UserProfile;
@@ -13,6 +14,7 @@ interface UserProfileModalProps {
 }
 
 export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
+  const { setLanguage: setAppLanguage, t } = useLanguage();
   const [pseudo, setPseudo] = useState(profile.pseudo);
   const [language, setLanguage] = useState(profile.language || 'fr');
   const [dataSaver, setDataSaver] = useState(profile.dataSaver || false);
@@ -97,7 +99,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
   const handleSave = async () => {
     if (!pseudo.trim()) {
-      setError('Le pseudo ne peut pas être vide.');
+      setError(t("profile.error_empty_pseudo", "Le pseudo ne peut pas être vide."));
       return;
     }
 
@@ -107,10 +109,11 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
     try {
       const docRef = doc(db, 'users', profile.uid);
       await setDoc(docRef, { pseudo, language, photoURL, dataSaver, isMuted }, { merge: true });
+      setAppLanguage(language as any);
       onClose();
     } catch (err: any) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${profile.uid}`);
-      setError(err.message || 'Erreur lors de la mise à jour.');
+      setError(err.message || t("profile.error_update", "Erreur lors de la mise à jour."));
     } finally {
       setLoading(false);
     }
@@ -128,7 +131,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
           </button>
 
           <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter mb-4 sm:mb-6 pr-8">
-            Choisir un avatar
+            {t("profile.choose_avatar", "Choisir un avatar")}
           </h2>
 
           <div className="flex gap-4 mb-4 sm:mb-6 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar">
@@ -136,19 +139,19 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
               className={`font-bold uppercase text-xs sm:text-sm whitespace-nowrap ${avatarTab === 'flags' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-500 hover:text-white'}`}
               onClick={() => setAvatarTab('flags')}
             >
-              Drapeaux
+              {t("profile.tab_flags", "Drapeaux")}
             </button>
             <button 
               className={`font-bold uppercase text-xs sm:text-sm whitespace-nowrap ${avatarTab === 'fanz' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-500 hover:text-white'}`}
               onClick={() => setAvatarTab('fanz')}
             >
-              FANZ
+              {t("profile.tab_fanz", "FANZ")}
             </button>
             <button 
               className={`font-bold uppercase text-xs sm:text-sm whitespace-nowrap ${avatarTab === 'skins' ? 'text-orange-500 border-b-2 border-orange-500' : 'text-gray-500 hover:text-white'}`}
               onClick={() => setAvatarTab('skins')}
             >
-              Skins
+              {t("profile.tab_skins", "Skins")}
             </button>
           </div>
 
@@ -195,7 +198,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
         <div className="p-2">
           <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter mb-6">
-            Mon Profil
+            {t("profile.title", "Mon Profil")}
           </h2>
 
           <div className="space-y-6">
@@ -210,11 +213,11 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setIsAvatarPickerOpen(true)} className="text-xs py-1">
-                Changer d'avatar
+                {t("profile.change_avatar", "Changer d'avatar")}
               </Button>
               {photoURL && (
                 <Button variant="outline" onClick={() => setPhotoURL('')} className="text-xs py-1 text-red-400 hover:text-red-300 border-red-500/30 hover:bg-red-500/10">
-                  Réinitialiser
+                  {t("profile.reset", "Réinitialiser")}
                 </Button>
               )}
             </div>
@@ -223,7 +226,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
           {/* Form */}
           <div className="space-y-4">
             <div>
-              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Pseudo</label>
+              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">{t("profile.pseudo", "Pseudo")}</label>
               <input 
                 type="text" 
                 value={pseudo} 
@@ -233,7 +236,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
             </div>
 
             <div>
-              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Email</label>
+              <label className="block text-xs uppercase font-bold text-gray-400 mb-1">{t("profile.email", "Email")}</label>
               <input 
                 type="text" 
                 value={profile.email} 
@@ -242,37 +245,38 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Langue Profil</label>
-                <select 
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-3 focus:border-orange-500 outline-none appearance-none cursor-pointer"
-                >
-                  {LANGUAGES.map(lang => (
-                    <option key={lang.code} value={lang.code} className="bg-gray-900 text-white">
-                      {lang.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase font-bold text-gray-400 mb-1">Traducteur Google</label>
-                <div 
-                  id="google-translate-profile-container" 
-                  className="w-full h-[48px] bg-white/5 border border-white/10 rounded-lg px-3 py-1 flex items-center justify-between overflow-hidden"
-                >
-                  {/* Google translate container gets portaled here */}
-                </div>
+            <div>
+              <label className="block text-xs uppercase font-bold text-gray-400 mb-2">{t("profile.language", "Langue Profil")}</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { code: 'fr', label: t('profile.lang_fr', 'Français'), flag: '🇫🇷' },
+                  { code: 'en', label: t('profile.lang_en', 'English'), flag: '🇬🇧' },
+                  { code: 'es', label: t('profile.lang_es', 'Español'), flag: '🇪🇸' },
+                ].map((opt) => {
+                  const active = language === opt.code;
+                  return (
+                    <button
+                      key={opt.code}
+                      type="button"
+                      onClick={() => setLanguage(opt.code)}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ${
+                        active
+                          ? 'bg-orange-500/10 border-orange-500 text-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.15)] font-black'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <span className="text-xl mb-1">{opt.flag}</span>
+                      <span className="text-xs uppercase tracking-wider">{opt.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-4 py-3">
               <div>
-                <label className="block text-sm font-bold text-white mb-0.5">Mode Économie</label>
-                <p className="text-xs text-gray-400">Désactive les vidéos pour économiser les données et la batterie.</p>
+                <label className="block text-sm font-bold text-white mb-0.5">{t("profile.data_saver", "Mode Économie")}</label>
+                <p className="text-xs text-gray-400">{t("profile.data_saver_desc", "Désactive les vidéos pour économiser les données et la batterie.")}</p>
               </div>
               <button
                 onClick={() => setDataSaver(!dataSaver)}
@@ -284,8 +288,8 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
 
             <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-4 py-3">
               <div>
-                <label className="block text-sm font-bold text-white mb-0.5">Musique & Ambiance</label>
-                <p className="text-xs text-gray-400">Active le son pendant les parties et événements importants.</p>
+                <label className="block text-sm font-bold text-white mb-0.5">{t("profile.music_ambience", "Musique & Ambiance")}</label>
+                <p className="text-xs text-gray-400">{t("profile.music_ambience_desc", "Active le son pendant les parties et événements importants.")}</p>
               </div>
               <button
                 onClick={() => setIsMuted(!isMuted)}
@@ -298,7 +302,7 @@ export function UserProfileModal({ profile, onClose }: UserProfileModalProps) {
             {error && <p className="text-red-500 text-sm font-bold">{error}</p>}
 
             <Button onClick={handleSave} disabled={loading} className="w-full">
-              {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+              {loading ? t("profile.saving", "Enregistrement...") : t("profile.save_changes", "Enregistrer les modifications")}
             </Button>
           </div>
         </div>

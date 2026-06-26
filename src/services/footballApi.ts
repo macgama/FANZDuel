@@ -36,7 +36,8 @@ async function fetchApi(url: string) {
     }
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      throw new Error(`Expected JSON from API, got ${contentType}`);
+      console.warn(`[Football API] Expected JSON from API, got ${contentType}. Returning empty response scheme.`);
+      return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
     }
     const data = await response.json();
     if (data.errors && Object.keys(data.errors).length > 0) {
@@ -50,7 +51,7 @@ async function fetchApi(url: string) {
         return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
       }
 
-      throw new Error(`API Data Error: ${errorMsg}`);
+      return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
     }
     return data;
   } catch (error: any) {
@@ -58,12 +59,8 @@ async function fetchApi(url: string) {
       console.error(`Fetch error for ${url}:`, error);
     }
     
-    // If rate limit or 5xx error occurs inside the call stack, return empty list formatted correctly
-    const errText = String(error?.message || "").toLowerCase();
-    if (errText.includes("rate limit") || errText.includes("rate exceeded") || errText.includes("429") || errText.includes("503") || errText.includes("502") || errText.includes("server error")) {
-      return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
-    }
-    throw error;
+    // Always return empty list formatted correctly rather than crash the UI
+    return { get: "", parameters: {}, errors: [], results: 0, paging: { current: 1, total: 1 }, response: [] };
   }
 }
 

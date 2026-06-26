@@ -21,6 +21,7 @@ import {
 import { motion } from 'motion/react';
 import { footballApi } from '../services/footballApi';
 import { DuelDetailsModal } from './DuelDetailsModal';
+import { useLanguage } from '../context/LanguageContext';
 
 interface UserStatsProps {
   user: UserProfile;
@@ -28,6 +29,7 @@ interface UserStatsProps {
 }
 
 export function UserStats({ user, onBack }: UserStatsProps) {
+  const { tDb } = useLanguage();
   const [userFanz, setUserFanz] = useState<Fanz[]>([]);
   const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
   const [recentDuels, setRecentDuels] = useState<any[]>([]);
@@ -226,7 +228,7 @@ export function UserStats({ user, onBack }: UserStatsProps) {
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                           <div>
                             <h4 className="text-lg font-black italic uppercase tracking-tight text-white leading-tight">
-                              {fanz.name}
+                              {tDb(fanz.name)}
                             </h4>
                             <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">
                               Sport : {fanz.sport}

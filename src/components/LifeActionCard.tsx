@@ -10,6 +10,7 @@ import { doc, updateDoc, deleteField } from 'firebase/firestore';
 import { logTransaction } from '../services/transactionService';
 import { useAlert, Reward } from '../context/AlertContext';
 import { progressMission } from '../services/missionService';
+import { useLanguage } from '../context/LanguageContext';
 
 interface LifeActionCardProps {
   action: LifeAction;
@@ -19,6 +20,7 @@ interface LifeActionCardProps {
 }
 
 export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: LifeActionCardProps) {
+  const { t, tDb } = useLanguage();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const { showAlert } = useAlert();
@@ -146,7 +148,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       (userProfile.gems || 0) < costGems ||
       (userProfile.boostPoints || 0) < costBoost
     ) {
-      showAlert({ type: 'error', title: 'Ressources insuffisantes !' });
+      showAlert({ type: 'error', title: t('action.insufficient_resources', 'Ressources insuffisantes !') });
       return;
     }
 
@@ -166,10 +168,11 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
         }
       });
 
-      if (costEnergy > 0) await logTransaction(userProfile.uid, 'energy', -costEnergy, `Démarrage action: ${action.name}`);
-      if (costMoney > 0) await logTransaction(userProfile.uid, 'money', -costMoney, `Démarrage action: ${action.name}`);
-      if (costGems > 0) await logTransaction(userProfile.uid, 'gems', -costGems, `Démarrage action: ${action.name}`);
-      if (costBoost > 0) await logTransaction(userProfile.uid, 'boost', -costBoost, `Démarrage action: ${action.name}`);
+      const localizedActionName = t(`action.${action.id}.name`, tDb(action.name));
+      if (costEnergy > 0) await logTransaction(userProfile.uid, 'energy', -costEnergy, t('action.start_transaction', "Démarrage action: {name}").replace("{name}", localizedActionName));
+      if (costMoney > 0) await logTransaction(userProfile.uid, 'money', -costMoney, t('action.start_transaction', "Démarrage action: {name}").replace("{name}", localizedActionName));
+      if (costGems > 0) await logTransaction(userProfile.uid, 'gems', -costGems, t('action.start_transaction', "Démarrage action: {name}").replace("{name}", localizedActionName));
+      if (costBoost > 0) await logTransaction(userProfile.uid, 'boost', -costBoost, t('action.start_transaction', "Démarrage action: {name}").replace("{name}", localizedActionName));
     } catch (error) {
       console.error("Erreur lors du lancement de l'action:", error);
     } finally {
@@ -192,7 +195,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
   const handleAccelerate = async () => {
     if (!isThisActionActive) return;
     if (userProfile.gems < 1) {
-      showAlert({ type: 'error', title: 'Pas assez de gemmes !' });
+      showAlert({ type: 'error', title: t('action.no_gems', 'Pas assez de gemmes !') });
       return;
     }
     try {
@@ -221,11 +224,12 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
         unlockedActions: newUnlockedActions
       });
 
-      await logTransaction(userProfile.uid, 'gems', -1, `Accélération action: ${action.name}`);
-      if (gainEnergy > 0) await logTransaction(userProfile.uid, 'energy', gainEnergy, `Fin action: ${action.name}`);
-      if (gainMoney > 0) await logTransaction(userProfile.uid, 'money', gainMoney, `Fin action: ${action.name}`);
-      if (gainGems > 0) await logTransaction(userProfile.uid, 'gems', gainGems, `Fin action: ${action.name}`);
-      if (gainBoost > 0) await logTransaction(userProfile.uid, 'boost', gainBoost, `Fin action: ${action.name}`);
+      const localizedActionName = t(`action.${action.id}.name`, tDb(action.name));
+      await logTransaction(userProfile.uid, 'gems', -1, t('action.accelerate_transaction', "Accélération action: {name}").replace("{name}", localizedActionName));
+      if (gainEnergy > 0) await logTransaction(userProfile.uid, 'energy', gainEnergy, t('action.end_transaction', "Fin action: {name}").replace("{name}", localizedActionName));
+      if (gainMoney > 0) await logTransaction(userProfile.uid, 'money', gainMoney, t('action.end_transaction', "Fin action: {name}").replace("{name}", localizedActionName));
+      if (gainGems > 0) await logTransaction(userProfile.uid, 'gems', gainGems, t('action.end_transaction', "Fin action: {name}").replace("{name}", localizedActionName));
+      if (gainBoost > 0) await logTransaction(userProfile.uid, 'boost', gainBoost, t('action.end_transaction', "Fin action: {name}").replace("{name}", localizedActionName));
 
       await progressMission(userProfile, 'life_action', 1);
 
@@ -261,10 +265,10 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
 
       // Show Alert
       const rewards: Reward[] = [];
-      if (gainEnergy > 0) rewards.push({ type: 'energy', amount: gainEnergy, label: 'Énergie' });
-      if (gainMoney > 0) rewards.push({ type: 'money', amount: gainMoney, label: 'Argent' });
-      if (gainGems > 0) rewards.push({ type: 'gems', amount: gainGems, label: 'Gemmes' });
-      if (gainBoost > 0) rewards.push({ type: 'boost', amount: gainBoost, label: 'Boost' });
+      if (gainEnergy > 0) rewards.push({ type: 'energy', amount: gainEnergy, label: t('reward.energy', 'Énergie') });
+      if (gainMoney > 0) rewards.push({ type: 'money', amount: gainMoney, label: t('reward.money', 'Argent') });
+      if (gainGems > 0) rewards.push({ type: 'gems', amount: gainGems, label: t('reward.gems', 'Gemmes') });
+      if (gainBoost > 0) rewards.push({ type: 'boost', amount: gainBoost, label: t('reward.boost', 'Boost') });
       
       if (action.targetStat && gainXp > 0) {
         const xpAmount = gainXp * (isXpBoostActive ? 2 : 1);
@@ -281,8 +285,8 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
       }
 
       showAlert({
-        title: action.name,
-        subtitle: hasLeveledUp ? `Niveau ${newActionLevel} débloqué !` : "Accélération réussie !",
+        title: localizedActionName,
+        subtitle: hasLeveledUp ? t('action.level_unlocked', "Niveau {level} débloqué !").replace("{level}", String(newActionLevel)) : t('action.accelerate_success', "Accélération réussie !"),
         videoUrl: resolvedVideoUrl,
         imageUrl: resolvedImage,
         rewards,
@@ -300,7 +304,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
         {/* Background Image (No video when active as requested) */}
         <div className="absolute inset-0 z-0">
           {resolvedImage ? (
-            <img src={getImageUrl(resolvedImage)} alt={action.name} className="w-full h-full object-cover" />
+            <img src={getImageUrl(resolvedImage)} alt={tDb(action.name)} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
               <Activity className="w-12 h-12 text-gray-700" />
@@ -317,22 +321,22 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
             <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mb-3 text-red-500 shadow-lg shadow-red-500/10 shrink-0">
               <Trash2 className="w-5 h-5 animate-bounce" />
             </div>
-            <h5 className="text-base font-black italic uppercase tracking-tighter text-white mb-2">Abandonner l'activité ?</h5>
+            <h5 className="text-base font-black italic uppercase tracking-tighter text-white mb-2">{t("action.abandon_title", "Abandonner l'activité ?")}</h5>
             <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide leading-relaxed max-w-[280px] mb-5">
-              Tu vas perdre toute ta progression sur cette action et les ressources dépensées ne seront pas remboursées.
+              {t("action.abandon_desc", "Tu vas perdre toute ta progression sur cette action et les ressources dépensées ne seront pas remboursées.")}
             </p>
             <div className="flex flex-col gap-2 w-full max-w-[240px]">
               <button
                 onClick={handleCancelAction}
                 className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider transition-colors shadow-lg shadow-red-600/20"
               >
-                Confirmer l'abandon
+                {t("action.confirm_abandon", "Confirmer l'abandon")}
               </button>
               <button
                 onClick={() => setShowAbandonConfirm(false)}
                 className="w-full py-2.5 rounded-xl border border-white/10 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 font-bold text-xs uppercase tracking-wider transition-colors"
               >
-                Retour
+                {t("landing.back", "Retour")}
               </button>
             </div>
           </div>
@@ -344,9 +348,9 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
             <div className="w-12 h-12 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center mb-3 text-orange-500 shadow-lg shadow-orange-500/10 shrink-0">
               <FastForward className="w-5 h-5 animate-bounce" />
             </div>
-            <h5 className="text-base font-black italic uppercase tracking-tighter text-white mb-2">Utiliser 1 jeton ?</h5>
+            <h5 className="text-base font-black italic uppercase tracking-tighter text-white mb-2">{t("action.use_token_title", "Utiliser 1 jeton ?")}</h5>
             <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide leading-relaxed max-w-[280px] mb-5">
-              Dépenser 1 jeton (Gemme) pour terminer instantanément l'activité "{action.name}" et empocher tout le butin ?
+              {t("action.use_token_desc", "Dépenser 1 jeton (Gemme) pour terminer instantanément l'activité \"{name}\" et empocher tout le butin ?").replace("{name}", t(`action.${action.id}.name`, tDb(action.name)))}
             </p>
             <div className="flex flex-col gap-2 w-full max-w-[240px]">
               <button
@@ -356,13 +360,13 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
                 }}
                 className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs uppercase tracking-wider transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-1.5"
               >
-                <img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> Confirmer (1 gemme)
+                <img src={LOGOS.gems} alt="Gems" className="w-4 h-4 object-contain" /> {t("action.confirm_gem", "Confirmer (1 gemme)")}
               </button>
               <button
                 onClick={() => setShowAccelerateConfirm(false)}
                 className="w-full py-2.5 rounded-xl border border-white/10 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 font-bold text-xs uppercase tracking-wider transition-colors"
               >
-                Annuler
+                {t("shop.cancel", "Annuler")}
               </button>
             </div>
           </div>
@@ -378,22 +382,22 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
             </div>
 
             <div className="w-full">
-              <div className="text-orange-500 font-bold text-[10px] tracking-widest uppercase mb-1 drop-shadow-md">Activité en cours</div>
-              <h4 className="text-xl font-black text-white uppercase tracking-tighter drop-shadow-md leading-tight mb-1.5">{action.name}</h4>
+              <div className="text-orange-500 font-bold text-[10px] tracking-widest uppercase mb-1 drop-shadow-md">{t("action.active_status", "Activité en cours")}</div>
+              <h4 className="text-xl font-black text-white uppercase tracking-tighter drop-shadow-md leading-tight mb-1.5">{t(`action.${action.id}.name`, tDb(action.name))}</h4>
               
               <div className="flex items-center justify-center gap-1 text-orange-500 mb-3 drop-shadow-md">
                 <Star className="w-3 h-3 fill-current" />
-                <span className="font-black text-[10.5px] uppercase">Niveau {currentLevel}</span>
+                <span className="font-black text-[10.5px] uppercase">{t("fanz.rank_level", "Niveau {level}").replace("{level}", String(currentLevel))}</span>
                 {currentLevel > 1 && (
                   <span className="font-black text-[9px] text-green-400 uppercase bg-black/50 px-1.5 py-0.5 rounded ml-1 border border-green-500/30">
-                    +{Math.round((scaleFactor - 1) * 100)}% Bonus
+                    +{Math.round((scaleFactor - 1) * 100)}% {t("action.bonus", "Bonus")}
                   </span>
                 )}
               </div>
 
               {/* XP Action bar centered */}
               <div className="w-full max-w-[160px] bg-black/80 rounded-lg p-1.5 border border-white/10 shadow-lg mx-auto">
-                <div className="text-[9px] text-blue-400 font-black uppercase text-center mb-1 tracking-widest leading-none">XP Action</div>
+                <div className="text-[9px] text-blue-400 font-black uppercase text-center mb-1 tracking-widest leading-none">{t("action.xp_action", "XP Action")}</div>
                 <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative" title={`${(actionProgress.xp || 0) % 50} / 50 XP`}>
                   <div 
                     className="h-full bg-blue-500 transition-all duration-300"
@@ -406,7 +410,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
 
           <div className="w-full">
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 mb-3 border border-white/10 text-center">
-              <div className="text-xs font-black text-blue-400/80 uppercase tracking-widest mb-3">Butin prévu</div>
+              <div className="text-xs font-black text-blue-400/80 uppercase tracking-widest mb-3">{t("action.predicted_loot", "Butin prévu")}</div>
               <div className="flex flex-wrap items-center justify-center gap-4 text-xs sm:text-sm">
                 {gainEnergy > 0 && <span className="text-yellow-500 font-black flex items-center gap-1.5"><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> +{gainEnergy}</span>}
                 {gainMoney > 0 && <span className="text-yellow-400 font-black flex items-center gap-1.5"><img src={LOGOS.money} alt="Money" className="w-5 h-5 object-contain" /> +{gainMoney}</span>}
@@ -435,7 +439,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
             </div>
 
             <div className="bg-black/60 backdrop-blur-md rounded-xl p-3 mb-4 border border-white/10 text-center flex justify-center items-center gap-3">
-              <span className="text-xs font-black text-blue-400/80 uppercase tracking-widest">Coût :</span>
+              <span className="text-xs font-black text-blue-400/80 uppercase tracking-widest">{t("action.cost", "Coût :")}</span>
               {costEnergy > 0 && <span className="text-yellow-500 font-black text-xs sm:text-sm flex items-center gap-1.5"><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> {costEnergy}</span>}
               {costMoney > 0 && <span className="text-yellow-400 font-black text-xs sm:text-sm flex items-center gap-1.5"><img src={LOGOS.money} alt="Money" className="w-5 h-5 object-contain" /> {costMoney}</span>}
               {costEnergy === 0 && costMoney === 0 && <span className="text-yellow-500 font-black text-xs sm:text-sm flex items-center gap-1.5"><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> 0</span>}
@@ -446,13 +450,13 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
                 onClick={() => setShowAbandonConfirm(true)}
                 className="flex-1 py-3 rounded-xl border border-white/10 bg-black/60 backdrop-blur-md text-blue-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-white/10 hover:text-white transition-colors"
               >
-                <Trash2 className="w-4 h-4" /> Abandon
+                <Trash2 className="w-4 h-4" /> {t("action.abandon", "Abandon")}
               </button>
               <button 
                 onClick={() => setShowAccelerateConfirm(true)}
                 className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
               >
-                <FastForward className="w-4 h-4 fill-current" /> Finir (1 GEM)
+                <FastForward className="w-4 h-4 fill-current" /> {t("action.finish_gem", "Finir (1 GEM)")}
               </button>
             </div>
           </div>
@@ -477,7 +481,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
           <OptimizedMedia
             type="image"
             src={resolvedImage}
-            alt={action.name}
+            alt={t(`action.${action.id}.name`, tDb(action.name))}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -490,10 +494,10 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
 
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 w-24">
         <div className="bg-black/80 backdrop-blur-sm px-2 py-1 rounded-lg text-white font-black text-[10px] border border-white/10 flex items-center justify-center gap-1 shadow-lg">
-          <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" /> NIVEAU {currentLevel}
+          <img src={LOGOS.level} alt="Level" className="w-3 h-3 object-contain" /> {t("action.level", "Niveau {level}").replace("{level}", String(currentLevel)).toUpperCase()}
         </div>
         <div className="w-full bg-black/80 rounded-lg p-1 border border-white/10 shadow-lg">
-          <div className="text-[10px] text-blue-400 font-black uppercase text-center mb-0.5 tracking-widest leading-none">XP Action</div>
+          <div className="text-[10px] text-blue-400 font-black uppercase text-center mb-0.5 tracking-widest leading-none">{t("action.xp_action", "XP Action")}</div>
           <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative" title="La montée de niveau augmente les récompenses (et les coûts) de 20%">
             <div 
               className="h-full bg-blue-500 transition-all duration-300"
@@ -518,7 +522,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
 
       <div className="relative z-10 p-4 flex flex-col justify-end mt-auto bg-gradient-to-t from-black/90 via-black/40 to-transparent">
         <div>
-          <h4 className="font-black text-white uppercase tracking-tighter text-center text-lg mb-3 drop-shadow-md">{action.name}</h4>
+          <h4 className="font-black text-white uppercase tracking-tighter text-center text-lg mb-3 drop-shadow-md">{t(`action.${action.id}.name`, tDb(action.name))}</h4>
           <div className="flex flex-wrap justify-center items-center gap-4 text-xs sm:text-sm font-black mb-4 drop-shadow-md">
             {gainEnergy > 0 && <span className="text-yellow-500 flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded border border-white/5"><img src={LOGOS.energy} alt="Energy" className="w-5 h-5 object-contain" /> +{gainEnergy}</span>}
             {gainMoney > 0 && <span className="text-yellow-400 flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded border border-white/5"><img src={LOGOS.money} alt="Money" className="w-5 h-5 object-contain" /> +{gainMoney}</span>}
@@ -548,7 +552,7 @@ export function LifeActionCard({ action, fanz, userProfile, fanzTemplate }: Life
         <button 
           className={`w-full py-3 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors shadow-lg ${isFirstLifeAction ? 'animate-[pulse_1.5s_ease-in-out_infinite] ring-4 ring-orange-500 ring-offset-2 ring-offset-black scale-105' : 'hover:bg-gray-200'}`}
         >
-          Lancer l'action
+          {t("action.start", "Lancer l'action")}
         </button>
       </div>
     </Card>

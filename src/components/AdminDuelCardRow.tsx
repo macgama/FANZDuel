@@ -10,6 +10,23 @@ export function AdminDuelCardRow({ card, onSaved, onDeleted, onEditFull, fanzTem
   const [localCard, setLocalCard] = useState<DuelCard>({ ...card });
   const [isDirty, setIsDirty] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editLang, setEditLang] = useState<'fr' | 'en' | 'es'>('fr');
+
+  const getTranslationValue = (field: any, lang: string): string => {
+    if (!field) return '';
+    if (typeof field === 'string') {
+      return lang === 'fr' ? field : '';
+    }
+    return field[lang] || '';
+  };
+
+  const setTranslationValue = (field: any, lang: string, value: string) => {
+    if (!field || typeof field === 'string') {
+      const frVal = typeof field === 'string' ? field : '';
+      return { fr: frVal, en: '', es: '', [lang]: value };
+    }
+    return { ...field, [lang]: value };
+  };
 
   useEffect(() => {
     setLocalCard({ ...card });
@@ -34,7 +51,7 @@ export function AdminDuelCardRow({ card, onSaved, onDeleted, onEditFull, fanzTem
                {localCard.videoUrl && localCard.videoUrl !== 'undefined' ? (
                  <video src={getImageUrl(localCard.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
                ) : localCard.imageUrl && localCard.imageUrl !== 'undefined' ? (
-                 <img src={getImageUrl(localCard.imageUrl)} alt={localCard.name} className="w-full h-full object-cover" />
+                 <img src={getImageUrl(localCard.imageUrl)} alt={getTranslationValue(localCard.name, 'fr')} className="w-full h-full object-cover" />
                ) : (
                  <div className="w-full h-full flex items-center justify-center"><Activity className="w-6 h-6 text-gray-400" /></div>
                )}
@@ -48,8 +65,27 @@ export function AdminDuelCardRow({ card, onSaved, onDeleted, onEditFull, fanzTem
         </div>
       </td>
       <td className="px-2 py-2 align-middle border-b border-white/5 min-w-[150px]">
-        <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Nom / ID / Type & Catégorie</label>
-        <input type="text" value={localCard.name || ''} onChange={e => handleChange('name', e.target.value)} className="w-full text-sm font-bold p-1 bg-black text-white rounded border border-white/10 mb-1" />
+        <div className="flex justify-between items-center mb-1">
+          <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500">Nom de la carte</label>
+          <div className="flex gap-1 bg-white/5 p-0.5 rounded border border-white/10 text-[9px]">
+            {(['fr', 'en', 'es'] as const).map(l => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setEditLang(l)}
+                className={`px-1 rounded uppercase font-bold transition-colors ${editLang === l ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <input
+          type="text"
+          value={getTranslationValue(localCard.name, editLang)}
+          onChange={e => handleChange('name', setTranslationValue(localCard.name, editLang, e.target.value))}
+          className="w-full text-sm font-bold p-1 bg-black text-white rounded border border-white/10 mb-1"
+        />
         <div className="grid grid-cols-3 gap-1">
             <select value={localCard.type} onChange={e => handleChange('type', e.target.value as any)} className="text-[10px] p-1 bg-gray-900 text-white rounded border border-white/10" title="Type">
               <option value="bonus">Bonus</option>
@@ -77,8 +113,13 @@ export function AdminDuelCardRow({ card, onSaved, onDeleted, onEditFull, fanzTem
         <div className="text-[10px] text-gray-500 font-mono mt-1">{localCard.id}</div>
       </td>
       <td className="px-2 py-2 align-middle border-b border-white/5 min-w-[200px]">
-        <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Description & Ferveur</label>
-        <textarea value={localCard.description || ''} onChange={e => handleChange('description', e.target.value)} className="w-full text-xs p-1 bg-black text-white rounded border border-white/10 h-10 mb-1" placeholder="Description..."></textarea>
+        <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Description ({editLang.toUpperCase()}) & Ferveur</label>
+        <textarea
+          value={getTranslationValue(localCard.description, editLang)}
+          onChange={e => handleChange('description', setTranslationValue(localCard.description, editLang, e.target.value))}
+          className="w-full text-xs p-1 bg-black text-white rounded border border-white/10 h-10 mb-1"
+          placeholder="Description..."
+        ></textarea>
         <div className="flex items-center gap-2">
             <span className="text-[10px] text-gray-500">Val. Ferveur :</span>
             <input type="number" value={localCard.fervorValue || 0} onChange={e => handleChange('fervorValue', Number(e.target.value))} className="w-16 text-xs text-center p-1 bg-black text-white rounded border border-white/10" />

@@ -278,7 +278,92 @@ export const leagueTranslations: Record<string, string> = {
 
 export function translateCountryName(name: string): string {
   if (!name) return name;
-  return countryTranslations[name] || name;
+  const lang = typeof window !== 'undefined' ? localStorage.getItem('tbo_language') : 'fr';
+  
+  if (lang === 'en') {
+    return name; // API already returns English names
+  }
+  
+  const searchName = name.trim();
+  const searchNameLower = searchName.toLowerCase();
+  
+  if (lang === 'es') {
+    // Basic Spanish translations for common countries / World Cup
+    const esMap: Record<string, string> = {
+      "Afghanistan": "Afganistán",
+      "Albania": "Albania",
+      "Algeria": "Argelia",
+      "Andorra": "Andorra",
+      "Angola": "Angola",
+      "Argentina": "Argentina",
+      "Australia": "Australia",
+      "Austria": "Austria",
+      "Belgium": "Bélgica",
+      "Brazil": "Brasil",
+      "Cameroon": "Camerún",
+      "Canada": "Canadá",
+      "Chile": "Chile",
+      "China": "China",
+      "Colombia": "Colombia",
+      "Costa Rica": "Costa Rica",
+      "Croatia": "Croacia",
+      "Cuba": "Cuba",
+      "Czech-Republic": "Chequia",
+      "Denmark": "Dinamarca",
+      "Ecuador": "Ecuador",
+      "Egypt": "Egipto",
+      "England": "Inglaterra",
+      "France": "Francia",
+      "Germany": "Alemania",
+      "Ghana": "Ghana",
+      "Greece": "Grecia",
+      "Hungary": "Hungría",
+      "Iceland": "Islandia",
+      "India": "India",
+      "Iran": "Irán",
+      "Iraq": "Irak",
+      "Ireland": "Irlanda",
+      "Italy": "Italia",
+      "Ivory Coast": "Costa de Marfil",
+      "Japan": "Japón",
+      "Mexico": "México",
+      "Morocco": "Marruecos",
+      "Netherlands": "Países Bajos",
+      "New Zealand": "Nueva Zelanda",
+      "Nigeria": "Nigeria",
+      "Norway": "Noruega",
+      "Peru": "Perú",
+      "Poland": "Polonia",
+      "Portugal": "Portugal",
+      "Qatar": "Catar",
+      "Romania": "Rumania",
+      "Russia": "Rusia",
+      "Saudi Arabia": "Arabia Saudita",
+      "Scotland": "Escocia",
+      "Senegal": "Senegal",
+      "Serbia": "Serbia",
+      "South Africa": "Sudáfrica",
+      "South Korea": "Corea del Sur",
+      "Spain": "España",
+      "Sweden": "Suecia",
+      "Switzerland": "Suiza",
+      "Tunisia": "Túnez",
+      "Turkey": "Turquía",
+      "Ukraine": "Ucrania",
+      "Uruguay": "Uruguay",
+      "USA": "Estados Unidos",
+      "Wales": "Gales",
+      "World": "Mundo"
+    };
+    const esKey = Object.keys(esMap).find(k => k.toLowerCase() === searchNameLower);
+    if (esKey) return esMap[esKey];
+    return name;
+  }
+  
+  const frKey = Object.keys(countryTranslations).find(k => k.toLowerCase() === searchNameLower);
+  if (frKey) return countryTranslations[frKey];
+  
+  return name;
 }
 
 export function reverseTranslateCountryName(name: string): string {
@@ -311,5 +396,36 @@ export function getEnglishCountrySearch(query: string): string[] {
 
 export function translateLeagueName(name: string): string {
   if (!name) return name;
+  const lang = typeof window !== 'undefined' ? localStorage.getItem('tbo_language') : 'fr';
+  
+  if (lang === 'en') {
+    return name; // Already in English from API
+  }
+  
+  if (lang === 'es') {
+    const esMap: Record<string, string> = {
+      "World Cup": "Copa del Mundo",
+      "World Cup - Qualification Africa": "Clasificación Copa del Mundo - África",
+      "World Cup - Qualification Asia": "Clasificación Copa del Mundo - Asia",
+      "World Cup - Qualification CONCACAF": "Clasificación Copa del Mundo - CONCACAF",
+      "World Cup - Qualification Europe": "Clasificación Copa del Mundo - Europa",
+      "World Cup - Qualification Oceania": "Clasificación Copa del Mundo - Oceanía",
+      "World Cup - Qualification South America": "Clasificación Copa del Mundo - Sudamérica",
+      "Euro Championship": "Eurocopa",
+      "Euro Championship - Qualification": "Clasificación Eurocopa",
+      "Copa America": "Copa América",
+      "Africa Cup of Nations": "Copa Africana de Naciones",
+      "Africa Cup of Nations - Qualification": "Clasif. Copa Africana",
+      "Asian Cup": "Copa Asiática",
+      "UEFA Nations League": "Liga de Naciones UEFA",
+      "Friendlies": "Amistosos",
+      "Friendlies Clubs": "Amistosos de Clubes",
+      "UEFA Champions League": "Liga de Campeones",
+      "UEFA Europa League": "Liga Europa",
+      "UEFA Europa Conference League": "Liga Europa Conferencia"
+    };
+    return esMap[name] || name;
+  }
+  
   return leagueTranslations[name] || name;
 }

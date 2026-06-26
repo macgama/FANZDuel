@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { SharedMatchCard } from './SharedMatchCard';
+import { useLanguage } from '../context/LanguageContext';
 
 interface LiveMatchesSliderProps {
   matches: any[];
@@ -27,6 +28,7 @@ export function LiveMatchesSlider({
   showAllButton,
   onShowAllClick
 }: LiveMatchesSliderProps) {
+  const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -43,11 +45,13 @@ export function LiveMatchesSlider({
       <div className="flex justify-between items-center px-[30px] mb-0">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-xs font-black uppercase tracking-widest text-red-500">EN DIRECT ({matches.length})</span>
+          <span className="text-xs font-black uppercase tracking-widest text-red-500">
+            {t("home.live_matches", "EN DIRECT")} ({matches.length})
+          </span>
         </div>
         {showAllButton && onShowAllClick && (
           <button onClick={onShowAllClick} className="text-[10px] font-black text-orange-500 uppercase flex items-center gap-1 hover:text-orange-400">
-            VOIR TOUT <ArrowRight className="w-3 h-3" />
+            {t("common.see_all", "VOIR TOUT")} <ArrowRight className="w-3 h-3" />
           </button>
         )}
       </div>

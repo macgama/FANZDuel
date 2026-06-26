@@ -5,6 +5,7 @@ import { collection, query, where, orderBy, onSnapshot, addDoc, doc, setDoc, get
 import { ArrowLeft, Send } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 import { FanzTemplate, FanzEmote } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ChatViewProps {
   currentUser: UserProfile;
@@ -13,6 +14,7 @@ interface ChatViewProps {
 }
 
 export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
+  const { tDb } = useLanguage();
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEmotes, setShowEmotes] = useState(false);
@@ -209,7 +211,7 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
                 <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
                   <div className={`p-2 rounded-2xl ${isMine ? 'bg-blue-600/20 rounded-tr-sm' : 'bg-white/10 rounded-tl-sm'}`}>
                     {emote ? (
-                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-16 h-16 object-contain" />
+                      <img src={getImageUrl(emote.imageUrl)} alt={tDb(emote.name)} className="w-16 h-16 object-contain" />
                     ) : (
                       <span className="text-white text-xs">Emote inconnue</span>
                     )}
@@ -237,7 +239,7 @@ export function ChatView({ currentUser, friend, onBack }: ChatViewProps) {
                     onClick={() => handleSendEmote(emote.id)}
                     className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-colors flex items-center justify-center"
                   >
-                    <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-10 h-10 object-contain" />
+                    <img src={getImageUrl(emote.imageUrl)} alt={tDb(emote.name)} className="w-10 h-10 object-contain" />
                   </button>
                 ))}
               </div>

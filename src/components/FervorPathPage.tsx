@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { LOGOS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { useReward } from '../context/RewardContext';
+import { useLanguage } from '../context/LanguageContext';
 import { generateFervorPath } from '../utils/fervorPath';
 import { OptimizedMedia } from './OptimizedMedia';
 
@@ -22,6 +23,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
   const [claiming, setClaiming] = useState<string | null>(null);
   const { showAlert } = useAlert();
   const { showReward } = useReward();
+  const { t } = useLanguage();
 
   const [fanzTemplates, setFanzTemplates] = useState<any[]>([]);
   const [cards, setCards] = useState<DuelCard[]>([]);
@@ -136,7 +138,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
       }
       
       showReward({
-        title: `Palier ${level.level} atteint !`,
+        title: t('fervor_path.tier_reached', `Palier ${level.level} atteint !`, { level: level.level }),
         type: level.reward.type as any,
         amount: level.reward.amount,
         card: cards.find(c => c.id === level.reward?.cardId),
@@ -172,7 +174,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
-        <p className="text-gray-500 font-bold animate-pulse">Chargement du chemin...</p>
+        <p className="text-gray-500 font-bold animate-pulse">{t('fervor_path.loading', 'Chargement du chemin...')}</p>
       </div>
     );
   }
@@ -211,11 +213,8 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
           <div>
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-md flex items-center gap-2">
               <Flame className="w-8 h-8 text-orange-500" />
-              Chemin de Ferveur
-            </h1>
-            <p className="text-sm text-gray-400 font-medium mt-1">
-              Gagne des duels pour accumuler de la ferveur et débloquer des récompenses épiques !
-            </p>
+              {t('fervor_path.title', 'Chemin de Ferveur')}</h1>
+            <p className="text-sm text-gray-400 font-medium mt-1">{t('fervor_path.subtitle', 'Gagne des duels pour accumuler de la ferveur et débloquer des récompenses épiques !')}</p>
           </div>
         </div>
 
@@ -231,14 +230,14 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
               
               <div className="z-10">
                 <div className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1">
-                  <Star className="w-3 h-3 sm:w-4 sm:h-4" /> Prochain Objectif
+                  <Star className="w-3 h-3 sm:w-4 sm:h-4" /> {t('fervor_path.next_objective', 'Prochain Objectif')}
                 </div>
                 <div className="text-2xl sm:text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_10px_rgba(249,115,22,0.8)]">
                   {nextLevel.pointsRequired.toLocaleString()} PTS
                 </div>
                 {!nextLevel.isIntermediate && (
                   <div className="text-sm sm:text-base text-orange-300 font-bold uppercase tracking-widest mt-1">
-                    Palier {nextLevel.displayLevel}
+                    {t('fervor_path.tier', 'Palier')} {nextLevel.displayLevel}
                   </div>
                 )}
               </div>
@@ -246,7 +245,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
               <div className="flex items-center gap-4 z-10">
                 <div className="text-right">
                   <div className="text-lg sm:text-2xl font-black italic uppercase text-green-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                    {['money', 'gems', 'boost', 'energy', 'xp'].includes(nextLevel.reward?.type || '') ? `+${nextLevel.reward?.amount} ${nextLevel.reward?.type === 'money' ? '$' : nextLevel.reward?.type}` : nextLevel.reward?.type === 'skin' ? 'Skin' : nextLevel.reward?.type === 'emote' ? 'Emote' : nextLevel.reward?.type === 'card' ? 'Carte' : nextLevel.reward?.type === 'action' ? 'Action' : nextLevel.reward?.type}
+                    {['money', 'gems', 'boost', 'energy', 'xp'].includes(nextLevel.reward?.type || '') ? `+${nextLevel.reward?.amount} ${nextLevel.reward?.type === 'money' ? '$' : nextLevel.reward?.type}` : nextLevel.reward?.type === 'skin' ? t('fervor_path.reward_skin', 'Skin') : nextLevel.reward?.type === 'emote' ? t('fervor_path.reward_emote', 'Emote') : nextLevel.reward?.type === 'card' ? t('fervor_path.reward_card', 'Carte') : nextLevel.reward?.type === 'action' ? t('fervor_path.reward_action', 'Action') : nextLevel.reward?.type}
                   </div>
                 </div>
                 <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl bg-black/50 border-2 border-orange-500/40 flex items-center justify-center shadow-[0_0_20px_rgba(249,115,22,0.3)] overflow-hidden">
@@ -293,7 +292,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
         }}>
           <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors rounded-xl -m-2 opacity-0 group-hover:opacity-100 pointer-events-none" />
           <div className="flex justify-between items-end mb-2 relative z-10">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest group-hover:text-gray-300 transition-colors">Ma progression</h3>
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest group-hover:text-gray-300 transition-colors">{t('fervor_path.my_progress', 'Ma progression')}</h3>
             <span className="text-sm font-black text-orange-400 group-hover:text-orange-300 transition-colors">{currentPoints.toLocaleString()} <span className="text-xs text-orange-500/50">/ {maxPoints.toLocaleString()} PTS</span></span>
           </div>
           <div className="h-4 w-full bg-gray-900/80 rounded-full overflow-hidden border border-gray-800 relative z-10">
@@ -313,8 +312,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
           <div className="sticky top-0 z-50 px-4 py-3 bg-[#050505]/95 backdrop-blur-md border-b border-white/5 shadow-lg">
             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 items-center">
               <div className="text-xs font-black uppercase tracking-widest text-gray-500 mr-2 shrink-0">
-                Paliers
-              </div>
+                {t('fervor_path.tiers', 'Paliers')}</div>
               {reachableMajorLevels.map(level => {
                 const isCurrentTier = currentPoints >= level.pointsRequired && 
                   (!majorLevels[majorLevels.indexOf(level) + 1] || currentPoints < majorLevels[majorLevels.indexOf(level) + 1].pointsRequired);
@@ -352,7 +350,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                }
             }}
-            title="Cliquez pour aller à votre progression"
+            title={t('fervor_path.click_to_progress', 'Cliquez pour aller à votre progression')}
           >
             {/* Active Neon Progress Line */}
             <div 
@@ -455,7 +453,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                     </div>
                     {!level.isIntermediate && (
                       <div className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-400 bg-black/80 px-2 sm:px-3 py-1 rounded-full inline-block mt-1 border border-white/10 shadow-lg">
-                        Palier {level.displayLevel}
+                        {t('fervor_path.tier', 'Palier')} {level.displayLevel}
                       </div>
                     )}
                   </div>
@@ -473,7 +471,7 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                     }`}>
                       <div className="text-center">
                         <div className={`text-base sm:text-xl font-black italic uppercase tracking-tighter sm:mb-4 mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isUnlocked && !isClaimed ? 'text-green-400' : 'text-gray-400'}`}>
-                          {['money', 'gems', 'boost', 'energy', 'xp'].includes(level.reward?.type || '') ? `+${level.reward?.amount} ${level.reward?.type === 'money' ? '$' : level.reward?.type}` : level.reward?.type === 'skin' ? 'Skin' : level.reward?.type === 'emote' ? 'Emote' : level.reward?.type === 'card' ? 'Carte' : level.reward?.type === 'action' ? 'Action' : level.reward?.type}
+                          {['money', 'gems', 'boost', 'energy', 'xp'].includes(level.reward?.type || '') ? `+${level.reward?.amount} ${level.reward?.type === 'money' ? '$' : level.reward?.type}` : level.reward?.type === 'skin' ? t('fervor_path.reward_skin', 'Skin') : level.reward?.type === 'emote' ? t('fervor_path.reward_emote', 'Emote') : level.reward?.type === 'card' ? t('fervor_path.reward_card', 'Carte') : level.reward?.type === 'action' ? t('fervor_path.reward_action', 'Action') : level.reward?.type}
                         </div>
                         {isUnlocked && !isClaimed ? (
                           <Button 
@@ -481,12 +479,12 @@ export function FervorPathPage({ profile, onBack }: FervorPathPageProps) {
                             onClick={() => handleClaimReward(level)}
                             disabled={claiming === slotId}
                           >
-                            {claiming === slotId ? '...' : 'Récupérer'}
+                            {claiming === slotId ? '...' : t('fervor_path.claim', 'Récupérer')}
                           </Button>
                         ) : (
                           <div className={`text-[10px] sm:text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5 sm:gap-2 ${isClaimed ? 'text-green-500/60' : 'text-gray-500'}`}>
                             {isClaimed ? <Check className="w-4 h-4 sm:w-5 sm:h-5" /> : <Lock className="w-4 h-4 sm:w-5 sm:h-5" />}
-                            {isClaimed ? 'RÉCUPÉRÉ' : 'BLOQUÉ'}
+                            {isClaimed ? t('fervor_path.claimed', 'RÉCUPÉRÉ') : t('fervor_path.locked', 'BLOQUÉ')}
                           </div>
                         )}
                       </div>

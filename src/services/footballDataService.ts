@@ -112,7 +112,16 @@ export const footballDataService = {
         if (lastUpdated) {
           const snapshot = await getDocs(collection(db, path));
           if (!snapshot.empty) {
-            const cachedStandings = snapshot.docs.map(doc => doc.data()).sort((a, b) => a.rank - b.rank);
+            const rawCached = snapshot.docs.map(doc => doc.data()).sort((a, b) => a.rank - b.rank);
+            
+            // Deduplicate cached standings by team ID
+            const seenCached = new Set();
+            const cachedStandings = rawCached.filter((s: any) => {
+              if (!s?.team?.id) return false;
+              if (seenCached.has(s.team.id)) return false;
+              seenCached.add(s.team.id);
+              return true;
+            });
             
             // Heuristique d'incomplétude du cache pour éviter des classements tronqués
             const uniqueGroups = new Set(cachedStandings.map(s => s.group || 'Default')).size;
@@ -149,7 +158,16 @@ export const footballDataService = {
       // Not in Firestore or force refresh, fetch from API
       const apiData = await footballApi.getStandings(leagueId, season);
       const standingsArrays = apiData[0]?.league?.standings || [];
-      const standings = standingsArrays.flat();
+      const flatStandings = standingsArrays.flat();
+
+      // Deduplicate API standings by team ID
+      const seenTeams = new Set();
+      const standings = flatStandings.filter((s: any) => {
+        if (!s?.team?.id) return false;
+        if (seenTeams.has(s.team.id)) return false;
+        seenTeams.add(s.team.id);
+        return true;
+      });
 
       if (standings.length > 0) {
         // Cache in Firestore

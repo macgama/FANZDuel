@@ -131,7 +131,14 @@ export const FanzSkinsTable: React.FC<FanzSkinsTableProps> = ({ skins, onChange,
                 <input type="checkbox" checked={skin.isActive !== false} onChange={(e) => updateSkin(originalIdx, { isActive: e.target.checked })} />
               </td>
               <td className="p-2 border border-gray-800">
-                <input type="text" className="w-32 bg-transparent border-b border-gray-700 focus:border-orange-500 outline-none" value={skin.name} onChange={(e) => updateSkin(originalIdx, { name: e.target.value })} />
+                <input type="text" className="w-32 bg-transparent border-b border-gray-700 focus:border-orange-500 outline-none" value={typeof skin.name === 'string' ? skin.name : ((skin.name as any)?.fr || (skin.name as any)?.en || '')} onChange={(e) => {
+                  const val = e.target.value;
+                  if (typeof skin.name === 'object') {
+                    updateSkin(originalIdx, { name: { ...(skin.name as any), fr: val } as any });
+                  } else {
+                    updateSkin(originalIdx, { name: val });
+                  }
+                }} />
               </td>
               <td className="p-2 border border-gray-800">
                 <input type="text" className="w-32 bg-transparent border-b border-gray-700 focus:border-orange-500 outline-none" value={skin.id} onChange={(e) => updateSkin(originalIdx, { id: e.target.value })} />
@@ -346,7 +353,9 @@ export const FanzEmotesTable: React.FC<FanzEmotesTableProps> = ({ emotes, onChan
                     </Button>
                   )}
                   <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-blue-400" onClick={() => {
-                    const newEmote = { ...emote, id: `${emote.id}-copy-${Date.now()}`, name: `${emote.name} (Copie)` };
+                    const nameObj: any = typeof emote.name === 'object' && emote.name !== null ? emote.name : {};
+                    const newName = typeof emote.name === 'string' ? `${emote.name} (Copie)` : { ...nameObj, fr: `${nameObj.fr || ''} (Copie)` };
+                    const newEmote = { ...emote, id: `${emote.id}-copy-${Date.now()}`, name: newName };
                     onChange([...emotes.slice(0, originalIdx+1), newEmote, ...emotes.slice(originalIdx+1)]);
                   }}>
                     <Copy className="h-4 w-4" />
@@ -362,7 +371,14 @@ export const FanzEmotesTable: React.FC<FanzEmotesTableProps> = ({ emotes, onChan
                 <input type="checkbox" checked={emote.isActive !== false} onChange={(e) => updateEmote(originalIdx, { isActive: e.target.checked })} />
               </td>
               <td className="p-2 border border-gray-800">
-                <input type="text" className="w-32 bg-transparent border-b border-gray-700 focus:border-orange-500 outline-none" value={emote.name} onChange={(e) => updateEmote(originalIdx, { name: e.target.value })} />
+                <input type="text" className="w-32 bg-transparent border-b border-gray-700 focus:border-orange-500 outline-none" value={typeof emote.name === 'string' ? emote.name : ((emote.name as any)?.fr || (emote.name as any)?.en || '')} onChange={(e) => {
+                  const val = e.target.value;
+                  if (typeof emote.name === 'object') {
+                    updateEmote(originalIdx, { name: { ...(emote.name as any), fr: val } as any });
+                  } else {
+                    updateEmote(originalIdx, { name: val });
+                  }
+                }} />
               </td>
               <td className="p-2 border border-gray-800">
                 <input type="text" className="w-32 bg-transparent border-b border-gray-700 focus:border-orange-500 outline-none" value={emote.id} onChange={(e) => updateEmote(originalIdx, { id: e.target.value })} />

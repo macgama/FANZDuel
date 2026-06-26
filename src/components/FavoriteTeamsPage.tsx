@@ -12,6 +12,7 @@ import { handleFirestoreError, OperationType } from '../firebase';
 import { logTransaction } from '../services/transactionService';
 import { translateCountryName } from '../utils/countryTranslations';
 import { getSearchVariations } from '../utils/teamSearch';
+import { useLanguage } from '../context/LanguageContext';
 
 interface FavoriteTeamsPageProps {
   profile: UserProfile;
@@ -20,6 +21,7 @@ interface FavoriteTeamsPageProps {
 }
 
 export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeamsPageProps) {
+  const { t } = useLanguage();
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,13 +199,13 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
   const handleAddTeam = async (team: any) => {
     const favoriteTeams = profile.favoriteTeams || [];
     if (favoriteTeams.length >= (profile.teamSlots || 1)) {
-      showAlert({ type: 'error', title: 'Limite atteinte', subtitle: 'Plus d\'emplacements disponibles.' });
+      showAlert({ type: 'error', title: t("favorite_teams.limit_reached_title", "Limite atteinte"), subtitle: t("favorite_teams.limit_reached_desc", "Plus d'emplacements disponibles.") });
       return;
     }
 
     const teamId = team.team.id.toString();
     if (favoriteTeams.map(t => t.toString()).includes(teamId)) {
-      showAlert({ type: 'error', title: 'Déjà ajouté', subtitle: 'Cette équipe est déjà dans vos favoris.' });
+      showAlert({ type: 'error', title: t("favorite_teams.already_added_title", "Déjà ajouté"), subtitle: t("favorite_teams.already_added_desc", "Cette équipe est déjà dans vos favoris.") });
       return;
     }
 
@@ -252,7 +254,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
       
       setSearchQuery('');
       setSearchResults([]);
-      showAlert({ type: 'success', title: 'Équipe ajoutée !', subtitle: `${team.team.name} a rejoint vos favoris.` });
+      showAlert({ type: 'success', title: t("favorite_teams.team_added_title", "Équipe ajoutée !"), subtitle: t("favorite_teams.team_added_desc", "{name} a rejoint vos favoris.").replace("{name}", team.team.name) });
     } catch (error) {
       console.error("Error adding favorite team:", error);
       handleFirestoreError(error, OperationType.UPDATE, 'users');
@@ -263,7 +265,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
 
   const handleBuySlot = async () => {
     if (profile.gems < 5) {
-      showAlert({ type: 'error', title: 'Pas assez de gemmes.' });
+      showAlert({ type: 'error', title: t("favorite_teams.not_enough_gems", "Pas assez de gemmes.") });
       return;
     }
 
@@ -273,8 +275,8 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
         gems: profile.gems - 5,
         teamSlots: profile.teamSlots + 1
       });
-      await logTransaction(profile.uid, 'gems', -5, 'Achat d\'un emplacement d\'équipe favorite');
-      showAlert({ type: 'success', title: 'Nouvel emplacement débloqué !' });
+      await logTransaction(profile.uid, 'gems', -5, t("favorite_teams.transaction_buy_slot", "Achat d'un emplacement d'équipe favorite"));
+      showAlert({ type: 'success', title: t("favorite_teams.slot_unlocked", "Nouvel emplacement débloqué !") });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'users');
     }
@@ -286,13 +288,13 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
     <div className="flex flex-col h-full bg-transparent">
       <div className="flex items-center justify-between px-4">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
-          Équipes Favorites
+          {t("favorite_teams.title", "Équipes Favorites")}
         </h1>
       </div>
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-8">
         <div className="bg-black/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-          <div className="text-gray-400 text-xs sm:text-sm">Emplacements utilisés</div>
+          <div className="text-gray-400 text-xs sm:text-sm">{t("favorite_teams.slots_used", "Emplacements utilisés")}</div>
           <div className="text-xl font-black text-orange-500">{profile.favoriteTeams.length} <span className="text-sm text-orange-500/50">/ {profile.teamSlots}</span></div>
         </div>
         
@@ -300,7 +302,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {loading ? (
           <div className="col-span-full py-12 text-center text-gray-500 font-bold animate-pulse uppercase tracking-widest italic">
-            Chargement de vos équipes et résultats...
+            {t("favorite_teams.loading", "Chargement de vos équipes et résultats...")}
           </div>
         ) : (
           <>
@@ -329,7 +331,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                           {team.summary.standing.rank}e - {team.summary.standing.leagueName}
                         </span>
                       )}
-                      <span className="text-[10px] text-orange-500 font-black uppercase tracking-tighter bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">Bonus Ferveur Actif</span>
+                      <span className="text-[10px] text-orange-500 font-black uppercase tracking-tighter bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">{t("favorite_teams.active_fervor_bonus", "Bonus Ferveur Actif")}</span>
                     </div>
                   </div>
                 </div>
@@ -340,7 +342,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                   <div className="space-y-2">
                     <h4 className="text-[9px] font-black uppercase text-gray-500 tracking-widest flex items-center gap-1.5">
                       <Activity className="w-3 h-3" />
-                      Derniers Résultats
+                      {t("favorite_teams.last_results", "Derniers Résultats")}
                     </h4>
                     <div className="flex gap-1">
                       {team.summary?.lastMatches && team.summary.lastMatches.length > 0 ? (
@@ -359,14 +361,14 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                                 draw ? "bg-gray-500/20 border-gray-500 text-gray-500" :
                                 "bg-red-500/20 border-red-500 text-red-500"
                               )}
-                              title={`${m.teams.home.name} ${m.goals.home}-${m.goals.away} ${m.teams.away.name}`}
+                              title={`${translateCountryName(m.teams.home.name)} ${m.goals.home}-${m.goals.away} ${translateCountryName(m.teams.away.name)}`}
                             >
-                              {win ? 'V' : draw ? 'N' : 'D'}
+                              {win ? t("favorite_teams.win_letter", "V") : draw ? t("favorite_teams.draw_letter", "N") : t("favorite_teams.loss_letter", "D")}
                             </div>
                           );
                         })
                       ) : (
-                        <span className="text-[10px] text-gray-500 font-bold">Pas de matchs récents</span>
+                        <span className="text-[10px] text-gray-500 font-bold">{t("favorite_teams.no_recent_matches", "Pas de matchs récents")}</span>
                       )}
                     </div>
                   </div>
@@ -375,7 +377,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                   <div className="space-y-2">
                     <h4 className="text-[9px] font-black uppercase text-gray-500 tracking-widest flex items-center gap-1.5">
                       <Globe className="w-3 h-3" />
-                      Compétitions
+                      {t("favorite_teams.competitions", "Compétitions")}
                     </h4>
                     <div className="flex flex-wrap gap-1">
                       {team.summary?.competitions && team.summary.competitions.length > 0 ? (
@@ -393,7 +395,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
 
                 <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="flex items-center gap-1 text-orange-500 font-black text-[10px] uppercase italic tracking-widest">
-                    Voir détails <ChevronRight className="w-3 h-3" />
+                    {t("favorite_teams.view_details", "Voir détails")} <ChevronRight className="w-3 h-3" />
                   </div>
                 </div>
               </Card>
@@ -402,7 +404,14 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
             {/* Empty Slots */}
             {Array.from({ length: emptySlots }).map((_, idx) => (
               <div key={`empty-${idx}`} className="bg-black/20 border border-dashed border-white/20 rounded-xl p-3 flex flex-col items-center justify-center min-h-[88px]">
-                <span className="text-gray-500 font-bold text-xs text-center leading-tight">Emplacement<br/>Libre</span>
+                <span className="text-gray-500 font-bold text-xs text-center leading-tight">
+                  {t("favorite_teams.free_slot", "Emplacement\nLibre").split('\n').map((line, idx) => (
+                    <React.Fragment key={idx}>
+                      {line}
+                      {idx === 0 && <br />}
+                    </React.Fragment>
+                  ))}
+                </span>
               </div>
             ))}
 
@@ -412,9 +421,16 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
               className="bg-orange-500/5 border border-orange-500/30 rounded-xl p-3 flex flex-col items-center justify-center gap-1 hover:bg-orange-500/10 transition-colors"
             >
               <Plus className="w-5 h-5 text-orange-500 mb-1" />
-              <span className="text-orange-500 font-bold text-xs text-center leading-tight">Acheter un<br/>emplacement</span>
+              <span className="text-orange-500 font-bold text-xs text-center leading-tight">
+                {t("favorite_teams.buy_slot", "Acheter un\nemplacement").split('\n').map((line, idx) => (
+                  <React.Fragment key={idx}>
+                    {line}
+                    {idx === 0 && <br />}
+                  </React.Fragment>
+                ))}
+              </span>
               <div className="bg-orange-500 text-black text-[10px] font-black px-2 py-0.5 rounded mt-1">
-                5 Gemmes
+                {t("favorite_teams.gems_count", "5 Gemmes").replace("{count}", "5")}
               </div>
             </button>
           </>
@@ -425,7 +441,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
       {emptySlots > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg md:text-xl font-black italic uppercase tracking-tight text-white">
-            Ajouter une équipe
+            {t("favorite_teams.add_team", "Ajouter une équipe")}
           </h2>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
@@ -433,14 +449,14 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher une équipe (ex: Paris)"
+              placeholder={t("favorite_teams.search_placeholder", "Rechercher une équipe (ex: Paris)")}
               className={`w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-orange-500 transition-colors ${(profile?.favoriteTeams?.length || 0) < 2 && !profile?.hasCompletedDidacticiel ? 'ring-4 ring-orange-500 animate-pulse ring-offset-2 ring-offset-[#0a0a0b]' : ''}`}
             />
           </div>
 
           {isSearching && (
             <div className="text-center py-8 text-gray-500 font-bold animate-pulse">
-              Recherche en cours...
+              {t("favorite_teams.searching", "Recherche en cours...")}
             </div>
           )}
 
@@ -465,7 +481,7 @@ export function FavoriteTeamsPage({ profile, onBack, onTeamClick }: FavoriteTeam
                     disabled={isAdding === result.team.id.toString()}
                     className="shrink-0 ml-2 bg-orange-500 hover:bg-orange-600 text-black font-black uppercase text-[10px] px-3 py-1.5 h-auto disabled:opacity-50"
                   >
-                    {isAdding === result.team.id.toString() ? '...' : 'Ajouter'}
+                    {isAdding === result.team.id.toString() ? '...' : t("favorite_teams.add", "Ajouter")}
                   </Button>
                 </div>
               ))}

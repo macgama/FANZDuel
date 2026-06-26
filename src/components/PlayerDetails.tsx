@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import { Card, Button } from "./Layout";
 import {
   ArrowLeft,
@@ -33,6 +34,7 @@ export function PlayerDetails({
   onTeamClick,
   onLeagueClick,
 }: PlayerDetailsProps) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [playerData, setPlayerData] = useState<any | null>(null);
   const [stats, setStats] = useState<any[]>([]);
@@ -83,7 +85,7 @@ export function PlayerDetails({
         </Button>
         <Card className="p-8 text-center bg-zinc-900 border-zinc-800">
           <p className="text-gray-400 font-bold uppercase">
-            Aucune donnée trouvée pour ce joueur sur la saison {season}.
+            {t('player.no_data', 'Aucune donnée trouvée pour ce joueur sur la saison ')} {season}.
           </p>
         </Card>
       </div>
@@ -135,7 +137,7 @@ export function PlayerDetails({
             </div>
             {stats.length > 0 && stats[0].games?.position && (
               <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-orange-500 text-black px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-lg shadow-orange-500/30">
-                {stats[0].games.position}
+                {t(`player.position.${stats[0].games.position.toLowerCase()}`, stats[0].games.position)}
               </div>
             )}
           </div>
@@ -158,20 +160,16 @@ export function PlayerDetails({
               <div className="bg-black/40 rounded-xl p-3 border border-white/5 backdrop-blur-sm">
                 <div className="flex items-center gap-2 text-gray-500 mb-1">
                   <Calendar className="w-3 h-3" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">
-                    Âge
-                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">{t('player.age', 'Âge')}</span>
                 </div>
                 <p className="text-lg font-black text-white">
-                  {playerData.age || "-"} ans
+                  {playerData.age || "-"} {t('player.years', 'ans')}
                 </p>
               </div>
               <div className="bg-black/40 rounded-xl p-3 border border-white/5 backdrop-blur-sm">
                 <div className="flex items-center gap-2 text-gray-500 mb-1">
                   <Ruler className="w-3 h-3" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">
-                    Taille
-                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">{t('player.height', 'Taille')}</span>
                 </div>
                 <p className="text-lg font-black text-white">
                   {playerData.height || "-"}
@@ -180,9 +178,7 @@ export function PlayerDetails({
               <div className="bg-black/40 rounded-xl p-3 border border-white/5 backdrop-blur-sm">
                 <div className="flex items-center gap-2 text-gray-500 mb-1">
                   <Weight className="w-3 h-3" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">
-                    Poids
-                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">{t('player.weight', 'Poids')}</span>
                 </div>
                 <p className="text-lg font-black text-white">
                   {playerData.weight || "-"}
@@ -191,17 +187,13 @@ export function PlayerDetails({
               <div className="bg-black/40 rounded-xl p-3 border border-white/5 backdrop-blur-sm">
                 <div className="flex items-center gap-2 text-gray-500 mb-1">
                   <Activity className="w-3 h-3" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">
-                    Statut
-                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">{t('player.status', 'Statut')}</span>
                 </div>
                 <p className="text-lg font-black text-white">
                   {playerData.injured ? (
-                    <span className="text-red-500 inline-flex items-center gap-1">
-                      Blessé
-                    </span>
+                    <span className="text-red-500 inline-flex items-center gap-1">{t('player.injured', 'Blessé')}</span>
                   ) : (
-                    "Actif"
+                    t('player.active', 'Actif')
                   )}
                 </p>
               </div>
@@ -212,22 +204,18 @@ export function PlayerDetails({
 
       {/* Season Totals */}
       <h2 className="text-xl font-black text-white uppercase tracking-tight mt-8 flex items-center gap-2">
-        Saison <span className="text-orange-500">{formatSeason(season)}</span>
+        {t('player.season', 'Saison')} <span className="text-orange-500">{formatSeason(season)}</span>
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-zinc-900 border-zinc-800 p-6 flex flex-col items-center justify-center text-center">
           <Activity className="w-8 h-8 text-white mb-3 opacity-20" />
           <span className="text-3xl font-black text-white">{totalApps}</span>
-          <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-2">
-            Matches
-          </span>
+          <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-2">{t('player.matches', 'Matches')}</span>
         </Card>
         <Card className="bg-zinc-900 border-zinc-800 p-6 flex flex-col items-center justify-center text-center">
           <Calendar className="w-8 h-8 text-white mb-3 opacity-20" />
           <span className="text-3xl font-black text-white">{totalMins}'</span>
-          <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-2">
-            Minutes
-          </span>
+          <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-2">{t('player.minutes', 'Minutes')}</span>
         </Card>
         <Card className="bg-zinc-900 border-zinc-800 p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
           <div className="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors"></div>
@@ -236,9 +224,7 @@ export function PlayerDetails({
             <span className="text-3xl font-black text-green-400 leading-none">
               {totalGoals}
             </span>
-            <span className="text-[10px] font-black text-gray-400 mt-1">
-              {goalsPer90} Buts / 90'
-            </span>
+            <span className="text-[10px] font-black text-gray-400 mt-1">{goalsPer90} {t('player.goals_per_90', 'Buts / 90\'')}</span>
           </div>
         </Card>
         <Card className="bg-zinc-900 border-zinc-800 p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
@@ -254,7 +240,7 @@ export function PlayerDetails({
               <span className="text-red-500">{totalRed}</span>
             </span>
             <span className="text-[10px] font-black text-gray-400 mt-1">
-              {cardsPer90} <span className="text-red-400">Cartons / 90'</span>
+              {cardsPer90} <span className="text-red-400">{t('player.cards_per_90', 'Cartons / 90\'')}</span>
             </span>
           </div>
         </Card>
@@ -264,8 +250,8 @@ export function PlayerDetails({
       {stats.length > 0 && (
         <div className="space-y-4 pt-4">
           <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-            Statistiques par{" "}
-            <span className="text-orange-500">Compétition</span>
+            {t('player.stats_by', 'Statistiques par')} 
+            <span className="text-orange-500">{t('player.competition', 'Compétition')}</span>
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {stats.map((stat, idx) => (
@@ -324,33 +310,25 @@ export function PlayerDetails({
 
                 <div className="grid grid-cols-4 gap-3">
                   <div>
-                    <span className="block text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">
-                      Matches
-                    </span>
+                    <span className="block text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">{t('player.matches', 'Matches')}</span>
                     <span className="text-sm font-bold text-white">
                       {stat.games?.appearences || 0}
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">
-                      Buts
-                    </span>
+                    <span className="block text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">{t('player.goals', 'Buts')}</span>
                     <span className="text-sm font-bold text-green-400">
                       {stat.goals?.total || 0}
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">
-                      Passes
-                    </span>
+                    <span className="block text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">{t('player.assists', 'Passes')}</span>
                     <span className="text-sm font-bold text-blue-400">
                       {stat.goals?.assists || 0}
                     </span>
                   </div>
                   <div>
-                    <span className="block text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">
-                      Cartons
-                    </span>
+                    <span className="block text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">{t('player.cards', 'Cartons')}</span>
                     <div className="flex items-center gap-1">
                       <div className="w-2.5 h-3.5 bg-yellow-400 rounded-sm"></div>
                       <span className="text-xs font-bold text-white mr-1">
@@ -393,6 +371,7 @@ function PlayerCareer({
   onTeamClick?: (id: number, season: number) => void;
   onLeagueClick?: (id: number, season: number) => void;
 }) {
+  const { t } = useLanguage();
   const [careerStats, setCareerStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -435,9 +414,7 @@ function PlayerCareer({
     return (
       <div className="pt-8 flex flex-col items-center justify-center space-y-4 opacity-50">
         <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full"></div>
-        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">
-          Chargement de la carrière...
-        </p>
+        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{t('player.loading_career', 'Chargement de la carrière...')}</p>
       </div>
     );
   }
@@ -492,7 +469,7 @@ function PlayerCareer({
   return (
     <div className="space-y-4 pt-8">
       <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-        Liste de clubs où il a <span className="text-orange-500">Joué</span>
+        {t('player.clubs_played', 'Liste de clubs où il a')} <span className="text-orange-500">{t('player.played', 'Joué')}</span>
       </h2>
       <Card className="bg-zinc-900 border-zinc-800 overflow-hidden">
         <div className="overflow-x-auto">
@@ -500,11 +477,11 @@ function PlayerCareer({
             <thead>
               <tr className="bg-black/40 text-[9px] text-gray-500 font-black uppercase tracking-widest border-b border-zinc-800">
                 <th className="p-3 w-10"></th>
-                <th className="p-3">Équipes</th>
-                <th className="p-3 text-center">Saison</th>
-                <th className="p-3 text-center">MJ</th>
-                <th className="p-3 text-center">Buts</th>
-                <th className="p-3 text-center">Pass.</th>
+                <th className="p-3">{t('player.teams', 'Équipes')}</th>
+                <th className="p-3 text-center">{t('player.season', 'Saison')}</th>
+                <th className="p-3 text-center">{t('player.played_matches', 'MJ')}</th>
+                <th className="p-3 text-center">{t('player.goals', 'Buts')}</th>
+                <th className="p-3 text-center">{t('player.assists_short', 'Pass.')}</th>
                 <th className="p-3 text-center">
                   <div className="w-2.5 h-3.5 bg-yellow-400 rounded-sm mx-auto"></div>
                 </th>

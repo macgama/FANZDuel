@@ -6,9 +6,11 @@ import { Duel, UserProfile } from '../types';
 import { useAlert } from '../context/AlertContext';
 import { footballApi } from '../services/footballApi';
 import { getImageUrl } from '../lib/utils';
+import { translateCountryName } from '../utils/countryTranslations';
 import { MrFanzHelp } from './MrFanzHelp';
 import { useSocket } from '../context/SocketContext';
 import { PublicProfileModal } from './PublicProfileModal';
+import { useLanguage } from '../context/LanguageContext';
 
 interface WaitingRoomProps {
   user: UserProfile;
@@ -20,6 +22,7 @@ interface WaitingRoomProps {
 export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingRoomProps) {
   const { showAlert } = useAlert();
   const { socket } = useSocket();
+  const { t } = useLanguage();
   const [duels, setDuels] = useState<any[]>([]);
   const [liveMatches, setLiveMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,10 +37,10 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
       const isCreator = duel.participants[0]?.uid === user.uid;
       if (isCreator) {
         socket.emit('cancel-duel', { duelId: duel.id, userId: user.uid });
-        showAlert({ title: 'Duel annulé et ressources restituées', type: 'success' });
+        showAlert({ title: t("duel.cancelled_success", "Duel annulé et ressources restituées"), type: 'success' });
       } else {
         socket.emit('leave-duel', { duelId: duel.id, userId: user.uid });
-        showAlert({ title: 'Duel quitté et ressources restituées', type: 'success' });
+        showAlert({ title: t("duel.left_success", "Duel quitté et ressources restituées"), type: 'success' });
       }
       setDuels(prev => prev.filter(d => d.id !== duel.id));
     }
@@ -46,9 +49,16 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
   const handleShareDuel = async (duel: any) => {
     const inviteCodeToShare = duel.inviteCode || duel.id.substring(0, 8).toUpperCase();
     const shareUrl = `${window.location.origin}/?join=${inviteCodeToShare}`;
+    
+    let duelTypeLabel = duel.type.replace('_', ' ');
+    const translatedShareText = t("duel.share_text", "Viens m'affronter dans un duel {type} ! Utilise le code: {code}\nLien direct: {link}")
+      .replace("{type}", duelTypeLabel)
+      .replace("{code}", inviteCodeToShare)
+      .replace("{link}", shareUrl);
+
     const shareData = {
-      title: 'Rejoins mon duel sur TheBestFan!',
-      text: `Viens m'affronter dans un duel ${duel.type.replace('_', ' ')} ! Utilise le code: ${inviteCodeToShare}\nLien direct: ${shareUrl}`,
+      title: t("duel.share_title", "Rejoins mon duel sur TheBestFan!"),
+      text: translatedShareText,
     };
 
     try {
@@ -57,7 +67,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
       } else {
         await navigator.clipboard.writeText(inviteCodeToShare);
         showAlert({
-          title: 'Code copié !',
+          title: t("duel.code_copied", "Code copié !"),
           type: 'success'
         });
       }
@@ -78,15 +88,15 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
           if (duel && duel.matchId) {
             onJoinDuel(duel.id, duel.type, duel.matchId);
           } else {
-            showAlert({ type: 'error', title: 'Duel introuvable ou expiré.' });
+            showAlert({ type: 'error', title: t("duel.not_found", "Duel introuvable ou expiré.") });
           }
         }
       } else {
-        showAlert({ type: 'error', title: 'Code invalide.' });
+        showAlert({ type: 'error', title: t("duel.invalid_code", "Code invalide.") });
       }
     } catch (err) {
       console.error(err);
-      showAlert({ type: 'error', title: 'Erreur lors de la recherche du duel.' });
+      showAlert({ type: 'error', title: t("duel.error_search", "Erreur lors de la recherche du duel.") });
     }
   };
 
@@ -161,7 +171,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
       {/* Header */}
       <div className="flex items-center justify-between px-4 mt-2">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center">
-          Salle d'Attente
+          {t("duel.waiting_room", "Salle d'Attente")}
           <MrFanzHelp contextId="waiting_room" />
         </h1>
       </div>
@@ -172,7 +182,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
           <input 
             type="text"
-            placeholder="Rechercher..."
+            placeholder={t("duel.search_placeholder", "Rechercher...")}
             className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-8 pr-3 text-[10px] sm:text-xs font-bold focus:outline-none focus:border-orange-500/50 transition-all text-white"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -181,7 +191,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
         <div className="relative flex-1 min-w-[100px]">
           <input 
             type="text"
-            placeholder="Code privé"
+            placeholder={t("duel.private_code_placeholder", "Code privé")}
             className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-[10px] sm:text-xs font-bold focus:outline-none focus:border-orange-500/50 transition-all text-white uppercase text-center"
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
@@ -217,15 +227,15 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-orange-500"></div>
-            <p className="text-gray-500 font-bold uppercase italic tracking-widest text-xs">Recherche de duels...</p>
+            <p className="text-gray-500 font-bold uppercase italic tracking-widest text-xs">{t("duel.searching_duels", "Recherche de duels...")}</p>
           </div>
         ) : filteredDuels.length === 0 ? (
           <div className="flex flex-col space-y-6">
             <div className="flex flex-col items-center justify-center pt-8 pb-4 text-center space-y-4 opacity-40">
               <Users className="w-16 h-16 text-gray-600" />
               <div>
-                <p className="text-sm font-black uppercase italic text-gray-500">Aucun duel en attente</p>
-                <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">Créez-en un ou rejoignez un match en direct !</p>
+                <p className="text-sm font-black uppercase italic text-gray-500">{t("duel.no_duels_waiting", "Aucun duel en attente")}</p>
+                <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">{t("duel.create_or_join_live", "Créez-en un ou rejoignez un match en direct !")}</p>
               </div>
             </div>
 
@@ -233,7 +243,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
               <div className="space-y-3">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <h3 className="text-sm font-black italic uppercase text-white">Matchs en direct</h3>
+                  <h3 className="text-sm font-black italic uppercase text-white">{t("duel.live_matches", "Matchs en direct")}</h3>
                 </div>
                 {liveMatches.slice(0, 3).map((match: any) => (
                   <motion.div
@@ -249,14 +259,14 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <img src={match.teams.home.logo} alt="" className="w-5 h-5 object-contain" />
-                              <span className="text-xs font-bold text-white">{match.teams.home.name}</span>
+                              <span className="text-xs font-bold text-white">{translateCountryName(match.teams.home.name)}</span>
                             </div>
                             <span className="text-sm font-black text-white">{match.goals.home ?? 0}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <img src={match.teams.away.logo} alt="" className="w-5 h-5 object-contain" />
-                              <span className="text-xs font-bold text-white">{match.teams.away.name}</span>
+                              <span className="text-xs font-bold text-white">{translateCountryName(match.teams.away.name)}</span>
                             </div>
                             <span className="text-sm font-black text-white">{match.goals.away ?? 0}</span>
                           </div>
@@ -295,7 +305,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                     <div className="bg-white/5 px-3 py-2 flex items-center justify-between border-b border-white/5 relative">
                       <div className="flex items-center gap-2 flex-1">
                         <img src={matchDetails.teams.home.logo} alt="Home" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
-                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase truncate">{matchDetails.teams.home.name}</span>
+                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase truncate">{translateCountryName(matchDetails.teams.home.name)}</span>
                       </div>
                       
                       <div className="flex flex-col items-center justify-center px-2 min-w-[50px] sm:min-w-[70px]">
@@ -310,7 +320,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                       </div>
 
                       <div className="flex items-center gap-2 flex-1 justify-end">
-                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase truncate text-right">{matchDetails.teams.away.name}</span>
+                        <span className="text-[10px] sm:text-xs font-bold text-white uppercase truncate text-right">{translateCountryName(matchDetails.teams.away.name)}</span>
                         <img src={matchDetails.teams.away.logo} alt="Away" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
                       </div>
                     </div>
@@ -322,7 +332,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                         <span className="text-sm font-black italic uppercase tracking-tighter text-white">{duel.type.replace('_', ' ')}</span>
                         {duel.isPrivate && (
                           <span className="px-1.5 py-0.5 rounded bg-orange-500/20 text-[8px] font-black text-orange-500 uppercase tracking-widest border border-orange-500/30">
-                            PRIVÉ
+                            {t("duel.private_badge", "PRIVÉ")}
                           </span>
                         )}
                       </div>
@@ -337,7 +347,7 @@ export function WaitingRoom({ user, onJoinDuel, onMatchClick, onBack }: WaitingR
                         <button 
                           onClick={() => handleLeaveOrCancelDuel(duel)}
                           className="p-2 sm:p-2.5 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors border border-red-500/20"
-                          title={duel.participants[0]?.uid === user?.uid ? "Annuler le duel" : "Quitter le duel"}
+                          title={duel.participants[0]?.uid === user?.uid ? t("duel.cancel_duel", "Annuler le duel") : t("duel.leave_duel", "Quitter le duel")}
                         >
                           <X className="w-4 h-4" />
                         </button>

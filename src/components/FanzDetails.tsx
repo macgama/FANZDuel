@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { getImageUrl } from "../lib/utils";
 import { db, handleFirestoreError, OperationType } from "../firebase";
 import { cn } from "../lib/utils";
+import { useLanguage } from "../context/LanguageContext";
 import {
   doc,
   getDoc,
@@ -96,6 +97,7 @@ interface FanzDetailsProps {
 }
 
 export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDetailsProps) {
+  const { t, tDb } = useLanguage();
   const [fanz, setFanz] = useState<Fanz | null>(null);
   const [template, setTemplate] = useState<FanzTemplate | null>(null);
   const [lifeActions, setLifeActions] = useState<LifeAction[]>([]);
@@ -348,7 +350,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
         <p className="text-gray-500 font-bold animate-pulse">
-          Chargement du FANZ...
+          {t("fanz.loading", "Chargement du FANZ...")}
         </p>
       </div>
     );
@@ -357,9 +359,9 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
   if (!fanz || !template) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500 font-bold">FANZ introuvable.</p>
+        <p className="text-gray-500 font-bold">{t("fanz.not_found", "FANZ introuvable.")}</p>
         <button onClick={onBack} className="mt-4 text-orange-500 font-bold">
-          Retour
+          {t("fanz.back", "Retour")}
         </button>
       </div>
     );
@@ -551,25 +553,25 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
   };
 
   const statLabels = {
-    force: "Force",
-    endurance: "Endurance",
-    mental: "Mental",
-    bluff: "Bluff",
-    creativity: "Créativité",
-    social: "Social",
-    intelligence: "Intelligence",
-    charisma: "Charisme",
+    force: t("fanz.stat_force", "Force"),
+    endurance: t("fanz.stat_endurance", "Endurance"),
+    mental: t("fanz.stat_mental", "Mental"),
+    bluff: t("fanz.stat_bluff", "Bluff"),
+    creativity: t("fanz.stat_creativity", "Créativité"),
+    social: t("fanz.stat_social", "Social"),
+    intelligence: t("fanz.stat_intelligence", "Intelligence"),
+    charisma: t("fanz.stat_charisma", "Charisme"),
   };
 
   const statDuelDescriptions = {
-    force: "Augmente la puissance des clics et l'excitation de départ en duel.",
-    endurance: "Augmente l'excitation max et sa vitesse de récupération par seconde.",
-    mental: "Allonge la durée de tous les malus infligés à l'adversaire.",
-    bluff: "Prolonge les effets visuels indésirables infligés à l'adversaire.",
-    creativity: "Réduit le coût en excitation de toutes vos cartes d'action.",
-    social: "Booste la Ferveur et le score générés lors d'un duel.",
-    intelligence: "Améliore les chances d'obtenir des cartes d'action plus rares.",
-    charisma: "Renforce la puissance globale et le bonus de vos cartes jouées.",
+    force: t("fanz.stat_desc_force", "Augmente la puissance des clics et l'excitation de départ en duel."),
+    endurance: t("fanz.stat_desc_endurance", "Augmente l'excitation max et sa vitesse de récupération par seconde."),
+    mental: t("fanz.stat_desc_mental", "Allonge la durée de tous les malus infligés à l'adversaire."),
+    bluff: t("fanz.stat_desc_bluff", "Prolonge les effets visuels indésirables infligés à l'adversaire."),
+    creativity: t("fanz.stat_desc_creativity", "Réduit le coût en excitation de toutes vos cartes d'action."),
+    social: t("fanz.stat_desc_social", "Booste la Ferveur et le score générés lors d'un duel."),
+    intelligence: t("fanz.stat_desc_intelligence", "Améliore les chances d'obtenir des cartes d'action plus rares."),
+    charisma: t("fanz.stat_desc_charisma", "Renforce la puissance globale et le bonus de vos cartes jouées."),
   };
 
   const handleBuySkin = async (skin: FanzSkin) => {
@@ -719,27 +721,27 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
           userProfile.uid,
           "money",
           -emote.price.money,
-          `Achat emote: ${emote.name}`,
+          `Achat emote: ${typeof emote.name === 'string' ? emote.name : (emote.name as any)?.fr || 'Emote'}`,
         );
       if (emote.price.gems)
         await logTransaction(
           userProfile.uid,
           "gems",
           -emote.price.gems,
-          `Achat emote: ${emote.name}`,
+          `Achat emote: ${typeof emote.name === 'string' ? emote.name : (emote.name as any)?.fr || 'Emote'}`,
         );
       if (emote.price.boostPoints)
         await logTransaction(
           userProfile.uid,
           "boost",
           -emote.price.boostPoints,
-          `Achat emote: ${emote.name}`,
+          `Achat emote: ${typeof emote.name === 'string' ? emote.name : (emote.name as any)?.fr || 'Emote'}`,
         );
 
       setPurchaseConfirm(null);
       setAlertModal({
         title: "Emote acheté !",
-        message: `Vous avez débloqué l'emote ${emote.name}.`,
+        message: `Vous avez débloqué l'emote ${typeof emote.name === 'string' ? emote.name : (emote.name as any)?.fr || 'Emote'}.`,
         type: "success",
       });
     } catch (error) {
@@ -828,15 +830,15 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
         activeFanzId: fanz.id,
       });
       setAlertModal({
-        title: "FANZ Actif",
-        message: "Ce FANZ est maintenant votre FANZ actif !",
+        title: t("fanz.active_alert_title", "FANZ Actif"),
+        message: t("fanz.active_alert_desc", "Ce FANZ est maintenant votre FANZ actif !"),
         type: "success",
       });
     } catch (error) {
       console.error("Error setting active FANZ:", error);
       setAlertModal({
-        title: "Erreur",
-        message: "Impossible de définir ce FANZ comme actif.",
+        title: t("fanz.active_error_title", "Erreur"),
+        message: t("fanz.active_error_desc", "Impossible de définir ce FANZ comme actif."),
         type: "error",
       });
     }
@@ -876,7 +878,10 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
         <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2">
           <div className="px-2 py-0.5 sm:px-3 sm:py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
             <span className="text-[8px] sm:text-[10px] font-black italic uppercase tracking-widest text-orange-500">
-              {template.rarity}
+              {template.rarity === "legendary" ? t("rarity.legendary", "Légendaire") :
+               template.rarity === "epic" ? t("rarity.epic", "Épique") :
+               template.rarity === "rare" ? t("rarity.rare", "Rare") :
+               t("rarity.common", "Commun")}
             </span>
           </div>
           {userProfile.activeFanzId !== fanz.id ? (
@@ -885,13 +890,13 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
               className={cn("px-2 py-0.5 sm:px-3 sm:py-1 bg-orange-500/20 hover:bg-orange-500/40 backdrop-blur-md rounded-full border border-orange-500/50 transition-colors relative", !userProfile.activeFanzId && "ring-4 ring-orange-500 animate-pulse ring-offset-2 ring-offset-black")}
             >
               <span className="text-[8px] sm:text-[10px] font-black italic uppercase tracking-widest text-orange-500">
-                Définir Actif
+                {t("fanz.set_active", "Définir Actif")}
               </span>
             </button>
           ) : (
             <div className="px-2 py-0.5 sm:px-3 sm:py-1 bg-green-500/20 backdrop-blur-md rounded-full border border-green-500/50">
               <span className="text-[8px] sm:text-[10px] font-black italic uppercase tracking-widest text-green-500">
-                FANZ Actif
+                {t("fanz.active_status", "FANZ Actif")}
               </span>
             </div>
           )}
@@ -911,7 +916,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
           <OptimizedMedia
             type="image"
             src={currentImageUrl || ""}
-            alt={equippedSkinData?.name || fanz.name}
+            alt={tDb(equippedSkinData?.name || fanz.name)}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         )}
@@ -923,12 +928,12 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
               onClick={() => setActiveTab("stats")}
               className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer hover:text-orange-500 transition-colors"
             >
-              {equippedSkinData?.name || fanz.name}
+              {tDb(equippedSkinData?.name || fanz.name)}
             </h1>
 
             {template.battleCry && (
               <p className="text-[8px] sm:text-xs font-black italic uppercase tracking-wider text-orange-400 drop-shadow-md mb-1 animate-pulse">
-                "{template.battleCry}"
+                "{tDb(template.battleCry)}"
               </p>
             )}
 
@@ -936,14 +941,14 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                 <p className="text-[10px] sm:text-sm font-black italic uppercase tracking-tighter text-orange-500 drop-shadow-md">
-                  {activeAction.name}
+                  {tDb(activeAction.name)}
                 </p>
               </div>
             )}
 
             {!activeAction && (
               <p className="text-[8px] sm:text-[10px] sm:text-xs font-medium text-gray-300 mt-1 max-w-[80%] line-clamp-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                {template.shortDescription || template.description}
+                {tDb(template.shortDescription || template.description)}
               </p>
             )}
 
@@ -953,23 +958,22 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                 <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1">
                   {!isDuplicatedName && (
                     <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
-                      Skin: {equippedSkinData.name}
+                      {t("fanz.skin_prefix", "Skin: {name}").replace("{name}", equippedSkinData.name)}
                     </div>
                   )}
                   {equippedSkinData.energyBonus ? (
                     <div className="bg-blue-500/20 backdrop-blur-md border border-blue-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-blue-400 flex items-center gap-1 shadow-sm">
-                      <Zap className="w-2.5 h-2.5" /> +
-                      {equippedSkinData.energyBonus} ENER Max
+                      <Zap className="w-2.5 h-2.5" /> {t("fanz.energy_bonus", "+{amount} ENER Max").replace("{amount}", equippedSkinData.energyBonus.toString())}
                     </div>
                   ) : null}
                   {equippedSkinData.moneyBonus ? (
                     <div className="bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-yellow-400 shadow-sm">
-                      +{equippedSkinData.moneyBonus}% CRÉDITS
+                      {t("fanz.credits_bonus", "+{amount}% CRÉDITS").replace("{amount}", equippedSkinData.moneyBonus.toString())}
                     </div>
                   ) : null}
                   {equippedSkinData.fervorBonus ? (
                     <div className="bg-orange-500/20 backdrop-blur-md border border-orange-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-orange-400 shadow-sm">
-                      +{equippedSkinData.fervorBonus}% FERV
+                      {t("fanz.fervor_bonus", "+{amount}% FERV").replace("{amount}", equippedSkinData.fervorBonus.toString())}
                     </div>
                   ) : null}
                 </div>
@@ -1005,7 +1009,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                     className="flex flex-col gap-1 w-24 sm:w-28 cursor-pointer select-none"
                   >
                     <div className="flex justify-between items-center text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-orange-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                      <span>Ferveur</span>
+                      <span>{t("home.fervor", "Ferveur")}</span>
                       <span>{currentPoints}/{nextLevelPoints}</span>
                     </div>
                     <div className="h-2.5 bg-black/60 rounded-full border border-white/15 relative overflow-hidden shadow-inner">
@@ -1039,7 +1043,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                     className="flex flex-col gap-1 w-24 sm:w-28 cursor-pointer select-none"
                   >
                     <div className="flex justify-between items-center text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-amber-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                      <span>Stats</span>
+                      <span>{t("fanz.stat_label", "Stats")}</span>
                       <span>{totalLevels}/80</span>
                     </div>
                     <div className="h-2.5 bg-black/60 rounded-full border border-white/15 relative overflow-hidden shadow-inner">
@@ -1061,7 +1065,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                     className="flex flex-col gap-1 w-24 sm:w-28 cursor-pointer select-none"
                   >
                     <div className="flex justify-between items-center text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-rose-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                      <span>Rang</span>
+                      <span>{t("fanz.rank_label", "Rang")}</span>
                       <span>{rank}/10</span>
                     </div>
                     <div className="h-2.5 bg-black/60 rounded-full border border-white/15 relative overflow-hidden shadow-inner">
@@ -1084,44 +1088,44 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
           <TabButton
             active={activeTab === "infos"}
             onClick={() => setActiveTab("infos")}
-            label="Infos"
+            label={t("fanz.tab_infos", "Infos")}
             icon={<Info className="w-4 h-4" />}
           />
           <TabButton
             active={activeTab === "stats"}
             onClick={() => setActiveTab("stats")}
-            label="Stats"
+            label={t("fanz.tab_stats", "Stats")}
             icon={<Activity className="w-4 h-4" />}
           />
           <TabButton
             active={activeTab === "ferveur"}
             onClick={() => setActiveTab("ferveur")}
-            label="Ferveur"
+            label={t("fanz.tab_ferveur", "Ferveur")}
             icon={<Flame className="w-4 h-4" />}
             hasAlert={hasClaimableFerveur}
           />
           <TabButton
             active={activeTab === "rank"}
             onClick={() => setActiveTab("rank")}
-            label="Rang"
+            label={t("fanz.tab_rang", "Rang")}
             icon={<Trophy className="w-4 h-4" />}
           />
           <TabButton
             active={activeTab === "cards"}
             onClick={() => setActiveTab("cards")}
-            label="Deck"
+            label={t("fanz.tab_deck", "Deck")}
             icon={<Database className="w-4 h-4" />}
           />
           <TabButton
             active={activeTab === "skins"}
             onClick={() => setActiveTab("skins")}
-            label="Skins"
+            label={t("fanz.tab_skins", "Skins")}
             icon={<Users className="w-4 h-4" />}
           />
           <TabButton
             active={activeTab === "emotes"}
             onClick={() => setActiveTab("emotes")}
-            label="Emotes"
+            label={t("fanz.tab_emotes", "Emotes")}
             icon={<MessageCircle className="w-4 h-4" />}
           />
         </div>
@@ -1153,30 +1157,17 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                 <>
                   <div className="bg-white/5 border border-white/10 text-center rounded-2xl p-4 text-xs sm:text-sm font-medium text-gray-300 shadow-inner">
                     <span className="text-white font-black uppercase tracking-widest text-[10px] sm:text-xs inline-block mb-1">
-                      Entraînez votre Fanz !
+                      {t("fanz.train_your_fanz_title", "Entraînez votre Fanz !")}
                     </span>
                     <br />
-                    Réalisez des actions{" "}
-                    <strong className="text-orange-500 font-black italic">
-                      LIFE
-                    </strong>{" "}
-                    pour accumuler de l'expérience et renforcer les statistiques
-                    de votre{" "}
-                    <strong className="text-orange-500 font-black italic">
-                      FANZ
-                    </strong>{" "}
-                    pour les{" "}
-                    <strong className="text-white font-black italic">
-                      DUELS
-                    </strong>
-                    .<br />
-                    Certaines actions vous rapportent également de l'argent, des
-                    boosts ou des gemmes !
+                    <span>
+                      {t("fanz.train_your_fanz_desc", "Réalisez des actions LIFE pour accumuler de l'expérience et renforcer les statistiques de votre FANZ pour les DUELS. Certaines actions vous rapportent également de l'argent, des boosts ou des gemmes !")}
+                    </span>
                   </div>
 
                   <Card className="p-0 overflow-hidden">
                     <h3 className="text-lg font-black italic uppercase tracking-tighter px-6 pt-6 mb-4">
-                      Actions LIFE
+                      {t("fanz.life_actions", "Actions LIFE")}
                     </h3>
 
                     <div className="relative w-full pb-6">
@@ -1303,7 +1294,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                 {label}
                               </div>
                               <div className="text-lg sm:text-xl font-black leading-tight flex items-center gap-1">
-                                Niv. {totalLevel}
+                                {t("fanz.stat_level_abbr", "Niv.")} {totalLevel}
                                 {bonusLevel > 0 && (
                                   <span className="text-[10px] text-blue-400">
                                     +{bonusLevel}
@@ -1355,10 +1346,10 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
               <div className="text-center mb-2">
                 <h3 className="text-xl font-black italic uppercase tracking-tighter text-white drop-shadow-md flex items-center justify-center gap-2">
                   <Flame className="w-6 h-6 text-orange-500" />
-                  Chemin de Ferveur
+                  {t("fanz.ferveur_path_title", "Chemin de Ferveur")}
                 </h3>
                 <p className="text-xs text-gray-400 font-medium mt-1">
-                  Joue avec {fanz.name} pour débloquer ces récompenses !
+                  {t("fanz.ferveur_path_desc", "Joue avec {name} pour débloquer ces récompenses !").replace("{name}", t(`fanz.${template.id}.name`, fanz.name))}
                 </p>
               </div>
 
@@ -1379,15 +1370,14 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
 
                       <div className="z-10">
                         <div className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1">
-                          <Star className="w-3 h-3 sm:w-4 sm:h-4" /> Prochain
-                          Objectif
+                          <Star className="w-3 h-3 sm:w-4 sm:h-4" /> {t("fanz.next_goal", "Prochain Objectif")}
                         </div>
                         <div className="text-2xl sm:text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_10px_rgba(249,115,22,0.8)]">
                           {nextStep.pointsRequired.toLocaleString()} PTS
                         </div>
                         {!nextStep.isIntermediate && (
                           <div className="text-sm sm:text-base text-orange-300 font-bold uppercase tracking-widest mt-1">
-                            Palier {nextStep.displayLevel || nextStep.level}
+                            {t("pass.level", "Palier {level}").replace("{level}", (nextStep.displayLevel || nextStep.level).toString())}
                           </div>
                         )}
                       </div>
@@ -1404,13 +1394,13 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                             ].includes(nextStep.reward?.type || "")
                               ? `+${nextStep.reward?.amount} ${nextStep.reward?.type === "money" ? "$" : nextStep.reward?.type}`
                               : nextStep.reward?.type === "skin"
-                                ? "Skin"
+                                ? t("reward.skin", "Skin")
                                 : nextStep.reward?.type === "emote"
-                                  ? "Emote"
+                                  ? t("reward.emote", "Emote")
                                   : nextStep.reward?.type === "card"
-                                    ? "Carte"
+                                    ? t("reward.card", "Carte")
                                     : nextStep.reward?.type === "action"
-                                      ? "Action"
+                                      ? t("reward.action", "Action")
                                       : nextStep.reward?.type}
                           </div>
                         </div>
@@ -1468,7 +1458,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                 <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors rounded-xl -m-2 opacity-0 group-hover:opacity-100 pointer-events-none" />
                 <div className="flex justify-between items-end mb-2 relative z-10">
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest group-hover:text-gray-300 transition-colors">
-                    Ma progression
+                    {t("fanz.my_progress", "Ma progression")}
                   </h3>
                   <span className="text-sm font-black text-orange-400 group-hover:text-orange-300 transition-colors">
                     {(fanz.ferveurPoints || 0).toLocaleString()}{" "}
@@ -1511,7 +1501,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                         });
                     }
                   }}
-                  title="Cliquez pour aller à votre progression"
+                  title={t("fanz.click_to_go_to_progress", "Cliquez pour aller à votre progression")}
                 >
                   {/* Active Neon Progress Line */}
                   <div
@@ -1739,8 +1729,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                             </div>
                             {!step.isIntermediate && (
                               <div className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-400 bg-black/80 px-2 sm:px-3 py-1 rounded-full inline-block mt-1 border border-white/10 shadow-lg">
-                                Palier{" "}
-                                {step.displayLevel || step.level || idx + 1}
+                                {t("pass.level", "Palier {level}").replace("{level}", (step.displayLevel || step.level || idx + 1).toString())}
                               </div>
                             )}
                           </div>
@@ -1773,13 +1762,13 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                   ].includes(step.reward?.type || "")
                                     ? `+${step.reward?.amount} ${step.reward?.type === "money" ? "$" : step.reward?.type}`
                                     : step.reward?.type === "skin"
-                                      ? "Skin"
+                                      ? t("reward.skin", "Skin")
                                       : step.reward?.type === "emote"
-                                        ? "Emote"
+                                        ? t("reward.emote", "Emote")
                                         : step.reward?.type === "card"
-                                          ? "Carte"
+                                          ? t("reward.card", "Carte")
                                           : step.reward?.type === "action"
-                                            ? "Action"
+                                            ? t("reward.action", "Action")
                                             : step.reward?.type}
                                 </div>
                                 {isUnlocked && !isClaimed ? (
@@ -1803,8 +1792,8 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                         setRewardModal({
                                           isOpen: true,
                                           title: step.isIntermediate
-                                            ? `Gain Intermédiaire`
-                                            : `Palier Ferveur ${step.displayLevel || step.level}`,
+                                            ? t("fanz.intermediate_gain", "Gain Intermédiaire")
+                                            : t("fanz.fervor_level_title", "Palier Ferveur {level}").replace("{level}", (step.displayLevel || step.level).toString()),
                                           slotId,
                                           rewardType: step.reward.type as any,
                                           amount: step.reward.amount,
@@ -2114,7 +2103,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                       setClaimingReward(null);
                                     }}
                                   >
-                                    Réclamer
+                                    {t("missions.claim", "Réclamer")}
                                   </Button>
                                 ) : (
                                   <div
@@ -2125,7 +2114,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                     ) : (
                                       <Lock className="w-3 h-3 sm:w-4 sm:h-4" />
                                     )}
-                                    {isClaimed ? "RÉCUPÉRÉ" : "BLOQUÉ"}
+                                    {isClaimed ? t("pass.reward_claimed", "Récupéré").toUpperCase() : t("pass.locked", "Bloqué").toUpperCase()}
                                   </div>
                                 )}
                               </div>
@@ -2138,7 +2127,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                     <div className="text-center py-20 bg-black/20 rounded-2xl border border-white/5">
                       <Trophy className="w-12 h-12 text-gray-700 mx-auto mb-4" />
                       <p className="text-gray-500 font-bold uppercase italic">
-                        Aucun chemin de ferveur défini
+                        {t("fanz.no_fervor_path", "Aucun chemin de ferveur défini")}
                       </p>
                     </div>
                   )}
@@ -2173,10 +2162,10 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                           {rankNum}
                         </div>
                         <h3 className="text-base font-black italic uppercase tracking-tighter text-white">
-                          Rang {rankNum}
+                          {t("fanz.rank_level", "Rang {rank}").replace("{rank}", rankNum.toString())}
                         </h3>
                         <span className="text-[8px] font-black uppercase tracking-widest text-orange-500">
-                          +{(rankNum - 1) * 2}% Ferv.
+                          {t("fanz.fervor_bonus_short", "+{amount}% Ferv.").replace("{amount}", ((rankNum - 1) * 2).toString())}
                         </span>
                         <div className="h-px flex-1 bg-white/10"></div>
                         {!isRankUnlocked && (
@@ -2378,7 +2367,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                       showReward({
                                         type: customReward.type as any,
                                         amount: customReward.amount || 1,
-                                        title: `Récompense Rang ${rankNum}`,
+                                        title: t("fanz.rank_reward_title", "Récompense Rang {rank}").replace("{rank}", rankNum.toString()),
                                       });
                                     } catch (e) {
                                       console.error(
@@ -2392,7 +2381,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
 
                                   setRewardModal({
                                     isOpen: true,
-                                    title: `Rang ${rankNum}`,
+                                    title: t("fanz.rank_level", "Rang {rank}").replace("{rank}", rankNum.toString()),
                                     rankNum,
                                     slotId,
                                     rewardType: (customReward?.type ||
@@ -2617,49 +2606,49 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                     {isClaimed ? (
                                       <>
                                         {claimedChoice?.type === "card" &&
-                                          "Carte Débloquée"}
+                                          t("reward.card_unlocked", "Carte Débloquée")}
                                         {claimedChoice?.type === "skin" &&
-                                          "Skin Débloqué"}
+                                          t("reward.skin_unlocked", "Skin Débloqué")}
                                         {claimedChoice?.type === "emote" &&
-                                          "Emote Débloqué"}
+                                          t("reward.emote_unlocked", "Emote Débloqué")}
                                         {claimedChoice?.type === "action" &&
-                                          "Action Débloquée"}
+                                          t("reward.action_unlocked", "Action Débloquée")}
                                         {claimedChoice?.type === "skill" &&
-                                          "Stat Améliorée"}
+                                          t("reward.stat_improved", "Stat Améliorée")}
                                         {!claimedChoice &&
-                                          "Récompense Récupérée"}
+                                          t("reward.claimed", "Récompense Récupérée")}
                                       </>
                                     ) : customReward ? (
                                       customReward.type === "money" ? (
-                                        `${customReward.amount} Argent`
+                                        `${customReward.amount} ${t("shop.money", "Argent")}`
                                       ) : customReward.type === "gems" ? (
-                                        `${customReward.amount} Gemmes`
+                                        `${customReward.amount} ${t("shop.gems", "Gemmes")}`
                                       ) : customReward.type === "boost" ? (
-                                        `${customReward.amount} Boost`
+                                        `${customReward.amount} ${t("shop.boost", "Boost")}`
                                       ) : customReward.type === "energy" ? (
-                                        `${customReward.amount} Énergie`
+                                        `${customReward.amount} ${t("shop.energy", "Énergie")}`
                                       ) : customReward.type === "xp" ? (
                                         `${customReward.amount} XP`
                                       ) : customReward.type === "card" ? (
-                                        "Carte"
+                                        t("reward.type_card", "Carte")
                                       ) : customReward.type === "skin" ? (
-                                        "Skin"
+                                        t("reward.type_skin", "Skin")
                                       ) : customReward.type === "emote" ? (
-                                        "Emote"
+                                        t("reward.type_emote", "Emote")
                                       ) : customReward.type === "action" ? (
-                                        "Action"
+                                        t("reward.type_action", "Action")
                                       ) : customReward.type === "team_slot" ? (
-                                        "Slot Équipe"
+                                        t("reward.team_slot", "Slot Équipe")
                                       ) : (
-                                        "Récompense de Rang"
+                                        t("reward.rank_reward", "Récompense de Rang")
                                       )
                                     ) : (
-                                      "Récompense de Rang"
+                                      t("reward.rank_reward", "Récompense de Rang")
                                     )}
                                   </div>
                                   {!isClaimed && isRankUnlocked && (
                                     <div className="text-[8px] font-bold text-orange-500 mt-0.5">
-                                      Choisir
+                                      {t("reward.choose", "Choisir")}
                                     </div>
                                   )}
                                 </div>
@@ -2678,7 +2667,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                           <div className="flex flex-col items-center justify-center gap-3 py-4 border border-white/10 bg-white/5 rounded-2xl">
                             <div className="text-center">
                               <h4 className="text-[10px] font-black italic uppercase text-orange-500 mb-1">
-                                Débloquer Rang {rankNum}
+                                {t("fanz.unlock_rank", "Débloquer Rang {rank}").replace("{rank}", rankNum.toString())}
                               </h4>
                               <div className="flex gap-3 justify-center">
                                 {costMoney > 0 && (
@@ -2710,9 +2699,9 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                   userProfile.boostPoints < costBoost
                                 ) {
                                   setAlertModal({
-                                    title: "Ressources insuffisantes",
+                                    title: t("action.insufficient_resources", "Ressources insuffisantes"),
                                     message:
-                                      "Vous n'avez pas assez de pièces ou de points de boost pour passer au rang suivant.",
+                                      t("fanz.insufficient_for_rank", "Vous n'avez pas assez de pièces ou de points de boost pour passer au rang suivant."),
                                     type: "error",
                                   });
                                   return;
@@ -2744,20 +2733,20 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                       userProfile.uid,
                                       "money",
                                       -costMoney,
-                                      `Passage Rang ${rankNum} (${fanz.name})`,
+                                      t("fanz.rank_up_log", "Passage Rang {rank} ({name})").replace("{rank}", rankNum.toString()).replace("{name}", t(`fanz.${template.id}.name`, fanz.name)),
                                     );
                                   if (costBoost > 0)
                                     await logTransaction(
                                       userProfile.uid,
                                       "boost",
                                       -costBoost,
-                                      `Passage Rang ${rankNum} (${fanz.name})`,
+                                      t("fanz.rank_up_log", "Passage Rang {rank} ({name})").replace("{rank}", rankNum.toString()).replace("{name}", t(`fanz.${template.id}.name`, fanz.name)),
                                     );
 
                                   setFanz({ ...fanz, rank: rankNum });
                                   setAlertModal({
-                                    title: "Rang débloqué !",
-                                    message: `Félicitations ! Votre FANZ est maintenant Rang ${rankNum}.`,
+                                    title: t("fanz.rank_unlocked_title", "Rang débloqué !"),
+                                    message: t("fanz.rank_unlocked_desc", "Félicitations ! Votre FANZ est maintenant Rang {rank}.").replace("{rank}", rankNum.toString()),
                                     type: "success",
                                   });
                                 } catch (e) {
@@ -2769,7 +2758,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               disabled={rankingUp}
                               className="w-full max-w-[140px] py-2 bg-orange-600 hover:bg-orange-500 text-white font-black italic uppercase tracking-widest text-[10px] rounded-lg transition-all shadow-lg shadow-orange-900/20 active:scale-95 disabled:opacity-50"
                             >
-                              {rankingUp ? "..." : `Passer Rang ${rankNum}`}
+                              {rankingUp ? "..." : t("fanz.rank_up_btn", "Passer Rang {rank}").replace("{rank}", rankNum.toString())}
                             </button>
                           </div>
                         )}
@@ -2813,7 +2802,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               alt="Level"
                               className="w-2 h-2 object-contain"
                             />
-                            Niv.{fanz.cardProgress?.[card.id]?.level || 1}
+                            {t("fanz.stat_level_abbr", "Niv.")}{fanz.cardProgress?.[card.id]?.level || 1}
                           </div>
                           <div
                             className={`absolute top-1 right-1 ${typeStyle.text === "text-green-500" ? "bg-green-500" : typeStyle.text === "text-red-500" ? "bg-red-500" : "bg-blue-500"} text-white text-[6px] font-black uppercase px-1 py-0.5 rounded-full z-10`}
@@ -2868,26 +2857,26 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
               <Card className="p-4">
                 <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                   <h3 className="text-base font-black italic uppercase tracking-tighter">
-                    Musée de Cartes
+                    {t("fanz.card_museum_title", "Musée de Cartes")}
                   </h3>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setCardFilter("all")}
                       className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${cardFilter === "all" ? "bg-orange-500 text-white" : "bg-white/10 text-gray-400"}`}
                     >
-                      Toutes
+                      {t("fanz.filter_all", "Toutes")}
                     </button>
                     <button
                       onClick={() => setCardFilter("available")}
                       className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${cardFilter === "available" ? "bg-orange-500 text-white" : "bg-white/10 text-gray-400"}`}
                     >
-                      Débloquées
+                      {t("fanz.filter_unlocked", "Débloquées")}
                     </button>
                     <button
                       onClick={() => setCardFilter("locked")}
                       className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${cardFilter === "locked" ? "bg-orange-500 text-white" : "bg-white/10 text-gray-400"}`}
                     >
-                      Verrouillées
+                      {t("fanz.filter_locked", "Verrouillées")}
                     </button>
                   </div>
                 </div>
@@ -3015,7 +3004,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                   alt="Level"
                                   className="w-2.5 h-2.5 object-contain"
                                 />
-                                Niv.{fanz.cardProgress?.[card.id]?.level || 1}
+                                {t("fanz.stat_level_abbr", "Niv.")}{fanz.cardProgress?.[card.id]?.level || 1}
                               </div>
                             </div>
                           )}
@@ -3085,7 +3074,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                             <h4
                               className={`font-black italic uppercase text-[10px] truncate ${isUnlocked ? typeStyle.text : "text-gray-400"}`}
                             >
-                              {card.name}
+                              {t("card." + card.id + ".name", tDb(card.name))}
                             </h4>
 
                             <div className="flex-1 flex flex-col gap-1.5">
@@ -3098,7 +3087,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               {isUnlocked && (
                                 <>
                                   <p className="text-[6px] text-gray-300 leading-tight line-clamp-2 italic">
-                                    {card.description}
+                                    {t("card." + card.id + ".desc", tDb(card.description))}
                                   </p>
                                   <div className="space-y-0.5 mt-auto">
                                     {(card.effects || []).map((effect, idx) => (
@@ -3521,7 +3510,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                           <OptimizedMedia
                             type="image"
                             src={emote.imageUrl}
-                            alt={emote.name}
+                            alt={typeof emote.name === 'string' ? emote.name : (emote.name as any)?.fr}
                             className="w-full h-full object-cover pointer-events-none"
                           />
                         )}
@@ -3536,15 +3525,15 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
             <div className="space-y-6">
               <Card className="p-4 bg-gray-800/50">
                 <h3 className="text-xl font-black italic uppercase tracking-tighter text-orange-500 mb-2">
-                  Histoire
+                  {t("fanz.story_title", "Histoire")}
                 </h3>
                 {template.longDescription ? (
                   <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
-                    {template.longDescription}
+                    {tDb(template.longDescription)}
                   </p>
                 ) : (
                   <p className="text-sm text-gray-500 italic">
-                    Aucune histoire disponible pour ce Fanz.
+                    {t("fanz.no_story_available", "Aucune histoire disponible pour ce Fanz.")}
                   </p>
                 )}
                 {template.battleCry && (
@@ -3552,10 +3541,10 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                     <MessageCircle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
                     <div>
                       <div className="text-[10px] font-black uppercase text-gray-500 mb-1">
-                        Cri de guerre
+                        {t("fanz.battle_cry_label", "Cri de guerre")}
                       </div>
                       <div className="text-sm font-bold italic text-white">
-                        « {template.battleCry} »
+                        « {tDb(template.battleCry)} »
                       </div>
                     </div>
                   </div>
@@ -3567,7 +3556,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                   <div className="space-y-3">
                     <h3 className="text-base font-black italic uppercase tracking-tighter flex items-center gap-2">
                       <Flame className="w-4 h-4 text-orange-500" />
-                      Attaques Spéciales
+                      {t("fanz.special_attacks", "Attaques Spéciales")}
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {template.specialAttackIds.map((cardId) => {
@@ -3643,7 +3632,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               <div className="flex justify-between items-end gap-2">
                                 <div>
                                   <div className="text-xs font-black uppercase text-white leading-tight">
-                                    {card.name}
+                                    {t("card." + card.id + ".name", tDb(card.name))}
                                   </div>
                                   <div
                                     className={`text-[8px] font-bold uppercase mt-0.5 ${
@@ -3667,7 +3656,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                                 </div>
                               </div>
                               <p className="text-[10px] text-gray-300 mt-2 line-clamp-2 leading-tight">
-                                {card.description}
+                                {t("card." + card.id + ".desc", tDb(card.description))}
                               </p>
                             </div>
 
@@ -3676,7 +3665,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-2 text-center group-hover:bg-black/30 transition-colors">
                                 <Lock className="w-7 h-7 text-orange-400 mb-1 drop-shadow-md animate-pulse" />
                                 <div className="text-[8px] font-black uppercase text-orange-400 tracking-wider drop-shadow-md">
-                                  Bloqué - Acheter
+                                  {t("fanz.locked_buy", "Bloqué - Acheter")}
                                 </div>
                                 {card.price && (
                                   <div className="mt-1 bg-black/85 px-1.5 py-0.5 rounded border border-white/10 flex flex-wrap justify-center gap-1 shadow-md max-w-full">
@@ -3738,14 +3727,14 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                     >
                       <Zap className="w-24 h-24 mb-6 opacity-50" />
                       <h3 className="text-3xl font-black italic uppercase text-center px-4">
-                        {selectedMuseumCard.card.name}
+                        {t("card." + selectedMuseumCard.card.id + ".name", tDb(selectedMuseumCard.card.name))}
                       </h3>
                     </div>
                   )}
 
                   {!selectedMuseumCard.isUnlocked && (
                     <div className="absolute top-4 left-4 z-20 bg-gradient-to-r from-orange-600 to-amber-500 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.4)] animate-pulse">
-                      <span>À DÉBLOQUER</span>
+                      <span>{t("fanz.to_unlock", "À DÉBLOQUER")}</span>
                       <Lock className="w-3.5 h-3.5" />
                     </div>
 
@@ -3760,7 +3749,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                 >
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="text-2xl font-black uppercase tracking-tighter text-white">
-                      {selectedMuseumCard.card.name}
+                      {t("card." + selectedMuseumCard.card.id + ".name", tDb(selectedMuseumCard.card.name))}
                     </h3>
                     <div
                       className={`${cardTypeStyles[selectedMuseumCard.card.type]?.text === "text-green-500" ? "bg-green-500" : cardTypeStyles[selectedMuseumCard.card.type]?.text === "text-red-500" ? "bg-red-500" : "bg-blue-500"} text-white text-xs font-black px-2 py-1 rounded-full uppercase`}
@@ -3772,7 +3761,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
 
                   <div className="bg-black/50 rounded-xl p-4 mb-6 border border-white/5">
                     <p className="text-sm text-gray-300 mb-4">
-                      {selectedMuseumCard.card.description}
+                      {t("card." + selectedMuseumCard.card.id + ".desc", tDb(selectedMuseumCard.card.description))}
                     </p>
 
                     {selectedMuseumCard.card.effects &&
@@ -3917,8 +3906,8 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                         (fanz.cardProgress &&
                           fanz.cardProgress[purchaseConfirm.item.id] !==
                             undefined))))
-                    ? "DÉTAILS"
-                    : "Confirmer l'achat"}
+                    ? t("shop.details", "DÉTAILS")
+                    : t("shop.confirm_purchase", "Confirmer l'achat")}
                 </h3>
 
                 {/* Large Preview in Modal */}
@@ -3953,7 +3942,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                             undefined)))
                   ) && (
                     <p className="text-sm text-gray-400">
-                      Êtes-vous sûr de vouloir acheter :
+                      {t("shop.sure_to_buy", "Êtes-vous sûr de vouloir acheter :")}
                     </p>
                   )}
                 <p className="text-2xl font-black italic text-orange-500 mt-1 uppercase drop-shadow-md">
@@ -4089,12 +4078,12 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                     {/* Specials */}
                     {purchaseConfirm.item.specialCardId ? (
                       <span className="bg-indigo-500/90 shadow-lg border border-indigo-400/40 text-white text-[11px] font-black uppercase px-2 py-1 rounded">
-                        1 Carte Spé
+                        {t("shop.special_card_bonus", "1 Carte Spé")}
                       </span>
                     ) : null}
                     {purchaseConfirm.item.specialActionId ? (
                       <span className="bg-emerald-500/90 shadow-lg border border-emerald-400/40 text-white text-[11px] font-black uppercase px-2 py-1 rounded">
-                        1 Action Spé
+                        {t("shop.special_action_bonus", "1 Action Spé")}
                       </span>
                     ) : null}
                   </div>
@@ -4125,7 +4114,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                           }}
                           className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black uppercase text-lg py-5 shadow-lg shadow-orange-900/50"
                         >
-                          Équiper
+                          {t("shop.equip", "Équiper")}
                         </Button>
                       )}
                     <Button
@@ -4134,8 +4123,8 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                     >
                       {purchaseConfirm.type === "skin" &&
                       fanz.equippedSkin === purchaseConfirm.item.id
-                        ? "Fermer (Équipé)"
-                        : "Fermer"}
+                        ? t("shop.close_equipped", "Fermer (Équipé)")
+                        : t("shop.close", "Fermer")}
                     </Button>
                   </>
                 ) : (
@@ -4158,11 +4147,11 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                         className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black uppercase text-base sm:text-lg py-4 sm:py-5 shadow-lg shadow-green-900/50 flex flex-col items-center justify-center disabled:from-gray-700 disabled:to-gray-800"
                       >
                         {purchasing ? (
-                          "ACHAT EN COURS..."
+                          t("shop.purchasing", "Achat en cours...")
                         ) : (
                           <>
                             <span className="flex items-center gap-1.5 leading-none">
-                              ACHETER POUR :
+                              {t("shop.buy_for", "ACHETER POUR :")}
                             </span>
                             <span className="flex items-center justify-center gap-3 mt-1.5 whitespace-nowrap overflow-x-auto no-scrollbar">
                               {purchaseConfirm.item.price?.money > 0 && <span className="flex items-center gap-1 text-green-300 drop-shadow-md"><span className="text-base">{purchaseConfirm.item.price.money}</span> <img src={LOGOS.money} alt="$" className="w-4 h-4" /></span>}
@@ -4179,7 +4168,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                       disabled={purchasing}
                       className="w-full bg-white/10 hover:bg-white/20 text-white font-bold uppercase mt-2"
                     >
-                      Annuler
+                      {t("shop.cancel", "Annuler")}
                     </Button>
                   </>
                 )}
@@ -4223,7 +4212,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
               onClick={() => setAlertModal(null)}
               className="w-full py-4 text-lg"
             >
-              D'accord
+              {t("alert.ok", "D'accord")}
             </Button>
           </motion.div>
         </div>
@@ -4818,7 +4807,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-2">
                             <div className="text-[8px] font-black uppercase text-white truncate">
-                              {card.name}
+                              {tDb(card.name)}
                             </div>
                             <div className="text-[6px] text-orange-500 font-bold uppercase">
                               {card.type}
@@ -4903,12 +4892,12 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                         >
                           <img
                             src={getImageUrl(skin.imageUrl)}
-                            alt={skin.name}
+                            alt={tDb(skin.name)}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-2">
                             <div className="text-[8px] font-black uppercase text-white truncate">
-                              {skin.name}
+                              {tDb(skin.name)}
                             </div>
                           </div>
                         </button>
@@ -4986,12 +4975,12 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                         >
                           <img
                             src={getImageUrl(emote.imageUrl)}
-                            alt={emote.name}
+                            alt={tDb(emote.name)}
                             className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-2">
                             <div className="text-[8px] font-black uppercase text-white truncate">
-                              {emote.name}
+                              {tDb(emote.name)}
                             </div>
                           </div>
                         </button>
@@ -5101,7 +5090,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                               resolvedImg && (
                                 <img
                                   src={getImageUrl(resolvedImg)}
-                                  alt={action.name}
+                                  alt={tDb(action.name)}
                                   className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                                 />
                               )
@@ -5109,7 +5098,7 @@ export function FanzDetails({ fanzId, userProfile, onBack, initialTab }: FanzDet
                           })()}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-2">
                             <div className="text-[10px] font-black uppercase text-white truncate">
-                              {action.name}
+                              {tDb(action.name)}
                             </div>
                           </div>
                         </button>

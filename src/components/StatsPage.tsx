@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Button } from './Layout';
 import { DuelDetailsModal } from './DuelDetailsModal';
+import { useLanguage } from '../context/LanguageContext';
 
 interface StatsPageProps {
   profile: UserProfile;
@@ -31,6 +32,7 @@ interface StatsPageProps {
 }
 
 export function StatsPage({ profile, onBack }: StatsPageProps) {
+  const { tDb } = useLanguage();
   const [userFanz, setUserFanz] = useState<Fanz[]>([]);
   const [favoriteTeamsInfo, setFavoriteTeamsInfo] = useState<any[]>([]);
   const [recentDuels, setRecentDuels] = useState<any[]>([]);
@@ -367,7 +369,7 @@ export function StatsPage({ profile, onBack }: StatsPageProps) {
                             </div>
 
                             <div className="min-w-0">
-                              <div className="text-sm font-black italic uppercase tracking-tighter text-white truncate max-w-[150px] sm:max-w-none">{fanz.name}</div>
+                              <div className="text-sm font-black italic uppercase tracking-tighter text-white truncate max-w-[150px] sm:max-w-none">{tDb(fanz.name)}</div>
                               <div className="text-[9px] font-black uppercase text-neutral-400 tracking-widest flex items-center gap-1.5 mt-0.5">
                                 <span className="text-yellow-500">{fanz.rarity || 'COMMUN'}</span>
                                 <span>•</span>

@@ -22,6 +22,31 @@ import { logTransaction } from '../services/transactionService';
 
 import { footballDataService } from '../services/footballDataService';
 
+const getTranslationValue = (field: any, lang: string): string => {
+  if (!field) return '';
+  if (typeof field === 'string') {
+    return lang === 'fr' ? field : '';
+  }
+  return field[lang] || '';
+};
+
+const setTranslationValue = (field: any, lang: string, value: string) => {
+  if (!field || typeof field === 'string') {
+    const frVal = typeof field === 'string' ? field : '';
+    return { fr: frVal, en: '', es: '', [lang]: value };
+  }
+  return { ...field, [lang]: value };
+};
+
+const renderTrans = (field: any, preferredLang: string = 'fr'): string => {
+  if (!field) return '';
+  if (typeof field === 'string') return field;
+  if (typeof field === 'object') {
+    return field[preferredLang] || field['fr'] || field['en'] || field['es'] || Object.values(field)[0] || '';
+  }
+  return String(field);
+};
+
 export function AdminZone() {
   const [activeTab, setActiveTab] = useState<'football' | 'lifeActions' | 'duelCards' | 'fanz' | 'users' | 'duelConfig' | 'shop' | 'news'>('football');
   const [activeUserSubTab, setActiveUserSubTab] = useState<'profiles' | 'fervor' | 'streak' | 'missions' | 'passes'>('profiles');
@@ -67,6 +92,10 @@ export function AdminZone() {
   // Fanz state
   const [fanzTemplates, setFanzTemplates] = useState<FanzTemplate[]>([]);
   const [editingFanz, setEditingFanz] = useState<FanzTemplate | null>(null);
+  const [fanzEditLang, setFanzEditLang] = useState<'fr' | 'en' | 'es'>('fr');
+  const [shopEditLang, setShopEditLang] = useState<'fr' | 'en' | 'es'>('fr');
+  const [cardEditLang, setCardEditLang] = useState<'fr' | 'en' | 'es'>('fr');
+  const [actionEditLang, setActionEditLang] = useState<'fr' | 'en' | 'es'>('fr');
   const [fanzViewMode, setFanzViewMode] = useState<'grid'|'list'>('grid');
   const [fanzSort, setFanzSort] = useState<{column: string, direction: 'asc'|'desc'}>({column: 'id', direction: 'asc'});
   const [modifiedFanzIds, setModifiedFanzIds] = useState<Set<string>>(new Set());
@@ -1683,6 +1712,73 @@ export function AdminZone() {
     } as any);
   };
 
+  const handleTranslateEmotes = async () => {
+    if (!window.confirm("Êtes-vous sûr de vouloir traduire automatiquement le nom de toutes les emotes de tous les FANZ ?")) return;
+    setLoading(true);
+    setStatus({ type: 'info', message: 'Traduction des emotes en cours...' });
+    
+    const EMOTE_TRANSLATIONS: Record<string, {en: string, es: string}> = {
+      'pleure': { en: 'Cry', es: 'Llora' },
+      'rigole': { en: 'Laugh', es: 'Ríe' },
+      'colère': { en: 'Angry', es: 'Enfadado' },
+      'dégoût': { en: 'Disgust', es: 'Asco' },
+      'dort': { en: 'Sleep', es: 'Duerme' },
+      'surpris': { en: 'Surprised', es: 'Sorprendido' },
+      'confus': { en: 'Confused', es: 'Confuso' },
+      'peur': { en: 'Scared', es: 'Miedo' },
+      'triste': { en: 'Sad', es: 'Triste' },
+      'heureux': { en: 'Happy', es: 'Feliz' },
+      'content': { en: 'Happy', es: 'Feliz' },
+      'choqué': { en: 'Shocked', es: 'Conmocionado' },
+      "clin d'oeil": { en: 'Wink', es: 'Guiño' },
+      'bisou': { en: 'Kiss', es: 'Beso' },
+      'fête': { en: 'Party', es: 'Fiesta' },
+      'applaudit': { en: 'Clap', es: 'Aplaude' },
+      'gêné': { en: 'Embarrassed', es: 'Avergonzado' },
+      'siffle': { en: 'Whistle', es: 'Silba' },
+      'furieux': { en: 'Furious', es: 'Furioso' },
+      'love': { en: 'Love', es: 'Amor' },
+      'cool': { en: 'Cool', es: 'Genial' },
+      'mort': { en: 'Dead', es: 'Muerto' }
+    };
+
+    try {
+      let updatedCount = 0;
+      for (const fanz of fanzTemplates) {
+        if (!fanz.emotes || fanz.emotes.length === 0) continue;
+        
+        let changed = false;
+        const newEmotes = fanz.emotes.map((emote: any) => {
+          if (typeof emote.name === 'string') {
+            const frName = emote.name.trim();
+            const lower = frName.toLowerCase();
+            const trans = EMOTE_TRANSLATIONS[lower];
+            
+            changed = true;
+            if (trans) {
+              return { ...emote, name: { fr: frName, en: trans.en, es: trans.es } };
+            } else {
+              return { ...emote, name: { fr: frName, en: frName, es: frName } };
+            }
+          }
+          return emote;
+        });
+        
+        if (changed) {
+          await updateDoc(doc(db, 'fanz_templates', fanz.id), { emotes: newEmotes });
+          updatedCount++;
+        }
+      }
+      setStatus({ type: 'success', message: `${updatedCount} modèles FANZ mis à jour avec les traductions d'emotes !` });
+      fetchFanzTemplates(); // Reload to see changes
+    } catch (err) {
+      console.error("Error translating emotes", err);
+      setStatus({ type: 'error', message: 'Erreur lors de la traduction des emotes.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchDuelCards = async () => {
     setLoading(true);
     try {
@@ -3146,7 +3242,7 @@ export function AdminZone() {
                           {fanzTemplates
                             .filter(t => !userFanz.find(f => f.templateId === t.id))
                             .map(t => (
-                              <option key={t.id} value={t.id}>{t.name} (Rareté : {t.rarity || 'commune'})</option>
+                              <option key={t.id} value={t.id}>{renderTrans(t.name)} (Rareté : {t.rarity || 'commune'})</option>
                             ))}
                         </select>
                       </div>
@@ -3177,7 +3273,7 @@ export function AdminZone() {
                                   />
                                   <div className="flex-1">
                                     <div className="flex items-center gap-1.5">
-                                      <h5 className="font-extrabold uppercase italic inline-block text-white text-base tracking-wide">{fanz.name}</h5>
+                                      <h5 className="font-extrabold uppercase italic inline-block text-white text-base tracking-wide">{renderTrans(fanz.name)}</h5>
                                       <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider ${
                                         fanz.rarity === 'legendary' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
                                         fanz.rarity === 'epic' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
@@ -3303,7 +3399,7 @@ export function AdminZone() {
                           🖌️ Skins Débloqués ({(selectedUserForAdmin.skins || []).length} actifs)
                         </span>
                         <div className="max-h-60 overflow-y-auto border border-white/5 bg-black/30 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 no-scrollbar">
-                          {fanzTemplates.flatMap(t => t.skins?.map(skin => ({ ...skin, templateName: t.name })) || []).map((skin, idx) => {
+                          {fanzTemplates.flatMap(t => t.skins?.map(skin => ({ ...skin, templateName: renderTrans(t.name) })) || []).map((skin, idx) => {
                             const isUnlocked = selectedUserForAdmin.skins?.includes(skin.id);
                             return (
                               <label key={`${skin.id}-${idx}`} className="flex items-center gap-2.5 p-2 bg-neutral-900/60 border border-white/5 rounded-lg hover:bg-neutral-800/80 transition-colors cursor-pointer text-xs">
@@ -3316,13 +3412,13 @@ export function AdminZone() {
                                       ? current.filter(id => id !== skin.id)
                                       : [...current, skin.id];
                                     await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { skins: updated }, { merge: true });
-                                    setStatus({ type: 'success', message: `Skin ${skin.name} mis à jour !` });
+                                    setStatus({ type: 'success', message: `Skin ${renderTrans(skin.name)} mis à jour !` });
                                     refreshSelectedUser(selectedUserForAdmin.uid);
                                   }}
                                   className="rounded border-zinc-700 text-purple-600 focus:ring-purple-600 cursor-pointer w-4 h-4"
                                 />
                                 <div className="flex flex-col">
-                                  <span className="font-bold text-white uppercase italic text-[10px]">{skin.name}</span>
+                                  <span className="font-bold text-white uppercase italic text-[10px]">{renderTrans(skin.name)}</span>
                                   <span className="text-[8px] text-zinc-500 font-sans tracking-wide shrink-0">({skin.templateName})</span>
                                 </div>
                               </label>
@@ -3337,7 +3433,7 @@ export function AdminZone() {
                           💬 Emotes Débloquées ({(selectedUserForAdmin.emotes || []).length} actives)
                         </span>
                         <div className="max-h-60 overflow-y-auto border border-white/5 bg-black/30 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 no-scrollbar">
-                          {fanzTemplates.flatMap(t => t.emotes?.map(emote => ({ ...emote, templateName: t.name })) || []).map((emote, idx) => {
+                          {fanzTemplates.flatMap(t => t.emotes?.map(emote => ({ ...emote, templateName: renderTrans(t.name) })) || []).map((emote, idx) => {
                             const isUnlocked = selectedUserForAdmin.emotes?.includes(emote.id);
                             return (
                               <label key={`${emote.id}-${idx}`} className="flex items-center gap-2.5 p-2 bg-neutral-900/60 border border-white/5 rounded-lg hover:bg-neutral-800/80 transition-colors cursor-pointer text-xs">
@@ -3350,13 +3446,13 @@ export function AdminZone() {
                                       ? current.filter(id => id !== emote.id)
                                       : [...current, emote.id];
                                     await setDoc(doc(db, 'users', selectedUserForAdmin.uid), { emotes: updated }, { merge: true });
-                                    setStatus({ type: 'success', message: `Emote ${emote.name} mise à jour !` });
+                                    setStatus({ type: 'success', message: `Emote ${renderTrans(emote.name)} mise à jour !` });
                                     refreshSelectedUser(selectedUserForAdmin.uid);
                                   }}
                                   className="rounded border-zinc-700 text-blue-600 focus:ring-blue-600 cursor-pointer w-4 h-4"
                                 />
                                 <div className="flex flex-col">
-                                  <span className="font-bold text-white uppercase italic text-[10px]">{emote.name}</span>
+                                  <span className="font-bold text-white uppercase italic text-[10px]">{renderTrans(emote.name)}</span>
                                   <span className="text-[8px] text-zinc-500 font-sans shrink-0">({emote.templateName})</span>
                                 </div>
                               </label>
@@ -4198,9 +4294,23 @@ export function AdminZone() {
 
           {editingCard && (
             <Card className="p-6 border-blue-500">
-              <h3 className="text-xl font-bold mb-4">
-                {editingCard.id.startsWith('card-') ? 'Créer' : 'Modifier'} la carte
-              </h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">
+                  {editingCard.id.startsWith('card-') ? 'Créer' : 'Modifier'} la carte
+                </h3>
+                <div className="flex gap-2 bg-black/40 p-1 rounded-lg border border-white/10">
+                  {(['fr', 'en', 'es'] as const).map(l => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setCardEditLang(l)}
+                      className={`px-3 py-1 rounded uppercase font-bold text-xs transition-colors ${cardEditLang === l ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <form onSubmit={handleSaveDuelCard} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -4215,11 +4325,11 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Nom de la carte</label>
+                    <label className="text-sm font-medium text-gray-500">Nom de la carte ({cardEditLang.toUpperCase()})</label>
                     <input
                       type="text"
-                      value={editingCard.name}
-                      onChange={e => setEditingCard({...editingCard, name: e.target.value})}
+                      value={getTranslationValue(editingCard.name, cardEditLang)}
+                      onChange={e => setEditingCard({...editingCard, name: setTranslationValue(editingCard.name, cardEditLang, e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                       required
                     />
@@ -4290,10 +4400,10 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <label className="text-sm font-medium text-gray-500">Description ({cardEditLang.toUpperCase()})</label>
                     <textarea
-                      value={editingCard.description}
-                      onChange={e => setEditingCard({...editingCard, description: e.target.value})}
+                      value={getTranslationValue(editingCard.description, cardEditLang)}
+                      onChange={e => setEditingCard({...editingCard, description: setTranslationValue(editingCard.description, cardEditLang, e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none h-20"
                       required
                     />
@@ -4709,7 +4819,7 @@ export function AdminZone() {
               <option value="all">Tous les FANZ</option>
               <option value="generic">Cartes Génériques</option>
               {effectiveFanzTemplates.map(fanz => (
-                <option key={fanz.id} value={fanz.id}>{fanz.id} - {fanz.name}</option>
+                <option key={fanz.id} value={fanz.id}>{fanz.id} - {renderTrans(fanz.name)}</option>
               ))}
             </select>
 
@@ -4752,14 +4862,14 @@ export function AdminZone() {
                }
                if (searchCard.trim()) {
                  const q = searchCard.toLowerCase();
-                 if (!c.name.toLowerCase().includes(q) && !(c.id || '').toLowerCase().includes(q)) return false;
+                 if (!renderTrans(c.name).toLowerCase().includes(q) && !(c.id || '').toLowerCase().includes(q)) return false;
                }
                return true;
             }).sort((a, b) => {
               if (!cardSort) return 0;
               const { column, direction } = cardSort;
-              const aVal = String(a[column as keyof typeof a] || '').toLowerCase();
-              const bVal = String(b[column as keyof typeof b] || '').toLowerCase();
+              const aVal = column === 'name' ? renderTrans(a.name).toLowerCase() : String(a[column as keyof typeof a] || '').toLowerCase();
+              const bVal = column === 'name' ? renderTrans(b.name).toLowerCase() : String(b[column as keyof typeof b] || '').toLowerCase();
               return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
             });
 
@@ -4787,7 +4897,7 @@ export function AdminZone() {
                       autoPlay muted loop playsInline
                     />
                   ) : (
-                    <img src={getImageUrl(card.imageUrl || '')} alt={card.name} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(card.imageUrl || '')} alt={renderTrans(card.name)} className="w-full h-full object-cover" />
                   )}
                   <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
                     <img src={LOGOS.energy} alt="Energy" className="w-2.5 h-2.5 object-contain" /> {card.energyCost}
@@ -4800,8 +4910,8 @@ export function AdminZone() {
                 </div>
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-black italic uppercase text-sm">{card.name}</h4>
-                    <p className="text-[10px] text-gray-500 line-clamp-1">{card.description}</p>
+                    <h4 className="font-black italic uppercase text-sm">{renderTrans(card.name)}</h4>
+                    <p className="text-[10px] text-gray-500 line-clamp-1">{renderTrans(card.description)}</p>
                     {card.fanzIds && card.fanzIds.length > 0 && (
                       <div className="text-[8px] text-blue-500 font-bold mt-1">Fanz: {card.fanzIds.join(', ')}</div>
                     )}
@@ -4884,9 +4994,23 @@ export function AdminZone() {
 
           {editingAction && (
             <Card className="p-6 border-blue-500">
-              <h3 className="text-xl font-bold mb-4">
-                {editingAction.id.startsWith('action-') ? 'Créer' : 'Modifier'} l'action
-              </h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">
+                  {editingAction.id.startsWith('action-') ? 'Créer' : 'Modifier'} l'action
+                </h3>
+                <div className="flex gap-2 bg-black/40 p-1 rounded-lg border border-white/10">
+                  {(['fr', 'en', 'es'] as const).map(l => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setActionEditLang(l)}
+                      className={`px-3 py-1 rounded uppercase font-bold text-xs transition-colors ${actionEditLang === l ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <form onSubmit={handleSaveLifeAction} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -4909,7 +5033,7 @@ export function AdminZone() {
                     >
                       <option value="">Tous les FANZ</option>
                       {fanzTemplates.map(f => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
+                        <option key={f.id} value={f.id}>{renderTrans(f.name)}</option>
                       ))}
                     </select>
                   </div>
@@ -4923,17 +5047,17 @@ export function AdminZone() {
                       >
                         <option value="">Tous les skins du FANZ</option>
                         {fanzTemplates.find(f => f.id === editingAction.fanzTemplateId)?.skins?.map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
+                          <option key={s.id} value={s.id}>{renderTrans(s.name)}</option>
                         ))}
                       </select>
                     </div>
                   )}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Nom de l'action</label>
+                    <label className="text-sm font-medium text-gray-500">Nom de l'action ({actionEditLang.toUpperCase()})</label>
                     <input
                       type="text"
-                      value={editingAction.name}
-                      onChange={e => setEditingAction({...editingAction, name: e.target.value})}
+                      value={getTranslationValue(editingAction.name, actionEditLang)}
+                      onChange={e => setEditingAction({...editingAction, name: setTranslationValue(editingAction.name, actionEditLang, e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                       required
                     />
@@ -5092,7 +5216,7 @@ export function AdminZone() {
               <option value="all">Tous les FANZ</option>
               <option value="generic">Actions Génériques</option>
               {effectiveFanzTemplates.map(fanz => (
-                <option key={fanz.id} value={fanz.id}>{fanz.id} - {fanz.name}</option>
+                <option key={fanz.id} value={fanz.id}>{fanz.id} - {renderTrans(fanz.name)}</option>
               ))}
             </select>
 
@@ -5133,14 +5257,14 @@ export function AdminZone() {
               }
               if (searchLifeAction.trim()) {
                 const q = searchLifeAction.toLowerCase();
-                if (!action.name.toLowerCase().includes(q) && !(action.id || '').toLowerCase().includes(q)) return false;
+                if (!renderTrans(action.name).toLowerCase().includes(q) && !(action.id || '').toLowerCase().includes(q)) return false;
               }
               return true;
             }).sort((a, b) => {
               if (!lifeActionSort) return 0;
               const { column, direction } = lifeActionSort;
-              const aVal = String(a[column as keyof typeof a] || '').toLowerCase();
-              const bVal = String(b[column as keyof typeof b] || '').toLowerCase();
+              const aVal = column === 'name' ? renderTrans(a.name).toLowerCase() : String(a[column as keyof typeof a] || '').toLowerCase();
+              const bVal = column === 'name' ? renderTrans(b.name).toLowerCase() : String(b[column as keyof typeof b] || '').toLowerCase();
               return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
             });
 
@@ -5169,13 +5293,13 @@ export function AdminZone() {
                                 autoPlay muted loop playsInline
                               />
                             ) : action.image ? (
-                              <img src={getImageUrl(action.image)} alt={action.name} className="w-full h-full object-cover" />
+                              <img src={getImageUrl(action.image)} alt={renderTrans(action.name)} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center"><Activity className="w-8 h-8 text-gray-400" /></div>
                             )}
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-bold text-lg">{action.name}</h4>
+                            <h4 className="font-bold text-lg">{renderTrans(action.name)}</h4>
                             <div className="text-sm text-gray-500">{action.durationMinutes} minutes</div>
                             <div className="text-xs text-gray-400 mt-1">ID: {action.id}</div>
                             {action.fanzTemplateId && (
@@ -5265,6 +5389,9 @@ export function AdminZone() {
                       <List className="w-4 h-4" />
                     </button>
                   </div>
+                  <Button onClick={handleTranslateEmotes} variant="outline" className="flex items-center gap-2 border-indigo-500 text-indigo-500 hover:bg-indigo-500/10 hidden lg:flex">
+                    <MessageCircle className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /> Traduire Emotes
+                  </Button>
                   <Button onClick={handleMigrateSkinIds} variant="outline" className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-500/10 hidden lg:flex">
                     <Database className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /> Migration IDs
                   </Button>
@@ -5280,9 +5407,23 @@ export function AdminZone() {
 
               {editingFanz && (
             <Card className="p-6 border-blue-500">
-              <h3 className="text-xl font-bold mb-4">
-                {editingFanz.id.startsWith('fanz-') ? 'Créer' : 'Modifier'} le FANZ
-              </h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">
+                  {editingFanz.id.startsWith('fanz-') ? 'Créer' : 'Modifier'} le FANZ
+                </h3>
+                <div className="flex gap-1 bg-white/5 p-1 rounded border border-white/10 text-sm">
+                  {(['fr', 'en', 'es'] as const).map(l => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setFanzEditLang(l)}
+                      className={`px-3 py-1 rounded uppercase font-bold transition-colors ${fanzEditLang === l ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <form onSubmit={handleSaveFanzTemplate} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -5297,38 +5438,38 @@ export function AdminZone() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Nom du FANZ</label>
+                    <label className="text-sm font-medium text-gray-500">Nom du FANZ ({fanzEditLang.toUpperCase()})</label>
                     <input
                       type="text"
-                      value={editingFanz.name}
-                      onChange={e => setEditingFanz({...editingFanz, name: e.target.value})}
+                      value={getTranslationValue(editingFanz.name, fanzEditLang)}
+                      onChange={e => setEditingFanz({...editingFanz, name: setTranslationValue(editingFanz.name, fanzEditLang, e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Description Courte</label>
+                    <label className="text-sm font-medium text-gray-500">Description Courte ({fanzEditLang.toUpperCase()})</label>
                     <input
                       type="text"
-                      value={editingFanz.shortDescription || ''}
-                      onChange={e => setEditingFanz({...editingFanz, shortDescription: e.target.value})}
+                      value={getTranslationValue(editingFanz.shortDescription, fanzEditLang)}
+                      onChange={e => setEditingFanz({...editingFanz, shortDescription: setTranslationValue(editingFanz.shortDescription, fanzEditLang, e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Description Longue</label>
+                    <label className="text-sm font-medium text-gray-500">Description Longue ({fanzEditLang.toUpperCase()})</label>
                     <textarea
-                      value={editingFanz.longDescription || ''}
-                      onChange={e => setEditingFanz({...editingFanz, longDescription: e.target.value})}
+                      value={getTranslationValue(editingFanz.longDescription, fanzEditLang)}
+                      onChange={e => setEditingFanz({...editingFanz, longDescription: setTranslationValue(editingFanz.longDescription, fanzEditLang, e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none h-24"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Cri de Guerre</label>
+                    <label className="text-sm font-medium text-gray-500">Cri de Guerre ({fanzEditLang.toUpperCase()})</label>
                     <input
                       type="text"
-                      value={editingFanz.battleCry || ''}
-                      onChange={e => setEditingFanz({...editingFanz, battleCry: e.target.value})}
+                      value={getTranslationValue(editingFanz.battleCry, fanzEditLang)}
+                      onChange={e => setEditingFanz({...editingFanz, battleCry: setTranslationValue(editingFanz.battleCry, fanzEditLang, e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none"
                     />
                   </div>
@@ -5346,10 +5487,10 @@ export function AdminZone() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <label className="text-sm font-medium text-gray-500">Description ({fanzEditLang.toUpperCase()})</label>
                     <textarea
-                      value={editingFanz.description}
-                      onChange={e => setEditingFanz({...editingFanz, description: e.target.value})}
+                      value={getTranslationValue(editingFanz.description, fanzEditLang)}
+                      onChange={e => setEditingFanz({...editingFanz, description: setTranslationValue(editingFanz.description, fanzEditLang, e.target.value)})}
                       className="w-full p-2 bg-gray-100 text-gray-900 rounded-lg border-none h-20"
                       required
                     />
@@ -5541,7 +5682,7 @@ export function AdminZone() {
                           {duelCards
                             .filter(card => card.fanzIds?.includes(editingFanz.id))
                             .map(card => (
-                            <option key={card.id} value={card.id}>{card.name} ({card.rarity})</option>
+                            <option key={card.id} value={card.id}>{renderTrans(card.name)} ({card.rarity})</option>
                           ))}
                         </select>
                       </div>
@@ -5575,7 +5716,7 @@ export function AdminZone() {
                           {lifeActions
                             .filter(action => action.fanzTemplateId === editingFanz.id)
                             .map(action => (
-                            <option key={action.id} value={action.id}>{action.name}</option>
+                            <option key={action.id} value={action.id}>{renderTrans(action.name)}</option>
                           ))}
                         </select>
                       </div>
@@ -5808,7 +5949,7 @@ export function AdminZone() {
                         autoPlay muted loop playsInline
                       />
                     ) : (
-                      <img src={getImageUrl(template.image)} alt={template.name} className="w-full h-full object-cover" />
+                      <img src={getImageUrl(template.image)} alt={renderTrans(template.name)} className="w-full h-full object-cover" />
                     )}
                     <div className={`absolute top-2 left-2 text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
                       template.rarity === 'legendary' ? 'bg-yellow-500' : template.rarity === 'epic' ? 'bg-purple-500' : template.rarity === 'rare' ? 'bg-blue-500' : 'bg-gray-500'
@@ -5823,7 +5964,7 @@ export function AdminZone() {
                   </div>
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-bold text-lg">{template.name}</h4>
+                      <h4 className="font-bold text-lg">{renderTrans(template.name)}</h4>
                       <div className="text-xs text-gray-400">ID: {template.id}</div>
                     </div>
                     <Button 
@@ -5908,7 +6049,7 @@ export function AdminZone() {
                         <td className="py-2 px-2" onClick={e => e.stopPropagation()}>
                           <input 
                             type="text" 
-                            value={template.name} 
+                            value={renderTrans(template.name)} 
                             onChange={(e) => handleLocalFanzChange(template.id, { name: e.target.value })}
                             className="bg-transparent border-b border-dashed border-gray-600 focus:border-orange-500 focus:outline-none w-full font-bold px-1"
                           />
@@ -6030,6 +6171,25 @@ export function AdminZone() {
 
       {activeTab === 'shop' && shopConfig && (
         <div className="space-y-6">
+          <div className="flex justify-between items-center bg-gray-900 p-4 rounded-xl border border-white/10">
+            <div>
+              <h3 className="text-lg font-bold text-white">Langue d'édition de la Boutique</h3>
+              <p className="text-xs text-gray-400">Sélectionne la langue pour éditer les noms et descriptions des produits.</p>
+            </div>
+            <div className="flex gap-1 bg-white/5 p-1 rounded border border-white/10 text-sm">
+              {(['fr', 'en', 'es'] as const).map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setShopEditLang(l)}
+                  className={`px-3 py-1 rounded uppercase font-bold transition-colors ${shopEditLang === l ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Card className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">Packs Ferveur (Boutique)</h3>
@@ -6043,13 +6203,13 @@ export function AdminZone() {
               {shopConfig.ferveurPacks.map((pack: any, index: number) => (
                 <div key={pack.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-white/5 border-white/10">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Nom du pack</label>
+                    <label className="block text-sm font-medium mb-1">Nom du pack ({shopEditLang.toUpperCase()})</label>
                     <input
                       type="text"
-                      value={pack.name}
+                      value={getTranslationValue(pack.name, shopEditLang)}
                       onChange={e => {
                         const newPacks = [...shopConfig.ferveurPacks];
-                        newPacks[index].name = e.target.value;
+                        newPacks[index].name = setTranslationValue(pack.name, shopEditLang, e.target.value);
                         setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
                       }}
                       className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
@@ -6082,13 +6242,13 @@ export function AdminZone() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Description</label>
+                    <label className="block text-sm font-medium mb-1">Description ({shopEditLang.toUpperCase()})</label>
                     <input
                       type="text"
-                      value={pack.description}
+                      value={getTranslationValue(pack.description, shopEditLang)}
                       onChange={e => {
                         const newPacks = [...shopConfig.ferveurPacks];
-                        newPacks[index].description = e.target.value;
+                        newPacks[index].description = setTranslationValue(pack.description, shopEditLang, e.target.value);
                         setShopConfig({ ...shopConfig, ferveurPacks: newPacks });
                       }}
                       className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
@@ -6132,13 +6292,13 @@ export function AdminZone() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Nom affiché</label>
+                    <label className="block text-sm font-medium mb-1">Nom affiché ({shopEditLang.toUpperCase()})</label>
                     <input
                       type="text"
-                      value={boost.name}
+                      value={getTranslationValue(boost.name, shopEditLang)}
                       onChange={e => {
                         const newBoosts = [...(shopConfig.boosts || [])];
-                        newBoosts[index].name = e.target.value;
+                        newBoosts[index].name = setTranslationValue(boost.name, shopEditLang, e.target.value);
                         setShopConfig({ ...shopConfig, boosts: newBoosts });
                       }}
                       className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
@@ -6226,13 +6386,13 @@ export function AdminZone() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Nom affiché</label>
+                      <label className="block text-sm font-medium mb-1">Nom affiché ({shopEditLang.toUpperCase()})</label>
                       <input
                         type="text"
-                        value={pack.name}
+                        value={getTranslationValue(pack.name, shopEditLang)}
                         onChange={e => {
                           const newPacks = [...(shopConfig.realMoneyPacks || [])];
-                          newPacks[index].name = e.target.value;
+                          newPacks[index].name = setTranslationValue(pack.name, shopEditLang, e.target.value);
                           setShopConfig({ ...shopConfig, realMoneyPacks: newPacks });
                         }}
                         className="w-full bg-black/50 border border-white/20 rounded px-3 py-2 text-white placeholder-white/30 focus:border-orange-500"
@@ -6550,7 +6710,7 @@ export function AdminZone() {
                   >
                     <option value="">-- Choisir un Fanz Template --</option>
                     {fanzTemplates.map(f => (
-                      <option key={f.id} value={f.id}>{f.name} ({f.rarity})</option>
+                      <option key={f.id} value={f.id}>{renderTrans(f.name)} ({f.rarity})</option>
                     ))}
                   </select>
                 </div>
@@ -6569,12 +6729,13 @@ export function AdminZone() {
                       const fanz = fanzTemplates.find(f => f.id === editingNews.fanzId);
                       const list = editingNews.type === 'skin' ? (fanz?.skins || []) : (fanz?.emotes || []);
                       const selectedItem = list.find((i: any) => i.id === itemId);
+                      const sName = selectedItem ? renderTrans(selectedItem.name) : '';
 
                       setEditingNews({
                         ...editingNews,
                         itemId,
-                        title: editingNews.type === 'skin' ? `🎭 NOUVEAU SKIN : ${selectedItem?.name || ''} !` : `💬 NOUVEL EMOTE : ${selectedItem?.name || ''} !`,
-                        message: `Un magnifique ${editingNews.type === 'skin' ? 'skin' : 'emote'} "${selectedItem?.name || ''}" est désormais activable ! Personnalisez vos duels dès maintenant !`,
+                        title: editingNews.type === 'skin' ? `🎭 NOUVEAU SKIN : ${sName} !` : `💬 NOUVEL EMOTE : ${sName} !`,
+                        message: `Un magnifique ${editingNews.type === 'skin' ? 'skin' : 'emote'} "${sName}" est désormais activable ! Personnalisez vos duels dès maintenant !`,
                         imageUrl: selectedItem?.imageUrl || (selectedItem as any)?.image || ''
                       });
                     }}
@@ -6582,7 +6743,7 @@ export function AdminZone() {
                   >
                     <option value="">-- Choisir un item dans la liste --</option>
                     {((fanzTemplates.find(f => f.id === editingNews.fanzId))?.[editingNews.type === 'skin' ? 'skins' : 'emotes'] || []).map((i: any) => (
-                      <option key={i.id} value={i.id}>{i.name}</option>
+                      <option key={i.id} value={i.id}>{renderTrans(i.name)}</option>
                     ))}
                   </select>
                 </div>
@@ -6597,12 +6758,13 @@ export function AdminZone() {
                     onChange={e => {
                       const selectedId = e.target.value;
                       const matchedPack = shopConfig.realMoneyPacks.find((p: any) => p.id === selectedId);
+                      const packName = matchedPack ? renderTrans(matchedPack.name) : '';
 
                       setEditingNews({
                         ...editingNews,
                         itemId: selectedId,
-                        title: `💎 NOUVEAU PACK DE LA BOUTIQUE : ${matchedPack ? matchedPack.name : ''} !`,
-                        message: `Profitez d'une offre exclusive avec le pack "${matchedPack ? matchedPack.name : ''}" disponible dès aujourd'hui dans la boutique officielle !`,
+                        title: `💎 NOUVEAU PACK DE LA BOUTIQUE : ${packName} !`,
+                        message: `Profitez d'une offre exclusive avec le pack "${packName}" disponible dès aujourd'hui dans la boutique officielle !`,
                         imageUrl: matchedPack ? matchedPack.image || '' : ''
                       });
                     }}
@@ -6610,7 +6772,7 @@ export function AdminZone() {
                   >
                     <option value="">-- Sélectionner un Pack existant --</option>
                     {shopConfig.realMoneyPacks.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.priceEur}€)</option>
+                      <option key={p.id} value={p.id}>{renderTrans(p.name)} ({p.priceEur}€)</option>
                     ))}
                   </select>
                 </div>

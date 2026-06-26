@@ -21,6 +21,7 @@ import {
 import { matchTeamOrLeague } from "../utils/teamSearch";
 import { cn } from "../lib/utils";
 import { UserProfile } from "../types";
+import { useLanguage } from "../context/LanguageContext";
 
 const COUNTRY_CODES: Record<string, string> = {
   france: "fr",
@@ -98,6 +99,7 @@ export function MatchesPage({
   onLeagueClick: (id: number, season: number) => void;
   profile: UserProfile | null;
 }) {
+  const { t, language } = useLanguage();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -632,7 +634,7 @@ export function MatchesPage({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between px-4">
           <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
-            Matchs du jour
+            {t("matches.title", "Matchs du jour")}
           </h1>
 
           <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10 text-sm">
@@ -644,7 +646,7 @@ export function MatchesPage({
             </button>
             <div className="px-2 font-bold min-w-[100px] text-center">
               {isSameDay(selectedDate, new Date())
-                ? "Aujourd'hui"
+                ? t("matches.today", "Aujourd'hui")
                 : format(selectedDate, "dd/MM/yyyy")}
             </div>
             <button
@@ -661,23 +663,23 @@ export function MatchesPage({
             <FilterButton
               active={statusFilter === "all"}
               onClick={() => setStatusFilter("all")}
-              label="Tous"
+              label={t("matches.filter_all", "Tous")}
             />
             <FilterButton
               active={statusFilter === "live"}
               onClick={() => setStatusFilter("live")}
-              label="Live"
+              label={t("matches.filter_live", "Live")}
               color="text-red-500"
             />
             <FilterButton
               active={statusFilter === "upcoming"}
               onClick={() => setStatusFilter("upcoming")}
-              label="À venir"
+              label={t("matches.filter_upcoming", "À venir")}
             />
             <FilterButton
               active={statusFilter === "finished"}
               onClick={() => setStatusFilter("finished")}
-              label="Terminés"
+              label={t("matches.filter_finished", "Terminés")}
             />
           </div>
 
@@ -685,7 +687,7 @@ export function MatchesPage({
             <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
-              placeholder="Rechercher une équipe ou une compétition..."
+              placeholder={t("matches.search_placeholder", "Rechercher une équipe ou une compétition...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-4 focus:outline-none focus:border-orange-500 transition-colors text-sm"
@@ -697,7 +699,7 @@ export function MatchesPage({
             <div className="flex gap-2 overflow-x-auto pb-2 pt-0.5 no-scrollbar px-4 scroll-smooth">
               <button
                 onClick={() => setSelectedCountry(null)}
-                title="Tous les matchs"
+                title={t("matches.filter_all", "Tous")}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap shrink-0 cursor-pointer",
                   !selectedCountry
@@ -720,7 +722,11 @@ export function MatchesPage({
 
               {availableCountries.map((c) => {
                 const isSelected = selectedCountry === c.name;
-                const displayName = translateCountryName(c.name);
+                const displayName = c.name === "Ligues Équipes Favorites"
+                  ? t("matches.fav_team_leagues", "Ligues Équipes Favorites")
+                  : c.name === "Compétitions Favorites"
+                  ? t("matches.fav_leagues", "Compétitions Favorites")
+                  : translateCountryName(c.name);
                 const flagUrl = getCountryFlag(c.name, c.flag);
 
                 return (
@@ -775,15 +781,15 @@ export function MatchesPage({
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
           <p className="text-gray-500 font-bold animate-pulse">
-            Chargement des matchs...
+            {t("matches.loading", "Chargement des matchs...")}
           </p>
         </div>
       ) : groupedByCountry.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-20 text-center">
           <Activity className="w-12 h-12 text-gray-700 mb-4" />
-          <h3 className="text-xl font-bold">Aucun match trouvé</h3>
+          <h3 className="text-xl font-bold">{t("matches.no_matches", "Aucun match trouvé")}</h3>
           <p className="text-gray-500">
-            Essayez de changer de date ou de filtre.
+            {t("matches.no_matches_desc", "Essayez de changer de date ou de filtre.")}
           </p>
         </Card>
       ) : (
@@ -829,6 +835,7 @@ function CountrySection({
   onLeagueClick: (id: number, season: number) => void;
   profile: UserProfile | null;
 }) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(true);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -856,7 +863,11 @@ function CountrySection({
             {country.name === "Ligues Équipes Favorites" ? "⭐" : country.name === "Compétitions Favorites" ? "🌟" : country.name.substring(0, 2).toUpperCase()}
           </div>
           <h2 className="font-black italic uppercase tracking-wider text-[11px] sm:text-xs">
-            {translateCountryName(country.name)}
+            {country.name === "Ligues Équipes Favorites"
+              ? t("matches.fav_team_leagues", "Ligues Équipes Favorites")
+              : country.name === "Compétitions Favorites"
+              ? t("matches.fav_leagues", "Compétitions Favorites")
+              : translateCountryName(country.name)}
           </h2>
           <span className="text-[9px] font-bold px-1.5 py-0.5 bg-white/10 rounded-full text-gray-400">
             {country.leagues.reduce(

@@ -9,6 +9,7 @@ import { MrFanzHelp } from './MrFanzHelp';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, setDoc, getDoc } from 'firebase/firestore';
 import { LOGOS } from '../constants';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ShopPageProps {
   profile: UserProfile;
@@ -16,13 +17,13 @@ interface ShopPageProps {
 }
 
 const CATEGORIES = [
-  { id: 'featured', title: 'Nouveautés', icon: <Star className="w-4 h-4" /> },
-  { id: 'fanz', title: 'Fanz', icon: <User className="w-4 h-4" /> },
-  { id: 'skins', title: 'Skins', icon: <Shirt className="w-4 h-4" /> },
-  { id: 'emotes', title: 'Emotes', icon: <Smile className="w-4 h-4" /> },
-  { id: 'cards', title: 'Cartes', icon: <Zap className="w-4 h-4" /> },
-  { id: 'boosts', title: 'Boosts', icon: <TrendingUp className="w-4 h-4" /> },
-  { id: 'packs', title: 'Packs', icon: <Package className="w-4 h-4" /> },
+  { id: 'featured', titleKey: 'shop.featured', defaultTitle: 'Nouveautés', icon: <Star className="w-4 h-4" /> },
+  { id: 'fanz', titleKey: 'shop.fanz', defaultTitle: 'Fanz', icon: <User className="w-4 h-4" /> },
+  { id: 'skins', titleKey: 'shop.skins', defaultTitle: 'Skins', icon: <Shirt className="w-4 h-4" /> },
+  { id: 'emotes', titleKey: 'shop.emotes', defaultTitle: 'Emotes', icon: <Smile className="w-4 h-4" /> },
+  { id: 'cards', titleKey: 'shop.cards', defaultTitle: 'Cartes', icon: <Zap className="w-4 h-4" /> },
+  { id: 'boosts', titleKey: 'shop.boosts', defaultTitle: 'Boosts', icon: <TrendingUp className="w-4 h-4" /> },
+  { id: 'packs', titleKey: 'shop.packs', defaultTitle: 'Packs', icon: <Package className="w-4 h-4" /> },
 ];
 
 // Mock Data for Boosts and Gems
@@ -72,6 +73,7 @@ export const getDailyFanzs = (allActiveFanzs: FanzTemplate[]): FanzTemplate[] =>
 };
 
 export function ShopPage({ profile, onBack }: ShopPageProps) {
+  const { t, tDb } = useLanguage();
   const [activeTab, setActiveTab] = useState('featured');
   const [fanzItems, setFanzItems] = useState<any[]>([]);
   const [skinItems, setSkinItems] = useState<any[]>([]);
@@ -98,9 +100,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           setShopConfig({
             id: 'shop',
             ferveurPacks: [
-              { id: 'pack_1', name: 'Pack Ferveur Standard', price: 5, numberOfRewards: 1, description: '1 Récompense (Skin, Carte, Énergie...)' },
-              { id: 'pack_2', name: 'Pack Ferveur Épique', price: 9, numberOfRewards: 2, description: '2 Récompenses (Skins, Cartes, Énergie...)' },
-              { id: 'pack_3', name: 'Pack Ferveur Légendaire', price: 13, numberOfRewards: 3, description: '3 Récompenses (Skins, Cartes, Énergie...)' }
+              { id: 'pack_1', name: t('shop.pack_std_name', 'Pack Ferveur Standard'), price: 5, numberOfRewards: 1, description: t('shop.pack_std_desc', '1 Récompense (Skin, Carte, Énergie...)') },
+              { id: 'pack_2', name: t('shop.pack_epic_name', 'Pack Ferveur Épique'), price: 9, numberOfRewards: 2, description: t('shop.pack_epic_desc', '2 Récompenses (Skins, Cartes, Énergie...)') },
+              { id: 'pack_3', name: t('shop.pack_legend_name', 'Pack Ferveur Légendaire'), price: 13, numberOfRewards: 3, description: t('shop.pack_legend_desc', '3 Récompenses (Skins, Cartes, Énergie...)') }
             ]
           });
         }
@@ -260,7 +262,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             fullPrice: c.price,
             image: c.imageUrl ? getImageUrl(c.imageUrl) : '🃏',
             video: c.videoUrl,
-            duration: `Coût: ${c.energyCost} Énergie`,
+            duration: t("shop.energy_cost_label", "Coût: {energy} Énergie").replace("{energy}", c.energyCost.toString()),
             description: c.description
           }));
 
@@ -285,7 +287,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
   const purchasePackFerveur = async (pack: { price: number; numberOfRewards: number }) => {
     if ((profile.gems || 0) < pack.price) {
-      setError("Pas assez de gemmes pour acheter le Pack !");
+      setError(t("shop.error_gems", "Pas assez de gemmes pour acheter le Pack !"));
       return;
     }
 
@@ -340,23 +342,23 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
               rewardAdded = true;
            } else if (type === 'gems') {
               const amount = Math.floor(Math.random() * 40) + 10;
-              generatedRewards.push({ type, name: `${amount} Gemmes`, icon: '💎', amount });
+              generatedRewards.push({ type, name: `${amount} ${t("reward.gems", "Gemmes")}`, icon: '💎', amount });
               updates.gems = (updates.gems !== undefined ? updates.gems : profile.gems || 0) + amount;
               rewardAdded = true;
            } else if (type === 'boost') {
               const boostPoints = Math.floor(Math.random() * 50) + 10;
-              generatedRewards.push({ type, name: `${boostPoints} Boosts`, icon: '🚀', amount: boostPoints });
+              generatedRewards.push({ type, name: `${boostPoints} ${t("shop.boosts", "Boosts")}`, icon: '🚀', amount: boostPoints });
               updates.boostPoints = (updates.boostPoints !== undefined ? updates.boostPoints : profile.boostPoints || 0) + boostPoints;
               rewardAdded = true;
            } else if (type === 'infinite_energy') {
-              generatedRewards.push({ type, name: 'Énergie Infinie (1h)', icon: '⚡' });
+              generatedRewards.push({ type, name: t("shop.energy_infinite", "Énergie Infinie (1h)"), icon: '⚡' });
               const now = new Date();
               const currentUntil = profile.infiniteEnergyUntil ? new Date(profile.infiniteEnergyUntil) : now;
               const baseDate = currentUntil > now ? currentUntil : now;
               updates.infiniteEnergyUntil = new Date(baseDate.getTime() + 60 * 60 * 1000).toISOString();
               rewardAdded = true;
            } else if (type === 'double_gains') {
-              generatedRewards.push({ type, name: 'Gains x2 (1h)', icon: '📈' });
+              generatedRewards.push({ type, name: t("shop.gains_x2", "Gains x2 (1h)"), icon: '📈' });
               const now = new Date();
               const currentUntil = profile.doubleGainsUntil ? new Date(profile.doubleGainsUntil) : now;
               const baseDate = currentUntil > now ? currentUntil : now;
@@ -381,7 +383,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     const availableEmotes = template.emotes.filter((e:any) => e.isActive !== false && !userEmotes.includes(e.id));
                     if (availableEmotes.length > 0) {
                        const emote = availableEmotes[Math.floor(Math.random() * availableEmotes.length)];
-                       generatedRewards.push({ type, name: `Emote: ${emote.name}`, fanz: template.name, icon: '😀', image: emote.imageUrl ? getImageUrl(emote.imageUrl) : undefined });
+                       generatedRewards.push({ type, name: `Emote: ${typeof emote.name === 'string' ? emote.name : (emote.name as any)?.fr || 'Emote'}`, fanz: template.name, icon: '😀', image: emote.imageUrl ? getImageUrl(emote.imageUrl) : undefined });
                        userEmotes.push(emote.id);
                        updates.emotes = arrayUnion(...userEmotes.filter(e => !profile.emotes?.includes(e)));
                        rewardAdded = true;
@@ -390,7 +392,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     const availableCards = allCards.filter(c => c.isActive !== false && (c.fanzIds && c.fanzIds.includes(template!.id)) && !c.blockedFanzIds?.includes(template!.id) && !userCards.includes(c.id));
                     if (availableCards.length > 0) {
                        const card = availableCards[Math.floor(Math.random() * availableCards.length)];
-                       generatedRewards.push({ type, name: `Carte: ${card.name}`, fanz: template!.name, icon: '🃏', image: card.imageUrl ? getImageUrl(card.imageUrl) : undefined });
+                       generatedRewards.push({ type, name: `${t("reward.card", "Carte")}: ${card.name}`, fanz: template!.name, icon: '🃏', image: card.imageUrl ? getImageUrl(card.imageUrl) : undefined });
                        userCards.push(card.id);
                        updates.cards = arrayUnion(...userCards.filter(c => !profile.cards?.includes(c)));
                        rewardAdded = true;
@@ -431,7 +433,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
     } catch (err) {
       console.error(err);
-      setError("Erreur lors de l'ouverture du pack.");
+      setError(t("shop.error_opening", "Erreur lors de l'ouverture du pack."));
       setPurchasing(false);
       setPackAnimation('idle');
     }
@@ -456,15 +458,15 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
     }
 
     if (costMoney > 0 && (profile.money || 0) < costMoney) {
-      setError(`Vous n'avez pas assez de dollars.`);
+      setError(t("shop.error_dollars", "Vous n'avez pas assez de dollars."));
       return;
     }
     if (costGems > 0 && (profile.gems || 0) < costGems) {
-      setError(`Vous n'avez pas assez de gemmes.`);
+      setError(t("shop.error_gold_gems", "Vous n'avez pas assez de gemmes."));
       return;
     }
     if (costBoosts > 0 && (profile.boostPoints || 0) < costBoosts) {
-      setError(`Vous n'avez pas assez de points de boost.`);
+      setError(t("shop.error_boosts", "Vous n'avez pas assez de points de boost."));
       return;
     }
 
@@ -535,7 +537,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
       setSelectedItem(null);
     } catch (err) {
       console.error("Error purchasing item:", err);
-      setError("Une erreur est survenue lors de l'achat.");
+      setError(t("shop.error_purchase", "Une erreur est survenue lors de l'achat."));
     } finally {
       setPurchasing(false);
     }
@@ -548,7 +550,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           disabled
           className="w-full font-black uppercase text-[10px] sm:text-xs mt-3 bg-gray-800 text-white/40 cursor-not-allowed border border-gray-700 py-2 px-3 rounded-lg whitespace-nowrap"
         >
-          Bientôt dispo
+          {t("shop.soon_available", "Bientôt dispo")}
         </button>
       );
     }
@@ -608,7 +610,10 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
 
   const renderItemCard = (item: any, type: 'fanz' | 'skin' | 'emote' | 'boost' | 'card') => {
     const rarityColor = RARITY_COLORS[item.rarity as keyof typeof RARITY_COLORS] || RARITY_COLORS.common;
-    const rarityLabel = RARITY_LABELS[item.rarity as keyof typeof RARITY_LABELS] || RARITY_LABELS.common;
+    const rarityLabel = item.rarity === 'common' ? t("rarity.common", "Commun") :
+                        item.rarity === 'rare' ? t("rarity.rare", "Rare") :
+                        item.rarity === 'epic' ? t("rarity.epic", "Épique") :
+                        item.rarity === 'legendary' ? t("rarity.legendary", "Légendaire") : t("rarity.common", "Commun");
 
     return (
       <motion.div 
@@ -623,7 +628,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
           <div className="w-full aspect-square mb-3 rounded-lg overflow-hidden relative shadow-inner shadow-white/10">
             {item.category === 'event' && (
               <div className="absolute top-2 left-2 backdrop-blur-sm bg-fuchsia-600 border border-fuchsia-400 font-black uppercase text-[8px] tracking-widest px-1.5 py-0.5 rounded-sm text-white z-20 shadow-[0_0_10px_rgba(192,38,211,0.5)]">
-                Événement
+                {t("shop.event", "Événement")}
               </div>
             )}
             
@@ -674,17 +679,17 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
               <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-30">
                 <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-white/50 mb-2" />
                 <div className="bg-orange-500 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg">
-                  Bientôt dispo
+                  {t("shop.soon_available", "Bientôt dispo")}
                 </div>
               </div>
             )}
           </div>
 
           <div className="w-full flex flex-col flex-1 justify-end">
-            <h3 className="text-sm font-black italic uppercase text-white mb-1 leading-tight">{item.name}</h3>
-            {item.fanz && <p className="text-[10px] text-white/70 font-bold uppercase">Pour: {item.fanz}</p>}
-            {item.duration && <p className="text-[10px] text-white/70 font-bold uppercase">{item.duration}</p>}
-            {item.description && <p className="text-[9px] text-white/60 font-medium italic mt-1 line-clamp-2 leading-tight">"{item.description}"</p>}
+            <h3 className="text-sm font-black italic uppercase text-white mb-1 leading-tight">{tDb(item.name)}</h3>
+            {item.fanz && <p className="text-[10px] text-white/70 font-bold uppercase">{t("shop.for_fanz", "Pour : {fanz}").replace("{fanz}", tDb(item.fanz))}</p>}
+            {item.duration && <p className="text-[10px] text-white/70 font-bold uppercase">{tDb(item.duration)}</p>}
+            {item.description && <p className="text-[9px] text-white/60 font-medium italic mt-1 line-clamp-2 leading-tight">"{tDb(item.description)}"</p>}
             {renderPriceButton(item.price, item.currency, item)}
           </div>
         </Card>
@@ -696,7 +701,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
     <div className="flex flex-col h-full bg-transparent">
       <div className="flex items-center justify-between px-4">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center">
-          Boutique
+          {t("shop.title", "Boutique")}
           <MrFanzHelp contextId="shop" />
         </h1>
         <div className="flex items-center gap-3">
@@ -738,7 +743,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 "text-[10px] sm:text-xs font-bold uppercase tracking-wider sm:tracking-widest",
                 activeTab === cat.id ? "text-white" : "text-gray-400"
               )}>
-                {cat.title}
+                {t(cat.titleKey, cat.defaultTitle)}
               </span>
             </button>
           ))}
@@ -759,7 +764,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 <section>
                   <h2 className="text-base sm:text-lg font-black italic uppercase tracking-tighter text-white mb-4 flex items-center gap-2">
                     <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-                    Offres Fanzzy
+                    {t("shop.fanzzy_offers", "Offres Fanzzy")}
                   </h2>
                   <div className="grid grid-cols-2 gap-3 sm:gap-6">
                     {(shopConfig?.ferveurPacks || []).map((pack, idx) => (
@@ -778,23 +783,23 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                           
                           <div className="relative p-3.5 sm:p-5 md:p-6 flex flex-col items-center text-center h-full justify-between">
                             <div className="absolute top-2 right-2 bg-red-500 text-white text-[8px] sm:text-[10px] font-black uppercase px-2 py-0.5 sm:py-1 rounded-full shadow-lg animate-pulse">
-                              Épique
+                              {t("rarity.epic", "Épique")}
                             </div>
                             <div className="relative mb-3 mt-4 sm:mb-4 sm:mt-2">
                               {pack.numberOfRewards >= 3 && <Sparkles className="absolute -top-3 -right-3 w-5 h-5 sm:w-8 sm:h-8 text-yellow-400 animate-spin-slow" />}
                               <Zap className="w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.8)]" />
                             </div>
-                            <h3 className="text-[11px] sm:text-xs md:text-sm lg:text-base font-black italic uppercase text-white mb-2 drop-shadow-md leading-tight min-h-[2.5rem] flex items-center justify-center">{pack.name}</h3>
-                            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-yellow-200/80 font-bold uppercase tracking-wide mb-4 sm:mb-6 flex-grow flex items-center justify-center min-h-[24px] sm:min-h-[32px] md:min-h-[40px] px-0.5">{pack.description}</p>
+                            <h3 className="text-[11px] sm:text-xs md:text-sm lg:text-base font-black italic uppercase text-white mb-2 drop-shadow-md leading-tight min-h-[2.5rem] flex items-center justify-center">{tDb(pack.name)}</h3>
+                            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-yellow-200/80 font-bold uppercase tracking-wide mb-4 sm:mb-6 flex-grow flex items-center justify-center min-h-[24px] sm:min-h-[32px] md:min-h-[40px] px-0.5">{tDb(pack.description)}</p>
                             <button 
                               onClick={() => purchasePackFerveur(pack)}
                               disabled={purchasing || (profile.gems || 0) < pack.price}
                               className="w-full mt-auto bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 hover:from-yellow-400 hover:to-red-400 text-black font-black uppercase text-[10px] min-[360px]:text-[11px] sm:text-xs md:text-sm hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 shadow-[0_0_20px_rgba(234,179,8,0.5)] border-none flex items-center justify-center gap-1 py-2 sm:py-2.5 md:py-3 px-2 sm:px-3 md:px-4 rounded-lg sm:rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-nowrap">
                               {purchasing && packAnimation !== 'idle' ? (
-                                'Ouverture...'
+                                t("shop.opening", "Ouverture...")
                               ) : (
                                 <span className="flex items-center justify-center gap-0.5 sm:gap-1 flex-nowrap whitespace-nowrap">
-                                  <span>Acheter {pack.price}</span>
+                                  <span>{t("shop.buy_gems", "Acheter {gems}").replace("{gems}", pack.price.toString())}</span>
                                   <img src={LOGOS.gems} alt="" className="w-3 h-3 min-[360px]:w-3.5 min-[360px]:h-3.5 sm:w-4 sm:h-4 mx-0.5 object-contain inline-block shrink-0" referrerPolicy="no-referrer" />
                                 </span>
                               )}
@@ -807,7 +812,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 </section>
 
                 <section>
-                  <h2 className="text-base sm:text-lg font-black italic uppercase tracking-tighter text-white mb-4">Nouveautés</h2>
+                  <h2 className="text-base sm:text-lg font-black italic uppercase tracking-tighter text-white mb-4">{t("shop.featured", "Nouveautés")}</h2>
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {featuredItems.map(item => renderItemCard(item, item.type))}
                   </div>
@@ -819,7 +824,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'fanz' && (
               <section>
                 {fanzItems.length === 0 && !loading && (
-                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun Fanz disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">{t("shop.no_fanz_available", "Aucun Fanz disponible pour le moment.")}</p>
                 )}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {fanzItems.map(fanz => renderItemCard(fanz, 'fanz'))}
@@ -831,7 +836,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'skins' && (
               <section>
                 {skinItems.length === 0 && !loading && (
-                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun Skin disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">{t("shop.no_skins_available", "Aucun Skin disponible pour le moment.")}</p>
                 )}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {skinItems.map(skin => renderItemCard(skin, 'skin'))}
@@ -843,7 +848,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'emotes' && (
               <section>
                 {emoteItems.length === 0 && !loading && (
-                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun Emote disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">{t("shop.no_emotes_available", "Aucun Emote disponible pour le moment.")}</p>
                 )}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {emoteItems.map(emote => renderItemCard(emote, 'emote'))}
@@ -855,7 +860,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'cards' && (
               <section>
                 {cardItems.length === 0 && !loading && (
-                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucune Carte disponible pour le moment.</p>
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">{t("shop.no_cards_available", "Aucune Carte disponible pour le moment.")}</p>
                 )}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {cardItems.map(card => renderItemCard(card, 'card'))}
@@ -885,7 +890,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
             {activeTab === 'packs' && (
               <section className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  {(shopConfig?.realMoneyPacks || []).filter(pack => !pack.name.toLowerCase().includes('gemme')).map(pack => (
+                  {(shopConfig?.realMoneyPacks || []).filter(pack => !tDb(pack.name).toLowerCase().includes('gemme')).map(pack => (
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} key={pack.id}>
                       <Card className={cn(
                         "relative overflow-hidden border p-3.5 sm:p-4 flex flex-col items-center text-center h-full justify-between",
@@ -893,18 +898,18 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                       )} style={{ backgroundColor: pack.bgColor, borderColor: pack.popular ? '#3b82f6' : undefined }}>
                         {pack.popular && (
                           <div className="absolute top-0 inset-x-0 bg-blue-500 text-white text-[8px] font-black uppercase py-0.5 tracking-widest">
-                            Le plus populaire
+                            {t("shop.most_popular", "Le plus populaire")}
                           </div>
                         )}
                         <div className={cn("text-3xl sm:text-4xl mb-3 drop-shadow-xl", pack.popular ? "mt-4" : "mt-2")}>
                           {pack.image || '🎁'}
                         </div>
-                        <h3 className="text-xs sm:text-sm md:text-base font-black italic text-white mb-1 leading-tight">{pack.name}</h3>
+                        <h3 className="text-xs sm:text-sm md:text-base font-black italic text-white mb-1 leading-tight">{tDb(pack.name)}</h3>
                         <div className="text-[8px] sm:text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-4 opacity-80 min-h-[30px] flex items-center justify-center">
                           {pack.rewards.map((r: any) => {
-                            if (r.type === 'gems') return `${r.amount} Gemmes`;
+                            if (r.type === 'gems') return `${r.amount} ${t("reward.gems", "Gemmes")}`;
                             if (r.type === 'money') return `${r.amount} $`;
-                            if (r.type === 'energy') return `${r.amount} Énergie`;
+                            if (r.type === 'energy') return `${r.amount} ${t("reward.energy", "Énergie")}`;
                             if (r.type === 'boost') return `Boost`;
                             return '';
                           }).join(' + ')}
@@ -912,7 +917,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                         <button 
                           onClick={() => {
                             // TODO: Add real payment intent
-                            alert(`Achat Stripe à implémenter : Pack ${pack.name} pour ${pack.priceEur}€`);
+                            alert(t("shop.stripe_payment_alert", "Achat Stripe à implémenter : Pack {name} pour {price}€").replace("{name}", tDb(pack.name)).replace("{price}", pack.priceEur.toString()));
                           }}
                           className={cn(
                           "w-full font-black uppercase text-xs sm:text-sm py-2.5 sm:py-3 px-3 mt-auto rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer",
@@ -924,8 +929,8 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     </motion.div>
                   ))}
                 </div>
-                {(!shopConfig?.realMoneyPacks || shopConfig.realMoneyPacks.filter(pack => !pack.name.toLowerCase().includes('gemme')).length === 0) && (
-                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">Aucun pack disponible pour le moment.</p>
+                {(!shopConfig?.realMoneyPacks || shopConfig.realMoneyPacks.filter(pack => !tDb(pack.name).toLowerCase().includes('gemme')).length === 0) && (
+                  <p className="text-center text-gray-500 py-8 text-sm sm:text-base">{t("shop.no_packs_available", "Aucun pack disponible pour le moment.")}</p>
                 )}
               </section>
             )}
@@ -956,7 +961,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
               </button>
 
               <div className="text-center mb-6">
-                <h3 className="text-xl font-black italic uppercase text-white mb-4">Confirmer l'achat</h3>
+                <h3 className="text-xl font-black italic uppercase text-white mb-4">{t("shop.confirm_purchase", "Confirmer l'achat")}</h3>
 
                 {/* Large Preview in Modal */}
                 <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden bg-gray-800/50 border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
@@ -976,12 +981,12 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     )}
                 </div>
 
-                <p className="text-sm text-gray-400">Êtes-vous sûr de vouloir acheter :</p>
-                <p className="text-xl font-black italic text-orange-500 mt-1 uppercase drop-shadow-md">{selectedItem.name}</p>
+                <p className="text-sm text-gray-400">{t("shop.sure_to_buy", "Êtes-vous sûr de vouloir acheter :")}</p>
+                <p className="text-xl font-black italic text-orange-500 mt-1 uppercase drop-shadow-md">{tDb(selectedItem.name)}</p>
                 
                 {selectedItem.description && (
                   <p className="text-xs text-gray-300 mt-2 bg-white/5 p-2 rounded-lg border border-white/10 italic">
-                    "{selectedItem.description}"
+                    "{tDb(selectedItem.description)}"
                   </p>
                 )}
               </div>
@@ -999,9 +1004,9 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     disabled={purchasing || (profile.money || 0) < selectedItem.fullPrice.money || (profile.gems || 0) < selectedItem.fullPrice.gems}
                     className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-black uppercase flex items-center justify-center gap-1.5"
                   >
-                    {purchasing ? 'Achat en cours...' : (
+                    {purchasing ? t("shop.purchasing", "Achat en cours...") : (
                       <>
-                        Acheter pour {selectedItem.fullPrice.money} $ + {selectedItem.fullPrice.gems} <img src={LOGOS.gems} alt="" className="w-4 h-4 drop-shadow-md ml-0.5" />
+                        {t("shop.buy_for", "Acheter pour {price}").replace("{price}", `${selectedItem.fullPrice.money} $ + ${selectedItem.fullPrice.gems}`)} <img src={LOGOS.gems} alt="" className="w-4 h-4 drop-shadow-md ml-0.5" />
                       </>
                     )}
                   </Button>
@@ -1013,7 +1018,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                         disabled={purchasing || (profile.money || 0) < selectedItem.fullPrice.money}
                         className="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase"
                       >
-                        {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.fullPrice.money} $`}
+                        {purchasing ? t("shop.purchasing", "Achat en cours...") : t("shop.buy_for", "Acheter pour {price}").replace("{price}", `${selectedItem.fullPrice.money} $`)}
                       </Button>
                     )}
                     
@@ -1023,7 +1028,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                         disabled={purchasing || (profile.gems || 0) < selectedItem.fullPrice.gems}
                         className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black uppercase"
                       >
-                        {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.fullPrice.gems} Gemmes`}
+                        {purchasing ? t("shop.purchasing", "Achat en cours...") : t("shop.buy_for", "Acheter pour {price}").replace("{price}", `${selectedItem.fullPrice.gems} ${t("reward.gems", "Gemmes")}`)}
                       </Button>
                     )}
                   </>
@@ -1041,7 +1046,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                       "bg-green-500 hover:bg-green-600 text-white"
                     )}
                   >
-                    {purchasing ? 'Achat en cours...' : `Acheter pour ${selectedItem.price} ${selectedItem.currency === 'gems' ? 'Gemmes' : selectedItem.currency === 'boost' ? 'Boosts' : '$'}`}
+                    {purchasing ? t("shop.purchasing", "Achat en cours...") : t("shop.buy_for", "Acheter pour {price}").replace("{price}", `${selectedItem.price} ${selectedItem.currency === 'gems' ? t("reward.gems", "Gemmes") : selectedItem.currency === 'boost' ? t("shop.boosts", "Boosts") : '$'}`)}
                   </Button>
                 )}
 
@@ -1050,7 +1055,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                   disabled={purchasing}
                   className="w-full bg-white/10 hover:bg-white/20 text-white font-bold uppercase"
                 >
-                  Annuler
+                  {t("shop.cancel", "Annuler")}
                 </Button>
               </div>
             </motion.div>
@@ -1088,7 +1093,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-500/20 via-transparent to-transparent pointer-events-none" />
                 
                 <h2 className="text-4xl font-black italic uppercase text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)] text-center mb-4">
-                  Incroyable !
+                  {t("shop.incredible", "Incroyable !")}
                 </h2>
                 
                 <div className="flex flex-col gap-4 w-full">
@@ -1127,7 +1132,7 @@ export function ShopPage({ profile, onBack }: ShopPageProps) {
                     onClick={() => setPackAnimation('idle')}
                     className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black uppercase text-xl py-4 shadow-[0_0_30px_rgba(234,179,8,0.3)]"
                   >
-                    Génial !
+                    {t("shop.awesome", "Génial !")}
                   </Button>
                 </motion.div>
               </motion.div>

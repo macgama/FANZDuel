@@ -3,6 +3,7 @@ import { footballApi } from '../services/footballApi';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Socket } from 'socket.io-client';
 import { useSocket } from '../context/SocketContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Duel, UserProfile, Card as GameCard, CardEffect, UserCard, Fanz, FanzTemplate, DuelConfig, FanzStats, FanzEmote, GlobalFervorConfig, Pass } from '../types';
 import { Card, Button } from './Layout';
 import { motion, AnimatePresence } from 'motion/react';
@@ -93,6 +94,7 @@ const getDistinctTeamColors = (teamA: string, teamB: string) => {
 
 export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, onExit, initialDuelId, initialDuelType, isLiveMatch = true, isPrivate = false, onNavigateToFanz, duelLeagueId, duelSeason, initialInvitedFriend }: { user: UserProfile; matchId: string; teamA: string; teamB: string; teamAId?: string; teamBId?: string; teamALogo?: string; teamBLogo?: string; onExit: () => void; initialDuelId?: string; initialDuelType?: string; isLiveMatch?: boolean; isPrivate?: boolean; onNavigateToFanz?: (fanzId: string) => void; duelLeagueId?: string; duelSeason?: string; initialInvitedFriend?: UserProfile }) {
   const { showAlert } = useAlert();
+  const { t, tDb } = useLanguage();
   const [activeDuel, setActiveDuel] = useState<Duel | null>(null);
   
   const isXpBoostActive = user.boostXpUntil && new Date(user.boostXpUntil) > new Date();
@@ -338,7 +340,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
         <div className="flex h-screen items-center justify-center bg-black text-white">
           <div className="flex flex-col items-center gap-4">
             <RefreshCw className="w-8 h-8 animate-spin text-orange-500" />
-            <p className="text-sm font-bold uppercase tracking-widest text-gray-400">Préparation du Fanz...</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-gray-400">{t('duel.preparing_fanz', 'Préparation du Fanz...')}</p>
           </div>
         </div>
       );
@@ -375,7 +377,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
           <button onClick={onExit} className="absolute left-4 top-8 p-2 hover:bg-white/10 rounded-full text-gray-400">
             <ChevronLeft />
           </button>
-          <h2 className="text-4xl font-black text-[#f97316] uppercase tracking-tighter mb-1">Hub de Duel</h2>
+          <h2 className="text-4xl font-black text-[#f97316] uppercase tracking-tighter mb-1">{t("duel.hub_title", "Hub de Duel")}</h2>
         </div>
 
         <div className="flex-1 px-4 pb-28 space-y-8 relative z-10">
@@ -384,7 +386,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-[#f97316] mb-2">
               <Star size={16} className="sm:w-5 sm:h-5" />
-              <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-300">0. Choisir votre FANZ</h3>
+              <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-300">{t("duel.choose_fanz", "0. Choisir votre FANZ")}</h3>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar snap-x">
               {userFanzs.map(fanz => (
@@ -396,10 +398,10 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                   }`}
                 >
                   <div className="w-full aspect-square p-0 bg-black/40">
-                    <img src={getImageUrl(fanz.imageUrl)} alt={fanz.name} className="w-full h-full object-cover pointer-events-none" data-viewer-ignore="true" />
+                    <img src={getImageUrl(fanz.imageUrl)} alt={tDb(fanz.name)} className="w-full h-full object-cover pointer-events-none" data-viewer-ignore="true" />
                   </div>
                   <div className="p-2 text-center">
-                    <p className="text-[10px] sm:text-xs font-black uppercase truncate text-white">{fanz.name}</p>
+                    <p className="text-[10px] sm:text-xs font-black uppercase truncate text-white">{tDb(fanz.name)}</p>
                   </div>
                 </button>
               ))}
@@ -410,7 +412,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-[#f97316] mb-2">
               <Trophy size={16} className="sm:w-5 sm:h-5" />
-              <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-300">1. Choisir votre camp</h3>
+              <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-300">{t("duel.choose_side", "1. Choisir votre camp")}</h3>
             </div>
             <div className="flex gap-3">
               {[
@@ -434,7 +436,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                   >
                     {isFull && (
                       <div className="absolute top-2 right-2 bg-red-600 text-[8px] sm:text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest text-white shadow-lg">
-                        Complet
+                        {t("duel.full", "Complet")}
                       </div>
                     )}
                     {team.logo ? (
@@ -459,16 +461,16 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
             <section className="space-y-3">
               <div className="flex items-center gap-2 text-[#f97316] mb-2">
                 <Target size={16} className="sm:w-5 sm:h-5" />
-                <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-300">2. Sélectionner l'arène</h3>
+                <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-300">{t("duel.select_arena", "2. Sélectionner l'arène")}</h3>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { id: 'training', title: 'Entraînement Solo', subtitle: '1 VS BOT', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
-                  { id: 'training_1v1', title: 'Entraînement 1v1', subtitle: '1 VS 1 Amical', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
-                  { id: '1v1', title: 'Duel devant ta télé', subtitle: '1 VS 1', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
-                  { id: '2v2', title: 'Soirée au pub', subtitle: '2 VS 2', bg: 'background2v2.png', video: 'videoBackground2v2.mp4', fullWidth: false },
-                  { id: '5v5', title: 'Fanzone survoltée', subtitle: '5 VS 5', bg: 'background5v5.png', video: 'videoBackground5v5.mp4', fullWidth: false },
-                  { id: 'war_of_kops', title: 'Guerre des KOPs', subtitle: 'XX VS XX', bg: 'backgroundKOP.png', video: 'videoBackgroundKOP.mp4', fullWidth: false }
+                  { id: 'training', title: t("duel.arena_training_solo", "Entraînement Solo"), subtitle: '1 VS BOT', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
+                  { id: 'training_1v1', title: t("duel.arena_training_1v1", "Entraînement 1v1"), subtitle: t("duel.arena_1v1_amic", "1 VS 1 Amical"), bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
+                  { id: '1v1', title: t("duel.arena_tv", "Duel devant ta télé"), subtitle: '1 VS 1', bg: 'background1v1.png', video: 'videoBackground1v1.mp4', fullWidth: false },
+                  { id: '2v2', title: t("duel.arena_pub", "Soirée au pub"), subtitle: '2 VS 2', bg: 'background2v2.png', video: 'videoBackground2v2.mp4', fullWidth: false },
+                  { id: '5v5', title: t("duel.arena_fanzone", "Fanzone survoltée"), subtitle: '5 VS 5', bg: 'background5v5.png', video: 'videoBackground5v5.mp4', fullWidth: false },
+                  { id: 'war_of_kops', title: t("duel.arena_wok", "Guerre des KOPs"), subtitle: 'XX VS XX', bg: 'backgroundKOP.png', video: 'videoBackgroundKOP.mp4', fullWidth: false }
                 ].filter(arena => {
                   if (isLiveMatch) {
                     return arena.id !== 'training' && arena.id !== 'training_1v1';
@@ -537,8 +539,8 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                 <div className="space-y-3 mt-4">
                   <div className="p-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-black text-white">Duel Privé</h4>
-                      <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-widest">Jouez uniquement avec un ami</p>
+                      <h4 className="text-sm font-black text-white">{t("duel.private_duel", "Duel Privé")}</h4>
+                      <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-widest">{t("duel.private_duel_desc", "Jouez uniquement avec un ami")}</p>
                     </div>
                     <button 
                       onClick={() => {
@@ -554,11 +556,11 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
 
                   {isPrivateMode && (
                     <div className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-3">
-                      <h4 className="text-xs font-black uppercase text-gray-300 tracking-wider">Inviter un Ami (Notification directe)</h4>
+                      <h4 className="text-xs font-black uppercase text-gray-300 tracking-wider">{t("duel.invite_friend", "Inviter un Ami (Notification directe)")}</h4>
                       {loadingFriends ? (
-                         <div className="text-xs text-gray-500 font-bold uppercase animate-pulse">Chargement de tes amis...</div>
+                         <div className="text-xs text-gray-500 font-bold uppercase animate-pulse">{t("duel.loading_friends", "Chargement de tes amis...")}</div>
                       ) : friendsList.length === 0 ? (
-                         <div className="text-xs text-gray-500 font-bold uppercase italic">Tu n'as pas encore d'amis ajoutés dans l'onglet social.</div>
+                         <div className="text-xs text-gray-500 font-bold uppercase italic">{t("duel.no_friends", "Tu n'as pas encore d'amis ajoutés dans l'onglet social.")}</div>
                       ) : (
                         <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1 no-scrollbar">
                           {friendsList.map((friend) => {
@@ -571,7 +573,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                                   </div>
                                   <div>
                                     <div className="text-xs font-black text-white">{friend.pseudo}</div>
-                                    <div className="text-[8px] font-bold text-gray-400 uppercase">Niveau {friend.level || 1}</div>
+                                    <div className="text-[8px] font-bold text-gray-400 uppercase">{t("duel.fan_mastery", "Niveau {level}").replace('{level}', (friend.level || 1).toString())}</div>
                                   </div>
                                 </div>
                                 <button
@@ -583,7 +585,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                                       : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
                                   }`}
                                 >
-                                  {isSelected ? 'Invité ✓' : 'Inviter'}
+                                  {isSelected ? t("duel.invited", "Invité ✓") : t("duel.invite", "Inviter")}
                                 </button>
                               </div>
                             );
@@ -591,9 +593,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                         </div>
                       )}
                       {invitedFriend && (
-                        <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-[10px] font-bold uppercase text-green-400">
-                          👉 Une notification directe sera envoyée à <strong className="font-extrabold">{invitedFriend.pseudo}</strong> dès le lancement !
-                        </div>
+                        <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-[10px] font-bold uppercase text-green-400" dangerouslySetInnerHTML={{__html: t("duel.invite_notification", "👉 Une notification directe sera envoyée à <strong class=\"font-extrabold\">{pseudo}</strong> dès le lancement !").replace('{pseudo}', invitedFriend.pseudo)}} />
                       )}
                     </div>
                   )}
@@ -606,32 +606,32 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-[#f97316] mb-2">
               <Activity size={16} className="sm:w-5 sm:h-5" />
-              <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-300">Votre impact estimé</h3>
+              <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-gray-300">{t("duel.estimated_impact", "Votre impact estimé")}</h3>
             </div>
             <div className="bg-[#1e1e1e] border border-white/5 rounded-2xl p-5 sm:p-6">
               <div className="space-y-3 sm:space-y-4 mb-5 sm:mb-6">
                 <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold uppercase">
-                  <span className="text-gray-400">Base Arène</span>
+                  <span className="text-gray-400">{t("duel.arena_base", "Base Arène")}</span>
                   <span className="text-white">{baseArena.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold uppercase">
-                  <span className="text-gray-400">Bonus Joueur (Excitation)</span>
+                  <span className="text-gray-400">{t("duel.player_bonus", "Bonus Joueur (Excitation)")}</span>
                   <span className={Number(bonusJoueurPct) >= 0 ? "text-green-500" : "text-red-500"}>
                     {Number(bonusJoueurPct) > 0 ? '+' : ''}{bonusJoueurPct}%
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold uppercase">
-                  <span className="text-[#f97316]">Maitrise Fan (L.{selectedFanz?.level || 1})</span>
+                  <span className="text-[#f97316]">{t("duel.fan_mastery", "Maitrise Fan (L.{level})").replace('{level}', (selectedFanz?.level || 1).toString())}</span>
                   <span className="text-[#f97316]">+{maitriseFanPct}%</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold uppercase">
-                  <span className="text-gray-400">Équipement & Synergie</span>
+                  <span className="text-gray-400">{t("duel.equipment_synergy", "Équipement & Synergie")}</span>
                   <span className="text-gray-500">+0%</span>
                 </div>
               </div>
               <div className="pt-5 sm:pt-6 border-t border-white/10 text-center">
                 <div className="text-3xl sm:text-4xl font-black text-white mb-1">{totalImpact}</div>
-                <div className="text-[10px] sm:text-xs font-bold text-[#f97316] uppercase tracking-widest">Pts par clic</div>
+                <div className="text-[10px] sm:text-xs font-bold text-[#f97316] uppercase tracking-widest">{t("duel.pts_per_click", "Pts par clic")}</div>
               </div>
             </div>
           </section>
@@ -645,7 +645,7 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
               disabled={!selectedFanzId || !selectedTeam || (!joiningDuelId && !selectedArena)}
               className="w-full py-4 text-sm font-black uppercase tracking-widest bg-[#b45309] hover:bg-[#92400e] text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {joiningDuelId ? "Rejoindre ce duel" : "Rejoindre l'arène"}
+              {joiningDuelId ? t("duel.join_this_duel", "Rejoindre ce duel") : t("duel.join_arena", "Rejoindre l'arène")}
             </button>
           </div>
         </div>
@@ -669,10 +669,10 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                 <AlertCircle className="w-10 h-10 text-red-500" />
               </div>
               <h2 className="text-2xl font-black italic uppercase mb-4 text-white">
-                Deck Incomplet
+                {t("duel.incomplete_deck", "Deck Incomplet")}
               </h2>
               <p className="text-gray-400 font-bold mb-8">
-                Votre Fanz doit avoir 8 cartes dans son deck pour lancer un duel !
+                {t("duel.incomplete_deck_desc", "Votre Fanz doit avoir 8 cartes dans son deck pour lancer un duel !")}
               </p>
               
               <div className="flex flex-col gap-3">
@@ -687,14 +687,14 @@ export function DuelManager({ user, matchId, teamA, teamB, teamAId, teamBId, tea
                   }}
                   className="w-full py-4 text-lg bg-orange-600 hover:bg-orange-500"
                 >
-                  Mettre à jour mon deck
+                  {t("duel.edit_deck", "Modifier mon Deck")}
                 </Button>
                 <Button 
                   onClick={() => setShowDeckError(false)}
                   variant="outline"
                   className="w-full py-4 text-lg border-gray-700 text-gray-400 hover:bg-gray-800"
                 >
-                  Annuler
+                  {t("common.cancel", "Annuler")}
                 </Button>
               </div>
             </motion.div>
@@ -716,6 +716,7 @@ interface FloatingEffect {
 export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, teamBId, teamALogo, teamBLogo, selectedTeam, duelLeagueId, duelSeason }: { duel: Duel; user: UserProfile; onExit: (status?: string) => void, fanzId: string, teamA?: string, teamB?: string, teamAId?: string, teamBId?: string, teamALogo?: string, teamBLogo?: string, selectedTeam: string, duelLeagueId?: string, duelSeason?: string }) {
   const { showAlert } = useAlert();
   const { openMedia } = useMediaViewer();
+  const { t, tDb } = useLanguage();
   const [progress, setProgress] = useState(50);
   const [excitement, setExcitement] = useState(5);
   const maxExcitement = 10;
@@ -2169,7 +2170,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           case 'blur_view':
             setIsBlurred(true);
             setTimeout(() => setIsBlurred(false), getEffectiveDuration(effect.duration || 5, bluffResistance));
-            addFloatingEffect('💨 Vue Troublée!', window.innerWidth / 2, 200, 'text-red-400 font-black');
+            addFloatingEffect(t('duel.effects.blurred_vision', '💨 Vue Troublée!'), window.innerWidth / 2, 200, 'text-red-400 font-black');
             break;
           case 'hide_button':
             setIsButtonHidden(true);
@@ -2617,7 +2618,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               return prevHistory;
             });
             if (lastEnemyCard) {
-              addFloatingEffect(`⚽ Multi-Ballon : "${lastEnemyCard.name}" adverse retourné !`, window.innerWidth / 2, 150, 'text-red-300 font-bold');
+              addFloatingEffect(t('duel.effects.multi_ball_enemy_return', `⚽ Multi-Ballon : "${tDb(lastEnemyCard.name)}" adverse retourné !`), window.innerWidth / 2, 150, 'text-red-300 font-bold');
               const mbResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
               const val = lastEnemyCard.fervorValue || lastEnemyCard.effects?.find(e => e.type === 'push_rope')?.value || 10;
               const delta = (currentMyTeam === 'A' ? val : -val) / mbResistance;
@@ -2943,7 +2944,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
 
     const x = e ? e.clientX : window.innerWidth / 2;
     const y = e ? e.clientY - 50 : window.innerHeight / 2;
-    addFloatingEffect(`Carte jouée: ${card.name}`, x, y, 'text-blue-400 font-bold');
+    addFloatingEffect(t('duel.effects.card_played', `Carte jouée: ${tDb(card.name)}`), x, y, 'text-blue-400 font-bold');
 
     // Calculate boosted card stats immediately for use in effects and emission
     let currentCardLevel = fanz?.cardProgress?.[card.id]?.level || 1;
@@ -2983,7 +2984,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       const baseFervor = card.fervorValue || 10;
       calculatedFervor = baseFervor + 4;
       setIsPrimeGoatActive(false);
-      addFloatingEffect(`✨ LE PRIME (G.O.A.T) ! ${card.name} montre son talent suprême ! (+4 Ferveur, ignorant ses stats réelles !)`, x, y - 110, "text-yellow-400 font-extrabold scale-115 border border-yellow-500/50 px-2.5 py-1.5 rounded bg-slate-950 shadow-[0_0_15px_rgba(234,179,8,0.6)] animate-pulse z-[250]");
+      addFloatingEffect(t('duel.effects.goat_prime_played', `✨ LE PRIME (G.O.A.T) ! ${tDb(card.name)} montre son talent suprême ! (+4 Ferveur, ignorant ses stats réelles !)`), x, y - 110, "text-yellow-400 font-extrabold scale-115 border border-yellow-500/50 px-2.5 py-1.5 rounded bg-slate-950 shadow-[0_0_15px_rgba(234,179,8,0.6)] animate-pulse z-[250]");
     }
     
     let isTiktokContred = false;
@@ -3455,7 +3456,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       }
       if (effect.type === 'chainsaw_megaphone') {
         setExcitement(prev => Math.max(0, prev - 1));
-        addFloatingEffect('💥 RECUL : -1 PA d\'excitation !', x, y - 60, 'text-red-500 font-extrabold animate-bounce');
+        addFloatingEffect(t('duel.effects.recoil', '💥 RECUL : -1 PA d\'excitation !'), x, y - 60, 'text-red-500 font-extrabold animate-bounce');
       }
       if (effect.type === 'burning_seats') {
         setIsBurningSeatsOverlayActive(true);
@@ -3484,9 +3485,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           const discardedCard = hand[randomIndexToDiscard];
           setHand(prev => prev.filter((_, idx) => idx !== randomIndexToDiscard));
           setTimeout(drawCard, 2000);
-          addFloatingEffect(`🔥 SIÈGES EN FEU : Votre carte ${discardedCard.name} part en fumée !`, window.innerWidth / 2, 240, 'text-orange-500 font-black scale-110');
+          addFloatingEffect(t('duel.effects.seats_on_fire', `🔥 SIÈGES EN FEU : Votre carte ${tDb(discardedCard.name)} part en fumée !`), window.innerWidth / 2, 240, 'text-orange-500 font-black scale-110');
         } else {
-          addFloatingEffect(`🛡️ PROTECT : Vos cartes en main sont immunisées par l'Étendard !`, window.innerWidth / 2, 240, 'text-yellow-400 font-bold');
+          addFloatingEffect(t('duel.effects.protect', `🛡️ PROTECT : Vos cartes en main sont immunisées par l'Étendard !`), window.innerWidth / 2, 240, 'text-yellow-400 font-bold');
         }
       }
       if (effect.type === 'var_temporelle') {
@@ -3502,24 +3503,24 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           setIsCapoMegaphoneActive(target.isCapoMegaphoneActive);
           setIsCraquageMassifActive(target.isCraquageMassifActive);
           setStateSnapshots(history.slice(0, -2));
-          addFloatingEffect("📺 ARBITRAGE VIDÉO 4D : Le match est rembobiné !", x, y - 50, 'text-red-500 font-extrabold scale-125 z-[210] animate-pulse');
+          addFloatingEffect(t('duel.effects.var_rewind', `📺 ARBITRAGE VIDÉO 4D : Le match est rembobiné !`), x, y - 50, 'text-red-500 font-extrabold scale-125 z-[210] animate-pulse');
         } else {
-          addFloatingEffect("📺 VAR : Pas assez d'historique pour rembobiner !", x, y - 50, 'text-gray-400 font-bold');
+          addFloatingEffect(t('duel.effects.var_no_history', `📺 VAR : Pas assez d'historique pour rembobiner !`), x, y - 50, 'text-gray-400 font-bold');
         }
       }
       if (effect.type === 'tifo_holographique') {
         setIsTifoHolographiqueActive(true);
-        addFloatingEffect("🛡️ TIFO HOLOGRAPHIQUE 3D : Mascotte géante déployée ! (Écran laser actif)", x, y - 40, 'text-cyan-400 font-extrabold animate-pulse');
+        addFloatingEffect(t('duel.effects.tifo', `🛡️ TIFO HOLOGRAPHIQUE 3D : Mascotte géante déployée ! (Écran laser actif)`), x, y - 40, 'text-cyan-400 font-extrabold animate-pulse');
       }
       if (effect.type === 'capo_megaphone') {
         setIsCapoMegaphoneActive(true);
         setTimeout(() => setIsCapoMegaphoneActive(false), (effect.duration || 15) * 1000);
-        addFloatingEffect("📢 MÉGAPHONE DU CAPO : Énergie et chants de tribune doublés !", x, y - 45, 'text-yellow-400 font-black scale-110 animate-bounce');
+        addFloatingEffect(t('duel.effects.megaphone', `📢 MÉGAPHONE DU CAPO : Énergie et chants de tribune doublés !`), x, y - 45, 'text-yellow-400 font-black scale-110 animate-bounce');
       }
       if (effect.type === 'craquage_massif') {
         setIsCraquageMassifActive(true);
         setTimeout(() => setIsCraquageMassifActive(false), (effect.duration || 10) * 1000);
-        addFloatingEffect("🔥 CRAQUAGE MASSIF : Tribune inciblable par l'ennemi !", x, y - 50, 'text-red-500 font-black scale-125 animate-bounce z-[210]');
+        addFloatingEffect(t('duel.effects.massive_flare', `🔥 CRAQUAGE MASSIF : Tribune inciblable par l'ennemi !`), x, y - 50, 'text-red-500 font-black scale-125 animate-bounce z-[210]');
       }
       if (effect.type === 'cancel_last_attack') {
         if (lastEnemyCard) {
@@ -3528,41 +3529,41 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           const delta = (myTeam === 'A' ? val : -val) / resistance;
           const bonus = myTeam === 'A' ? 10 : -10;
           setProgress(prev => Math.min(100, Math.max(0, prev + delta + bonus)));
-          addFloatingEffect(`🔮 LE SCRIPT : Attaque adverse annulée (${lastEnemyCard.name}) + Rebond Miracle !`, x, y - 50, 'text-yellow-400 font-extrabold scale-110 drop-shadow-md z-[202]');
+          addFloatingEffect(t('duel.effects.script', `🔮 LE SCRIPT : Attaque adverse annulée (${tDb(lastEnemyCard.name)}) + Rebond Miracle !`), x, y - 50, 'text-yellow-400 font-extrabold scale-110 drop-shadow-md z-[202]');
           setLastEnemyCard(null);
         } else {
           const bonus = myTeam === 'A' ? 10 : -10;
           setProgress(prev => Math.min(100, Math.max(0, prev + bonus)));
-          addFloatingEffect("🔮 SCRIPT ACTIF : Rebond miracle dans vos pieds ! (+10% ferveur)", x, y - 50, 'text-yellow-300 font-bold');
+          addFloatingEffect(t('duel.effects.script_active', `🔮 SCRIPT ACTIF : Rebond miracle dans vos pieds ! (+10% ferveur)`), x, y - 50, 'text-yellow-300 font-bold');
         }
       }
       if (effect.type === 'rage_quit_discard') {
         // Since playCard is playing a malus on the enemy, this only triggers locally on the player if they play it on themselves (e.g. testing)
         // Usually, malus is sent to opponent, so this is just symmetrical visual feedback when played by us.
-        addFloatingEffect(`😡 RAGE QUIT INITIÉ ! Cible sous tension (l'adversaire déteste ça...)`, x, y - 55, 'text-red-500 font-black scale-110 animate-bounce');
+        addFloatingEffect(t('duel.effects.rage_quit', `😡 RAGE QUIT INITIÉ ! Cible sous tension (l'adversaire déteste ça...)`), x, y - 55, 'text-red-500 font-black scale-110 animate-bounce');
       }
       if (effect.type === 'meta_update') {
         setIsMetaUpdateActive(true);
         setTimeout(() => setIsMetaUpdateActive(false), (effect.duration || 15) * 1000);
-        addFloatingEffect("🌐 NOUVELLE MÉTA : Statut Équilibrage Actif !", x, y - 30, "text-cyan-400 font-black animate-pulse scale-110");
+        addFloatingEffect(t('duel.effects.new_meta', `🌐 NOUVELLE MÉTA : Statut Équilibrage Actif !`), x, y - 30, "text-cyan-400 font-black animate-pulse scale-110");
       }
       if (effect.type === 'stealth_jacket_flip') {
         if (lastEnemyCard && lastEnemyCard.effects && lastEnemyCard.effects.length > 0) {
-          addFloatingEffect(`🎭 Retournement de veste : Effets de "${lastEnemyCard.name}" copiés !`, x, y - 80, 'text-green-400 font-extrabold animate-pulse scale-110');
+          addFloatingEffect(t('duel.effects.copy', `🎭 Retournement de veste : Effets de "${tDb(lastEnemyCard.name)}" copiés !`), x, y - 80, 'text-green-400 font-extrabold animate-pulse scale-110');
           lastEnemyCard.effects.forEach(applySingleEffect);
         } else {
-          addFloatingEffect("❌ Pas de carte adverse à copier", x, y - 80, 'text-gray-500');
+          addFloatingEffect(t('duel.effects.no_copy', `❌ Pas de carte adverse à copier`), x, y - 80, 'text-gray-500');
         }
       }
       if (effect.type === 'desert_crossing') {
         const isLosing = (myTeam === 'A' && progress < 50) || (myTeam === 'B' && progress > 50);
         if (isLosing) {
-          addFloatingEffect("🏜️ Traversée du Désert : Perte de ferveur (-15%) !", x, y - 80, 'text-red-500 font-extrabold animate-bounce scale-110');
+          addFloatingEffect(t('duel.effects.desert_loss', `🏜️ Traversée du Désert : Perte de ferveur (-15%) !`), x, y - 80, 'text-red-500 font-extrabold animate-bounce scale-110');
           const loss = myTeam === 'A' ? -15 : 15;
           const resistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
           setProgress(prev => Math.min(100, Math.max(0, prev + (loss / resistance))));
         } else {
-          addFloatingEffect("🏜️ Traversée du Désert : Vous menez ! Glory Hunter préservé.", x, y - 80, 'text-green-400 font-bold');
+          addFloatingEffect(t('duel.effects.desert_lead', `🏜️ Traversée du Désert : Vous menez ! Glory Hunter préservé.`), x, y - 80, 'text-green-400 font-bold');
         }
       }
       if (effect.type === 'half_half_scarf') {
@@ -3572,20 +3573,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
           setIsImmune(false);
           setIsHalfHalfScarfActive(false);
         }, (effect.duration || 10) * 1000);
-        addFloatingEffect("🧣 Écharpe Half-Half : Combat Gelé ! (Immunité mutuelle 10s)", x, y - 80, 'text-blue-300 font-extrabold animate-pulse');
+        addFloatingEffect(t('duel.effects.half_half', `🧣 Écharpe Half-Half : Combat Gelé ! (Immunité mutuelle 10s)`), x, y - 80, 'text-blue-300 font-extrabold animate-pulse');
       }
       if (effect.type === 'megaphone_echo') {
         setIsMegaphoneEchoActive(true);
         setTimeout(() => {
           setIsMegaphoneEchoActive(false);
         }, (effect.duration || 15) * 1000);
-        addFloatingEffect("📢 Écho du Mégaphone : Vos supporters sont galvanisés (+2 Ferveur/Attaque) !", x, y - 80, 'text-yellow-400 font-black scale-110 animate-bounce');
+        addFloatingEffect(t('duel.effects.megaphone_echo', `📢 Écho du Mégaphone : Vos supporters sont galvanisés (+2 Ferveur/Attaque) !`), x, y - 80, 'text-yellow-400 font-black scale-110 animate-bounce');
       }
       if (effect.type === 'biological_curfew') {
-        addFloatingEffect("😴 Couvre-Feu Biologique ! L'adversaire va s'endormir pour 2 tours.", x, y - 80, 'text-purple-400 font-extrabold scale-110');
+        addFloatingEffect(t('duel.effects.curfew', `😴 Couvre-Feu Biologique ! L'adversaire va s'endormir pour 2 tours.`), x, y - 80, 'text-purple-400 font-extrabold scale-110');
         // Let's also lock a random opponent card in training mode to make single player training feel alive
         if (duel.type === 'training') {
-           addFloatingEffect("🤖 Bot fatigué : Une de ses actions est engagée !", x, y - 120, 'text-purple-400 font-semibold');
+           addFloatingEffect(t('duel.effects.bot_tired', `🤖 Bot fatigué : Une de ses actions est engagée !`), x, y - 120, 'text-purple-400 font-semibold');
         }
       }
       if (effect.type === 'early_craquage') {
@@ -3593,23 +3594,23 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setTimeout(() => {
           setIsEarlyCraquageActive(false);
         }, (effect.duration || 15) * 1000);
-        addFloatingEffect("🌫️ Le Craquage Précoce ! Fumigène massif en plein virage pendant 15s !", x, y - 80, 'text-gray-400 font-black animate-pulse scale-110');
+        addFloatingEffect(t('duel.effects.early_flare', `🌫️ Le Craquage Précoce ! Fumigène massif en plein virage pendant 15s !`), x, y - 80, 'text-gray-400 font-black animate-pulse scale-110');
       }
       if (effect.type === 'laser_relaunch') {
         setIsLaserRelaunchActive(true);
         setTimeout(() => {
           setIsLaserRelaunchActive(false);
         }, (effect.duration || 15) * 1000);
-        addFloatingEffect("⚡ Relance Laser active ! Prochaine Action Rapide ou Attaquant gratuite !", x, y - 80, 'text-yellow-400 font-extrabold animate-pulse scale-110');
+        addFloatingEffect(t('duel.effects.laser_relay', `⚡ Relance Laser active ! Prochaine Action Rapide ou Attaquant gratuite !`), x, y - 80, 'text-yellow-400 font-extrabold animate-pulse scale-110');
       }
       if (effect.type === 'pro_tantrum') {
-        addFloatingEffect("🟥 Coup de Sang du Pro : L'adversaire bouscule le ramasseur ! (-12% Ferveur adverse)", x, y - 80, 'text-red-500 font-extrabold animate-bounce scale-110');
+        addFloatingEffect(t('duel.effects.blood_rush', `🟥 Coup de Sang du Pro : L'adversaire bouscule le ramasseur ! (-12% Ferveur adverse)`), x, y - 80, 'text-red-500 font-extrabold animate-bounce scale-110');
         const ptResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
         const ptLoss = myTeam === 'A' ? 12 : -12;
         setProgress(prev => Math.min(100, Math.max(0, prev + (ptLoss / ptResistance))));
       }
       if (effect.type === 'multiball_chaos') {
-        addFloatingEffect("🔊 DRING ! Double ballon sifflet de l'arbitre ! Phase d'attaque annulée.", x, y - 50, 'text-white font-extrabold scale-125 animate-pulse bg-slate-900 border border-slate-700 rounded px-2 py-1');
+        addFloatingEffect(t('duel.effects.referee_whistle', `🔊 DRING ! Double ballon sifflet de l'arbitre ! Phase d'attaque annulée.`), x, y - 50, 'text-white font-extrabold scale-125 animate-pulse bg-slate-900 border border-slate-700 rounded px-2 py-1');
         setPlayedHistory(prevHistory => {
           if (prevHistory.length > 0) {
             const lastPlayed = prevHistory[prevHistory.length - 1];
@@ -3617,13 +3618,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               if (prevHand.some(c => c.id === lastPlayed.id)) return prevHand;
               return [...prevHand, lastPlayed];
             });
-            addFloatingEffect(`⚽ Multi-Ballon : "${lastPlayed.name}" retourné dans votre main !`, x, y - 80, 'text-green-300 font-bold');
+            addFloatingEffect(t('duel.effects.multi_ball_return', `⚽ Multi-Ballon : "${tDb(lastPlayed.name)}" retourné dans votre main !`), x, y - 80, 'text-green-300 font-bold');
             return prevHistory.slice(0, -1);
           }
           return prevHistory;
         });
         if (lastEnemyCard) {
-          addFloatingEffect(`⚽ Multi-Ballon : "${lastEnemyCard.name}" adverse retourné !`, x, y - 110, 'text-red-300 font-bold');
+          addFloatingEffect(t('duel.effects.multi_ball_enemy_return', `⚽ Multi-Ballon : "${tDb(lastEnemyCard.name)}" adverse retourné !`), x, y - 110, 'text-red-300 font-bold');
           const mbResistance = { '1v1': 1, '2v2': 2, '5v5': 5, 'war_of_kops': 50, 'training': 1 }[duel.type] || 1;
           const val = lastEnemyCard.fervorValue || lastEnemyCard.effects?.find(e => e.type === 'push_rope')?.value || 10;
           const delta = (myTeam === 'A' ? val : -val) / mbResistance;
@@ -3636,14 +3637,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setTimeout(() => {
           setIsMentalMainCouranteActive(false);
         }, (effect.duration || 15) * 1000);
-        addFloatingEffect("🛡️ Le Mental de la Main Courante ! Vos cartes sont immunisées contre le Climat et le Terrain !", x, y - 80, 'text-green-400 font-extrabold animate-pulse scale-110');
+        addFloatingEffect(t('duel.effects.handrail_mental', `🛡️ Le Mental de la Main Courante ! Vos cartes sont immunisées contre le Climat et le Terrain !`), x, y - 80, 'text-green-400 font-extrabold animate-pulse scale-110');
       }
       if (effect.type === 'heritage_weight') {
         setIsEnemyHeritageWeightActive(true);
         setTimeout(() => {
           setIsEnemyHeritageWeightActive(false);
         }, (effect.duration || 15) * 1000);
-        addFloatingEffect("👵 Le Poids de l'Héritage ! L'adversaire est submergé par la mélancolie en repensant à 1964 !", x, y - 80, 'text-red-400 font-extrabold bg-black/45 px-2 py-1 rounded scale-110');
+        addFloatingEffect(t('duel.effects.legacy_weight', `👵 Le Poids de l'Héritage ! L'adversaire est submergé par la mélancolie en repensant à 1964 !`), x, y - 80, 'text-red-400 font-extrabold bg-black/45 px-2 py-1 rounded scale-110');
       }
       if (effect.type === 'buvette_alert') {
         setIsBuvetteAlertActive(true);
@@ -3651,26 +3652,26 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setTimeout(() => {
           setIsBuvetteAlertActive(false);
         }, 12000);
-        addFloatingEffect("🌭 Alerte Buvette ! Passer l'attaque pour Buvette ! (+3 Énergie / +12% Ferveur)", x, y - 80, 'text-yellow-400 font-black animate-bounce scale-110 py-1 px-2 border border-yellow-500/40 rounded bg-slate-900');
+        addFloatingEffect(t('duel.effects.snack_alert', `🌭 Alerte Buvette ! Passer l'attaque pour Buvette ! (+3 Énergie / +12% Ferveur)`), x, y - 80, 'text-yellow-400 font-black animate-bounce scale-110 py-1 px-2 border border-yellow-500/40 rounded bg-slate-900');
       }
       if (effect.type === 'tiktok_highlight') {
         setIsTikTokHighlightActive(true);
-        addFloatingEffect("📱 Highlight TikTok ! Prochain geste doublé en ferveur ! (Attention au Contre !)", x, y - 85, 'text-purple-400 font-black animate-pulse scale-110');
+        addFloatingEffect(t('duel.effects.tiktok_highlight', `📱 Highlight TikTok ! Prochain geste doublé en ferveur ! (Attention au Contre !)`), x, y - 85, 'text-purple-400 font-black animate-pulse scale-110');
       }
       if (effect.type === 'prime_goat') {
         setIsPrimeGoatActive(true);
         setTimeout(() => setIsPrimeGoatActive(false), (effect.duration || 15) * 1000);
-        addFloatingEffect("⚡ Le Prime (G.O.A.T) ! Votre prochaine carte 'Joueur' gagnera +4 en ferveur !", x, y - 85, 'text-yellow-400 font-extrabold animate-pulse scale-110');
+        addFloatingEffect(t('duel.effects.goat_prime', `⚡ Le Prime (G.O.A.T) ! Votre prochaine carte 'Joueur' gagnera +4 en ferveur !`), x, y - 85, 'text-yellow-400 font-extrabold animate-pulse scale-110');
       }
       if (effect.type === 'attention_swipe') {
-        addFloatingEffect("📱 Perte d'Attention (Swipe) ! L'Ado adverse zappe, défaussant une de ses cartes au hasard !", x, y - 85, 'text-red-400 font-black animate-bounce scale-110');
+        addFloatingEffect(t('duel.effects.attention_loss', `📱 Perte d'Attention (Swipe) ! L'Ado adverse zappe, défaussant une de ses cartes au hasard !`), x, y - 85, 'text-red-400 font-black animate-bounce scale-110');
       }
       if (effect.type === 'sterile_debate') {
         setIsDebatePickerOpen(true);
-        addFloatingEffect("💬 Débat Stérile sur les Réseaux ! Sélectionnez une carte à parier !", x, y - 85, 'text-purple-400 font-extrabold animate-bounce bg-black/40 px-2 py-1 rounded');
+        addFloatingEffect(t('duel.effects.sterile_debate', `💬 Débat Stérile sur les Réseaux ! Sélectionnez une carte à parier !`), x, y - 85, 'text-purple-400 font-extrabold animate-bounce bg-black/40 px-2 py-1 rounded');
       }
       if (effect.type === 'boucher_district') {
-        addFloatingEffect("🤕 Le Boucher du District envoyé ! Tacle assassin sur l'adversaire !", x, y - 85, 'text-red-400 font-black scale-110 animate-bounce');
+        addFloatingEffect(t('duel.effects.district_butcher', `🤕 Le Boucher du District envoyé ! Tacle assassin sur l'adversaire !`), x, y - 85, 'text-red-400 font-black scale-110 animate-bounce');
       }
       if (effect.type === 'faux_rebond_excuse') {
         const lastPlayed = lastMyCard;
@@ -3679,9 +3680,9 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             if (prevHand.some(c => c.id === lastPlayed.id)) return prevHand;
             return [...prevHand, lastPlayed];
           });
-          addFloatingEffect(`🤷‍♂️ Faux Rebond ! Action annulée : "${lastPlayed.name}" revient en main !`, x, y - 85, 'text-yellow-400 font-extrabold animate-bounce bg-black/40 px-2 py-1 rounded');
+          addFloatingEffect(t('duel.effects.false_bounce_return', `🤷‍♂️ Faux Rebond ! Action annulée : "${tDb(lastPlayed.name)}" revient en main !`), x, y - 85, 'text-yellow-400 font-extrabold animate-bounce bg-black/40 px-2 py-1 rounded');
         } else {
-          addFloatingEffect("🤷‍♂️ Faux Rebond ! Le match est temporairement gelé !", x, y - 85, 'text-yellow-400 font-bold');
+          addFloatingEffect(t('duel.effects.false_bounce_frozen', `🤷‍♂️ Faux Rebond ! Le match est temporairement gelé !`), x, y - 85, 'text-yellow-400 font-bold');
         }
         setExcitement(0);
       }
@@ -3806,7 +3807,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         setIsFlare(true);
         const x = window.innerWidth / 2;
         const y = window.innerHeight / 4;
-        addFloatingEffect('🔥 FUMIGÈNES ! (Ferveur x3) 🔥', x, y, 'text-red-500 font-black scale-150 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] z-[200]');
+        addFloatingEffect(t('duel.effects.flares', '🔥 FUMIGÈNES ! (Ferveur x3) 🔥'), x, y, 'text-red-500 font-black scale-150 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] z-[200]');
         
         // Remove flare after 10 seconds
         setTimeout(() => {
@@ -3842,7 +3843,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       
       const x = window.innerWidth / 2 + (Math.random() * 100 - 50);
       const y = window.innerHeight / 2 + (Math.random() * 100 - 50);
-      addFloatingEffect(`+0.5 Auto`, x, y, 'text-blue-300 text-xs font-bold font-mono');
+      addFloatingEffect(t('duel.effects.auto_plus', '+0.5 Auto'), x, y, 'text-blue-300 text-xs font-bold font-mono');
     }, 1000); 
     
     return () => clearInterval(interval);
@@ -3950,7 +3951,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               />
               <div className="absolute top-2 left-6 bg-yellow-950/95 border border-yellow-500/50 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_0_15px_rgba(234,179,8,0.4)]">
                 <span className="text-xs animate-pulse">✨</span>
-                <span className="text-[10px] font-extrabold text-yellow-400 tracking-wider uppercase">Étendard Actif</span>
+                <span className="text-[10px] font-extrabold text-yellow-400 tracking-wider uppercase">{t('duel.banner_active', 'Étendard Actif')}</span>
               </div>
             </motion.div>
           )}
@@ -3971,7 +3972,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               />
               <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-orange-950/90 border border-orange-500/50 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.4)]">
                 <span className="animate-spin text-xs">🎃</span>
-                <span className="text-[10px] font-extrabold text-orange-400 tracking-wider uppercase animate-pulse">Brouillard de Citrouille Toxique</span>
+                <span className="text-[10px] font-extrabold text-orange-400 tracking-wider uppercase animate-pulse">{t('duel.toxic_pumpkin_fog', 'Brouillard de Citrouille Toxique')}</span>
               </div>
             </motion.div>
           )}
@@ -4061,7 +4062,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               exit={{ opacity: 0 }}
               className="absolute inset-0 z-40 bg-black/80 backdrop-blur-xl pointer-events-none flex items-center justify-center mix-blend-saturation"
             >
-              <span className="text-white/20 font-black text-6xl tracking-widest uppercase rotate-45 mix-blend-overlay">CHAOS</span>
+              <span className="text-white/20 font-black text-6xl tracking-widest uppercase rotate-45 mix-blend-overlay">{t('duel.chaos', 'CHAOS')}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -4082,7 +4083,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             >
               <div className="absolute top-1/4 left-1/2 -translate-x-1/2 flex flex-col items-center animate-pulse">
                 <div className="w-48 h-48 rounded-full border-4 border-cyan-400 animate-spin opacity-40" style={{ animationDuration: '10s' }} />
-                <span className="text-cyan-400 text-xs font-black tracking-widest uppercase mt-4 animate-bounce">CYBER-MASCOTTE ACTIVÉE</span>
+                <span className="text-cyan-400 text-xs font-black tracking-widest uppercase mt-4 animate-bounce">{t('duel.cyber_mascot_activated', 'CYBER-MASCOTTE ACTIVÉE')}</span>
               </div>
             </motion.div>
           )}
@@ -4117,9 +4118,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             >
               <div className="flex flex-col items-center gap-4">
                 <EyeOff className="w-16 h-16 text-red-500 animate-pulse" />
-                <div className="text-white font-black italic text-3xl uppercase tracking-tighter text-center">
-                  Vue Troublée !
-                </div>
+                <div className="text-white font-black italic text-3xl uppercase tracking-tighter text-center">{t('duel.effects.blurred_vision_title', 'Vue Troublée !')}</div>
               </div>
             </motion.div>
           )}
@@ -4158,7 +4157,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       }}
                       className="p-1.5 bg-white/5 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center"
                     >
-                      <img src={getImageUrl(emote.imageUrl)} alt={emote.name} className="w-8 h-8 object-contain" />
+                      <img src={getImageUrl(emote.imageUrl)} alt={typeof emote.name === 'string' ? emote.name : tDb(emote.name)} className="w-8 h-8 object-contain" />
                     </button>
                   ))
                 ) : (
@@ -4296,7 +4295,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   </div>
                   <div className="mt-4 text-center px-4 w-[250px] md:w-[350px]">
                     <h3 className="text-white font-black italic uppercase text-2xl md:text-3xl leading-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] break-words" style={{ WebkitTextStroke: '1.5px black' }}>
-                      {enemyPlayedCardAnim.card.name}
+                      {tDb(enemyPlayedCardAnim.card.name)}
                     </h3>
                   </div>
                 </>
@@ -4341,10 +4340,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             </button>
             <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 bg-black/40 px-3 py-1.5 rounded-xl backdrop-blur-sm text-center whitespace-nowrap">
               <h3 className="text-[10px] md:text-xs font-black italic uppercase text-white drop-shadow-md">
-                {status === 'room_full' ? 'Le duel va commencer...' : "En attente d'adversaires..."}
+                {status === 'room_full' ? t("duel.starting", 'Le duel va commencer...') : t("duel.waiting_opponents", "En attente d'adversaires...")}
               </h3>
               <p className="text-gray-300 text-[7px] md:text-[8px] font-bold uppercase tracking-widest mt-0.5">
-                {status === 'room_full' ? 'Préparez-vous !' : 'Le duel commencera dès que le salon sera complet.'}
+                {status === 'room_full' ? t("duel.get_ready", 'Préparez-vous !') : t("duel.waiting_room_full", 'Le duel commencera dès que le salon sera complet.')}
               </p>
             </div>
 
@@ -4416,7 +4415,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                         ) : (
                           <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-2">
                             <div className="w-6 h-6 border-2 border-blue-500/50 border-t-blue-400 rounded-full animate-spin" />
-                            <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest text-center">En attente</span>
+                            <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest text-center">{t("duel.waiting", "En attente")}</span>
                           </div>
                         )}
                       </div>
@@ -4464,7 +4463,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                         ) : (
                           <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-2">
                             <div className="w-6 h-6 border-2 border-red-500/50 border-t-red-400 rounded-full animate-spin" />
-                            <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest text-center">En attente</span>
+                            <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest text-center">{t("duel.waiting", "En attente")}</span>
                           </div>
                         )}
                       </div>
@@ -4490,14 +4489,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       className="px-4 py-1.5 bg-blue-600/80 hover:bg-blue-500 text-white rounded-full font-black uppercase tracking-widest italic text-[8px] shadow-sm backdrop-blur-sm transition-all flex items-center justify-center gap-1.5 border border-blue-400/30"
                     >
                       <Users className="w-2.5 h-2.5" />
-                      Lancer avec des Bots
+                      {t("duel.start_with_bots", "Lancer avec des Bots")}
                     </button>
                   </div>
                 )}
 
                 {inviteCode && (!invitedUids || invitedUids.length === 0) && (
                   <div className="bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/10 flex flex-col items-center w-full">
-                    <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Code d'invitation</span>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">{t('duel.invite_code', 'Code d\'invitation')}</span>
                     <div className="text-2xl font-black text-orange-500 tracking-[0.2em] mb-2">{inviteCode}</div>
                     <div className="flex gap-2 w-full">
                       <button 
@@ -4545,7 +4544,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             >
               {countdown}
             </motion.span>
-            <h3 className="text-2xl font-black italic uppercase mt-4">Préparez-vous !</h3>
+            <h3 className="text-2xl font-black italic uppercase mt-4">{t('duel.get_ready', 'Préparez-vous !')}</h3>
           </motion.div>
         )}
       </AnimatePresence>
@@ -4641,20 +4640,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
             {isButtonFrozen ? (
               <>
                 <Snowflake className="w-12 h-12 text-white animate-pulse" />
-                <span className="font-black italic text-xl uppercase mt-2">GELÉ !</span>
+                <span className="font-black italic text-xl uppercase mt-2">{t('duel.frozen', 'GELÉ !')}</span>
               </>
             ) : isStunned ? (
               <>
                 <span className="text-3xl animate-spin" style={{ animationDuration: '3s' }}>😵</span>
-                <span className="font-black italic text-sm uppercase mt-2 text-red-400">ASSOMMÉ !</span>
+                <span className="font-black italic text-sm uppercase mt-2 text-red-400">{t('duel.stunned', 'ASSOMMÉ !')}</span>
               </>
             ) : (
               <>
-                <span className="font-black italic text-2xl uppercase">Cliquer</span>
+                <span className="font-black italic text-2xl uppercase">{t('duel.click', 'Cliquer')}</span>
                 <span className="text-xs uppercase font-bold opacity-70">
                   {isHeavyBallPower ? 'Ferveur +0.9%' : 'Ferveur +0.5%'}
                 </span>
-                {isHeavyBallPower && <span className="text-[9px] font-bold text-yellow-400 animate-pulse mt-1">🎈 BALLON LOURD</span>}
+                {isHeavyBallPower && <span className="text-[9px] font-bold text-yellow-400 animate-pulse mt-1">🎈 {t('duel.heavy_ball', 'BALLON LOURD')}</span>}
               </>
             )}
           </motion.button>
@@ -4666,14 +4665,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 animate={{ x: -150, y: -100, opacity: 0.8 }}
                 className="absolute w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-orange-600/50 border-4 border-white/10 flex items-center justify-center z-0"
               >
-                <span className="font-black italic text-[10px] uppercase">Cliquer</span>
+                <span className="font-black italic text-[10px] uppercase">{t('duel.click', 'Cliquer')}</span>
               </motion.button>
               <motion.button 
                 initial={{ x: 100, y: 100, opacity: 0 }}
                 animate={{ x: 150, y: 100, opacity: 0.8 }}
                 className="absolute w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-orange-600/50 border-4 border-white/10 flex items-center justify-center z-0"
               >
-                <span className="font-black italic text-[10px] uppercase">Cliquer</span>
+                <span className="font-black italic text-[10px] uppercase">{t('duel.click', 'Cliquer')}</span>
               </motion.button>
             </>
           )}
@@ -4684,7 +4683,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
       <div className="mt-auto pt-4 flex flex-col gap-3">
         {/* Status Indicators */}
         <div className="flex flex-wrap justify-center gap-2">
-          {isBlurred && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><EyeOff size={12} /> Vue Troublée</div>}
+          {isBlurred && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><EyeOff size={12} /> {t('duel.effects.blurred_vision_label', 'Vue Troublée')}</div>}
           {isButtonHidden && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><Ghost size={12} /> Bouton Invisible</div>}
           {isButtonFrozen && <div className="flex items-center gap-1 text-[10px] font-bold text-blue-400 uppercase"><Snowflake size={12} /> Bouton Gelé</div>}
           {isButtonShrunk && <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase"><Minimize2 size={12} /> Bouton Réduit</div>}
@@ -4748,7 +4747,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               className="absolute bottom-[160px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-50 w-full max-w-sm px-4"
             >
               <div className="bg-blue-900/90 border-2 border-blue-400 p-3 rounded-xl shadow-[0_0_20px_blue] w-full text-center backdrop-blur-md">
-                <p className="text-white font-bold mb-2">Sélectionnez jusqu'à 3 doubles ({selectedStickers.length}/3)</p>
+                <p className="text-white font-bold mb-2">{t('duel.select_doubles', 'Sélectionnez jusqu\'à 3 doubles ({{count}}/3)', { count: selectedStickers.length })}</p>
                 <div className="flex gap-2 w-full">
                   <button 
                     onClick={() => setIsTradingStickers(false)}
@@ -4761,7 +4760,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       if (selectedStickers.length > 0) {
                         setHand(prev => prev.filter(c => !selectedStickers.includes(c.instanceId || c.id)));
                         setTimeout(() => drawCard(true, selectedStickers.length), 500);
-                        addFloatingEffect(`🔄 ${selectedStickers.length} Carte(s) Échangée(s)!`, window.innerWidth / 2, 200, 'text-blue-400 font-bold max-w-[200px] text-center');
+                        addFloatingEffect(t('duel.effects.cards_exchanged', `🔄 ${selectedStickers.length} Carte(s) Échangée(s)!`), window.innerWidth / 2, 200, 'text-blue-400 font-bold max-w-[200px] text-center');
                       }
                       setIsTradingStickers(false);
                     }}
@@ -4787,10 +4786,10 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               <div className="bg-yellow-950/95 border-2 border-yellow-400 p-3.5 rounded-2xl shadow-[0_0_25px_rgba(234,179,8,0.65)] w-full text-center backdrop-blur-md flex flex-col items-center gap-2">
                 <div className="flex items-center gap-1.5 flex-nowrap">
                   <span className="text-xl animate-bounce">🌭</span>
-                  <span className="text-sm font-black text-yellow-300 uppercase tracking-wider">Alerte Buvette Tactique</span>
+                  <span className="text-sm font-black text-yellow-300 uppercase tracking-wider">{t('duel.snack_alert_title', 'Alerte Buvette Tactique')}</span>
                   <span className="text-xl animate-bounce">🍺</span>
                 </div>
-                <p className="text-[11px] text-gray-200 leading-relaxed font-semibold">Les merguez sont cuites ! Souhaitez-vous passer votre tour pour récupérer de l'énergie et de la ferveur ?</p>
+                <p className="text-[11px] text-gray-200 leading-relaxed font-semibold">{t('duel.snack_alert_desc', 'Les merguez sont cuites ! Souhaitez-vous passer votre tour pour récupérer de l\'énergie et de la ferveur ?')}</p>
                 
                 <button
                   onClick={() => {
@@ -4802,14 +4801,14 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     
                     setExcitement(prev => Math.min(10, prev + 3));
                     
-                    addFloatingEffect("🌭 Merguez & Frites savourées ! +3 Énergie / +12% Ferveur !", window.innerWidth / 2, window.innerHeight / 2, "text-yellow-400 font-extrabold scale-110 py-1.5 px-3 border-2 border-yellow-400 rounded-lg bg-slate-900 shadow-[0_0_15px_yellow] z-[300]");
+                    addFloatingEffect(t('duel.effects.merguez_fries', `🌭 Merguez & Frites savourées ! +3 Énergie / +12% Ferveur !`), window.innerWidth / 2, window.innerHeight / 2, "text-yellow-400 font-extrabold scale-110 py-1.5 px-3 border-2 border-yellow-400 rounded-lg bg-slate-900 shadow-[0_0_15px_yellow] z-[300]");
                     
                     if (duel.type === 'training') {
                       setTimeout(() => {
                         if (Math.random() < 0.45) {
                           const botAddition = actualTeam === 'A' ? -12 : 12;
                           setProgress(p => Math.min(100, Math.max(0, p + botAddition)));
-                          addFloatingEffect("🤖 Le Bot s'est aussi arrêté à la Buvette ! (+12% Ferveur Bot)", window.innerWidth / 2, 220, "text-red-300 font-bold");
+                          addFloatingEffect(t('duel.effects.bot_snack', `🤖 Le Bot s'est aussi arrêté à la Buvette ! (+12% Ferveur Bot)`), window.innerWidth / 2, 220, "text-red-300 font-bold");
                         }
                       }, 2500);
                     }
@@ -4876,8 +4875,8 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   {(!isTradingStickers && lockedCardInstanceIds.includes(card.instanceId || card.id)) && (
                     <div className="absolute inset-0 bg-purple-950/85 z-20 flex flex-col items-center justify-center text-center p-1 pointer-events-none">
                       <span className="text-lg animate-bounce">😴</span>
-                      <span className="text-[8px] font-black text-purple-300 uppercase mt-0.5 leading-none shadow-sm">ENGAGÉE</span>
-                      <span className="text-[6px] text-purple-400 font-bold leading-normal">COUVRE-FEU</span>
+                      <span className="text-[8px] font-black text-purple-300 uppercase mt-0.5 leading-none shadow-sm">{t('duel.committed', 'ENGAGÉE')}</span>
+                      <span className="text-[6px] text-purple-400 font-bold leading-normal">{t('duel.curfew_text', 'COUVRE-FEU')}</span>
                     </div>
                   )}
                   {/* Background Image */}
@@ -4933,7 +4932,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
         {/* Excitement Gauge */}
         <div className="flex flex-col items-center gap-1 px-2 pb-2">
           <div className="flex justify-between w-full px-1">
-            <span className="text-yellow-500 font-black text-[10px] italic uppercase tracking-wider">Excitation</span>
+            <span className="text-yellow-500 font-black text-[10px] italic uppercase tracking-wider">{t('duel.excitation', 'Excitation')}</span>
             <span className="text-yellow-400 font-black text-xs">{Math.floor(excitement)}/10</span>
           </div>
           <div className="flex gap-1 w-full justify-center">
@@ -5002,19 +5001,19 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 <div className="space-y-4 my-8">
                 {duelResult.details?.isForfeit && duelResult.isWin ? (
                   <div className="bg-green-500/10 rounded-xl p-3 border border-green-500/20 mb-4 flex flex-col gap-1">
-                    <p className="text-xs text-green-400 font-bold uppercase">Victoire par forfait !</p>
-                    <p className="text-[10px] text-green-400/80 mb-1">Les adversaires ont quitté. Les équipes ne marquent pas de point.</p>
+                    <p className="text-xs text-green-400 font-bold uppercase">{t('duel.victory_forfeit', 'Victoire par forfait !')}</p>
+                    <p className="text-[10px] text-green-400/80 mb-1">{t('duel.victory_forfeit_desc', 'Les adversaires ont quitté. Les équipes ne marquent pas de point.')}</p>
                     <p className="text-[10px] text-green-400/90 font-bold">✓ Mise de départ remboursée (Argent & Énergie)</p>
                     <p className="text-[10px] text-green-400/90 font-bold">✓ +5 XP de participation</p>
                   </div>
                 ) : duelResult.details?.isForfeit && !duelResult.isWin ? (
                   <div className="bg-red-500/10 rounded-xl p-3 border border-red-500/20 mb-4">
-                    <p className="text-xs text-red-400 font-bold">Défaite par forfait</p>
-                    <p className="text-[10px] text-red-400/80 mt-1">Équipe déconnectée. Mise et points perdus.</p>
+                    <p className="text-xs text-red-400 font-bold">{t('duel.defeat_forfeit', 'Défaite par forfait')}</p>
+                    <p className="text-[10px] text-red-400/80 mt-1">{t('duel.defeat_forfeit_desc', 'Équipe déconnectée. Mise et points perdus.')}</p>
                   </div>
                 ) : duel.type === 'training' ? (
                   <div className="bg-green-500/10 rounded-xl p-3 border border-green-500/20 mb-4 text-left">
-                    <p className="text-xs text-green-400 font-bold uppercase">Entraînement terminé !</p>
+                    <p className="text-xs text-green-400 font-bold uppercase">{t('duel.training_finished', 'Entraînement terminé !')}</p>
                     <p className="text-[10px] text-green-400/80 mt-1">
                       {duelResult.isBotMatch 
                         ? "Entraînement réussi contre le bot. Vous gagnez 5 XP d'entraînement !" 
@@ -5023,28 +5022,28 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   </div>
                 ) : duelResult.isBotMatch && (
                   <div className="bg-orange-500/10 rounded-xl p-3 border border-orange-500/20 mb-4 text-left">
-                    <p className="text-xs text-orange-400 font-bold">Match contre des Bots</p>
-                    <p className="text-[10px] text-orange-400/80 mt-1">Les statistiques et l'XP ne sont pas enregistrées.</p>
+                    <p className="text-xs text-orange-400 font-bold">{t('duel.bot_match', 'Match contre des Bots')}</p>
+                    <p className="text-[10px] text-orange-400/80 mt-1">{t('duel.bot_match_desc', 'Les statistiques et l\'XP ne sont pas enregistrées.')}</p>
                   </div>
                 )}
                 
                 {(!duelResult.isBotMatch || duel.type === 'training' || (duelResult.details?.isForfeit && duelResult.isWin)) && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains du Fanz</p>
+                    <p className="text-sm text-gray-400 font-bold uppercase mb-1">{t('duel.fanz_gains', 'Gains du Fanz')}</p>
                     <p className="text-3xl font-black text-yellow-400">+{duelResult.ferveurGain} XP</p>
                   </div>
                 )}
                 
                 {!duelResult.isBotMatch && duelResult.teamGain > 0 && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <p className="text-sm text-gray-400 font-bold uppercase mb-1">Gains de l'Équipe</p>
+                    <p className="text-sm text-gray-400 font-bold uppercase mb-1">{t('duel.team_gains', 'Gains de l\'Équipe')}</p>
                     <p className="text-3xl font-black text-orange-400">+{duelResult.teamGain} XP</p>
                   </div>
                 )}
                 
                 {duelResult.scoreA !== undefined && duelResult.scoreB !== undefined && (
                   <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 col-span-2">
-                    <p className="text-sm text-gray-400 font-bold uppercase mb-2 text-center">Score du Duel</p>
+                    <p className="text-sm text-gray-400 font-bold uppercase mb-2 text-center">{t('duel.duel_score', 'Score du Duel')}</p>
                     <div className="flex justify-between items-center mb-4">
                       <div className="text-center">
                         <p className="text-sm text-gray-400">{teamA || 'Équipe A'}</p>
@@ -5060,20 +5059,20 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     {/* Detailed Calculation */}
                     {duelResult.details && (
                       <div className="text-left border-t border-gray-700 pt-3 mt-3">
-                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-2 text-center">Détail du calcul</p>
+                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-2 text-center">{t('duel.calculation_details', 'Détail du calcul')}</p>
                         <div className="space-y-2 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Bonus Victoire (10 pts)</span>
+                            <span className="text-gray-400">{t('duel.win_bonus', 'Bonus Victoire (10 pts)')}</span>
                             <span className="font-bold text-white">
                               {duelResult.winner === 'A' ? teamA || 'Équipe A' : teamB || 'Équipe B'}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Actions (Clics + Cartes)</span>
+                            <span className="text-gray-400">{t('duel.actions_clicks_cards', 'Actions (Clics + Cartes)')}</span>
                             <span className="font-bold text-white">{duelResult.details.totalActions}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Points proportionnels (90 pts)</span>
+                            <span className="text-gray-400">{t('duel.proportional_points', 'Points proportionnels (90 pts)')}</span>
                             <span className="font-bold text-white">
                               {duelResult.details.proportionalPointsA} - {duelResult.details.proportionalPointsB}
                             </span>
@@ -5154,7 +5153,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                   </div>
                   <div className="mt-4 text-center px-4 w-[250px] md:w-[350px]">
                     <h3 className="text-white font-black italic uppercase text-2xl md:text-3xl leading-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] break-words" style={{ WebkitTextStroke: '1.5px black' }}>
-                      {playedCardAnim.card.name}
+                      {tDb(playedCardAnim.card.name)}
                     </h3>
                   </div>
                 </>
@@ -5180,18 +5179,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
               className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
             >
               <h3 className="text-xl font-black italic uppercase tracking-tighter text-white mb-4 text-center">
-                Êtes-vous sûr de vouloir quitter ?
+                {t("duel.quit_confirm_title", "Êtes-vous sûr de vouloir quitter ?")}
               </h3>
               
               <div className={`border rounded-xl p-4 mb-6 ${duel.type === 'war_of_kops' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
                 <p className={`text-sm text-center font-medium ${duel.type === 'war_of_kops' ? 'text-blue-400' : 'text-red-400'}`}>
                   {(status === 'waiting' || status === 'room_full')
-                    ? "Souhaitez-vous annuler votre recherche d'adversaire ou patienter en arrière-plan ?"
+                    ? t("duel.quit_confirm_waiting", "Souhaitez-vous annuler votre recherche d'adversaire ou patienter en arrière-plan ?")
                     : duel.type === 'training' 
-                    ? "Vous perdrez l'énergie et l'argent dépensé pour cet entraînement."
+                    ? t("duel.quit_confirm_training", "Vous perdrez l'énergie et l'argent dépensé pour cet entraînement.")
                     : duel.type === 'war_of_kops'
-                    ? "Vous pouvez quitter la Guerre des KOPs pour faire autre chose ! Les points donnés à votre équipe sont sauvegardés. Vous recevrez de la Ferveur à la fin du match en fonction du résultat."
-                    : "Vous perdrez l'énergie, l'argent et perdrez le match par forfait. Le résultat n'est pas pris en compte."}
+                    ? t("duel.quit_confirm_wok", "Vous pouvez quitter la Guerre des KOPs pour faire autre chose ! Les points donnés à votre équipe sont sauvegardés. Vous recevrez de la Ferveur à la fin du match en fonction du résultat.")
+                    : t("duel.quit_confirm_default", "Vous perdrez l'énergie, l'argent et perdrez le match par forfait. Le résultat n'est pas pris en compte.")}
                 </p>
               </div>
 
@@ -5202,13 +5201,13 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     onClick={() => setShowExitConfirm(false)}
                     className="flex-1"
                   >
-                    Annuler
+                    {t("common.cancel", "Annuler")}
                   </Button>
                   <Button 
                     onClick={confirmExit}
                     className="flex-1 bg-red-600 hover:bg-red-500 text-white"
                   >
-                    Quitter
+                    {t("common.quit", "Quitter")}
                   </Button>
                 </div>
                 {(status === 'waiting' || status === 'room_full') && (
@@ -5216,7 +5215,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     onClick={() => onExitHandler('background')}
                     className="w-full bg-blue-600 hover:bg-blue-500 text-white"
                   >
-                    Mettre en arrière-plan
+                    {t("duel.put_in_background", "Mettre en arrière-plan")}
                   </Button>
                 )}
               </div>
@@ -5240,14 +5239,12 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                 LE DÉBAT STÉRILE SUR LES RÉSEAUX
               </h3>
               <p className="text-xs text-indigo-200/90 leading-relaxed">
-                Le match s'arrête pour un clash de <strong>"Ratio"</strong>. Choisissez une carte de votre main à parier secrètement. 
-                <br />
-                Si son coût est supérieur ou égal au coût de la carte adverse, vous la gardez. Sinon, elle est <strong>défaussée</strong> !
+                {t('duel.sterile_debate_desc_part1', 'Le match s\'arrête pour un clash de')} <strong>\"{t('duel.sterile_debate_desc_ratio', 'Ratio')}\"</strong>. {t('duel.sterile_debate_desc_part2', 'Choisissez une carte de votre main à parier secrètement.')} <br /> {t('duel.sterile_debate_desc_part3', 'Si son coût est supérieur ou égal au coût de la carte adverse, vous la gardez. Sinon, elle est')} <strong>{t('duel.sterile_debate_desc_discarded', 'défaussée')}</strong> !
               </p>
 
               <div className="w-full max-h-[200px] overflow-y-auto scrollbar-thin pr-1 flex flex-col gap-2 my-2">
                 {hand.length === 0 ? (
-                  <p className="text-xs text-slate-400">Aucune carte en main à parier...</p>
+                  <p className="text-xs text-slate-400">{t('duel.sterile_debate_no_card', 'Aucune carte en main à parier...')}</p>
                 ) : (
                   hand.map((card, index) => {
                     return (
@@ -5258,18 +5255,18 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                           const myCost = card.energyCost || 0;
                           
                           if (myCost >= opponentCost) {
-                            addFloatingEffect(`📈 Ratio Réussi ! (Toi: ${myCost}⚡ vs Adversaire: ${opponentCost}⚡) Carte préservée !`, window.innerWidth / 2, window.innerHeight / 2 - 40, "text-green-400 font-extrabold bg-slate-900 border-2 border-green-500 rounded-lg py-1.5 px-3 shadow-[0_0_15px_rgba(34,197,94,0.4)] z-[300]");
+                            addFloatingEffect(t('duel.effects.ratio_success', `📈 Ratio Réussi ! (Toi: ${myCost}⚡ vs Adversaire: ${opponentCost}⚡) Carte préservée !`), window.innerWidth / 2, window.innerHeight / 2 - 40, "text-green-400 font-extrabold bg-slate-900 border-2 border-green-500 rounded-lg py-1.5 px-3 shadow-[0_0_15px_rgba(34,197,94,0.4)] z-[300]");
                           } else {
                             // Discard selected card
                             setHand(prev => prev.filter(c => (c.instanceId || c.id) !== (card.instanceId || card.id)));
                             setTimeout(drawCard, 2000);
-                            addFloatingEffect(`📉 Ratio Échoué ! (Toi: ${myCost}⚡ vs Adversaire: ${opponentCost}⚡) Carte défaussée !`, window.innerWidth / 2, window.innerHeight / 2 - 40, "text-red-400 font-extrabold bg-slate-900 border-2 border-red-500 rounded-lg py-1.5 px-3 shadow-[0_0_15px_rgba(239,68,68,0.4)] z-[300]");
+                            addFloatingEffect(t('duel.effects.ratio_failed', `📉 Ratio Échoué ! (Toi: ${myCost}⚡ vs Adversaire: ${opponentCost}⚡) Carte défaussée !`), window.innerWidth / 2, window.innerHeight / 2 - 40, "text-red-400 font-extrabold bg-slate-900 border-2 border-red-500 rounded-lg py-1.5 px-3 shadow-[0_0_15px_rgba(239,68,68,0.4)] z-[300]");
                           }
                           setIsDebatePickerOpen(false);
                         }}
                         className="w-full flex items-center justify-between p-2.5 rounded-lg bg-indigo-900/30 border border-indigo-500/20 hover:bg-indigo-900/50 hover:border-indigo-400 transition-colors text-left font-sans"
                       >
-                        <span className="text-xs font-bold text-white truncate max-w-[200px]">{card.name}</span>
+                        <span className="text-xs font-bold text-white truncate max-w-[200px]">{tDb(card.name)}</span>
                         <span className="text-xs font-black text-indigo-300 shrink-0">{card.energyCost || 0} ⚡</span>
                       </button>
                     );
@@ -5319,7 +5316,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                       onClick={() => {
                         setHand(prev => {
                           if (prev.length >= 5) {
-                            addFloatingEffect("⚠️ Main pleine (max 5 cartes) !", window.innerWidth / 2, 200, "text-red-400 font-bold");
+                            addFloatingEffect(t('duel.effects.hand_full', `⚠️ Main pleine (max 5 cartes) !`), window.innerWidth / 2, 200, "text-red-400 font-bold");
                             return prev;
                           }
                           return [...prev, { ...card, instanceId: Math.random().toString(36).substr(2, 9) }];
@@ -5330,7 +5327,7 @@ export function DuelScreen({ duel, user, onExit, fanzId, teamA, teamB, teamAId, 
                     >
                       <div className="flex flex-col">
                         <span className="text-xs font-black text-amber-300 group-hover:text-amber-200 transition-colors">
-                          {card.name}
+                          {tDb(card.name)}
                         </span>
                         <span className="text-[9px] text-amber-200/50 uppercase font-semibold">
                           {card.category} • Coût: {card.energyCost}⚡

@@ -31,6 +31,7 @@ import { InstallPWA } from "./InstallPWA";
 import { getImageUrl, cn } from "../lib/utils";
 import { LOGOS } from "../constants";
 import { generateFervorPath } from "../utils/fervorPath";
+import { useLanguage } from "../context/LanguageContext";
 
 interface HeaderProps {
   profile: UserProfile;
@@ -59,6 +60,7 @@ export function Header({
   hasClaimableFervorAlert,
   wide = false,
 }: HeaderProps) {
+  const { t } = useLanguage();
   const [timeUntilRefill, setTimeUntilRefill] = useState<string>("");
   const [countdownInfiniteEnergy, setCountdownInfiniteEnergy] =
     useState<string>("");
@@ -245,7 +247,7 @@ export function Header({
             {isDoubleGainsActive && (
               <div className="absolute -top-6 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse flex items-center gap-1 z-20">
                 <TrendingUp className="w-2.5 h-2.5" />
-                Gains x2 ({countdownDoubleGains})
+                {t("header.double_gains", "Gains x2 ({time})").replace("{time}", countdownDoubleGains)}
               </div>
             )}
             <div
@@ -264,10 +266,10 @@ export function Header({
                 </span>
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/money:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
                   <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest">
-                    Monnaie
+                    {t("header.money", "Monnaie")}
                   </div>
                   <div className="text-[9px] text-gray-300">
-                    Achats en boutique et améliorations
+                    {t("header.money_desc", "Achats en boutique et améliorations")}
                   </div>
                 </div>
               </div>
@@ -284,10 +286,10 @@ export function Header({
                 </span>
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/gems:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
                   <div className="text-[10px] sm:text-xs font-black text-blue-400 uppercase tracking-widest">
-                    Gemmes
+                    {t("header.gems", "Gemmes")}
                   </div>
                   <div className="text-[9px] text-gray-300">
-                    Monnaie rare pour le contenu premium
+                    {t("header.gems_desc", "Monnaie rare pour le contenu premium")}
                   </div>
                 </div>
               </div>
@@ -304,10 +306,10 @@ export function Header({
                 </span>
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/boost:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
                   <div className="text-[10px] sm:text-xs font-black text-yellow-500 uppercase tracking-widest">
-                    Points de Boost
+                    {t("header.boost", "Points de Boost")}
                   </div>
                   <div className="text-[9px] text-gray-300">
-                    Avantages temporaires lors des duels
+                    {t("header.boost_desc", "Avantages temporaires lors des duels")}
                   </div>
                 </div>
               </div>
@@ -337,13 +339,13 @@ export function Header({
                 </span>
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/energy:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
                   <div className="text-[10px] sm:text-xs font-black text-green-400 uppercase tracking-widest">
-                    {isInfiniteEnergyActive ? "Énergie Infinie" : "Énergie"}
+                    {isInfiniteEnergyActive ? t("header.infinite_energy", "Énergie Infinie") : t("header.energy", "Énergie")}
                   </div>
                   {isInfiniteEnergyActive && (
                     <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-yellow-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        FIN DU BOOST DANS
+                        {t("header.boost_end_in", "FIN DU BOOST DANS")}
                       </div>
                       <div className="text-white font-black">
                         {countdownInfiniteEnergy}
@@ -351,13 +353,13 @@ export function Header({
                     </div>
                   )}
                   <div className="text-[9px] text-gray-300 mt-1">
-                    Nécessaire pour affronter des adversaires
+                    {t("header.energy_desc", "Nécessaire pour affronter des adversaires")}
                   </div>
                   {timeUntilRefill && !isInfiniteEnergyActive && (
                     <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-orange-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        +5 ÉNERGIE DANS
+                        {t("header.energy_refill_in", "+5 ÉNERGIE DANS")}
                       </div>
                       <div className="text-white font-black">
                         {timeUntilRefill}
@@ -396,16 +398,16 @@ export function Header({
 
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/ferveur:opacity-100 transition-opacity bg-black/95 px-3 py-2 rounded-xl border border-white/10 pointer-events-none z-[100] whitespace-nowrap shadow-2xl flex flex-col items-center">
                 <div className="text-[10px] sm:text-xs font-black text-orange-500 uppercase tracking-widest flex items-center gap-1">
-                  Ferveur{" "}
+                  {t("home.fervor", "Ferveur")}{" "}
                   {isXpBoostActive && (
-                    <span className="text-yellow-500">(XP x2 ACTIF)</span>
+                    <span className="text-yellow-500">{t("header.xp_boost_active", "(XP x2 ACTIF)")}</span>
                   )}
                 </div>
                 {isXpBoostActive && (
                   <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-yellow-400 mt-1 border-t border-white/10 pt-1 w-full justify-center">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      FIN DU BOOST DANS
+                      {t("header.boost_end_in", "FIN DU BOOST DANS")}
                     </div>
                     <div className="text-white font-black">
                       {countdownXpBoost}
@@ -413,7 +415,7 @@ export function Header({
                   </div>
                 )}
                 <div className="text-[9px] text-gray-300 mt-1">
-                  Répandez votre ferveur pour progresser !
+                  {t("header.fervor_desc", "Répandez votre ferveur pour progresser !")}
                 </div>
               </div>
             </div>
@@ -439,7 +441,7 @@ export function Header({
               >
                 <Menu className="w-6 h-6 text-white" />
                 <span className="text-[9px] font-black italic uppercase tracking-tighter mt-0.5 text-orange-500 leading-none">
-                  Menu
+                  {t("header.menu", "Menu")}
                 </span>
 
                 {unreadSocialCount > 0 && (

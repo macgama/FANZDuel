@@ -47,6 +47,7 @@ import { auth } from '../firebase';
 import { UserProfileModal } from './UserProfileModal';
 import { Header } from './Header';
 import { MrFanzHelp } from './MrFanzHelp';
+import { useLanguage } from '../context/LanguageContext';
 
 interface HomeProps {
   profile: UserProfile;
@@ -67,6 +68,7 @@ interface HomeProps {
 import { DidacticielBanner } from "./DidacticielBanner";
 
 export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, onMenuClick, onMatchClick, onLeagueClick, onTeamClick, onJoinDuel, onJoinSpecificDuel, onOpenStreak, onFanzClick, onStartDirectDuel }: HomeProps) {
+  const { t, language, tDb } = useLanguage();
   const [activeFanz, setActiveFanz] = useState<Fanz | null>(null);
   const [allFanz, setAllFanz] = useState<Fanz[]>([]);
   const [showOnlineModal, setShowOnlineModal] = useState(false);
@@ -284,7 +286,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(window.location.origin);
-        alert('Lien d\'invitation copié ! Partage-le avec tes amis.');
+        alert(t('alert.invite_copied', "Lien d'invitation copié ! Partage-le avec tes amis."));
       }
     } catch (err) {
       console.error('Error sharing', err);
@@ -306,7 +308,23 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
       try {
         const standingsInfo = await footballApi.getStandings(1, 2026);
         if (standingsInfo && standingsInfo.length > 0 && standingsInfo[0].league && standingsInfo[0].league.standings) {
-          setWorldCupStandings(standingsInfo[0].league.standings);
+          const rawStandings = standingsInfo[0].league.standings;
+          
+          // Deduplicate teams inside each group array to avoid double entries
+          const cleanStandings = Array.isArray(rawStandings)
+            ? rawStandings.map((group: any) => {
+                if (!Array.isArray(group)) return group;
+                const seen = new Set();
+                return group.filter((item: any) => {
+                  if (!item?.team?.id) return false;
+                  if (seen.has(item.team.id)) return false;
+                  seen.add(item.team.id);
+                  return true;
+                });
+              })
+            : [];
+            
+          setWorldCupStandings(cleanStandings);
         }
         const fixturesInfo = await footballApi.getFixtures(1, 2026);
         if (fixturesInfo) {
@@ -722,8 +740,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
     if (!activeFanz) {
       alerts.push({
         id: 'no-active-fanz',
-        message: 'Aucun FANZ actif',
-        actionTitle: 'Voir mes FANZ',
+        message: t('alert.no_active_fanz', 'Aucun FANZ actif'),
+        actionTitle: t('alert.see_my_fanz', 'Voir mes FANZ'),
         action: () => onNavigate('fanz'),
         Icon: Flame
       });
@@ -732,8 +750,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
       if (deckSize < 8) {
         alerts.push({
           id: 'incomplete-deck',
-          message: 'Deck incomplet',
-          actionTitle: 'Compléter',
+          message: t('alert.incomplete_deck', 'Deck incomplet'),
+          actionTitle: t('alert.complete', 'Compléter'),
           action: () => onFanzClick?.(activeFanz.id, 'cards'),
           Icon: Database
         });
@@ -759,10 +777,10 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
       if (canUpgrade && !dismissedAlertIDs.has(alertId)) {
         alerts.push({
           id: alertId,
-          message: `Rang ${rankNum} disponible (${fanz.name})`,
-          actionTitle: 'Améliorer',
+          message: t('alert.rank_available', 'Rang {rank} disponible ({name})').replace('{rank}', rankNum.toString()).replace('{name}', tDb(fanz.name)),
+          actionTitle: t('alert.upgrade', 'Améliorer'),
           action: () => onFanzClick?.(fanz.id, 'rank'),
-          dismissTitle: 'Compris',
+          dismissTitle: t('alert.understood', 'Compris'),
           dismissAction: () => handleDismissAlert(alertId),
           Icon: Trophy
         });
@@ -783,8 +801,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
       const displayType = d.type === 'training' || d.type === 'training_1v1' ? "amical (?)" : "réel";
       alerts.push({
         id: `duel-invite-${d.id}`,
-        message: `${host} t'invite en duel !`,
-        actionTitle: 'Rejoindre',
+        message: t('alert.duel_invite', "{host} t'invite en duel !").replace('{host}', host),
+        actionTitle: t('alert.join', 'Rejoindre'),
         action: () => {
           if (onJoinSpecificDuel) {
              onJoinSpecificDuel(d.id, d.type, d.matchId);
@@ -795,7 +813,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
     });
 
     return alerts;
-  }, [allFanz, activeFanz, profile.money, profile.boostPoints, templatesMap, onNavigate, onFanzClick, dismissedAlertIDs, activeDuels, profile.uid, onJoinSpecificDuel]);
+  }, [allFanz, activeFanz, profile.money, profile.boostPoints, templatesMap, onNavigate, onFanzClick, dismissedAlertIDs, activeDuels, profile.uid, onJoinSpecificDuel, t]);
 
   return (
     <div className="h-full w-full max-w-[600px] mx-auto bg-transparent relative overflow-hidden flex flex-col font-sans text-white border-x border-white/5 shadow-2xl">
@@ -885,12 +903,12 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
             <OptimizedMedia
               type="image"
               src={imageUrl}
-              alt={activeFanz?.name || 'Mon FANZ'}
+              alt={tDb(activeFanz?.name) || t("home.my_fanz_fallback", "Mon FANZ")}
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           ) : (
             <div className="w-full h-full bg-gray-900 flex items-center justify-center transition-transform duration-700 group-hover:scale-105">
-              <p className="text-gray-500 font-bold">Aucun FANZ actif</p>
+              <p className="text-gray-500 font-bold">{t("home.no_active_fanz", "Aucun FANZ actif")}</p>
             </div>
           )}
 
@@ -899,7 +917,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
                 <h1 className="text-lg sm:text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] flex items-center">
-                  {activeFanz?.name || 'Mon FANZ'}
+                  {tDb(activeFanz?.name) || t("home.my_fanz_fallback", "Mon FANZ")}
                   <MrFanzHelp contextId="home" />
                 </h1>
               </div>
@@ -921,22 +939,22 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {!isDuplicatedName && (
                       <div className="bg-white/15 backdrop-blur-md border border-white/25 rounded px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
-                        Skin: {skinData.name}
+                        {t("home.skin_prefix", "Skin: ")}{skinData.name}
                       </div>
                     )}
                     {skinData.energyBonus ? (
                       <div className="bg-blue-500/20 backdrop-blur-md border border-blue-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-blue-400 flex items-center gap-1 shadow-sm">
-                        <Zap className="w-2.5 h-2.5" /> +{skinData.energyBonus} ENER Max
+                        <Zap className="w-2.5 h-2.5" /> +{skinData.energyBonus}{t("home.energy_max", " ENER Max")}
                       </div>
                     ) : null}
                     {skinData.moneyBonus ? (
                       <div className="bg-yellow-500/20 backdrop-blur-md border border-yellow-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-yellow-400 shadow-sm">
-                        +{skinData.moneyBonus}% CRÉDITS
+                        +{skinData.moneyBonus}{t("home.credits_bonus", "% CRÉDITS")}
                       </div>
                     ) : null}
                     {skinData.fervorBonus ? (
                       <div className="bg-orange-500/20 backdrop-blur-md border border-orange-500/30 rounded px-2 py-0.5 text-[9px] font-black uppercase text-orange-400 shadow-sm">
-                        +{skinData.fervorBonus}% FERV
+                        +{skinData.fervorBonus}{t("home.fervor_bonus", "% FERV")}
                       </div>
                     ) : null}
                   </div>
@@ -963,7 +981,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   return (
                     <div className="flex flex-col gap-1 w-full sm:w-28">
                       <div className="flex justify-between items-center text-[7.5px] sm:text-[9px] font-black uppercase tracking-wider text-orange-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                        <span>Ferveur</span>
+                        <span>{t("home.fervor", "Ferveur")}</span>
                         <span>{currentPoints}/{nextLevelPoints}</span>
                       </div>
                       <div className="h-2 bg-black/60 rounded-full border border-white/10 relative overflow-hidden shadow-inner">
@@ -994,7 +1012,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   return (
                     <div className="flex flex-col gap-1 w-full sm:w-28">
                       <div className="flex justify-between items-center text-[7.5px] sm:text-[9px] font-black uppercase tracking-wider text-amber-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                        <span>Stats</span>
+                        <span>{t("home.stats", "Stats")}</span>
                         <span>{totalLevels}/80</span>
                       </div>
                       <div className="h-2 bg-black/60 rounded-full border border-white/10 relative overflow-hidden shadow-inner">
@@ -1013,7 +1031,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   return (
                     <div className="flex flex-col gap-1 w-full sm:w-28">
                       <div className="flex justify-between items-center text-[7.5px] sm:text-[9px] font-black uppercase tracking-wider text-rose-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                        <span>Rang</span>
+                        <span>{t("home.rank", "Rang")}</span>
                         <span>{rank}/10</span>
                       </div>
                       <div className="h-2 bg-black/60 rounded-full border border-white/10 relative overflow-hidden shadow-inner">
@@ -1036,14 +1054,14 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   setShowOnlineModal(true);
                 }}
                 className="bg-black/80 backdrop-blur-md border border-emerald-500/30 rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 flex items-center gap-1.5 shadow-md shadow-emerald-950/30 cursor-pointer hover:bg-emerald-950/20 hover:border-emerald-500/60 hover:scale-105 active:scale-95 transition-all duration-200"
-                title="Supporters connectés en temps réel"
+                title={t("home.online_supporters_tooltip", "Supporters connectés en temps réel")}
               >
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                 </span>
                 <span className="text-[10px] sm:text-xs font-bold uppercase text-emerald-400 tracking-wider font-mono">
-                  {onlineCount} en ligne
+                  {t("home.online_count", "{count} en ligne").replace("{count}", onlineCount.toString())}
                 </span>
               </button>
             </div>
@@ -1081,13 +1099,13 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase text-white leading-tight flex items-center gap-1.5">
-                      Actualités Fanz <span className="bg-blue-500/20 text-blue-300 text-[8px] font-black px-1.5 py-0.2 rounded-full border border-blue-500/30">{news.length}</span>
+                      {t("home.news_title", "Actualités Fanz")} <span className="bg-blue-500/20 text-blue-300 text-[8px] font-black px-1.5 py-0.2 rounded-full border border-blue-500/30">{news.length}</span>
                     </span>
-                    <p className="text-[8px] text-white/50">Cliquez pour voir les dernières nouveautés</p>
+                    <p className="text-[8px] text-white/50">{t("home.news_subtitle", "Cliquez pour voir les dernières nouveautés")}</p>
                   </div>
                 </div>
                 <div className="text-[8px] font-black uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 relative z-10 hover:bg-blue-500/20 transition-all">
-                  Consulter
+                  {t("home.news_consult", "Consulter")}
                 </div>
               </button>
             </div>
@@ -1100,7 +1118,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
               className="relative flex flex-col items-center justify-center gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
             >
               <Store className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
-              <span className="text-[10px] font-black uppercase text-center leading-tight">Shop</span>
+              <span className="text-[10px] font-black uppercase text-center leading-tight">{t("menu.shop", "Shop")}</span>
             </button>
             <button 
               onClick={() => onNavigate('missions')}
@@ -1110,7 +1128,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10" />
               )}
               <Target className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
-              <span className="text-[10px] font-black uppercase text-center leading-tight">Missions</span>
+              <span className="text-[10px] font-black uppercase text-center leading-tight">{t("menu.missions", "Missions")}</span>
             </button>
             <button 
               onClick={() => onOpenStreak()}
@@ -1120,7 +1138,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10" />
               )}
               <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
-              <span className="text-[10px] font-black uppercase text-center leading-tight">Série</span>
+              <span className="text-[10px] font-black uppercase text-center leading-tight">{t("home.streak", "Série")}</span>
             </button>
             <button 
               onClick={() => onNavigate('pass')}
@@ -1132,13 +1150,13 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                 </div>
               )}
               <Ticket className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
-              <span className="text-[10px] font-black uppercase text-center leading-tight">Pass</span>
+              <span className="text-[10px] font-black uppercase text-center leading-tight">{t("home.pass", "Pass")}</span>
             </button>
           </div>
 
           {liveMatches.length === 0 && activeFanz && fanzTemplate && (
             <p className="text-center text-gray-400 text-xs font-bold px-6 pt-2 pb-4">
-              Pas de match en direct actuellement, profites-en pour monter tes FANZ en compétences et gagner de l'argent ou de l'énergie !
+              {t("home.no_live_matches_desc", "Pas de match en direct actuellement, profites-en pour monter tes FANZ en compétences et gagner de l'argent ou de l'énergie !")}
             </p>
           )}
 
@@ -1226,7 +1244,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                         ))
                       ) : (
                         <div className="w-full text-center py-4 text-gray-500 text-xs font-bold uppercase px-[30px]">
-                          Aucun match en direct et aucun FANZ actif
+                          {t("home.no_matches_no_fanz", "Aucun match en direct et aucun FANZ actif")}
                         </div>
                       )}
                     </div>
@@ -1252,11 +1270,11 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-orange-500 animate-pulse" />
                   <span className="text-xs font-black uppercase tracking-widest text-white drop-shadow-md">
-                    Matchs à venir
+                    {t("home.upcoming_matches", "Matchs à venir")}
                   </span>
                 </div>
                 <span className="text-[10px] font-bold text-gray-400 bg-white/5 py-1 px-2.5 rounded-full border border-white/10 uppercase">
-                  🏆 Mode Entraînement
+                  {t("home.training_mode", "🏆 Mode Entraînement")}
                 </span>
               </div>
 
@@ -1265,10 +1283,10 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                 <div className="bg-gradient-to-r from-orange-500/10 to-transparent border-l-2 border-orange-500/50 p-2.5 rounded-r-lg mb-3 flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-[11px] font-black text-orange-400 uppercase tracking-tight">
-                      Va t'entraîner contre des Bots
+                      {t("home.train_bots_title", "Va t'entraîner contre des Bots")}
                     </span>
                     <p className="text-[9px] text-gray-400">
-                      Gagne des points de ferveur à l'entraînement en solo ou défie un ami en 1v1 !
+                      {t("home.train_bots_desc", "Gagne des points de ferveur à l'entraînement en solo ou défie un ami en 1v1 !")}
                     </p>
                   </div>
                   <Users className="w-5 h-5 text-orange-400/40 shrink-0 ml-2" />
@@ -1331,7 +1349,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                                     <img src={match.teams.home.logo} alt="" className="w-4 h-4 object-contain shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
                                   )}
                                   <span className="text-[10px] font-black text-white uppercase truncate">
-                                    {match.teams.home.name}
+                                    {translateCountryName(match.teams.home.name)}
                                   </span>
                                 </div>
                               </div>
@@ -1342,7 +1360,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                                     <img src={match.teams.away.logo} alt="" className="w-4 h-4 object-contain shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />
                                   )}
                                   <span className="text-[10px] font-black text-white uppercase truncate">
-                                    {match.teams.away.name}
+                                    {translateCountryName(match.teams.away.name)}
                                   </span>
                                 </div>
                               </div>
@@ -1357,7 +1375,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                               }}
                             >
                               <Swords className="w-3 h-3" />
-                              S'entraîner
+                              {t("home.train", "S'entraîner")}
                             </button>
                           </div>
                         </div>
@@ -1391,14 +1409,14 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
           <div className="relative z-10 flex items-center justify-between px-[30px] mb-4">
             <div className="flex items-center gap-2">
               <Trophy className="w-4 h-4 text-yellow-500" /> 
-              <span className="text-xs font-black uppercase tracking-widest text-white drop-shadow-md">COUPE DU MONDE 2026</span>
+              <span className="text-xs font-black uppercase tracking-widest text-white drop-shadow-md">{t("home.world_cup_2026", "COUPE DU MONDE 2026")}</span>
             </div>
             {onLeagueClick && (
               <button 
                 onClick={() => onLeagueClick(1, 2026)}
                 className="text-[10px] font-black text-orange-500 uppercase flex items-center gap-1 hover:text-orange-400 transition-colors"
               >
-                TOUT VOIR <ArrowRight className="w-3 h-3" />
+                {t("home.see_all", "TOUT VOIR")} <ArrowRight className="w-3 h-3" />
               </button>
             )}
           </div>
@@ -1428,14 +1446,14 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                           <div className="w-full bg-black/40 border border-white/10 rounded-xl overflow-hidden flex flex-col">
                       <div className="bg-white/5 px-3 py-2 text-xs font-black uppercase tracking-widest text-orange-500 border-b border-white/5 flex justify-between items-center">
                         <span>{groupName}</span>
-                        <span className="text-[10px] text-gray-500">PHASES DE POULES</span>
+                        <span className="text-[10px] text-gray-500">{t("home.group_stage", "PHASES DE POULES")}</span>
                       </div>
                       <div className="p-3">
                         <div className="flex justify-between text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 px-1">
                           <span className="w-5">#</span>
-                          <span className="flex-1 text-left">Nation</span>
-                          <span className="w-6 text-center" title="Joués">J</span>
-                          <span className="w-8 text-center" title="Différence de buts">+/-</span>
+                          <span className="flex-1 text-left">{t("home.nation", "Nation")}</span>
+                          <span className="w-6 text-center" title="Joués">{t("home.played_short", "J")}</span>
+                          <span className="w-8 text-center" title="Différence de buts">{t("home.goal_diff_short", "+/-")}</span>
                           <span className="w-8 text-center">PTS</span>
                         </div>
                         {group.map((teamData: any) => (
@@ -1469,7 +1487,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
 
                         return (
                           <div className="p-3 border-t border-white/5 bg-black/20">
-                             <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-3 px-1">Matchs Prévus</div>
+                             <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-3 px-1">{t("home.upcoming_matches_section", "Matchs Prévus")}</div>
                              <div className="grid grid-cols-1 gap-2">
                                {groupFixtures.slice(0, 6).map((fx: any) => {
                                  const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(fx.fixture.status.short);
@@ -1480,7 +1498,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                                  <div key={fx.fixture.id} className={`flex flex-col gap-1.5 p-2.5 bg-white/5 rounded-lg border transition-colors cursor-pointer group ${isLive ? 'border-red-500/30 bg-red-500/5 shadow-inner' : 'border-white/5 hover:border-white/10 hover:bg-white/10'}`} onClick={() => onMatchClick && onMatchClick(fx.fixture.id)}>
                                    <div className="flex justify-between items-center w-full">
                                      <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-orange-400 transition-colors">
-                                       {new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(fx.fixture.date))}
+                                       {new Intl.DateTimeFormat(language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-US', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(fx.fixture.date))}
                                      </div>
                                      {isLive && (
                                        <div className="flex items-center gap-1 bg-red-500/10 text-red-500 border border-red-500/20 text-[8px] font-black uppercase px-2 py-0.5 rounded-full animate-pulse">
@@ -1522,7 +1540,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   <div className="w-full h-32 flex items-center justify-center border border-white/5 rounded-xl bg-white/5">
                     <div className="flex flex-col items-center gap-2 text-gray-500">
                       <div className="w-6 h-6 border-2 border-orange-500/50 border-t-orange-500 rounded-full animate-spin" />
-                      <span className="text-xs font-bold uppercase">Chargement des poules...</span>
+                      <span className="text-xs font-bold uppercase">{t("home.loading_pools", "Chargement des poules...")}</span>
                     </div>
                   </div>
                 </div>
@@ -1573,7 +1591,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
             {selectedNewsDetail.type}
           </span>
           <span className="text-[9px] text-white/40">
-            {new Date(selectedNewsDetail.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {new Date(selectedNewsDetail.createdAt).toLocaleDateString(language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
           </span>
         </div>
 
@@ -1609,9 +1627,9 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
               className="w-full bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-[10px] font-black uppercase tracking-wider py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_2px_8px_rgba(59,130,246,0.3)]"
             >
               {selectedNewsDetail.type === 'competition' ? (
-                <>🏆 Rejoindre les Compétitions</>
+                <>{t("home.join_competitions", "🏆 Rejoindre les Compétitions")}</>
               ) : (
-                <>🛍️ Acheter / Découvrir</>
+                <>{t("home.buy_discover", "🛍️ Acheter / Découvrir")}</>
               )}
             </button>
           )}
@@ -1619,7 +1637,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
             onClick={() => setSelectedNewsDetail(null)}
             className="w-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-black uppercase tracking-wider py-2.5 rounded-lg transition-all cursor-pointer"
           >
-            Fermer
+            {t("home.close", "Fermer")}
           </button>
         </div>
       </div>
@@ -1641,7 +1659,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5 leading-none">
               <Megaphone className="w-3.5 h-3.5" />
-              Actualités Fanz ({currentNewsIndex + 1}/{news.length})
+              {t("home.news_title", "Actualités Fanz")} ({currentNewsIndex + 1}/{news.length})
             </h2>
           </div>
 
@@ -1660,7 +1678,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   {news[currentNewsIndex].type}
                 </span>
                 <span className="text-[9px] text-white/40">
-                  {new Date(news[currentNewsIndex].createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {new Date(news[currentNewsIndex].createdAt).toLocaleDateString(language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
               </div>
 
@@ -1704,7 +1722,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                           playsInline
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center rounded-lg transition-colors duration-300">
-                          <span className="bg-black/60 text-[9px] font-black uppercase text-white px-2 py-1 rounded border border-white/15 opacity-0 group-hover:opacity-100 transition-opacity tracking-wider">Agrandir la vidéo</span>
+                          <span className="bg-black/60 text-[9px] font-black uppercase text-white px-2 py-1 rounded border border-white/15 opacity-0 group-hover:opacity-100 transition-opacity tracking-wider">{t("home.expand_video", "Agrandir la vidéo")}</span>
                         </div>
                       </div>
                     ) : (
@@ -1716,7 +1734,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                           referrerPolicy="no-referrer"
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center rounded-lg transition-colors duration-300">
-                          <span className="bg-black/60 text-[9px] font-black uppercase text-white px-2 py-1 rounded border border-white/15 opacity-0 group-hover:opacity-100 transition-opacity tracking-wider">Agrandir l'image</span>
+                          <span className="bg-black/60 text-[9px] font-black uppercase text-white px-2 py-1 rounded border border-white/15 opacity-0 group-hover:opacity-100 transition-opacity tracking-wider">{t("home.expand_image", "Agrandir l'image")}</span>
                         </div>
                       </div>
                     )}
@@ -1772,9 +1790,9 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
               className="w-full bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-[10px] font-black uppercase tracking-wider py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_2px_8px_rgba(59,130,246,0.3)]"
             >
               {news[currentNewsIndex].type === 'competition' ? (
-                <>🏆 Rejoindre les Compétitions</>
+                <>{t("home.join_competitions", "🏆 Rejoindre les Compétitions")}</>
               ) : (
-                <>🛍️ Acheter / Découvrir</>
+                <>{t("home.buy_discover", "🛍️ Acheter / Découvrir")}</>
               )}
             </button>
           )}
@@ -1782,7 +1800,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
             onClick={() => setShowNewsModal(false)}
             className="w-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-black uppercase tracking-wider py-2.5 rounded-lg transition-all cursor-pointer"
           >
-            Fermer
+            {t("home.close", "Fermer")}
           </button>
         </div>
       </div>
@@ -1803,7 +1821,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   setMatchSelectionType(null);
                 }}
                 className="text-stone-400 hover:text-white p-1 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-                title="Retour aux supporters"
+                title={t("home.back_to_supporters", "Retour aux supporters")}
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -1812,7 +1830,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                   Défi : {matchSelectionUser.pseudo}
                 </h2>
                 <p className="text-[9px] text-stone-400 font-bold font-mono uppercase tracking-widest">
-                  {matchSelectionType === '1v1' ? '⚡️ Duel Réel Live' : '🎯 Entraînement'}
+                  {matchSelectionType === '1v1' ? t("home.live_duel", "⚡️ Duel Réel Live") : t("home.training", "🎯 Entraînement")}
                 </p>
               </div>
             </div>
@@ -1823,7 +1841,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
               <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-400 font-sans">
-                Supporters en ligne ({onlineUsers.length})
+                {t("home.online_supporters", "Supporters en ligne ({count})").replace("{count}", onlineUsers.length.toString())}
               </h2>
             </div>
           )}
@@ -1857,8 +1875,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                 <div className="h-48 flex flex-col items-center justify-center text-center p-6 space-y-4">
                   <p className="text-sm text-stone-400">
                     {isLive 
-                      ? "Aucun match n'est en direct pour le moment pour lancer un duel."
-                      : "Aucun match à venir n'est disponible aujourd'hui pour l'entraînement."
+                      ? t("home.no_live_matches_to_duel", "Aucun match n'est en direct pour le moment pour lancer un duel.")
+                      : t("home.no_upcoming_matches_today", "Aucun match à venir n'est disponible aujourd'hui pour l'entraînement.")
                     }
                   </p>
                   <button
@@ -1868,7 +1886,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                     }}
                     className="bg-stone-850 hover:bg-stone-800 text-xs px-4 py-2 rounded-xl font-bold transition-all border border-stone-700/60 text-stone-200 cursor-pointer active:scale-95 duration-100"
                   >
-                    Retour aux supporters
+                    {t("home.back_to_supporters", "Retour aux supporters")}
                   </button>
                 </div>
               );
@@ -1877,7 +1895,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
             return (
               <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[250px] max-h-[60vh] no-scrollbar">
                 <p className="text-[10px] text-stone-400 font-mono mb-2 uppercase text-center tracking-wider font-bold">
-                  Sélectionne un match pour initier le défi :
+                  {t("home.select_match_to_challenge", "Sélectionne un match pour initier le défi :")}
                 </p>
                 <div className="space-y-2.5 pb-2">
                   {displayMatches.map((match) => {
@@ -1908,7 +1926,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                               LIVE {match.fixture?.status?.elapsed}'
                             </span>
                           ) : (
-                            <span>Aujourd'hui à {timeStr}</span>
+                            <span>{t("home.today_at", "Aujourd'hui à ")}{timeStr}</span>
                           )}
                         </div>
 
@@ -1971,18 +1989,18 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
             {loadingOnlineUsers && onlineUsers.length === 0 ? (
               <div className="h-48 flex flex-col items-center justify-center space-y-2">
                 <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                <p className="text-xs text-white/50 font-mono">Recherche de supporters...</p>
+                <p className="text-xs text-white/50 font-mono">{t("home.searching_supporters", "Recherche de supporters...")}</p>
               </div>
             ) : onlineUsers.length === 0 ? (
               <div className="h-48 flex flex-col items-center justify-center text-center p-6 space-y-4">
                 <p className="text-sm text-stone-400">
-                  Tu es le seul supporter en ligne en ce moment.
+                  {t("home.only_online_supporter", "Tu es le seul supporter en ligne en ce moment.")}
                 </p>
                 <button
                   onClick={handleShareInvite}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded-xl font-bold transition-all shadow-md shadow-emerald-950/40 cursor-pointer active:scale-95"
                 >
-                  Inviter des Amis à Jouer
+                  {t("home.invite_friends_to_play", "Inviter des Amis à Jouer")}
                 </button>
               </div>
             ) : (
@@ -2016,7 +2034,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                             {user.pseudo}
                           </div>
                           <div className="text-[10px] text-emerald-400 font-medium font-mono">
-                            ● Actif en jeu
+                            ● {t("home.active_in_game", "Actif en jeu")}
                           </div>
                         </div>
                       </div>
@@ -2026,18 +2044,18 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                         {relation === 'friends' ? (
                           <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">
                             <UserCheck className="w-3.5 h-3.5" />
-                            Ami ✓
+                            {t("home.friend_checked", "Ami ✓")}
                           </div>
                         ) : relation === 'sent' ? (
                           <div className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full border border-amber-400/20">
-                            Invité...
+                            {t("home.invited_status", "Invité...")}
                           </div>
                         ) : relation === 'received' ? (
                           <button
                             onClick={() => acceptFriendRequest(user)}
                             className="flex items-center gap-1 text-[10px] font-bold text-stone-950 bg-emerald-400 hover:bg-emerald-300 px-2 py-1 rounded-lg transition-colors cursor-pointer"
                           >
-                            Accepter
+                            {t("home.accept", "Accepter")}
                           </button>
                         ) : (
                           <button
@@ -2046,7 +2064,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                             title="Demander en ami"
                           >
                             <UserPlus className="w-3.5 h-3.5" />
-                            Ajouter
+                            {t("home.add", "Ajouter")}
                           </button>
                         )}
                       </div>
@@ -2062,7 +2080,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                         className="bg-stone-855 hover:bg-stone-800 text-stone-200 border border-stone-700/60 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-stone-500"
                       >
                         <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span>Entraînement 1v1</span>
+                        <span>{t("home.training_1v1", "Entraînement 1v1")}</span>
                       </button>
                       {liveMatches && liveMatches.length > 0 && (
                         <button
@@ -2070,7 +2088,7 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
                           className="bg-emerald-950/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-500/20 rounded-lg p-2 flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 transition-all text-center leading-tight hover:border-emerald-500/40"
                         >
                           <Swords className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span>Duel Réel 1v1</span>
+                          <span>{t("home.live_duel_1v1", "Duel Réel 1v1")}</span>
                         </button>
                       )}
                     </div>
@@ -2085,8 +2103,8 @@ export function Home({ profile, claimableAlerts, onlineCount = 1, onNavigate, on
         <div className="p-4 border-t border-white/5 bg-stone-950/40 text-center rounded-b-2xl">
           <p className="text-[10px] text-stone-400 font-mono">
             {matchSelectionUser 
-              ? "* Le duel démarrera dès la sélection du match avec ton défi privé."
-              : "* Les duels d'entraînement et réels sont lancés en mode privé exclusif."
+              ? t("home.duel_will_start", "* Le duel démarrera dès la sélection du match avec ton défi privé.")
+              : t("home.duel_mode_private", "* Les duels d'entraînement et réels sont lancés en mode privé exclusif.")
             }
           </p>
         </div>

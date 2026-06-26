@@ -5,6 +5,7 @@ import './index.css';
 import { AlertProvider } from './context/AlertContext';
 import { RewardProvider } from './context/RewardContext';
 import { SocketProvider } from './context/SocketContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { APP_VERSION } from './version';
 
 const cachedVersion = localStorage.getItem('fanz_app_version');
@@ -14,13 +15,15 @@ if (cachedVersion !== APP_VERSION) {
 } else {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <SocketProvider>
-        <AlertProvider>
-          <RewardProvider>
-            <App />
-          </RewardProvider>
-        </AlertProvider>
-      </SocketProvider>
+      <LanguageProvider>
+        <SocketProvider>
+          <AlertProvider>
+            <RewardProvider>
+              <App />
+            </RewardProvider>
+          </AlertProvider>
+        </SocketProvider>
+      </LanguageProvider>
     </StrictMode>,
   );
 }

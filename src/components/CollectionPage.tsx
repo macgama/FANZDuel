@@ -24,6 +24,7 @@ import { getImageUrl } from "../lib/utils";
 import { Maximize2, PlayCircle } from "lucide-react";
 import { useMediaViewer } from "../context/MediaViewerContext";
 import { OptimizedMedia } from "./OptimizedMedia";
+import { useLanguage } from "../context/LanguageContext";
 
 interface CollectionPageProps {
   user: UserProfile;
@@ -31,6 +32,7 @@ interface CollectionPageProps {
 
 export function CollectionPage({ user }: CollectionPageProps) {
   const { openMedia } = useMediaViewer();
+  const { tDb } = useLanguage();
   const [activeTab, setActiveTab] = useState<
     "fanz" | "skins" | "emotes" | "cards" | "actions"
   >("fanz");
@@ -733,7 +735,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                 .filter((f) => f.isActive !== false)
                 .map((fanz) => (
                   <option key={fanz.id} value={fanz.id}>
-                    {fanz.name}
+                    {tDb(fanz.name)}
                   </option>
                 ))}
             </select>
@@ -780,9 +782,9 @@ export function CollectionPage({ user }: CollectionPageProps) {
                         className={`w-full h-full object-cover ${!owned || isInactive ? "cursor-default" : "cursor-pointer"}`}
                         autoPlay={owned && !isInactive}
                         viewerEnabled={owned && !isInactive}
-                        viewerTitle={template.name}
+                        viewerTitle={tDb(template.name)}
                         viewerItemType="fanz"
-                        viewerDescription={template.description}
+                        viewerDescription={tDb(template.description)}
                         viewerMetadata={JSON.stringify({
                           stats: template.baseStats,
                         })}
@@ -804,7 +806,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     </div>
                     <div className="p-3 flex flex-col justify-between flex-1">
                       <h3 className="font-bold text-center text-xs md:text-sm leading-tight mb-2">
-                        {template.name}
+                        {tDb(template.name)}
                       </h3>
 
                       <div className="flex gap-1 justify-center mt-auto flex-wrap">
@@ -903,7 +905,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                         className={`w-full h-full object-cover ${!owned || isInactive ? "cursor-default" : "cursor-pointer"}`}
                         autoPlay={owned && !isInactive}
                         viewerEnabled={owned && !isInactive}
-                        viewerTitle={skin.name}
+                        viewerTitle={tDb(skin.name)}
                         viewerItemType="skin"
                         viewerVideoUrl={skin.videoUrl}
                         dataSaver={user.dataSaver}
@@ -924,10 +926,10 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     <div className="p-3 text-center flex flex-col justify-between flex-1">
                       <div>
                         <h3 className="font-bold text-xs sm:text-sm leading-tight text-white mb-0.5">
-                          {skin.name}
+                          {tDb(skin.name)}
                         </h3>
                         <p className="text-[9px] sm:text-[10px] text-blue-400 uppercase tracking-wider mb-2">
-                          {skin.fanzName}
+                          {tDb(skin.fanzName)}
                         </p>
                       </div>
 
@@ -1031,7 +1033,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                         className={`w-full h-full object-cover ${!owned ? "cursor-default" : "cursor-pointer"}`}
                         autoPlay={owned}
                         viewerEnabled={owned}
-                        viewerTitle={emote.name}
+                        viewerTitle={tDb(emote.name)}
                         viewerItemType="emote"
                         viewerVideoUrl={emote.videoUrl}
                         dataSaver={user.dataSaver}
@@ -1044,10 +1046,10 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     </div>
                     <div className="p-2 bg-[#111] flex flex-col items-center justify-center text-center">
                       <h3 className="font-bold text-[10px] sm:text-xs uppercase truncate w-full text-gray-200">
-                        {emote.name}
+                        {tDb(emote.name)}
                       </h3>
                       <p className="text-[8px] text-purple-400 mt-0.5 uppercase tracking-wider">
-                        {emote.fanzName}
+                        {tDb(emote.fanzName)}
                       </p>
                     </div>
                   </div>
@@ -1075,7 +1077,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                   let names = card.fanzIds
                     .map((id) => {
                       const fanz = fanzTemplates.find((f) => f.id === id);
-                      return fanz ? fanz.name : id;
+                      return fanz ? tDb(fanz.name) : id;
                     })
                     .join(", ");
                   if (card.skinId && card.fanzIds.length === 1) {
@@ -1084,7 +1086,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     );
                     const skin = fanz?.skins?.find((s) => s.id === card.skinId);
                     if (skin) {
-                      names += ` - ${skin.name}`;
+                      names += ` - ${tDb(skin.name)}`;
                     }
                   }
                   return names;
@@ -1128,7 +1130,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                         className={`w-full h-full object-cover ${!owned ? "cursor-default" : "cursor-pointer hover:scale-105 transition-transform duration-500"}`}
                         autoPlay={owned}
                         viewerEnabled={owned}
-                        viewerTitle={card.name}
+                        viewerTitle={tDb(card.name)}
                         viewerItemType="card"
                         viewerMetadata={JSON.stringify({
                           energyCost: card.energyCost,
@@ -1162,7 +1164,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                         let names = card.fanzIds
                           .map((id) => {
                             const fanz = fanzTemplates.find((f) => f.id === id);
-                            return fanz ? fanz.name : id;
+                            return fanz ? tDb(fanz.name) : id;
                           })
                           .join(", ");
                         if (card.skinId && card.fanzIds.length === 1) {
@@ -1173,7 +1175,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                             (s) => s.id === card.skinId,
                           );
                           if (skin) {
-                            names += ` - ${skin.name}`;
+                            names += ` - ${tDb(skin.name)}`;
                           }
                         }
                         return (
@@ -1259,7 +1261,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                           className={`w-full h-full object-cover ${!owned ? "cursor-default" : "cursor-pointer"}`}
                           autoPlay={owned}
                           viewerEnabled={owned}
-                          viewerTitle={`${action.name} ${action.associatedSkinId && action.associatedSkinId !== "000" ? `(${action.fanzSkinName})` : ""}`}
+                          viewerTitle={`${tDb(action.name)} ${action.associatedSkinId && action.associatedSkinId !== "000" ? `(${tDb(action.fanzSkinName)})` : ""}`}
                           viewerItemType="life_action"
                           viewerMetadata={JSON.stringify({
                             xpReward: action.xpGain,
@@ -1283,7 +1285,7 @@ export function CollectionPage({ user }: CollectionPageProps) {
                     </div>
                     <div className="p-2 sm:p-3 bg-[#111] flex-1 flex flex-col items-center justify-center text-center">
                       <h3 className="font-bold text-[10px] sm:text-xs leading-tight mb-0.5">
-                        {action.name}
+                        {tDb(action.name)}
                       </h3>
                       {(() => {
                         return (

@@ -18,6 +18,7 @@ import { useAlert } from "../context/AlertContext";
 import { useReward } from "../context/RewardContext";
 import { logTransaction } from "../services/transactionService";
 import { motion } from "motion/react";
+import { useLanguage } from "../context/LanguageContext";
 
 interface MissionsPageProps {
   profile: UserProfile;
@@ -25,6 +26,7 @@ interface MissionsPageProps {
 }
 
 export function MissionsPage({ profile, onBack }: MissionsPageProps) {
+  const { t, tDb } = useLanguage();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const { showAlert } = useAlert();
@@ -45,7 +47,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
       const dailyMinutes = Math.floor(
         (dailyDiff % (1000 * 60 * 60)) / (1000 * 60),
       );
-      setTimeLeftDaily(`${dailyHours}h ${dailyMinutes}m`);
+      setTimeLeftDaily(`${dailyHours}${t("time.hours_short", "h")} ${dailyMinutes}${t("time.minutes_short", "m")}`);
 
       // Weekly Reset (Next Monday 00:00)
       const nextWeekly = new Date();
@@ -57,7 +59,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
       const weeklyHours = Math.floor(
         (weeklyDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
       );
-      setTimeLeftWeekly(`${weeklyDays}j ${weeklyHours}h`);
+      setTimeLeftWeekly(`${weeklyDays}${t("time.days_short", "j")} ${weeklyHours}${t("time.hours_short", "h")}`);
     };
 
     updateTimers();
@@ -165,47 +167,47 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
           profile.uid,
           "money",
           mission.reward.amount,
-          `Récompense mission: ${mission.title}`,
+          t("missions.reward_transaction", "Récompense mission: {title}").replace("{title}", tDb(mission.title)),
         );
       if (mission.reward?.type === "gems" && mission.reward.amount)
         await logTransaction(
           profile.uid,
           "gems",
           mission.reward.amount,
-          `Récompense mission: ${mission.title}`,
+          t("missions.reward_transaction", "Récompense mission: {title}").replace("{title}", tDb(mission.title)),
         );
 
       if (mission.reward) {
         showReward({
           type: mission.reward.type as any,
           amount: mission.reward.amount,
-          title: `Mission Accomplie !`,
-          subtitle: mission.title,
+          title: t("missions.mission_accomplished", "Mission Accomplie !"),
+          subtitle: tDb(mission.title),
           card:
             mission.reward.type === "card" && mission.reward.cardId
-              ? { name: "Carte Débloquée" }
+              ? { name: t("missions.card_unlocked", "Carte Débloquée") }
               : undefined,
           skin:
             mission.reward.type === "skin" && mission.reward.skinId
-              ? { name: "Skin Débloqué" }
+              ? { name: t("missions.skin_unlocked", "Skin Débloqué") }
               : undefined,
           emote:
             mission.reward.type === "emote" && mission.reward.emoteId
-              ? { name: "Emote Débloqué" }
+              ? { name: t("missions.emote_unlocked", "Emote Débloqué") }
               : undefined,
           action:
             mission.reward.type === "action" && mission.reward.actionId
-              ? { name: "Action Débloquée" }
+              ? { name: t("missions.action_unlocked", "Action Débloquée") }
               : undefined,
         });
       } else {
-        showAlert({ title: "Récompense récupérée !", type: "success" });
+        showAlert({ title: t("missions.reward_claim_success", "Récompense récupérée !"), type: "success" });
       }
     } catch (err) {
       console.error("Error claiming mission reward", err);
       showAlert({
-        title: "Erreur",
-        subtitle: "Impossible de récupérer la récompense",
+        title: t("missions.error", "Erreur"),
+        subtitle: t("missions.error_claim", "Impossible de récupérer la récompense"),
         type: "error",
       });
     }
@@ -214,7 +216,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full bg-[#0a0a0a] text-white">
-        Chargement...
+        {t("missions.loading", "Chargement...")}
       </div>
     );
   }
@@ -241,10 +243,15 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
     <div className="flex flex-col h-full bg-transparent">
       <div className="flex items-center justify-between px-4">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
-          Missions
+          {t("missions.title", "Missions")}
         </h1>
         <div className="text-xs font-bold text-gray-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 uppercase tracking-widest">
-          <span className="text-orange-500">{totalSuccess}</span> réussies
+          {t("missions.success_count", "{count} réussies").split("{count}").map((part, index) => (
+            <React.Fragment key={index}>
+              {index > 0 && <span className="text-orange-500">{totalSuccess}</span>}
+              {part}
+            </React.Fragment>
+          ))}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-20">
@@ -252,10 +259,10 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-black italic uppercase tracking-tighter text-white">
-              Quêtes Quotidiennes
+              {t("missions.daily_quests", "Quêtes Quotidiennes")}
             </h2>
             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-right">
-              Renouvellement dans {timeLeftDaily}
+              {t("missions.renew_in", "Renouvellement dans {time}").replace("{time}", timeLeftDaily)}
             </span>
           </div>
 
@@ -295,7 +302,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                         <h3
                           className={`text-sm font-black uppercase tracking-tight mb-1 ${isCompleted ? "text-green-400" : "text-white"}`}
                         >
-                          {mission.title}
+                          {tDb(mission.title)}
                         </h3>
 
                         <div className="flex items-center gap-2">
@@ -359,12 +366,12 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                         className="w-full mt-3 bg-green-500 hover:bg-green-600 text-black font-black uppercase text-xs h-8"
                         onClick={() => handleClaimReward(mission)}
                       >
-                        Récupérer
+                        {t("missions.claim", "Récupérer")}
                       </Button>
                     )}
                     {isClaimed && (
                       <div className="w-full mt-3 py-1.5 bg-green-500/10 text-green-500 text-center font-black uppercase text-xs rounded-lg border border-green-500/20">
-                        Récupéré
+                        {t("missions.claimed", "Récupéré")}
                       </div>
                     )}
                   </Card>
@@ -373,7 +380,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
             })}
             {displayDailyMissions.length === 0 && (
               <div className="text-center py-4 text-gray-500 text-sm italic">
-                Aucune quête quotidienne disponible.
+                {t("missions.no_daily", "Aucune quête quotidienne disponible.")}
               </div>
             )}
           </div>
@@ -383,10 +390,10 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
         <section>
           <div className="flex items-center justify-between mb-4 mt-8">
             <h2 className="text-lg font-black italic uppercase tracking-tighter text-white">
-              Quêtes Hebdomadaires
+              {t("missions.weekly_quests", "Quêtes Hebdomadaires")}
             </h2>
             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-right">
-              Renouvellement dans {timeLeftWeekly}
+              {t("missions.renew_in", "Renouvellement dans {time}").replace("{time}", timeLeftWeekly)}
             </span>
           </div>
 
@@ -426,7 +433,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                         <h3
                           className={`text-sm font-black uppercase tracking-tight mb-1 ${isCompleted ? "text-green-400" : "text-white"}`}
                         >
-                          {mission.title}
+                          {tDb(mission.title)}
                         </h3>
 
                         <div className="flex items-center gap-2">
@@ -490,12 +497,12 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                         className="w-full mt-3 bg-green-500 hover:bg-green-600 text-black font-black uppercase text-xs h-8"
                         onClick={() => handleClaimReward(mission)}
                       >
-                        Récupérer
+                        {t("missions.claim", "Récupérer")}
                       </Button>
                     )}
                     {isClaimed && (
                       <div className="w-full mt-3 py-1.5 bg-green-500/10 text-green-500 text-center font-black uppercase text-xs rounded-lg border border-green-500/20">
-                        Récupéré
+                        {t("missions.claimed", "Récupéré")}
                       </div>
                     )}
                   </Card>
@@ -504,7 +511,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
             })}
             {displayWeeklyMissions.length === 0 && (
               <div className="text-center py-4 text-gray-500 text-sm italic">
-                Aucune quête hebdomadaire disponible.
+                {t("missions.no_weekly", "Aucune quête hebdomadaire disponible.")}
               </div>
             )}
           </div>
@@ -514,10 +521,10 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
         <section>
           <div className="flex items-center justify-between mb-4 mt-8">
             <h2 className="text-lg font-black italic uppercase tracking-tighter text-white">
-              Quêtes Uniques
+              {t("missions.one_shot_quests", "Quêtes Uniques")}
             </h2>
             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-              Une seule fois
+              {t("missions.one_shot_desc", "Une seule fois")}
             </span>
           </div>
 
@@ -557,7 +564,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                         <h3
                           className={`text-sm font-black uppercase tracking-tight mb-1 ${isCompleted ? "text-green-400" : "text-white"}`}
                         >
-                          {mission.title}
+                          {tDb(mission.title)}
                         </h3>
 
                         <div className="flex items-center gap-2">
@@ -621,12 +628,12 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
                         className="w-full mt-3 bg-green-500 hover:bg-green-600 text-black font-black uppercase text-xs h-8"
                         onClick={() => handleClaimReward(mission)}
                       >
-                        Récupérer
+                        {t("missions.claim", "Récupérer")}
                       </Button>
                     )}
                     {isClaimed && (
                       <div className="w-full mt-3 py-1.5 bg-green-500/10 text-green-500 text-center font-black uppercase text-xs rounded-lg border border-green-500/20">
-                        Récupéré
+                        {t("missions.claimed", "Récupéré")}
                       </div>
                     )}
                   </Card>
@@ -635,7 +642,7 @@ export function MissionsPage({ profile, onBack }: MissionsPageProps) {
             })}
             {displayOneShotMissions.length === 0 && (
               <div className="text-center py-4 text-gray-500 text-sm italic">
-                Aucune quête unique disponible.
+                {t("missions.no_one_shot", "Aucune quête unique disponible.")}
               </div>
             )}
           </div>

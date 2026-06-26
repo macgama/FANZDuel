@@ -43,6 +43,8 @@ import { format } from "date-fns";
 import { logTransaction } from "./services/transactionService";
 import { progressMission } from "./services/missionService";
 import { useAlert, Reward } from "./context/AlertContext";
+import { useLanguage } from "./context/LanguageContext";
+import { LanguageSelector } from "./components/LanguageSelector";
 import { footballApi } from "./services/footballApi";
 import {
   Trophy,
@@ -134,6 +136,7 @@ type ViewType =
   | "mrfanz";
 
 function AppContent() {
+  const { t, language: appLanguage, setLanguage: setAppLanguage } = useLanguage();
   const { socket } = useSocket();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -242,57 +245,7 @@ function AppContent() {
     }
   };
 
-  // Gestion globale et automatique du widget de traduction Google Translate
-  useEffect(() => {
-    const checkAndTeleportTranslation = () => {
-      const translateEl = document.getElementById("google_translate_element");
-      if (!translateEl) return;
 
-      const profileContainer = document.getElementById(
-        "google-translate-profile-container",
-      );
-
-      // Trouver tous les conteneurs de langue du hub public (peut en avoir un dans la landing et un dans match du jour)
-      const landingContainers = document.querySelectorAll(
-        "[id='google-translate-landing-container']",
-      );
-      let activeLandingContainer = null;
-      for (let i = 0; i < landingContainers.length; i++) {
-        const el = landingContainers[i];
-        if (el && document.body.contains(el)) {
-          // Utilise le premier conteneur qui est connecté au DOM
-          activeLandingContainer = el;
-          break;
-        }
-      }
-
-      if (profileContainer) {
-        if (translateEl.parentElement !== profileContainer) {
-          profileContainer.appendChild(translateEl);
-        }
-      } else if (activeLandingContainer) {
-        if (translateEl.parentElement !== activeLandingContainer) {
-          activeLandingContainer.appendChild(translateEl);
-        }
-      } else {
-        if (translateEl.parentElement !== document.body) {
-          document.body.appendChild(translateEl);
-        }
-      }
-    };
-
-    // Vérifier immédiatement, puis toutes les 500ms
-    checkAndTeleportTranslation();
-    const interval = setInterval(checkAndTeleportTranslation, 500);
-
-    return () => {
-      clearInterval(interval);
-      const translateEl = document.getElementById("google_translate_element");
-      if (translateEl && translateEl.parentElement !== document.body) {
-        document.body.appendChild(translateEl);
-      }
-    };
-  }, [view, guestView, user]);
 
   const [selectedLeague, setSelectedLeague] = useState<{
     id: number;
@@ -1479,6 +1432,10 @@ function AppContent() {
                 }
               }
 
+              if (updatedData.language && updatedData.language !== appLanguage) {
+                setAppLanguage(updatedData.language as any);
+              }
+
               if (needsUpdate) {
                 try {
                   await setDoc(docRef, updatedData, { merge: true });
@@ -1680,12 +1637,9 @@ function AppContent() {
             </div>
 
             <div className="flex items-center gap-2 md:gap-4">
-              {/* GOOGLE TRANSLATE CONTAINER MOUNTED IN NAVBAR */}
+              {/* LANGUAGE SELECTOR IN NAVBAR */}
               <div className="flex items-center pr-2 border-r border-white/10">
-                <div
-                  id="google-translate-landing-container"
-                  className="h-8 flex items-center min-w-[100px] sm:min-w-[120px] max-w-[160px] overflow-visible rounded-lg"
-                />
+                <LanguageSelector />
               </div>
 
               <button
@@ -1964,7 +1918,7 @@ function AppContent() {
                     )}
                   </div>
                 }
-                label="MES FANZ"
+                label={t("menu.my_fanz", "MES FANZ")}
                 active={view === "fanz"}
                 onClick={() => {
                   setView("fanz");
@@ -1984,7 +1938,7 @@ function AppContent() {
                     )}
                   </div>
                 }
-                label="MES EQUIPES"
+                label={t("menu.my_teams", "MES EQUIPES")}
                 active={view === "favorite-teams"}
                 onClick={() => {
                   setView("favorite-teams");
@@ -2004,7 +1958,7 @@ function AppContent() {
                     )}
                   </div>
                 }
-                label="MON MUSÉE"
+                label={t("menu.my_museum", "MON MUSÉE")}
                 active={view === "collection"}
                 onClick={() => {
                   setView("collection");
@@ -2017,7 +1971,7 @@ function AppContent() {
               />
               <SidebarButton
                 icon={<PieChart />}
-                label="MES STATS"
+                label={t("menu.my_stats", "MES STATS")}
                 active={view === "stats"}
                 onClick={() => {
                   setView("stats");
@@ -2039,7 +1993,7 @@ function AppContent() {
                     )}
                   </div>
                 }
-                label="DUELS"
+                label={t("menu.duels", "DUELS")}
                 active={view === "waiting-room"}
                 onClick={() => {
                   setView("waiting-room");
@@ -2052,7 +2006,7 @@ function AppContent() {
               />
               <SidebarButton
                 icon={<BarChart2 />}
-                label="RANK"
+                label={t("menu.rank", "RANK")}
                 active={view === "rankings"}
                 onClick={() => {
                   setView("rankings");
@@ -2072,7 +2026,7 @@ function AppContent() {
                     )}
                   </div>
                 }
-                label="SOCIAL"
+                label={t("menu.social", "SOCIAL")}
                 active={view === "social"}
                 onClick={() => {
                   setView("social");
@@ -2087,7 +2041,7 @@ function AppContent() {
               <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
                 <SidebarButton
                   icon={<Calendar />}
-                  label="SERIE HEBDO"
+                  label={t("menu.weekly_streak", "SERIE HEBDO")}
                   active={false}
                   onClick={() => {
                     setShowStreakModal(true);
@@ -2102,7 +2056,7 @@ function AppContent() {
                       )}
                     </div>
                   }
-                  label="FERVEUR"
+                  label={t("menu.fervor", "FERVEUR")}
                   active={view === "fervor-path"}
                   onClick={() => {
                     setView("fervor-path");
@@ -2122,7 +2076,7 @@ function AppContent() {
                       )}
                     </div>
                   }
-                  label="MISSIONS"
+                  label={t("menu.missions", "MISSIONS")}
                   active={view === "missions"}
                   onClick={() => {
                     setView("missions");
@@ -2135,7 +2089,7 @@ function AppContent() {
                 />
                 <SidebarButton
                   icon={<Sparkles />}
-                  label="PASS"
+                  label={t("menu.pass", "PASS")}
                   active={view === "pass"}
                   onClick={() => {
                     setView("pass");
@@ -2148,7 +2102,7 @@ function AppContent() {
                 />
                 <SidebarButton
                   icon={<Store />}
-                  label="BOUTIQUE"
+                  label={t("menu.shop", "BOUTIQUE")}
                   active={view === "shop"}
                   onClick={() => {
                     setView("shop");
@@ -2171,7 +2125,7 @@ function AppContent() {
                       />
                     </div>
                   }
-                  label="GUIDE MRFANZ"
+                  label={t("menu.mrfanz_guide", "GUIDE MRFANZ")}
                   active={view === "mrfanz"}
                   onClick={() => {
                     setView("mrfanz");
@@ -2194,7 +2148,7 @@ function AppContent() {
                       )}
                     </div>
                   }
-                  label="MATCHS DU JOUR"
+                  label={t("menu.todays_matches", "MATCHS DU JOUR")}
                   active={view === "matches"}
                   onClick={() => {
                     setView("matches");
@@ -2207,7 +2161,7 @@ function AppContent() {
                 />
                 <SidebarButton
                   icon={<Globe />}
-                  label="COMPETITIONS"
+                  label={t("menu.competitions", "COMPETITIONS")}
                   active={view === "competitions"}
                   onClick={() => {
                     setView("competitions");
@@ -2224,7 +2178,7 @@ function AppContent() {
                 <div className="mt-2 pt-2 border-t border-white/5 flex flex-col gap-1">
                   <SidebarButton
                     icon={<Settings />}
-                    label="ADMIN"
+                    label={t("menu.admin", "ADMIN")}
                     active={view === ("admin" as any)}
                     onClick={() => {
                       setView("admin" as any);
@@ -2238,10 +2192,16 @@ function AppContent() {
                 </div>
               )}
 
-              <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1">
+              <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-3">
+                <div className="px-1 py-1 flex flex-col items-center lg:items-stretch">
+                  <div className="text-[8px] lg:text-[9px] font-black tracking-widest text-orange-500 uppercase mb-1.5 opacity-80 text-center lg:text-left">
+                    {t("menu.language", "Langue")}
+                  </div>
+                  <LanguageSelector className="w-full justify-around" />
+                </div>
                 <SidebarButton
                   icon={<LogOut />}
-                  label="QUITTER"
+                  label={t("menu.quit", "QUITTER")}
                   active={false}
                   onClick={() => {
                     setIsMenuOpen(false);
@@ -2702,6 +2662,14 @@ function AppContent() {
               </div>
 
               <div className="flex-1 overflow-y-auto no-scrollbar p-1">
+                {/* Language Selector */}
+                <div className="px-3 py-2 mb-2">
+                  <div className="text-[9px] font-black tracking-widest text-orange-500 uppercase mb-1.5 opacity-80">
+                    Langue / Language
+                  </div>
+                  <LanguageSelector className="w-full justify-around" />
+                </div>
+
                 <div className="flex flex-col gap-0.5">
                   <SidebarButton
                     icon={
@@ -2712,7 +2680,7 @@ function AppContent() {
                         )}
                       </div>
                     }
-                    label="MES FANZ"
+                    label={t("menu.my_fanz", "MES FANZ")}
                     active={view === "fanz"}
                     onClick={() => {
                       setView("fanz");
@@ -2733,7 +2701,7 @@ function AppContent() {
                         )}
                       </div>
                     }
-                    label="MES EQUIPES"
+                    label={t("menu.my_teams", "MES EQUIPES")}
                     active={view === "favorite-teams"}
                     onClick={() => {
                       setView("favorite-teams");
@@ -2754,7 +2722,7 @@ function AppContent() {
                         )}
                       </div>
                     }
-                    label="MON MUSÉE"
+                    label={t("menu.my_museum", "MON MUSÉE")}
                     active={view === "collection"}
                     onClick={() => {
                       setView("collection");
@@ -2768,7 +2736,7 @@ function AppContent() {
                   />
                   <SidebarButton
                     icon={<PieChart className="w-5 h-5" />}
-                    label="MES STATS"
+                    label={t("menu.my_stats", "MES STATS")}
                     active={view === "stats"}
                     onClick={() => {
                       setView("stats");
@@ -2791,7 +2759,7 @@ function AppContent() {
                         )}
                       </div>
                     }
-                    label="DUELS"
+                    label={t("menu.duels", "DUELS")}
                     active={view === "waiting-room"}
                     onClick={() => {
                       setView("waiting-room");
@@ -2805,7 +2773,7 @@ function AppContent() {
                   />
                   <SidebarButton
                     icon={<BarChart2 className="w-5 h-5" />}
-                    label="RANK"
+                    label={t("menu.rank", "RANK")}
                     active={view === "rankings"}
                     onClick={() => {
                       setView("rankings");
@@ -2826,7 +2794,7 @@ function AppContent() {
                         )}
                       </div>
                     }
-                    label="SOCIAL"
+                    label={t("menu.social", "SOCIAL")}
                     active={view === "social"}
                     onClick={() => {
                       setView("social");
@@ -2842,7 +2810,7 @@ function AppContent() {
                   <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
                     <SidebarButton
                       icon={<Calendar className="w-5 h-5" />}
-                      label="SERIE HEBDO"
+                      label={t("menu.weekly_streak", "SERIE HEBDO")}
                       active={false}
                       onClick={() => {
                         setShowStreakModal(true);
@@ -2863,7 +2831,7 @@ function AppContent() {
                           )}
                         </div>
                       }
-                      label="FERVEUR"
+                      label={t("menu.fervor", "FERVEUR")}
                       active={view === "fervor-path"}
                       onClick={() => {
                         setView("fervor-path");
@@ -2884,7 +2852,7 @@ function AppContent() {
                           )}
                         </div>
                       }
-                      label="MISSIONS"
+                      label={t("menu.missions", "MISSIONS")}
                       active={view === "missions"}
                       onClick={() => {
                         setView("missions");
@@ -2898,7 +2866,7 @@ function AppContent() {
                     />
                     <SidebarButton
                       icon={<Sparkles className="w-5 h-5" />}
-                      label="PASS"
+                      label={t("menu.pass", "PASS")}
                       active={view === "pass"}
                       onClick={() => {
                         setView("pass");
@@ -2912,7 +2880,7 @@ function AppContent() {
                     />
                     <SidebarButton
                       icon={<Store className="w-5 h-5" />}
-                      label="BOUTIQUE"
+                      label={t("menu.shop", "BOUTIQUE")}
                       active={view === "shop"}
                       onClick={() => {
                         setView("shop");
@@ -2936,7 +2904,7 @@ function AppContent() {
                           />
                         </div>
                       }
-                      label="GUIDE MRFANZ"
+                      label={t("menu.mrfanz_guide", "GUIDE MRFANZ")}
                       active={view === "mrfanz"}
                       onClick={() => {
                         setView("mrfanz");
@@ -2960,7 +2928,7 @@ function AppContent() {
                           )}
                         </div>
                       }
-                      label="MATCHS DU JOUR"
+                      label={t("menu.todays_matches", "MATCHS DU JOUR")}
                       active={view === "matches"}
                       onClick={() => {
                         setView("matches");
@@ -2974,7 +2942,7 @@ function AppContent() {
                     />
                     <SidebarButton
                       icon={<Globe className="w-5 h-5" />}
-                      label="COMPETITIONS"
+                      label={t("menu.competitions", "COMPETITIONS")}
                       active={view === "competitions"}
                       onClick={() => {
                         setView("competitions");
@@ -2992,7 +2960,7 @@ function AppContent() {
                     <div className="pt-2 mt-2 border-t border-white/5 flex flex-col gap-0.5">
                       <SidebarButton
                         icon={<Settings className="w-5 h-5" />}
-                        label="ADMIN"
+                        label={t("menu.admin", "ADMIN")}
                         active={view === ("admin" as any)}
                         onClick={() => {
                           setView("admin" as any);
@@ -3019,7 +2987,7 @@ function AppContent() {
                   className="w-full flex items-center justify-center gap-2 p-2 bg-red-500/10 text-red-500 rounded-lg font-bold hover:bg-red-500/20 transition-colors text-xs uppercase"
                 >
                   <LogOut className="w-4 h-4" />
-                  QUITTER
+                  {t("menu.quit", "QUITTER")}
                 </button>
               </div>
             </motion.div>
@@ -3079,12 +3047,11 @@ function AppContent() {
                     </div>
                     <div>
                       <h4 className="text-xs font-black italic uppercase tracking-wider text-orange-500 flex items-center gap-1.5 leading-none">
-                        PALIER FRANCHI !{" "}
+                        {t("fervor.milestone_reached", "PALIER FRANCHI !")}{" "}
                         <Sparkles className="w-3.5 h-3.5 text-orange-300" />
                       </h4>
                       <p className="text-[11px] text-gray-300 font-bold leading-normal mt-1">
-                        Tu as passé un nouveau niveau de ferveur ! Récupère vite
-                        tes récompenses.
+                        {t("fervor.milestone_desc", "Tu as passé un nouveau niveau de ferveur ! Récupère vite tes récompenses.")}
                       </p>
                     </div>
                   </div>
@@ -3102,7 +3069,7 @@ function AppContent() {
                       <div className="flex items-center gap-2">
                         <Trophy className="w-3.5 h-3.5 text-yellow-500" />
                         <span className="text-[10px] font-bold text-gray-300 uppercase italic">
-                          Ferveur Générale
+                          {t("fervor.global", "Ferveur Générale")}
                         </span>
                       </div>
                       <Button
@@ -3118,7 +3085,7 @@ function AppContent() {
                         }}
                         className="bg-orange-500 hover:bg-orange-600 text-white font-black italic uppercase text-[9px] tracking-wider px-3.5 py-1.5 h-auto rounded-lg shadow-md hover:shadow-orange-500/20"
                       >
-                        Récupérer <Gift className="w-3 h-3 ml-1" />
+                        {t("common.claim", "Récupérer")} <Gift className="w-3 h-3 ml-1" />
                       </Button>
                     </div>
                   )}

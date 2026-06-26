@@ -5,6 +5,7 @@ import { getImageUrl } from '../lib/utils';
 import { LOGOS } from '../constants';
 import { auth, db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useLanguage } from './LanguageContext';
 
 export interface Reward {
   type: 'money' | 'gems' | 'boost' | 'xp' | 'energy' | 'card' | 'team' | 'fanz';
@@ -78,6 +79,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 }
 
 function FullScreenAlert({ alert, onClose, dataSaver }: { alert: GameAlert; onClose: () => void; dataSaver: boolean }) {
+  const { t } = useLanguage();
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -182,7 +184,7 @@ function FullScreenAlert({ alert, onClose, dataSaver }: { alert: GameAlert; onCl
                     {reward.amount ? `+${reward.amount}` : ''}
                   </div>
                   <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    {reward.label || reward.type}
+                    {reward.label || t(`reward.${reward.type}`, reward.type)}
                   </div>
                 </motion.div>
               ))}
@@ -215,7 +217,7 @@ function FullScreenAlert({ alert, onClose, dataSaver }: { alert: GameAlert; onCl
                   : 'w-full md:w-auto bg-white text-black hover:bg-orange-500 hover:text-white border-transparent shadow-[0_0_30px_rgba(255,255,255,0.3)]'
               }`}
             >
-              {alert.action ? 'Ignorer' : 'Continuer'}
+              {alert.action ? t('alert.ignore', 'Ignorer') : t('alert.continue', 'Continuer')}
             </button>
           </motion.div>
         </motion.div>

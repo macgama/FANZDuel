@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "fireb
 import { ChevronRight, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { footballApi } from "../services/footballApi";
+import { useLanguage } from "../context/LanguageContext";
 
 interface DidacticielBannerProps {
   profile: UserProfile;
@@ -29,6 +30,7 @@ export function DidacticielBanner({
   onClickStep7,
   onClickStep8
 }: DidacticielBannerProps) {
+  const { t } = useLanguage();
   const [firstFanzId, setFirstFanzId] = useState<string | null>(null);
   const [activeFanz, setActiveFanz] = useState<any>(null);
   const [upcomingMatch, setUpcomingMatch] = useState<any>(null);
@@ -121,38 +123,38 @@ export function DidacticielBanner({
   let onClickHandler = () => {};
 
   if (!hasActiveFanz) {
-    stepTitle = "Active ton premier FANZ";
+    stepTitle = t("tutorial.step1_title", "Active ton premier FANZ");
     stepCount = "1/8";
     onClickHandler = () => { onClickStep1(firstFanzId || undefined); };
   } else if (!hasDeck) {
-    stepTitle = "Crée ton deck";
+    stepTitle = t("tutorial.step2_title", "Crée ton deck");
     stepCount = "2/8";
     onClickHandler = () => { onClickStep2(profile.activeFanzId!); };
   } else if (!hasPlayedDuel) {
-    stepTitle = "Crée ton premier duel d'entraînement";
-    stepSub = "Uniquement sur les matchs À Venir ! Les modes ranked se font sur les matchs Live.";
+    stepTitle = t("tutorial.step3_title", "Crée ton premier duel d'entraînement");
+    stepSub = t("tutorial.step3_sub", "Uniquement sur les matchs À Venir ! Les modes ranked se font sur les matchs Live.");
     stepCount = "3/8";
     onClickHandler = () => { if (upcomingMatch) onClickStep3(upcomingMatch.fixture.id); };
   } else if (!hasSecondTeam) {
-    stepTitle = "Choisis une 2ème équipe favorite";
+    stepTitle = t("tutorial.step4_title", "Choisis une 2ème équipe favorite");
     stepCount = "4/8";
     onClickHandler = () => { onClickStep4(); };
   } else if (!hasDoneLifeAction) {
-    stepTitle = "Choisis une action LIFE";
-    stepSub = "Augmente les stats de ton FANZ !";
+    stepTitle = t("tutorial.step5_title", "Choisis une action LIFE");
+    stepSub = t("tutorial.step5_sub", "Augmente les stats de ton FANZ !");
     stepCount = "5/8";
     onClickHandler = () => { onClickStep5(profile.activeFanzId!); };
   } else if (theBestFanUid && !hasInvitedBestFan) {
-    stepTitle = "Invite TheBestFan à être ton ami";
+    stepTitle = t("tutorial.step6_title", "Invite TheBestFan à être ton ami");
     stepCount = "6/8";
     onClickHandler = () => { onClickStep6(); };
   } else if (!hasEmote) {
-    stepTitle = "Achète ton premier Emote dans le Shop";
+    stepTitle = t("tutorial.step7_title", "Achète ton premier Emote dans el Shop");
     stepCount = "7/8";
     onClickHandler = () => { onClickStep7(); };
   } else {
-    stepTitle = "Deviens le meilleur Fan Online !";
-    stepSub = "Suis tes équipes, joue des entraînements (À Venir) ou matchs classés (Lives) !";
+    stepTitle = t("tutorial.step8_title", "Deviens le meilleur Fan Online !");
+    stepSub = t("tutorial.step8_sub", "Suis tes équipes, joue des entraînements (À Venir) ou matchs classés (Lives) !");
     stepCount = "8/8";
     onClickHandler = async () => { 
       try {

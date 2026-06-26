@@ -5,8 +5,10 @@ import { Fanz, UserProfile, FanzTemplate } from '../types';
 import { Trophy, User, Flame, Medal } from 'lucide-react';
 import { getImageUrl, cn } from '../lib/utils';
 import { Card } from './Layout';
+import { useLanguage } from '../context/LanguageContext';
 
 export function FanzRanking() {
+  const { tDb } = useLanguage();
   const [topFanz, setTopFanz] = useState<(Fanz & { ownerPseudo?: string; template?: FanzTemplate })[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -137,7 +139,7 @@ export function FanzRanking() {
               )}>
                 <img 
                   src={getImageUrl(fanz.imageUrl || fanz.template?.image || '')} 
-                  alt={fanz.name} 
+                  alt={tDb(fanz.name)} 
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -146,7 +148,7 @@ export function FanzRanking() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="font-black italic uppercase text-base truncate text-white">
-                    {fanz.name}
+                    {tDb(fanz.name)}
                   </h3>
                   {fanz.template?.rarity && (
                     <span className={cn(

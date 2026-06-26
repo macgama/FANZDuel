@@ -29,29 +29,42 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { FavoriteLeagueStar } from './FavoriteLeagueStar';
+import { useLanguage } from '../context/LanguageContext';
 
-const getMatchStatusLabel = (status: any) => {
+const getMatchStatusLabel = (status: any, t: any) => {
   if (!status) return '';
   const short = status.short;
+  
+  // Convert to lowercase for case-insensitive checks
+  const shortLower = (short || '').toLowerCase();
+  const longLower = (status.long || '').toLowerCase();
+  
+  if (shortLower === '1h' || shortLower === '1st half' || longLower === '1st half' || longLower === 'first half') {
+    return t("match.status_1h", "1ère Mi-temps");
+  }
+  if (shortLower === '2h' || shortLower === '2nd half' || longLower === '2nd half' || longLower === 'second half') {
+    return t("match.status_2h", "2ème Mi-temps");
+  }
+  if (shortLower === 'ht' || shortLower === 'halftime' || longLower === 'halftime') {
+    return t("match.status_ht", "Mi-temps");
+  }
+
   switch (short) {
-    case '1H': return '1ère Mi-temps';
-    case 'HT': return 'Mi-temps';
-    case '2H': return '2ème Mi-temps';
-    case 'ET': return 'Prolongations';
-    case 'BT': return 'Pause avant Prol.';
-    case 'P': return 'Tirs au But';
-    case 'FT': return 'Terminé';
-    case 'AET': return 'Terminé (A.P.)';
-    case 'PEN': return 'Terminé (T.A.B.)';
-    case 'SUSP': return 'Suspendu';
-    case 'INT': return 'Interrompu';
-    case 'PST': return 'Reporté';
-    case 'CANC': return 'Annulé';
-    case 'ABD': return 'Abandonné';
-    case 'AWD': return 'Par forfait';
-    case 'WO': return 'Forfait';
-    case 'NS': return 'Non démarré';
-    case 'TBD': return 'À définir';
+    case 'ET': return t("match.status_et", "Prolongations");
+    case 'BT': return t("match.status_bt", "Pause avant Prol.");
+    case 'P': return t("match.status_p", "Tirs au But");
+    case 'FT': return t("match.status_ft", "Terminé");
+    case 'AET': return t("match.status_aet", "Terminé (A.P.)");
+    case 'PEN': return t("match.status_pen", "Terminé (T.A.B.)");
+    case 'SUSP': return t("match.status_susp", "Suspendu");
+    case 'INT': return t("match.status_int", "Interrompu");
+    case 'PST': return t("match.status_pst", "Reporté");
+    case 'CANC': return t("match.status_canc", "Annulé");
+    case 'ABD': return t("match.status_abd", "Abandonné");
+    case 'AWD': return t("match.status_awd", "Par forfait");
+    case 'WO': return t("match.status_wo", "Forfait");
+    case 'NS': return t("match.status_ns", "Non démarré");
+    case 'TBD': return t("match.status_tbd", "À définir");
     default: return status.long || short;
   }
 };
@@ -74,6 +87,7 @@ interface MatchDetailsProps {
 }
 
 export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueClick, initialTab = 'summary', initialDuelId, initialDuelType, onDuelStatusChange, onDuelIntent, onFanzClick, onPlayerClick, initialPrivateDuel = false, initialInvitedFriend = null }: MatchDetailsProps) {
+  const { t } = useLanguage();
   const [details, setDetails] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [lineups, setLineups] = useState<any[]>([]);
@@ -279,8 +293,8 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           setSelectedDuelId(null);
         }} 
         matchId={fixtureId.toString()}
-        teamA={details.teams.home.name}
-        teamB={details.teams.away.name}
+        teamA={translateCountryName(details.teams.home.name)}
+        teamB={translateCountryName(details.teams.away.name)}
         teamAId={details.teams.home.id.toString()}
         teamBId={details.teams.away.id.toString()}
         teamALogo={details.teams.home.logo}
@@ -372,7 +386,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
             <span className={`font-black text-center uppercase tracking-tight text-[10px] sm:text-xs transition-colors line-clamp-2 w-full leading-tight ${
               isHomeWinner ? 'text-orange-400 font-extrabold sm:text-xs' : isAwayWinner ? 'text-stone-300 font-bold opacity-80' : 'text-white group-hover:text-orange-500'
             }`}>
-              {details.teams.home.name}
+              {translateCountryName(details.teams.home.name)}
             </span>
             <div className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full transition-all duration-300 mt-0.5 ${
               isHomeWinner 
@@ -410,14 +424,14 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                     ? "bg-[#ef4444] text-white animate-pulse"
                     : "bg-[#2a2a2a] text-gray-400"
                 }`}>
-                  {getMatchStatusLabel(details.fixture.status)}
+                  {getMatchStatusLabel(details.fixture.status, t)}
                 </span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-1.5 mt-2">
                 <div className="px-3 py-1 bg-orange-500/15 border border-orange-500/20 rounded-full flex items-center justify-center shadow-sm">
                   <span className="text-[10px] sm:text-xs font-black text-orange-400 uppercase tracking-widest">
-                    {getMatchStatusLabel(details.fixture.status)}
+                    {getMatchStatusLabel(details.fixture.status, t)}
                   </span>
                 </div>
               </div>
@@ -442,7 +456,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
             <span className={`font-black text-center uppercase tracking-tight text-[10px] sm:text-xs transition-colors line-clamp-2 w-full leading-tight ${
               isAwayWinner ? 'text-blue-400 font-extrabold sm:text-xs' : isHomeWinner ? 'text-stone-300 font-bold opacity-80' : 'text-white group-hover:text-blue-500'
             }`}>
-              {details.teams.away.name}
+              {translateCountryName(details.teams.away.name)}
             </span>
             <div className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full transition-all duration-300 mt-0.5 ${
               isAwayWinner 
@@ -502,7 +516,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           ) : (
             <div className="text-center py-4">
               <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
-                Aucun duel n'a été joué
+                {t("match.no_duel_played", "Aucun duel n'a été joué")}
               </span>
             </div>
           )}
@@ -521,7 +535,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
               >
                 <div className="flex items-center justify-center gap-2">
                   <Target className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-                  Entraînement contre des Bots (Solo)
+                  {t("match.training_solo", "Entraînement contre des Bots (Solo)")}
                 </div>
               </button>
 
@@ -534,7 +548,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
               >
                 <div className="flex items-center justify-center gap-2">
                   <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
-                  Entraînement entre Amis (1v1 Privé)
+                  {t("match.training_private", "Entraînement entre Amis (1v1 Privé)")}
                 </div>
               </button>
             </div>
@@ -552,7 +566,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                 >
                   <div className="flex items-center justify-center gap-2">
                     <Swords className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-                    Créer un Duel
+                    {t("match.create_duel", "Créer un Duel")}
                   </div>
                 </button>
                 {activeDuels.length > 0 && (
@@ -560,7 +574,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                     className="flex-1 py-4 sm:py-5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black text-xs sm:text-sm uppercase tracking-widest transition-all shadow-lg shadow-orange-500/30 active:scale-95"
                     onClick={() => handleDuelClick(() => setShowDuelsList(true))}
                   >
-                    Rejoindre ({activeDuels.length})
+                    {t("match.join", "Rejoindre")} ({activeDuels.length})
                   </button>
                 )}
               </div>
@@ -576,7 +590,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                     }
                   })}
                 >
-                  Rejoindre la Guerre des Kops
+                  {t("match.join_wok", "Rejoindre la Guerre des Kops")}
                 </button>
               )}
             </>
@@ -588,7 +602,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
           <div className="bg-[#1a1a1a] rounded-2xl border border-white/10 w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-black text-white uppercase italic">Duels en attente</h3>
+              <h3 className="text-lg font-black text-white uppercase italic">{t("match.pending_duels", "Duels en attente")}</h3>
               <button onClick={() => setShowDuelsList(false)} className="text-gray-400 hover:text-white">
                 <X className="w-6 h-6" />
               </button>
@@ -599,7 +613,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                   <div>
                     <div className="text-orange-500 font-black text-sm uppercase">{duel.type}</div>
                     <div className="text-white text-xs mt-1">
-                      {duel.participants.length} joueur(s) en attente
+                      {duel.participants.length} {t("match.players_waiting", "joueur(s) en attente")}
                     </div>
                   </div>
                   <button 
@@ -610,7 +624,7 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
                     })}
                     className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-bold text-xs uppercase"
                   >
-                    Rejoindre
+                    {t("match.join", "Rejoindre")}
                   </button>
                 </div>
               ))}
@@ -625,25 +639,25 @@ export function MatchDetails({ fixtureId, user, onBack, onTeamClick, onLeagueCli
           active={activeTab === 'summary'} 
           onClick={() => setActiveTab('summary')}
           icon={<Activity className="w-3 h-3" />}
-          label="Résumé"
+          label={t("match.summary", "Résumé")}
         />
         <TabButton 
           active={activeTab === 'lineups'} 
           onClick={() => setActiveTab('lineups')}
           icon={<Users className="w-3 h-3" />}
-          label="Compos"
+          label={t("match.lineups", "Compos")}
         />
         <TabButton 
           active={activeTab === 'stats'} 
           onClick={() => setActiveTab('stats')}
           icon={<BarChart3 className="w-3 h-3" />}
-          label="Stats"
+          label={t("match.stats", "Stats")}
         />
         <TabButton 
           active={activeTab === 'duels'} 
           onClick={() => setActiveTab('duels')}
           icon={<Trophy className="w-3 h-3" />}
-          label="Duels"
+          label={t("match.duels", "Duels")}
         />
       </div>
 
@@ -690,6 +704,8 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 }
 
 function SummaryTab({ events, teams, status }: { events: any[]; teams: any; status: string }) {
+  const { t } = useLanguage();
+
   if (events.length === 0) {
     const isUpcoming = ['TBD', 'NS'].includes(status);
     const isCancelled = ['SUSP', 'INT', 'PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(status);
@@ -714,21 +730,21 @@ function SummaryTab({ events, teams, status }: { events: any[]; teams: any; stat
           const translateDetail = (type: string, detail: string, comments?: string) => {
             const combined = `${detail || ''} ${comments || ''}`.toLowerCase();
             if (type === 'Goal') {
-              if (combined.includes('missed penalty')) return 'Penalty manqué';
-              if (combined.includes('penalty')) return 'Penalty';
-              if (combined.includes('own goal') || combined.includes('csc')) return 'Contre son camp';
-              if (combined.includes('cancelled')) return 'But annulé (VAR)';
+              if (combined.includes('missed penalty')) return t("match.missed_penalty", "Penalty manqué");
+              if (combined.includes('penalty')) return t("match.penalty", "Penalty");
+              if (combined.includes('own goal') || combined.includes('csc')) return t("match.csc", "Contre son camp");
+              if (combined.includes('cancelled')) return t("match.cancelled_goal_var", "But annulé (VAR)");
               return null; // Don't show "Normal Goal"
             }
             if (type === 'Card') {
-              if (combined.includes('second yellow')) return '2ème carton jaune';
-              if (combined.includes('red')) return 'Carton rouge';
+              if (combined.includes('second yellow')) return t("match.second_yellow", "2ème carton jaune");
+              if (combined.includes('red')) return t("match.red_card", "Carton rouge");
               return null; // Don't explicitly write "Yellow Card" as the icon is obvious
             }
             if (type === 'Var') {
-              if (combined.includes('goal cancelled')) return 'But annulé';
-              if (combined.includes('penalty confirmed')) return 'Penalty confirmé';
-              if (combined.includes('card review')) return 'Révision arbitre';
+              if (combined.includes('goal cancelled')) return t("match.cancelled_goal", "But annulé");
+              if (combined.includes('penalty confirmed')) return t("match.penalty_confirmed", "Penalty confirmé");
+              if (combined.includes('card review')) return t("match.referee", "Révision arbitre");
               return detail;
             }
             return null; // Ignore subst, etc. as it's handled
@@ -736,7 +752,7 @@ function SummaryTab({ events, teams, status }: { events: any[]; teams: any; stat
 
           const detailMsg = translateDetail(event.type, event.detail, event.comments);
           const combinedDetail = `${event.detail || ''} ${event.comments || ''}`.toLowerCase();
-          const playerName = event.player?.name || (combinedDetail.includes('own goal') || combinedDetail.includes('csc') ? "Joueur Inconnu" : "Inconnu");
+          const playerName = event.player?.name || (combinedDetail.includes('own goal') || combinedDetail.includes('csc') ? t("match.unknown_player", "Joueur Inconnu") : t("match.unknown", "Inconnu"));
 
           return (
             <motion.div 
@@ -757,10 +773,10 @@ function SummaryTab({ events, teams, status }: { events: any[]; teams: any; stat
                       {detailMsg && <span className="ml-1 text-[8px] font-bold text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded tracking-widest uppercase">{detailMsg}</span>}
                     </span>
                     {event.type === 'Goal' && event.assist.name && event.assist.name !== event.player?.name && !combinedDetail.includes('penalty') && !combinedDetail.includes('own goal') && !combinedDetail.includes('csc') && (
-                      <span className="text-[9px] text-gray-500 italic leading-tight">Passe: {event.assist.name}</span>
+                      <span className="text-[9px] text-gray-500 italic leading-tight">{t("match.assist", "Passe :")} {event.assist.name}</span>
                     )}
                     {event.type === 'subst' && (
-                      <span className="text-[9px] text-gray-500 italic leading-tight">Sortie: {event.assist.name}</span>
+                      <span className="text-[9px] text-gray-500 italic leading-tight">{t("match.out", "Sortie :")} {event.assist.name}</span>
                     )}
                   </div>
                 </div>
@@ -775,10 +791,12 @@ function SummaryTab({ events, teams, status }: { events: any[]; teams: any; stat
 }
 
 function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; teams: any; setSelectedDuelDetails: (id: string) => void }) {
+  const { t } = useLanguage();
+
   if (history.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Aucun duel enregistré pour ce match.
+        {t("match.no_duel_recorded", "Aucun duel enregistré pour ce match.")}
       </Card>
     );
   }
@@ -787,20 +805,20 @@ function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; 
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 text-center">
-          <div className="text-[8px] font-black text-orange-500 uppercase tracking-widest mb-0.5 truncate">Total {teams.home.name}</div>
+          <div className="text-[8px] font-black text-orange-500 uppercase tracking-widest mb-0.5 truncate">Total {translateCountryName(teams.home.name)}</div>
           <div className="text-xl font-black text-white">
             {history.reduce((acc, curr) => acc + (curr.scoreA || 0), 0)}
           </div>
         </div>
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
-          <div className="text-[8px] font-black text-blue-500 uppercase tracking-widest mb-0.5 truncate">Total {teams.away.name}</div>
+          <div className="text-[8px] font-black text-blue-500 uppercase tracking-widest mb-0.5 truncate">Total {translateCountryName(teams.away.name)}</div>
           <div className="text-xl font-black text-white">
             {history.reduce((acc, curr) => acc + (curr.scoreB || 0), 0)}
           </div>
         </div>
       </div>
 
-      <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-3">Historique des Duels</h3>
+      <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-3">{t("match.duel_history", "Historique des Duels")}</h3>
       
       <div className="space-y-2">
         {history.map((duel, idx) => {
@@ -810,11 +828,11 @@ function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; 
           const isAwayWinner = scoreB > scoreA;
 
           let typeLabel = duel.type || 'Duel';
-          if (duel.type === 'war_of_kops') typeLabel = 'Guerre des KOPs';
-          else if (duel.type === '1v1') typeLabel = 'Combat 1v1';
-          else if (duel.type === '2v2') typeLabel = 'Duel 2v2';
-          else if (duel.type === '5v5') typeLabel = 'Duel 5v5';
-          else if (duel.type === 'training') typeLabel = 'Entraînement';
+          if (duel.type === 'war_of_kops') typeLabel = t("match.duel_type_wok", "Guerre des KOPs");
+          else if (duel.type === '1v1') typeLabel = t("match.duel_type_1v1", "Combat 1v1");
+          else if (duel.type === '2v2') typeLabel = t("match.duel_type_2v2", "Duel 2v2");
+          else if (duel.type === '5v5') typeLabel = t("match.duel_type_5v5", "Duel 5v5");
+          else if (duel.type === 'training') typeLabel = t("match.duel_type_training", "Entraînement");
 
           // Format Date elegantly
           let formattedDate = '';
@@ -900,7 +918,7 @@ function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; 
                   
                   <div className="flex-1 min-w-0">
                     <div className={`text-[10px] uppercase truncate transition-colors duration-300 ${isHomeWinner ? 'text-orange-400 font-extrabold' : 'text-gray-300 font-semibold'}`}>
-                      {teams.home.name}
+                      {translateCountryName(teams.home.name)}
                     </div>
                     <div className="text-[7px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Hôte</div>
                   </div>
@@ -943,7 +961,7 @@ function DuelsTab({ history, teams, setSelectedDuelDetails }: { history: any[]; 
 
                   <div className="flex-1 min-w-0 text-right">
                     <div className={`text-[10px] uppercase truncate transition-colors duration-300 ${isAwayWinner ? 'text-blue-400 font-extrabold' : 'text-gray-300 font-semibold'}`}>
-                      {teams.away.name}
+                      {translateCountryName(teams.away.name)}
                     </div>
                     <div className="text-[7px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Visiteur</div>
                   </div>
@@ -1001,13 +1019,14 @@ function EventIcon({ type, detail, comments }: { type: string; detail: string; c
 }
 
 function LineupsTab({ lineups, status, season, onPlayerClick }: { lineups: any[]; status: string; season: number; onPlayerClick?: (id: number, season: number) => void }) {
+  const { t } = useLanguage();
   if (lineups.length === 0) {
     const isUpcoming = ['TBD', 'NS'].includes(status);
     const isCancelled = ['SUSP', 'INT', 'PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(status);
-    let message = "Compositions non disponibles.";
-    if (isUpcoming) message = "Les compositions d'équipe seront dévoilées environ une heure avant le coup d'envoi.";
-    else if (isCancelled) message = "Match sans compositions en raison de son annulation ou report.";
-    else message = "Les compositions pour de ce match ne sont pas couvertes par notre fournisseur.";
+    let message = t("match.no_lineups_default", "Compositions non disponibles.");
+    if (isUpcoming) message = t("match.no_lineups_upcoming", "Les compositions d'équipe seront dévoilées environ une heure avant le coup d'envoi.");
+    else if (isCancelled) message = t("match.no_lineups_cancelled", "Match sans compositions en raison de son annulation ou report.");
+    else message = t("match.no_lineups", "Les compositions pour de ce match ne sont pas couvertes par notre fournisseur.");
 
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
@@ -1080,13 +1099,14 @@ function PlayerRow({ player, season, onPlayerClick }: { player: any; season: num
 }
 
 function StatsTab({ stats, teams, status }: { stats: any[]; teams: any; status: string }) {
+  const { t } = useLanguage();
   if (stats.length === 0) {
     const isUpcoming = ['TBD', 'NS'].includes(status);
     const isCancelled = ['SUSP', 'INT', 'PST', 'CANC', 'ABD', 'AWD', 'WO'].includes(status);
-    let message = "Statistiques non disponibles.";
-    if (isUpcoming) message = "Les statistiques apparaîtront en direct après le coup d'envoi.";
-    else if (isCancelled) message = "Aucune statistique pour ce match (annulé ou reporté).";
-    else message = "Les statistiques de ce match ne sont pas couvertes par notre fournisseur.";
+    let message = t("match.no_stats_default", "Statistiques non disponibles.");
+    if (isUpcoming) message = t("match.no_stats_upcoming", "Les statistiques apparaîtront en direct après le coup d'envoi.");
+    else if (isCancelled) message = t("match.no_stats_cancelled", "Aucune statistique pour ce match (annulé ou reporté).");
+    else message = t("match.no_stats", "Les statistiques de ce match ne sont pas couvertes par notre fournisseur.");
 
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">

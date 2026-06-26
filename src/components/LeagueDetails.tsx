@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
+import { useLanguage } from '../context/LanguageContext';
 import { collection, query, where, orderBy, limit, getDocs, getDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getImageUrl } from '../lib/utils';
@@ -43,6 +44,7 @@ interface LeagueDetailsProps {
 }
 
 export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamClick, onPlayerClick, onMatchClick, profile }: LeagueDetailsProps) {
+  const { t } = useLanguage();
   const [league, setLeague] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState(initialSeason);
   const [actualCurrentSeason, setActualCurrentSeason] = useState<number | null>(null);
@@ -283,45 +285,45 @@ export function LeagueDetails({ leagueId, season: initialSeason, onBack, onTeamC
               active={activeTab === 'matches'} 
               onClick={() => setActiveTab('matches')}
               icon={<Calendar className="w-3 h-3" />}
-              label="Matches"
+              label={t("league.tab_matches", "Matchs")}
             />
             <TabButton 
               active={activeTab === 'standings'} 
               onClick={() => setActiveTab('standings')}
               icon={<Trophy className="w-3 h-3" />}
-              label="Classement"
+              label={t("league.tab_standings", "Classement")}
             />
             {hasKnockouts && (
               <TabButton 
                 active={activeTab === 'knockouts'} 
                 onClick={() => setActiveTab('knockouts')}
                 icon={<Activity className="w-3 h-3" />}
-                label="Playoffs"
+                label={t("league.tab_playoffs", "Playoffs")}
               />
             )}
             <TabButton 
               active={activeTab === 'rankings'} 
               onClick={() => setActiveTab('rankings')}
               icon={<Goal className="w-3 h-3" />}
-              label="Rankings"
+              label={t("league.tab_rankings", "Stats Joueurs")}
             />
             <TabButton 
               active={activeTab === 'teams'} 
               onClick={() => setActiveTab('teams')}
               icon={<Users className="w-3 h-3" />}
-              label="Équipes"
+              label={t("league.tab_teams", "Équipes")}
             />
             <TabButton 
               active={activeTab === 'stats'} 
               onClick={() => setActiveTab('stats')}
               icon={<BarChart3 className="w-3 h-3" />}
-              label="Stats"
+              label={t("league.tab_stats", "Stats")}
             />
             <TabButton 
               active={activeTab === 'tbfo'} 
               onClick={() => setActiveTab('tbfo')}
               icon={<Shield className="w-3 h-3" />}
-              label="TBFO"
+              label={t("league.tab_tbfo", "TBFO")}
               highlight={true}
             />
           </div>
@@ -382,6 +384,7 @@ function TabButton({ active, onClick, icon, label, highlight }: { active: boolea
 }
 
 function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selectedSeason }: { standings: any[]; fixtures?: any[]; onTeamClick: (id: number, season: number) => void; onMatchClick?: (id: number) => void; selectedSeason: number }) {
+  const { t } = useLanguage();
   const nowMs = Date.now();
   const hasAnyStartedMatch = fixtures ? fixtures.some((f: any) => 
     ['FT', 'AET', 'PEN', '1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(f.fixture?.status?.short) ||
@@ -417,7 +420,19 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
     );
   }
 
-  const groupedStandings = standings.reduce((acc: any, s: any) => {
+  // Deduplicate standings locally by team ID as an additional safeguard
+  const uniqueStandings = (() => {
+    const seen = new Set();
+    return standings.filter((s: any) => {
+      if (!s?.team?.id) return false;
+      const key = `${s.team.id}-${s.group || 'Default'}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
+
+  const groupedStandings = uniqueStandings.reduce((acc: any, s: any) => {
     const groupName = s.group || 'Classement';
     if (!acc[groupName]) acc[groupName] = [];
     acc[groupName].push(s);
@@ -455,12 +470,12 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
               <thead>
                 <tr className="border-b border-white/10 text-[9px] font-black uppercase tracking-widest text-gray-400 bg-white/5">
                   <th className="px-2 py-2 sm:px-3 sm:py-3 w-8 sm:w-10 text-center text-orange-500">#</th>
-                  <th className="px-2 py-2 sm:px-3 sm:py-3 text-white">Équipe</th>
-                  <th className="px-1 py-2 sm:px-2 sm:py-3 w-8 sm:w-10 text-center" title="Matchs Joués">MP</th>
-                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Gagnés">W</th>
-                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Nuls">D</th>
-                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Perdus">L</th>
-                  <th className="hidden sm:table-cell px-2 py-3 w-14 text-center" title="Buts Marqués : Encaissés">G</th>
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 text-white">{t("league.header_team", "Équipe")}</th>
+                  <th className="px-1 py-2 sm:px-2 sm:py-3 w-8 sm:w-10 text-center" title="Matchs Joués">{t("league.header_played", "J")}</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Gagnés">{t("league.header_win", "G")}</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Nuls">{t("league.header_draw", "N")}</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Perdus">{t("league.header_lose", "P")}</th>
+                  <th className="hidden sm:table-cell px-2 py-3 w-14 text-center" title="Buts Marqués : Encaissés">{t("league.header_goals", "Buts")}</th>
                   <th className="px-1 py-2 sm:px-1 sm:py-3 w-8 sm:w-10 text-center" title="Différence de buts">+/-</th>
                   <th className="px-2 py-2 sm:px-2 sm:py-3 w-10 sm:w-12 text-center text-white">PTS</th>
                   <th className="hidden md:table-cell px-3 py-3 w-28 text-center">FORM</th>
@@ -527,14 +542,14 @@ function StandingsTab({ standings, fixtures, onTeamClick, onMatchClick, selected
                           <div className="flex justify-between items-center cursor-pointer group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.home.id, selectedSeason); }}>
                             <div className="flex items-center gap-2">
                               <img src={f.teams.home.logo} alt="" className="w-4 h-4 object-contain" />
-                              <span className="font-bold text-[10px] text-gray-300 group-hover/team:text-orange-500 transition-colors uppercase truncate max-w-[100px]">{f.teams.home.name}</span>
+                              <span className="font-bold text-[10px] text-gray-300 group-hover/team:text-orange-500 transition-colors uppercase truncate max-w-[100px]">{translateCountryName(f.teams.home.name)}</span>
                             </div>
                             <span className="font-black text-xs">{f.goals.home ?? '-'}</span>
                           </div>
                           <div className="flex justify-between items-center cursor-pointer group/team" onClick={(e) => { e.stopPropagation(); onTeamClick(f.teams.away.id, selectedSeason); }}>
                             <div className="flex items-center gap-2">
                               <img src={f.teams.away.logo} alt="" className="w-4 h-4 object-contain" />
-                              <span className="font-bold text-[10px] text-gray-300 group-hover/team:text-orange-500 transition-colors uppercase truncate max-w-[100px]">{f.teams.away.name}</span>
+                              <span className="font-bold text-[10px] text-gray-300 group-hover/team:text-orange-500 transition-colors uppercase truncate max-w-[100px]">{translateCountryName(f.teams.away.name)}</span>
                             </div>
                             <span className="font-black text-xs">{f.goals.away ?? '-'}</span>
                           </div>
@@ -1035,6 +1050,7 @@ function KnockoutsTab({ fixtures, onTeamClick, onMatchClick, selectedSeason }: {
 }
 
 function RankingsTab({ scorers, assists, yellowCards, redCards, onTeamClick, onPlayerClick, selectedSeason, fixtures, leagueId, teams }: { scorers: any[]; assists: any[]; yellowCards: any[]; redCards: any[]; onTeamClick: (id: number, season: number) => void; onPlayerClick?: (id: number, season: number) => void; selectedSeason: number; fixtures: any[]; leagueId: number; teams?: any[] }) {
+  const { t } = useLanguage();
   const getValidData = (data: any[] | null | undefined, statKey: string) => (data || []).filter(item => {
     const stats = item.statistics && item.statistics.find((s: any) => s.league?.id === leagueId) || item.statistics?.[0];
     if (!stats) return false;
@@ -1069,7 +1085,7 @@ function RankingsTab({ scorers, assists, yellowCards, redCards, onTeamClick, onP
   if (sCount === 0 && aCount === 0 && yCount === 0 && rCount === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Les classements individuels (buteurs, passeurs, etc.) ne sont malheureusement pas couverts par notre fournisseur de données pour cette compétition.
+        {t("league.rankings_unavailable", "Les classements individuels (buteurs, passeurs, etc.) ne sont malheureusement pas couverts par notre fournisseur de données pour cette compétition.")}
       </Card>
     );
   }
@@ -1077,7 +1093,7 @@ function RankingsTab({ scorers, assists, yellowCards, redCards, onTeamClick, onP
   if (!hasStarted) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Les classements individuels seront disponibles une fois la compétition commencée.
+        {t("league.rankings_not_started", "Les classements individuels seront disponibles une fois la compétition commencée.")}
       </Card>
     );
   }
@@ -1085,17 +1101,17 @@ function RankingsTab({ scorers, assists, yellowCards, redCards, onTeamClick, onP
   if (validScorers.length === 0 && validAssists.length === 0 && validYellow.length === 0 && validRed.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Les classements individuels seront disponibles une fois la compétition commencée.
+        {t("league.rankings_not_started", "Les classements individuels seront disponibles une fois la compétition commencée.")}
       </Card>
     );
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <RankingList title="Meilleurs Buteurs" data={validScorers} statLabel="Buts" statKey="goals" icon={<Goal className="text-green-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
-      <RankingList title="Meilleurs Passeurs" data={validAssists} statLabel="Passes" statKey="assists" icon={<Activity className="text-blue-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
-      <RankingList title="Cartons Jaunes" data={validYellow} statLabel="Jaunes" statKey="yellow" icon={<Square className="text-yellow-500 fill-yellow-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
-      <RankingList title="Cartons Rouges" data={validRed} statLabel="Rouges" statKey="red" icon={<Square className="text-red-500 fill-red-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
+      <RankingList title={t("league.rankings_scorers", "Meilleurs Buteurs")} data={validScorers} statLabel={t("league.rankings_goals_label", "Buts")} statKey="goals" icon={<Goal className="text-green-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
+      <RankingList title={t("league.rankings_assists", "Meilleurs Passeurs")} data={validAssists} statLabel={t("league.rankings_assists_label", "Passes")} statKey="assists" icon={<Activity className="text-blue-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
+      <RankingList title={t("league.rankings_yellow", "Cartons Jaunes")} data={validYellow} statLabel={t("league.rankings_yellow_label", "Jaunes")} statKey="yellow" icon={<Square className="text-yellow-500 fill-yellow-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
+      <RankingList title={t("league.rankings_red", "Cartons Rouges")} data={validRed} statLabel={t("league.rankings_red_label", "Rouges")} statKey="red" icon={<Square className="text-red-500 fill-red-500" />} onTeamClick={onTeamClick} onPlayerClick={onPlayerClick} selectedSeason={selectedSeason} leagueId={leagueId} />
     </div>
   );
 }
@@ -1289,6 +1305,7 @@ function TeamsTab({ teams, onTeamClick, selectedSeason, standings, fixtures }: {
 }
 
 function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], leagueId: number, selectedSeason: number }) {
+  const { t } = useLanguage();
   const [tbfoStats, setTbfoStats] = useState({
     duelsCount: 0,
     duels1v1: 0,
@@ -1421,41 +1438,41 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
         <>
           <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mb-2">
             <Trophy className="w-4 h-4 text-orange-500" />
-            Stats Réelles (Football)
+            {t("league.stats_real", "Stats Réelles (Football)")}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Card className="flex flex-col items-center justify-center p-4 text-center space-y-1">
               <Goal className="w-5 h-5 text-orange-500 mb-1" />
               <span className="text-2xl font-black italic text-white">{totalGoals}</span>
-              <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Buts marqués</span>
+              <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">{t("league.stats_goals_total", "Buts marqués")}</span>
             </Card>
 
             <Card className="flex flex-col items-center justify-center p-4 text-center space-y-1">
               <Activity className="w-5 h-5 text-orange-500 mb-1" />
               <span className="text-2xl font-black italic text-white">{avgGoals}</span>
-              <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Buts / match</span>
+              <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">{t("league.stats_goals_avg", "Buts / match")}</span>
             </Card>
 
             <Card className="flex flex-col items-center justify-center p-4 text-center space-y-1">
               <Trophy className="w-5 h-5 text-orange-500 mb-1" />
               <span className="text-2xl font-black italic text-white">{totalMatches}</span>
-              <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Matchs joués</span>
+              <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">{t("league.stats_matches_played", "Matchs joués")}</span>
             </Card>
 
             <Card className="col-span-2 md:col-span-3 p-4">
-              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-2 mb-4 tracking-widest">Résultats Globaux (par match)</h3>
+              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-2 mb-4 tracking-widest">{t("league.stats_global_results", "Résultats Globaux (par match)")}</h3>
               <div className="grid grid-cols-3 gap-2">
                 <div className="text-center">
                   <div className="text-xl font-black text-green-500">{homeWins}</div>
-                  <div className="text-[8px] font-bold text-gray-500 uppercase">Victoires Domicile</div>
+                  <div className="text-[8px] font-bold text-gray-500 uppercase">{t("league.stats_home_wins", "Victoires Domicile")}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xl font-black text-gray-400">{homeDraws}</div>
-                  <div className="text-[8px] font-bold text-gray-500 uppercase">Matchs Nuls</div>
+                  <div className="text-[8px] font-bold text-gray-500 uppercase">{t("league.stats_draws", "Matchs Nuls")}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xl font-black text-red-500">{homeLoses}</div>
-                  <div className="text-[8px] font-bold text-gray-500 uppercase">Victoires Extérieur</div>
+                  <div className="text-[8px] font-bold text-gray-500 uppercase">{t("league.stats_away_wins", "Victoires Extérieur")}</div>
                 </div>
               </div>
             </Card>
@@ -1466,7 +1483,7 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
       {/* TBFO STATS */}
       <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mt-6 mb-2">
         <Shield className="w-4 h-4 text-orange-500" />
-        Stats TBFO (Jeu)
+        {t("league.stats_game", "Stats TBFO (Jeu)")}
       </h3>
       
       {tbfoStats.loading ? (
@@ -1478,7 +1495,7 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
           <Card className="flex flex-col items-center justify-center p-4 text-center space-y-1 bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/20">
             <Shield className="w-5 h-5 text-orange-500 mb-1" />
             <span className="text-2xl font-black italic text-white">{tbfoStats.totalPoints.toLocaleString()}</span>
-            <span className="text-[8px] font-bold text-orange-500/80 uppercase tracking-widest">Points Distribués</span>
+            <span className="text-[8px] font-bold text-orange-500/80 uppercase tracking-widest">{t("league.stats_points_distributed", "Points Distribués")}</span>
           </Card>
           
           <Card className="flex flex-col items-center justify-center p-4 text-center space-y-1 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
@@ -1486,25 +1503,25 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
             <span className="text-2xl font-black italic text-white flex items-center gap-1">
               {tbfoStats.duelsCount}
             </span>
-            <span className="text-[8px] font-bold text-blue-500/80 uppercase tracking-widest">Duels Joués</span>
+            <span className="text-[8px] font-bold text-blue-500/80 uppercase tracking-widest">{t("league.stats_duels_played", "Duels Joués")}</span>
             <div className="text-[9px] text-gray-400 mt-2 flex flex-wrap justify-center gap-1.5">
               <span>1v1: <strong className="text-white">{tbfoStats.duels1v1}</strong></span>
               <span>2v2: <strong className="text-white">{tbfoStats.duels2v2}</strong></span>
               <span>5v5: <strong className="text-white">{tbfoStats.duels5v5}</strong></span>
-              <span>Guerre des Kops: <strong className="text-white">{tbfoStats.duelsKop}</strong></span>
+              <span>{t("league.stats_kop_war", "Guerre des Kops")}: <strong className="text-white">{tbfoStats.duelsKop}</strong></span>
             </div>
           </Card>
 
           <Card className="flex flex-col items-center justify-center p-4 text-center space-y-1 bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20">
             <Medal className="w-5 h-5 text-yellow-500 mb-1" />
             <span className="text-2xl font-black italic text-white">{tbfoStats.totalCards}</span>
-            <span className="text-[8px] font-bold text-yellow-500/80 uppercase tracking-widest">Cartes Jouées</span>
+            <span className="text-[8px] font-bold text-yellow-500/80 uppercase tracking-widest">{t("league.stats_cards_played", "Cartes Jouées")}</span>
           </Card>
 
           <Card className="flex flex-col items-center justify-center p-4 text-center space-y-1 bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20">
             <BarChart3 className="w-5 h-5 text-purple-500 mb-1" />
             <span className="text-2xl font-black italic text-white">{tbfoStats.totalClicks.toLocaleString()}</span>
-            <span className="text-[8px] font-bold text-purple-500/80 uppercase tracking-widest">Clics (Ferveur)</span>
+            <span className="text-[8px] font-bold text-purple-500/80 uppercase tracking-widest">{t("league.stats_clicks", "Clics (Ferveur)")}</span>
           </Card>
         </div>
       )}
@@ -1513,6 +1530,7 @@ function StatsTab({ standings, leagueId, selectedSeason }: { standings: any[], l
 }
 
 export function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams, highlightTeamId }: { leagueId: number, selectedSeason: number, onTeamClick: (id: number, season: number) => void, teams?: any[], highlightTeamId?: number }) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'teams' | 'users'>('teams');
   const [metric, setMetric] = useState<'averageScore' | 'totalScore'>('averageScore');
   const [loading, setLoading] = useState(true);
@@ -1649,7 +1667,7 @@ export function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams, 
           }`}
         >
           <Shield className="w-3.5 h-3.5" />
-          Équipes
+          {t("league.tbfo_teams", "Équipes")}
         </button>
         <button
           onClick={() => setActiveTab('users')}
@@ -1658,7 +1676,7 @@ export function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams, 
           }`}
         >
           <Users className="w-3.5 h-3.5" />
-          Supporters
+          {t("league.tbfo_supporters", "Supporters")}
         </button>
       </div>
 
@@ -1669,8 +1687,8 @@ export function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams, 
             onChange={(e) => setMetric(e.target.value as any)}
             className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white font-bold text-[10px] text-center focus:outline-none focus:border-orange-500 transition-colors"
           >
-            <option value="averageScore">Points par match</option>
-            <option value="totalScore">Total des points</option>
+            <option value="averageScore">{t("league.tbfo_pts_per_match", "Points par match")}</option>
+            <option value="totalScore">{t("league.tbfo_total_pts", "Total des points")}</option>
           </select>
         </div>
       </div>
@@ -1681,7 +1699,7 @@ export function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams, 
             <Activity className="w-6 h-6 text-orange-500 animate-spin" />
           </div>
         ) : rankings.length === 0 ? (
-          <Card className="py-10 text-center text-gray-500">Aucun classement disponible.</Card>
+          <Card className="py-10 text-center text-gray-500">{t("league.tbfo_no_rankings", "Aucun classement disponible.")}</Card>
         ) : (
           <AnimatePresence>
             {rankings.map((entry, index) => (
@@ -1725,7 +1743,7 @@ export function TbfoRankingsTab({ leagueId, selectedSeason, onTeamClick, teams, 
                     {entry.name}
                   </h3>
                   <p className="text-[9px] text-gray-400">
-                    {entry.matches} match{entry.matches > 1 ? 's' : ''}
+                    {entry.matches} {entry.matches > 1 ? t("league.tbfo_match_plural", "matchs") : t("league.tbfo_match_singular", "match")}
                   </p>
                 </div>
 

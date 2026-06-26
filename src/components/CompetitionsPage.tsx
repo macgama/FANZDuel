@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { db } from '../firebase';
 import { writeBatch, doc, deleteDoc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { useLanguage } from '../context/LanguageContext';
 
 // Simple continent mapping helper
 const getContinent = (country: string): string => {
@@ -37,6 +38,7 @@ const getContinent = (country: string): string => {
 };
 
 export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (id: number, season: number) => void; profile?: any }) {
+  const { t } = useLanguage();
   const [leagues, setLeagues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,52 +66,52 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
       
       // Fetch favorite team league IDs
       if (profile?.favoriteTeams?.length) {
-        const ids = new Set<string>();
-        await Promise.all(profile.favoriteTeams.map(async (teamIdStr: string) => {
-          try {
-            let teamDocSnap = await getDoc(doc(db, 'teams', teamIdStr));
-            let data = teamDocSnap.exists() ? teamDocSnap.data() : null;
-            
-            let hasLeagueIds = !!(data && Array.isArray(data.leagueIds) && data.leagueIds.length > 0);
-            
-            // Auto-heal missing leagueIds for old profiles
-            if (!hasLeagueIds) {
-              try {
-                const leaguesData = await footballApi.getLeaguesByTeam(Number(teamIdStr));
-                if (leaguesData && leaguesData.length > 0) {
-                  const newLeagueIds = leaguesData.map((l: any) => l.league.id);
-                  await setDoc(doc(db, 'teams', teamIdStr), { leagueIds: newLeagueIds }, { merge: true });
-                  newLeagueIds.forEach((id: any) => ids.add(id.toString()));
-                  hasLeagueIds = true;
-                  data = data || {};
-                  data.leagueIds = newLeagueIds;
-                }
-              } catch (e) {
-                console.warn(`Could not heal leagueIds for team ${teamIdStr}`, e);
-              }
-            }
-
-            if (hasLeagueIds && data) {
-               data.leagueIds.forEach((l: any) => ids.add(l.toString()));
-            } else if (!hasLeagueIds) {
-               // Fallback checks
-               if (data?.leagueId) {
-                 ids.add(data.leagueId.toString());
-               }
-               // Try to extract from api_teams cache
-               const apiTeamSnap = await getDoc(doc(db, 'api_teams', teamIdStr));
-               if (apiTeamSnap.exists()) {
-                 const apiData = apiTeamSnap.data();
-                 if (apiData?.team?.league?.id) {
-                   ids.add(apiData.team.league.id.toString());
+         const ids = new Set<string>();
+         await Promise.all(profile.favoriteTeams.map(async (teamIdStr: string) => {
+           try {
+             let teamDocSnap = await getDoc(doc(db, 'teams', teamIdStr));
+             let data = teamDocSnap.exists() ? teamDocSnap.data() : null;
+             
+             let hasLeagueIds = !!(data && Array.isArray(data.leagueIds) && data.leagueIds.length > 0);
+             
+             // Auto-heal missing leagueIds for old profiles
+             if (!hasLeagueIds) {
+               try {
+                 const leaguesData = await footballApi.getLeaguesByTeam(Number(teamIdStr));
+                 if (leaguesData && leaguesData.length > 0) {
+                   const newLeagueIds = leaguesData.map((l: any) => l.league.id);
+                   await setDoc(doc(db, 'teams', teamIdStr), { leagueIds: newLeagueIds }, { merge: true });
+                   newLeagueIds.forEach((id: any) => ids.add(id.toString()));
+                   hasLeagueIds = true;
+                   data = data || {};
+                   data.leagueIds = newLeagueIds;
                  }
+               } catch (e) {
+                 console.warn(`Could not heal leagueIds for team ${teamIdStr}`, e);
                }
-            }
-          } catch (e) {
-            console.error("Failed to fetch favorite team league", e);
-          }
-        }));
-        setFavTeamLeagueIds(ids);
+             }
+
+             if (hasLeagueIds && data) {
+                data.leagueIds.forEach((l: any) => ids.add(l.toString()));
+             } else if (!hasLeagueIds) {
+                // Fallback checks
+                if (data?.leagueId) {
+                  ids.add(data.leagueId.toString());
+                }
+                // Try to extract from api_teams cache
+                const apiTeamSnap = await getDoc(doc(db, 'api_teams', teamIdStr));
+                if (apiTeamSnap.exists()) {
+                  const apiData = apiTeamSnap.data();
+                  if (apiData?.team?.league?.id) {
+                    ids.add(apiData.team.league.id.toString());
+                  }
+                }
+             }
+           } catch (e) {
+             console.error("Failed to fetch favorite team league", e);
+           }
+         }));
+         setFavTeamLeagueIds(ids);
       }
     } catch (err) {
       console.error('Failed to fetch leagues', err);
@@ -122,11 +124,11 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
   const handleImportLeague = async () => {
     if (!manualLeagueId) return;
     setImporting(true);
-    setImportStatus({ type: 'info', message: `Importation de la compétition ${manualLeagueId}...` });
+    setImportStatus({ type: 'info', message: t('competitions.importing_league', `Importation de la compétition ${manualLeagueId}...`) });
     try {
       const data = await footballApi.getLeagues(parseInt(importSeason), parseInt(manualLeagueId));
       if (!data || data.length === 0) {
-        setImportStatus({ type: 'error', message: "Aucune compétition trouvée." });
+        setImportStatus({ type: 'error', message: t('competitions.empty', "Aucune compétition trouvée.") });
         setImporting(false);
         return;
       }
@@ -148,11 +150,11 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
       await batch.commit();
       await footballDataService.setLastUpdated('leagues_list');
       
-      setImportStatus({ type: 'success', message: "Importé avec succès!" });
+      setImportStatus({ type: 'success', message: t('competitions.import_success', "Importé avec succès!") });
       setManualLeagueId('');
       fetchLeagues(true); // refresh
     } catch (error) {
-      setImportStatus({ type: 'error', message: "Erreur lors de l'import." });
+      setImportStatus({ type: 'error', message: t('competitions.import_error', "Erreur lors de l'import.") });
     } finally {
       setImporting(false);
     }
@@ -283,7 +285,7 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-orange-500" />
-            <h1 className="text-lg font-black italic uppercase tracking-tighter text-white">Compétitions</h1>
+            <h1 className="text-lg font-black italic uppercase tracking-tighter text-white">{t("competitions.title", "Compétitions")}</h1>
           </div>
           
           <Button 
@@ -294,14 +296,14 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
             className="flex items-center gap-1 text-[8px] font-black uppercase italic tracking-widest h-7 px-2"
           >
             <RefreshCw className={`w-2 h-2 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? '...' : 'Actualiser'}
+            {refreshing ? '...' : t("competitions.refresh", "Actualiser")}
           </Button>
         </div>
 
         {lastUpdated && (
           <div className="flex items-center gap-1 text-[7px] font-bold text-gray-500 uppercase italic tracking-widest">
             <Clock className="w-2 h-2" />
-            Mis à jour le {format(lastUpdated, 'dd/MM HH:mm')}
+            {t("competitions.last_updated", "Mis à jour le")} {format(lastUpdated, 'dd/MM HH:mm')}
           </div>
         )}
         
@@ -311,7 +313,7 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setShowAdmin(!showAdmin)}
             >
-              <h2 className="text-[10px] font-bold uppercase text-orange-500 tracking-widest flex items-center gap-1.5"><Settings className="w-3 h-3" /> ADM: Gérer Ligues</h2>
+              <h2 className="text-[10px] font-bold uppercase text-orange-500 tracking-widest flex items-center gap-1.5"><Settings className="w-3 h-3" /> {t("competitions.manage_leagues", "ADM: Gérer Ligues")}</h2>
               <ChevronDown className={`w-3.5 h-3.5 text-orange-500 transition-transform ${showAdmin ? 'rotate-180' : ''}`} />
             </div>
             
@@ -329,14 +331,14 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
                         type="text" 
                         value={manualLeagueId}
                         onChange={(e) => setManualLeagueId(e.target.value)}
-                        placeholder="ID Ligue" 
+                        placeholder={t("competitions.league_id", "ID Ligue")}
                         className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs focus:border-orange-500/50 outline-none"
                       />
                       <input 
                         type="text" 
                         value={importSeason}
                         onChange={(e) => setImportSeason(e.target.value)}
-                        placeholder="Année" 
+                        placeholder={t("competitions.year", "Année")}
                         className="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs focus:border-orange-500/50 outline-none"
                       />
                       <Button size="sm" onClick={handleImportLeague} disabled={importing || !manualLeagueId} className="h-auto py-1 px-3 bg-orange-500 hover:bg-orange-600">
@@ -359,7 +361,7 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
           <input 
             type="text"
-            placeholder="Rechercher une compétition..."
+            placeholder={t("competitions.search", "Rechercher une compétition...")}
             className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-8 pr-3 text-[10px] font-bold focus:outline-none focus:border-orange-500/50 transition-all h-8 placeholder:text-gray-600"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -370,12 +372,12 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-orange-500"></div>
-          <p className="text-[10px] text-gray-500 font-black animate-pulse uppercase italic tracking-widest">Chargement...</p>
+          <p className="text-[10px] text-gray-500 font-black animate-pulse uppercase italic tracking-widest">{t("competitions.loading", "Chargement...")}</p>
         </div>
       ) : Object.keys(filteredContinents).length === 0 ? (
         <Card className="py-20 text-center text-gray-500 border-dashed border-white/10">
           <Globe className="w-10 h-10 mx-auto mb-3 opacity-20" />
-          <p className="text-[10px] font-black uppercase italic tracking-widest">Aucune compétition trouvée.</p>
+          <p className="text-[10px] font-black uppercase italic tracking-widest">{t("competitions.empty", "Aucune compétition trouvée.")}</p>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -383,7 +385,15 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
             <div key={continent} className="space-y-2">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-black italic uppercase tracking-[0.2em] text-orange-500 flex items-center gap-3 whitespace-nowrap">
-                  {continent}
+                  {continent === "Favoris" ? t("continent.favorites", "Favoris") : 
+                   continent === "Europe" ? t("continent.europe", "Europe") :
+                   continent === "Amérique du Sud" ? t("continent.south_america", "Amérique du Sud") :
+                   continent === "Amérique du Nord" ? t("continent.north_america", "Amérique du Nord") :
+                   continent === "Afrique" ? t("continent.africa", "Afrique") :
+                   continent === "Asie" ? t("continent.asia", "Asie") :
+                   continent === "Océanie" ? t("continent.oceania", "Océanie") :
+                   continent === "Monde" ? t("continent.world", "Monde") :
+                   t("continent.others", continent)}
                   <span className="h-px flex-1 bg-orange-500/20" />
                 </h2>
               </div>
@@ -401,7 +411,11 @@ export function CompetitionsPage({ onLeagueClick, profile }: { onLeagueClick: (i
                         ) : (
                           <Globe className="w-3.5 h-3.5 text-gray-500" />
                         )}
-                        <span className="font-black italic uppercase tracking-tight text-xs group-hover:text-orange-500 transition-colors">{translateCountryName(country)}</span>
+                        <span className="font-black italic uppercase tracking-tight text-xs group-hover:text-orange-500 transition-colors">
+                          {country === "Ligues Équipes Favorites" ? t("competitions.fav_teams_leagues", "Ligues Équipes Favorites") :
+                           country === "Compétitions Favorites" ? t("competitions.fav_leagues", "Compétitions Favorites") :
+                           translateCountryName(country)}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[8px] font-bold text-gray-600 bg-white/5 px-1.5 py-0.5 rounded-full">{data.leagues.length}</span>

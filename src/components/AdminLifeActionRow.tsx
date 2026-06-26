@@ -6,11 +6,37 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Button } from './Layout';
 
+const renderTrans = (field: any, preferredLang: string = 'fr'): string => {
+  if (!field) return '';
+  if (typeof field === 'string') return field;
+  if (typeof field === 'object') {
+    return field[preferredLang] || field['fr'] || field['en'] || field['es'] || Object.values(field)[0] || '';
+  }
+  return String(field);
+};
+
 export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }: { action: LifeAction, onSaved: () => void, onDeleted: () => void, fanzTemplates: any[] }) {
   const [localAction, setLocalAction] = useState<LifeAction>({ ...action });
   const [isDirty, setIsDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showOverrides, setShowOverrides] = useState(false);
+  const [editLang, setEditLang] = useState<'fr' | 'en' | 'es'>('fr');
+
+  const getTranslationValue = (field: any, lang: string): string => {
+    if (!field) return '';
+    if (typeof field === 'string') {
+      return lang === 'fr' ? field : '';
+    }
+    return field[lang] || '';
+  };
+
+  const setTranslationValue = (field: any, lang: string, value: string) => {
+    if (!field || typeof field === 'string') {
+      const frVal = typeof field === 'string' ? field : '';
+      return { fr: frVal, en: '', es: '', [lang]: value };
+    }
+    return { ...field, [lang]: value };
+  };
 
   useEffect(() => {
     setLocalAction({ ...action });
@@ -42,7 +68,7 @@ export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }
                {localAction.videoUrl ? (
                  <video src={getImageUrl(localAction.videoUrl)} className="w-full h-full object-cover" autoPlay muted loop playsInline />
                ) : localAction.image ? (
-                 <img src={getImageUrl(localAction.image)} alt={localAction.name} className="w-full h-full object-cover" />
+                 <img src={getImageUrl(localAction.image)} alt={getTranslationValue(localAction.name, 'fr')} className="w-full h-full object-cover" />
                ) : (
                  <div className="w-full h-full flex items-center justify-center"><Activity className="w-6 h-6 text-gray-400" /></div>
                )}
@@ -55,8 +81,27 @@ export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }
         </div>
       </td>
       <td className="px-2 py-2 align-middle border-b border-white/5 min-w-[150px]">
-        <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Nom de l'action / ID</label>
-        <input type="text" value={localAction.name || ''} onChange={e => handleChange('name', e.target.value)} className="w-full text-sm font-bold p-1 bg-black text-white rounded border border-white/10 mb-1" />
+        <div className="flex justify-between items-center mb-1">
+          <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500">Nom de l'action / ID</label>
+          <div className="flex gap-1 bg-white/5 p-0.5 rounded border border-white/10 text-[9px]">
+            {(['fr', 'en', 'es'] as const).map(l => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setEditLang(l)}
+                className={`px-1 rounded uppercase font-bold transition-colors ${editLang === l ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <input
+          type="text"
+          value={getTranslationValue(localAction.name, editLang)}
+          onChange={e => handleChange('name', setTranslationValue(localAction.name, editLang, e.target.value))}
+          className="w-full text-sm font-bold p-1 bg-black text-white rounded border border-white/10 mb-1"
+        />
         <div className="text-[10px] text-gray-500 font-mono mt-1">{localAction.id}</div>
       </td>
       <td className="px-2 py-2 align-middle border-b border-white/5 w-24">
@@ -67,12 +112,12 @@ export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }
         <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1">Fanz</label>
         <select value={localAction.fanzTemplateId || ''} onChange={e => handleChange('fanzTemplateId', e.target.value)} className="w-full text-[10px] p-1 bg-gray-900 text-white rounded border border-white/10">
           <option value="">Tous les FANZ</option>
-          {fanzTemplates.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          {fanzTemplates.map(f => <option key={f.id} value={f.id}>{renderTrans(f.name)}</option>)}
         </select>
         <label className="block text-[9px] font-bold uppercase tracking-widest text-gray-500 mt-2 mb-1">Skin</label>
         <select value={localAction.skinId || ''} onChange={e => handleChange('skinId', e.target.value)} className="w-full text-[10px] p-1 bg-gray-900 text-white rounded border border-white/10 disabled:opacity-50" disabled={!localAction.fanzTemplateId}>
           <option value="">Tous les skins</option>
-          {fanzTemplates.find(f => f.id === localAction.fanzTemplateId)?.skins?.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {fanzTemplates.find(f => f.id === localAction.fanzTemplateId)?.skins?.map((s: any) => <option key={s.id} value={s.id}>{renderTrans(s.name)}</option>)}
         </select>
       </td>
       <td className="px-2 py-2 align-middle border-b border-white/5 min-w-[180px]">
@@ -174,7 +219,7 @@ export function AdminLifeActionRow({ action, onSaved, onDeleted, fanzTemplates }
                  const ov = localAction.skinOverrides?.[skin.id] || {};
                  return (
                    <div key={skin.id} className="flex flex-col gap-1 p-2 bg-black rounded border border-white/5">
-                     <span className="text-[10px] font-bold text-gray-300 truncate">{skin.name}</span>
+                     <span className="text-[10px] font-bold text-gray-300 truncate">{renderTrans(skin.name)}</span>
                      <input title="Image URL" type="text" value={ov.image || ''} onChange={e => handleOverrideChange(skin.id, 'image', e.target.value)} className="w-full text-[10px] p-1 bg-gray-800 text-white rounded border border-white/10 focus:border-orange-500" placeholder="Override d'Image URL" />
                      <input title="Video URL" type="text" value={ov.videoUrl || ''} onChange={e => handleOverrideChange(skin.id, 'videoUrl', e.target.value)} className="w-full text-[10px] p-1 bg-gray-800 text-white rounded border border-white/10 focus:border-orange-500" placeholder="Override de Video URL" />
                    </div>

@@ -4,8 +4,9 @@ import { db } from '../firebase';
 import { ResourceTransaction, UserProfile, Fanz } from '../types';
 import { ArrowLeft, ArrowDownRight, ArrowUpRight, Filter, Flame } from 'lucide-react';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { fr, enUS, es } from 'date-fns/locale';
 import { LOGOS } from '../constants';
+import { useLanguage } from '../context/LanguageContext';
 
 interface TransactionsPageProps {
   profile: UserProfile;
@@ -15,6 +16,8 @@ interface TransactionsPageProps {
 type FilterType = 'all' | 'money' | 'gems' | 'boost' | 'energy' | 'ferveur_general' | 'ferveur_fanz';
 
 export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
+  const { t, language } = useLanguage();
+  const dateLocale = language === 'en' ? enUS : language === 'es' ? es : fr;
   const [transactions, setTransactions] = useState<ResourceTransaction[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [fanzList, setFanzList] = useState<Record<string, Fanz>>({});
@@ -68,12 +71,12 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
 
   const getResourceName = (type: string) => {
     switch (type) {
-      case 'money': return 'Argent';
-      case 'gems': return 'Gemmes';
-      case 'boost': return 'Boosts';
-      case 'energy': return 'Énergie';
-      case 'ferveur_general': return 'XP Ferveur Général';
-      case 'ferveur_fanz': return 'XP Ferveur FANZ';
+      case 'money': return t('wallet.money', 'Argent');
+      case 'gems': return t('wallet.gems', 'Gemmes');
+      case 'boost': return t('wallet.boosts', 'Boosts');
+      case 'energy': return t('wallet.energy', 'Énergie');
+      case 'ferveur_general': return t('wallet.ferveur_general', 'XP Ferveur Général');
+      case 'ferveur_fanz': return t('wallet.ferveur_fanz', 'XP Ferveur FANZ');
       default: return type;
     }
   };
@@ -82,7 +85,7 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
     <div className="min-h-full bg-transparent text-white pb-20">
       <div className="flex items-center justify-between px-4">
         <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter flex items-center gap-2">
-          Wallet
+          {t('wallet.title', 'Wallet')}
         </h1>
       </div>
       <div className="p-4 max-w-[600px] mx-auto">
@@ -98,10 +101,10 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
                     ? 'bg-orange-500 text-white shadow-sm' 
                     : 'text-gray-400 hover:text-white hover:bg-white/10'
                 }`}
-                title={f === 'all' ? 'Tout' : getResourceName(f)}
+                title={f === 'all' ? t('wallet.all', 'Tout') : getResourceName(f)}
               >
                 {f === 'all' ? (
-                  <span className="text-[10px] sm:text-xs uppercase tracking-wider">Tout</span>
+                  <span className="text-[10px] sm:text-xs uppercase tracking-wider">{t('wallet.all', 'Tout')}</span>
                 ) : (
                   <div className="flex justify-center items-center w-5 h-5">
                     {React.cloneElement(getResourceIcon(f) as React.ReactElement<any>, { className: 'w-4 h-4 sm:w-5 sm:h-5 object-contain' })}
@@ -116,7 +119,7 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
         <div className="space-y-3 mt-4">
           {filteredTransactions.length === 0 ? (
             <div className="text-center py-12 text-gray-500 font-bold">
-              Aucune transaction trouvée.
+              {t('wallet.no_transactions', 'Aucune transaction trouvée.')}
             </div>
           ) : (
             filteredTransactions.map((tx) => (
@@ -134,7 +137,7 @@ export function TransactionsPage({ profile, onBack }: TransactionsPageProps) {
                   <div>
                     <div className="font-bold text-sm">{tx.description}</div>
                     <div className="text-xs text-gray-400 flex items-center gap-2 mt-1">
-                      <span>{format(new Date(tx.createdAt), 'dd MMM yyyy HH:mm', { locale: fr })}</span>
+                      <span>{format(new Date(tx.createdAt), 'dd MMM yyyy HH:mm', { locale: dateLocale })}</span>
                       <span>•</span>
                       <span className="flex items-center gap-1">
                         {getResourceIcon(tx.type)}

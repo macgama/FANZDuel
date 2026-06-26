@@ -14,86 +14,83 @@ import {
   Play,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useLanguage } from "../context/LanguageContext";
 
 export function MrFanzPage({ onBack }: { onBack: () => void }) {
+  const { t } = useLanguage();
+
   const sections = [
     {
       id: "basics",
-      title: "Les Bases du Fan",
+      title: t("guide.section.basics.title", "Les Bases du Fan"),
       icon: <Star className="text-yellow-500" />,
-      content:
-        "Bienvenue dans TheBestFan! Ton but est de devenir l'Ultra suprême. Pour cela, tu dois accumuler de la Ferveur en participant à des actions LIFE et en gagnant des Duels.",
+      content: t("guide.section.basics.content", "Bienvenue dans TheBestFan! Ton but est de devenir l'Ultra suprême. Pour cela, tu dois accumuler de la Ferveur en participant à des actions LIFE et en gagnant des Duels."),
       tips: [
-        "Les points de Ferveur font monter ton niveau de Fan.",
-        "Plus ton niveau est haut, plus ton impact dans les duels est grand.",
-        "Chaque FANZ a son propre rang et ses propres compétences.",
+        t("guide.section.basics.tip.0", "Les points de Ferveur font monter ton niveau de Fan."),
+        t("guide.section.basics.tip.1", "Plus ton niveau est haut, plus ton impact dans les duels est grand."),
+        t("guide.section.basics.tip.2", "Chaque FANZ a son propre rang et ses propres compétences."),
       ],
     },
     {
       id: "life",
-      title: "Actions LIFE",
+      title: t("guide.section.life.title", "Actions LIFE"),
       icon: <Target className="text-green-500" />,
-      content:
-        "Les actions LIFE permettent à tes FANZ de s'entraîner même quand il n'y a pas de match. C'est le meilleur moyen de gagner de l'argent ($) et de l'expérience.",
+      content: t("guide.section.life.content", "Les actions LIFE permettent à tes FANZ de s'entraîner même quand il n'y a pas de match. C'est le meilleur moyen de gagner de l'argent ($) et de l'expérience."),
       tips: [
-        "Un FANZ actif ne peut faire qu'une action à la fois.",
-        "Faire un café rapporte peu mais c'est rapide.",
-        "Organiser un KOP rapporte gros mais prend du temps.",
+        t("guide.section.life.tip.0", "Un FANZ actif ne peut faire qu'une action à la fois."),
+        t("guide.section.life.tip.1", "Faire un café rapporte peu mais c'est rapide."),
+        t("guide.section.life.tip.2", "Organiser un KOP rapporte gros mais prend du temps."),
       ],
     },
     {
       id: "progression",
-      title: "Progression des FANZ",
+      title: t("guide.section.progression.title", "Progression des FANZ"),
       icon: <Zap className="text-yellow-400" />,
-      content:
-        "La montée en compétences de tes FANZ se fait grâce aux actions LIFE ! Chaque action réussie donne de l'XP à ton FANZ.",
+      content: t("guide.section.progression.content", "La montée en compétences de tes FANZ se fait grâce aux actions LIFE ! Chaque action réussie donne de l'XP à ton FANZ."),
       tips: [
-        "L'XP permet de monter en niveau et d'améliorer les statistiques : Force, Endurance, Mental, etc.",
-        "Des statistiques plus élevées te rendent beaucoup plus fort et résistant durant les Duels !",
-        "Fais progresser plusieurs FANZ pour pouvoir t'adapter à tous les adversaires.",
+        t("guide.section.progression.tip.0", "L'XP permet de monter en niveau et d'améliorer les statistiques : Force, Endurance, Mental, etc."),
+        t("guide.section.progression.tip.1", "Des statistiques plus élevées te rendent beaucoup plus fort et résistant durant les Duels !"),
+        t("guide.section.progression.tip.2", "Fais progresser plusieurs FANZ pour pouvoir t'adapter à tous les adversaires."),
       ],
     },
     {
       id: "duels",
-      title: "L'Art du Duel",
+      title: t("guide.section.duels.title", "L'Art du Duel"),
       icon: <Swords className="text-orange-500" />,
-      content:
-        "Les duels sont le cœur du jeu. Tu affrontes d'autres fans en temps réel pendant un match. Le but est de tirer la barre de ferveur vers ton équipe en cliquant le plus vite possible.",
+      content: t("guide.section.duels.content", "Les duels sont le cœur du jeu. Tu affrontes d'autres fans en temps réel pendant un match. Le but est de tirer la barre de ferveur vers ton équipe en cliquant le plus vite possible."),
       tips: [
-        "Les matchs d'entraînement (contre bots/amis) se créent sur les matchs \"À Venir\".",
-        "Les modes classés (1v1, 2v2, 5v5, Kops) se jouent sur les matchs \"En Cours (Live)\".",
-        "Utilise tes cartes au bon moment pour bloquer l'adversaire.",
-        "Surveille ton énergie (Excitation), elle ne remonte pas instantanément.",
-        "Si personne n'est là, des Bots (IA) viendront te défier !",
+        t("guide.section.duels.tip.0", "Les matchs d'entraînement (contre bots/amis) se créent sur les matchs \"À Venir\"."),
+        t("guide.section.duels.tip.1", "Les modes classés (1v1, 2v2, 5v5, Kops) se jouent sur les matchs \"En Cours (Live)\"."),
+        t("guide.section.duels.tip.2", "Utilise tes cartes au bon moment pour bloquer l'adversaire."),
+        t("guide.section.duels.tip.3", "Surveille ton énergie (Excitation), elle ne remonte pas instantanément."),
+        t("guide.section.duels.tip.4", "Si personne n'est là, des Bots (IA) viendront te défier !"),
       ],
     },
     {
       id: "skills",
-      title: "Compétences & Stats",
+      title: t("guide.section.skills.title", "Compétences & Stats"),
       icon: <TrendingUp className="text-blue-500" />,
-      content:
-        "Les statistiques de votre FANZ déterminent de nombreux paramètres cruciaux pendant le duel. Ne négligez aucune stat et adaptez votre composition !",
+      content: t("guide.section.skills.content", "Les statistiques de votre FANZ déterminent de nombreux paramètres cruciaux pendant le duel. Ne négligez aucune stat et adaptez votre composition !"),
       tips: [
-        "FORCE : Dégâts et puissance pure de vos clics par rapport à l'adversaire.",
-        "ENDURANCE : Accélère la vitesse de régénération de votre jauge d'Excitation.",
-        "MENTAL : Renforce votre résistance pour réduire la durée des malus agressifs que vous subissez.",
-        "BLUFF : Vos malus visuels dureront plus longtemps chez l'adversaire (et moins longtemps sur vous).",
-        "CRÉATIVITÉ : Vos cartes coûtent moins d'Excitation à jouer.",
-        "SOCIAL : Augmente vos gains d'XP en fin de match.",
-        "INTELLIGENCE : Augmente vos chances de piocher des cartes rares avec Lucky Draw.",
-        "CHARISME : Multiplie les bonus et l'impact de toutes vos cartes.",
+        t("guide.section.skills.tip.0", "FORCE : Dégâts et puissance pure de vos clics par rapport à l'adversaire."),
+        t("guide.section.skills.tip.1", "ENDURANCE : Accélère la vitesse de régénération de votre jauge d'Excitation."),
+        t("guide.section.skills.tip.2", "MENTAL : Renforce votre résistance pour réduire la durée des malus agressifs que vous subissez."),
+        t("guide.section.skills.tip.3", "BLUFF : Vos malus visuels dureront plus longtemps chez l'adversaire (et moins longtemps sur vous)."),
+        t("guide.section.skills.tip.4", "CRÉATIVITÉ : Vos cartes coûtent moins d'Excitation à jouer."),
+        t("guide.section.skills.tip.5", "SOCIAL : Augmente vos gains d'XP en fin de match."),
+        t("guide.section.skills.tip.6", "INTELLIGENCE : Augmente vos chances de piocher des cartes rares avec Lucky Draw."),
+        t("guide.section.skills.tip.7", "CHARISME : Multiplie les bonus et l'impact de toutes vos cartes."),
       ],
     },
     {
       id: "shop",
-      title: "Boutique & Boosts",
+      title: t("guide.section.shop.title", "Boutique & Boosts"),
       icon: <Store className="text-purple-500" />,
-      content:
-        "Utilise ton argent gagné pour acheter des nouveaux FANZ, des emotes ou des boosts d'énergie.",
+      content: t("guide.section.shop.content", "Utilise ton argent gagné pour acheter des nouveaux FANZ, des emotes ou des boosts d'énergie."),
       tips: [
-        "Les Packs FANZ te permettent de débloquer des personnages rares.",
-        "Les Boosts sont essentiels pour enchaîner les duels.",
-        "Garde toujours un peu d'argent pour les frais d'inscription aux grands tournois.",
+        t("guide.section.shop.tip.0", "Les Packs FANZ te permettent de débloquer des personnages rares."),
+        t("guide.section.shop.tip.1", "Les Boosts sont essentiels pour enchaîner les duels."),
+        t("guide.section.shop.tip.2", "Garde toujours un peu d'argent pour les frais d'inscription aux grands tournois."),
       ],
     },
   ];
@@ -121,11 +118,10 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
           </motion.div>
           <div>
             <h1 className="text-xl sm:text-4xl font-black italic uppercase tracking-tighter text-white leading-none mb-1 sm:mb-2">
-              Guide de <span className="text-orange-500 uppercase">MrFanz</span>
+              {t("guide.title", "Guide de MrFanz")}
             </h1>
             <p className="text-gray-400 font-bold italic text-xs sm:text-base leading-tight">
-              "Salut Champion ! Besoin d'un coup de main ? Je t'explique tout
-              pour devenir une légende."
+              {t("guide.subtitle", `"Salut Champion ! Besoin d'un coup de main ? Je t'explique tout pour devenir une légende."`)}
             </p>
           </div>
         </div>
@@ -135,16 +131,16 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
       <div className="px-4 py-4 sm:py-6 space-y-4 sm:space-y-8 max-w-[600px] mx-auto w-full">
         <div className="mt-8 mb-6 overflow-hidden">
           <h2 className="text-xl font-black italic uppercase tracking-tight text-white px-4 sm:px-6 mb-4 flex items-center gap-2">
-            <Play className="text-orange-500 w-5 h-5" /> Tutoriels Vidéos
+            <Play className="text-orange-500 w-5 h-5" /> {t("guide.video_tutos", "Tutoriels Vidéos")}
           </h2>
           <div className="flex overflow-x-auto no-scrollbar gap-4 px-4 sm:px-6 pb-4 snap-x snap-mandatory">
             {[
-              { id: 1, title: "Bienvenue dans The Best Fan" },
-              { id: 2, title: "Adopte ton Fanz" },
-              { id: 3, title: "Collectionne les Cartes" },
-              { id: 4, title: "Gagne tes Duels" },
-              { id: 5, title: "Progression & Stats" },
-              { id: 6, title: "Ferveur et Récompenses" },
+              { id: 1, title: t("guide.video.1", "Bienvenue dans The Best Fan") },
+              { id: 2, title: t("guide.video.2", "Adopte ton Fanz") },
+              { id: 3, title: t("guide.video.3", "Collectionne les Cartes") },
+              { id: 4, title: t("guide.video.4", "Gagne tes Duels") },
+              { id: 5, title: t("guide.video.5", "Progression & Stats") },
+              { id: 6, title: t("guide.video.6", "Ferveur et Récompenses") },
             ].map((video) => (
               <div
                 key={`video-${video.id}`}
@@ -197,7 +193,7 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
                 </div>
                 <div className="flex-1 bg-black/30 rounded-xl p-3 sm:p-4 border border-white/5">
                   <h4 className="text-[9px] sm:text-[10px] font-black uppercase text-orange-500 mb-2 sm:mb-3 tracking-widest flex items-center gap-2">
-                    <Info size={10} className="sm:w-3 sm:h-3" /> Conseils de Pro
+                    <Info size={10} className="sm:w-3 sm:h-3" /> {t("guide.pro_tips", "Conseils de Pro")}
                   </h4>
                   <ul className="space-y-2 sm:space-y-3">
                     {section.tips.map((tip, i) => (
@@ -222,7 +218,7 @@ export function MrFanzPage({ onBack }: { onBack: () => void }) {
             variant="outline"
             className="w-full sm:w-auto px-10 h-12 sm:h-14 text-xs sm:text-sm font-black uppercase italic tracking-widest"
           >
-            C'est compris, let's go !
+            {t("guide.button_ok", "C'est compris, let's go !")}
           </Button>
         </div>
       </div>

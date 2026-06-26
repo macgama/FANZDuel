@@ -6,6 +6,7 @@ import { LOGOS } from '../constants';
 import { OptimizedMedia } from './OptimizedMedia';
 import { auth, db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useLanguage } from '../context/LanguageContext';
 
 export interface RewardData {
   type: 'money' | 'gems' | 'boost' | 'energy' | 'xp' | 'card' | 'skin' | 'emote' | 'action' | 'choice';
@@ -24,6 +25,7 @@ interface RewardAlertProps {
 }
 
 export function RewardAlert({ reward, onClose }: RewardAlertProps) {
+  const { tDb } = useLanguage();
   const [clickCount, setClickCount] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -311,10 +313,10 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                   Récompense Débloquée !
                 </motion.div>
                 <h1 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white drop-shadow-2xl leading-tight">
-                  {reward.title || 'Félicitations !'}
+                  {tDb(reward.title) || 'Félicitations !'}
                 </h1>
                 {reward.subtitle && (
-                  <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs">{reward.subtitle}</p>
+                  <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs">{tDb(reward.subtitle)}</p>
                 )}
               </motion.div>
 
@@ -329,11 +331,11 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
               >
                 {reward.type === 'card' && reward.card && (
                   <div className="w-56 md:w-64 aspect-[3/4] rounded-3xl border-4 border-orange-500 overflow-hidden shadow-2xl shadow-orange-500/40 bg-gray-900 group relative">
-                    <img src={getImageUrl(reward.card.imageUrl)} className="w-full h-full object-cover" alt={reward.card.name} />
+                    <img src={getImageUrl(reward.card.imageUrl)} className="w-full h-full object-cover" alt={tDb(reward.card.name)} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
                     <div className="absolute bottom-0 inset-x-0 p-4 text-left">
                       <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mb-1">Nouvelle Carte</p>
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{reward.card.name}</h3>
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{tDb(reward.card.name)}</h3>
                     </div>
                   </div>
                 )}
@@ -351,14 +353,14 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                       <OptimizedMedia
                         type="image"
                         src={reward.skin.imageUrl}
-                        alt={reward.skin.name}
+                        alt={tDb(reward.skin.name)}
                         className="w-full h-full object-cover"
                       />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
                     <div className="absolute bottom-0 inset-x-0 p-4 text-left">
                       <p className="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouveau Skin</p>
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{reward.skin.name}</h3>
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">{tDb(reward.skin.name)}</h3>
                     </div>
                   </div>
                 )}
@@ -376,13 +378,13 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                       <OptimizedMedia
                         type="image"
                         src={reward.emote.imageUrl}
-                        alt={reward.emote.name}
+                        alt={tDb(reward.emote.name)}
                         className="w-full h-full object-contain"
                       />
                     )}
                     <div className="absolute bottom-0 inset-x-0 p-4 text-center">
                       <p className="text-purple-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouvel Emote</p>
-                      <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">{reward.emote.name}</h3>
+                      <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">{tDb(reward.emote.name)}</h3>
                     </div>
                   </div>
                 )}
@@ -400,13 +402,13 @@ export function RewardAlert({ reward, onClose }: RewardAlertProps) {
                       <OptimizedMedia
                         type="image"
                         src={reward.action.image}
-                        alt={reward.action.name}
+                        alt={tDb(reward.action.name)}
                         className="w-full h-full object-contain"
                       />
                     )}
                     <div className="absolute bottom-0 inset-x-0 p-4 text-center">
                       <p className="text-green-400 text-[9px] font-black uppercase tracking-widest mb-1">Nouvelle Action</p>
-                      <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">{reward.action.name}</h3>
+                      <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">{tDb(reward.action.name)}</h3>
                     </div>
                   </div>
                 )}

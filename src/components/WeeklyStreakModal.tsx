@@ -7,6 +7,7 @@ import { useReward } from '../context/RewardContext';
 import { Gift, CheckCircle2, Lock, Star, Sparkles, X, Shield, Smile, Activity, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LOGOS } from '../constants';
+import { useLanguage } from '../context/LanguageContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -30,6 +31,7 @@ interface WeeklyStreakModalProps {
 }
 
 export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, onClose }) => {
+  const { t } = useLanguage();
   const { showReward } = useReward();
   const [configs, setConfigs] = useState<WeeklyStreakConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
       path
     };
     console.error('Firestore Error: ', JSON.stringify(errInfo));
-    setError("Erreur de permission ou de connexion. Veuillez réessayer.");
+    setError(t("streak.error_connection", "Erreur de permission ou de connexion. Veuillez réessayer."));
   };
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
     try {
       const config = configs.find(c => c.day === currentDay);
       if (!config) {
-        setError("Aucune récompense configurée pour ce jour.");
+        setError(t("streak.error_no_reward", "Aucune récompense configurée pour ce jour."));
         setClaiming(false);
         return;
       }
@@ -144,18 +146,19 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
       if (config.reward) {
         const amount = config.reward.amount || 0;
         if (amount > 0) {
+          const transDesc = t("streak.daily_reward_transaction", "Récompense journalière (Jour {day})").replace("{day}", currentDay.toString());
           switch (config.reward.type) {
             case 'money':
-              await logTransaction(userId, 'money', amount, `Récompense journalière (Jour ${currentDay})`);
+              await logTransaction(userId, 'money', amount, transDesc);
               break;
             case 'gems':
-              await logTransaction(userId, 'gems', amount, `Récompense journalière (Jour ${currentDay})`);
+              await logTransaction(userId, 'gems', amount, transDesc);
               break;
             case 'boost':
-              await logTransaction(userId, 'boost', amount, `Récompense journalière (Jour ${currentDay})`);
+              await logTransaction(userId, 'boost', amount, transDesc);
               break;
             case 'energy':
-              await logTransaction(userId, 'energy', amount, `Récompense journalière (Jour ${currentDay})`);
+              await logTransaction(userId, 'energy', amount, transDesc);
               break;
           }
         }
@@ -224,8 +227,8 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
             >
               <Gift className="w-12 h-12 text-white mx-auto mb-2" />
             </motion.div>
-            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Série Hebdomadaire</h2>
-            <p className="text-orange-100 text-sm font-medium">Connectez-vous chaque jour pour des bonus exclusifs !</p>
+            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">{t("streak.title", "Série Hebdomadaire")}</h2>
+            <p className="text-orange-100 text-sm font-medium">{t("streak.subtitle", "Connectez-vous chaque jour pour des bonus exclusifs !")}</p>
           </div>
         </div>
 
@@ -233,7 +236,7 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
           {/* Days Grid */}
           {configs.length === 0 ? (
             <div className="text-center py-8 text-gray-500 italic">
-              Aucune récompense configurée pour le moment.
+              {t("streak.no_config", "Aucune récompense configurée pour le moment.")}
             </div>
           ) : (
             <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -254,7 +257,9 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
                         : 'bg-gray-800/30 border-gray-800'
                     }`}
                   >
-                    <span className="text-[10px] font-bold text-gray-400 uppercase mb-2">Jour {config.day}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase mb-2">
+                      {t("streak.day", "Jour {day}").replace("{day}", config.day.toString())}
+                    </span>
                     
                     <div className="mb-2">
                       {config.reward.type === 'money' && <img src={LOGOS.money} alt="Money" className={`w-6 h-6 object-contain ${isCurrent ? '' : 'grayscale opacity-50'}`} />}
@@ -271,10 +276,10 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
                     <span className={`text-xs font-black text-center ${isCurrent ? 'text-white' : 'text-gray-400'}`}>
                       {['money', 'gems', 'boost', 'energy', 'xp'].includes(config.reward.type) 
                         ? config.reward.amount 
-                        : config.reward.type === 'card' ? 'Carte'
-                        : config.reward.type === 'skin' ? 'Skin'
-                        : config.reward.type === 'emote' ? 'Emote'
-                        : config.reward.type === 'action' ? 'Action'
+                        : config.reward.type === 'card' ? t("streak.card", "Carte")
+                        : config.reward.type === 'skin' ? t("streak.skin", "Skin")
+                        : config.reward.type === 'emote' ? t("streak.emote", "Emote")
+                        : config.reward.type === 'action' ? t("streak.action", "Action")
                         : ''}
                     </span>
 
@@ -300,14 +305,16 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
               <div className="text-center">
                 <p className="text-green-400 font-bold flex items-center justify-center gap-2 mb-1">
                   <CheckCircle2 className="w-5 h-5" />
-                  Récompense récupérée !
+                  {t("streak.claimed_success", "Récompense récupérée !")}
                 </p>
-                <p className="text-gray-500 text-sm italic">Revenez demain pour le jour {currentDay + 1}</p>
+                <p className="text-gray-500 text-sm italic">
+                  {t("streak.come_back_tomorrow", "Revenez demain pour le jour {day}").replace("{day}", (currentDay + 1).toString())}
+                </p>
                 <button 
                   onClick={onClose}
                   className="mt-6 px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-black uppercase italic tracking-wider transition-all"
                 >
-                  Continuer
+                  {t("streak.continue", "Continuer")}
                 </button>
               </div>
             ) : (
@@ -322,7 +329,7 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
                   ) : (
                     <>
                       <Sparkles className="w-6 h-6" />
-                      Récupérer mon gain
+                      {t("streak.claim_my_reward", "Récupérer mon gain")}
                       <Sparkles className="w-6 h-6" />
                     </>
                   )}
@@ -335,7 +342,10 @@ export const WeeklyStreakModal: React.FC<WeeklyStreakModalProps> = ({ profile, o
         {/* Footer Info */}
         <div className="bg-gray-950/50 p-4 border-t border-gray-800 text-center">
           <p className="text-gray-500 text-[10px] uppercase tracking-widest font-bold">
-            Série actuelle : <span className="text-orange-500">{currentDay} jours consécutifs</span>
+            {t("streak.current_streak", "Série actuelle :")}{' '}
+            <span className="text-orange-500">
+              {t("streak.consecutive_days", "{day} jours consécutifs").replace("{day}", currentDay.toString())}
+            </span>
           </p>
         </div>
       </motion.div>

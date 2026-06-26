@@ -35,6 +35,7 @@ import { SharedMatchCard } from './SharedMatchCard';
 import { LiveMatchesSlider } from './LiveMatchesSlider';
 import { FavoriteLeagueStar } from './FavoriteLeagueStar';
 import { TbfoRankingsTab } from './LeagueDetails';
+import { useLanguage } from '../context/LanguageContext';
 import { UserProfile } from '../types';
 
 interface TeamDetailsProps {
@@ -49,6 +50,7 @@ interface TeamDetailsProps {
 }
 
 export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick, onLeagueClick, onPlayerClick, onMatchClick, profile }: TeamDetailsProps) {
+  const { t } = useLanguage();
   const [team, setTeam] = useState<any>(null);
   const [selectedSeason, setSelectedSeason] = useState<number | undefined>(initialSeason);
   const [actualCurrentSeason, setActualCurrentSeason] = useState<number | null>(null);
@@ -183,9 +185,8 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
     const fetchTeamInfo = async () => {
       try {
         // Fetch specific team info
-        const response = await fetch(`/api/football/teams?id=${teamId}`);
-        const teamRes = await response.json();
-        setTeam(teamRes.response[0]);
+        const teamData = await footballApi.getTeamInfo(teamId);
+        setTeam(teamData);
 
         // Fetch leagues/seasons for this team
         const leaguesRes = await footballApi.getLeaguesByTeam(teamId);
@@ -428,7 +429,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
                   {team.venue.name}
                 </h3>
                 <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">
-                  {team.venue.city} • {team.venue.capacity?.toLocaleString()} places
+                  {team.venue.city} • {team.venue.capacity?.toLocaleString()} {t("team.places", "places")}
                 </p>
               </div>
             </div>
@@ -440,49 +441,49 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
               active={activeTab === 'infos'} 
               onClick={() => setActiveTab('infos')}
               icon={<Info className="w-3 h-3" />}
-              label="Infos"
+              label={t("team.tab_infos", "Infos")}
             />
             <TabButton 
               active={activeTab === 'matches'} 
               onClick={() => setActiveTab('matches')}
               icon={<Calendar className="w-3 h-3" />}
-              label="Matches"
+              label={t("team.tab_matches", "Matchs")}
             />
             <TabButton 
               active={activeTab === 'standings'} 
               onClick={() => setActiveTab('standings')}
               icon={<Trophy className="w-3 h-3" />}
-              label="Classement"
+              label={t("team.tab_standings", "Classement")}
             />
             <TabButton 
               active={activeTab === 'competitions'} 
               onClick={() => setActiveTab('competitions')}
               icon={<Award className="w-3 h-3" />}
-              label="Compétitions"
+              label={t("team.tab_competitions", "Compétitions")}
             />
             <TabButton 
               active={activeTab === 'effectif'} 
               onClick={() => setActiveTab('effectif')}
               icon={<Users className="w-3 h-3" />}
-              label="Effectif"
+              label={t("team.tab_effectif", "Effectif")}
             />
             <TabButton 
               active={activeTab === 'stats'} 
               onClick={() => setActiveTab('stats')}
               icon={<BarChart3 className="w-3 h-3" />}
-              label="Stats"
+              label={t("team.tab_stats", "Stats")}
             />
             <TabButton 
               active={activeTab === 'historique'} 
               onClick={() => setActiveTab('historique')}
               icon={<Clock className="w-3 h-3" />}
-              label="Historique"
+              label={t("team.tab_historique", "Historique")}
             />
             <TabButton 
               active={activeTab === 'tbfo'} 
               onClick={() => setActiveTab('tbfo')}
               icon={<Shield className="w-3 h-3" />}
-              label="TBFO"
+              label={t("team.tab_tbfo", "TBFO")}
               highlight={true}
             />
           </div>
@@ -499,7 +500,7 @@ export function TeamDetails({ teamId, season: initialSeason, onBack, onTeamClick
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                   }`}
                 >
-                  <span className="text-[10px] sm:text-xs font-black uppercase italic truncate">Toutes</span>
+                  <span className="text-[10px] sm:text-xs font-black uppercase italic truncate">{t("team.all_competitions", "Toutes")}</span>
                 </button>
               )}
               {seasonLeagues.map((l: any) => (
@@ -621,8 +622,9 @@ function EffectifTab({ squad, players, selectedLeagueId, selectedSeason, onPlaye
 }
 
 function HistoriqueTab({ leagues, onLeagueClick, selectedSeason, profile }: { leagues: any[], onLeagueClick: (id: number, season: number) => void, selectedSeason: number, profile?: UserProfile | null }) {
+  const { t } = useLanguage();
   if (!leagues || leagues.length === 0) {
-    return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">Aucun historique trouvé.</Card>;
+    return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">{t("team.no_history", "Aucun historique trouvé.")}</Card>;
   }
 
   // Get all seasons present in the leagues for this team, EXCLUDING the current selectedSeason
@@ -644,14 +646,14 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason, profile }: { le
   const sortedSeasons = Object.keys(seasonsMap).map(Number).sort((a, b) => b - a);
 
   if (sortedSeasons.length === 0) {
-    return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">Aucun historique disponible pour les années précédentes.</Card>;
+    return <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">{t("team.no_history_prev", "Aucun historique disponible pour les années précédentes.")}</Card>;
   }
 
   return (
     <div className="space-y-6">
       {sortedSeasons.map(year => (
         <div key={year} className="space-y-3">
-          <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm pl-2 border-l-2 border-orange-500">Saison {year}</h3>
+          <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm pl-2 border-l-2 border-orange-500">{t("league.title_saison", "Saison")} {year}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {seasonsMap[year].map((l: any) => (
               <Card key={`${year}-${l.league.id}`} className="p-4 bg-black/40 border-white/10 hover:border-orange-500/50 cursor-pointer transition-colors group" onClick={() => onLeagueClick(l.league.id, year)}>
@@ -673,7 +675,7 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason, profile }: { le
                       {l.country.flag && <img src={l.country.flag} alt="" className="w-3 h-3 object-contain rounded-sm" />}
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{translateCountryName(l.country.name)}</p>
                       <span className="text-gray-600 text-[10px]">&bull;</span>
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{l.league.type === 'League' ? 'Championnat' : l.league.type === 'Cup' ? 'Coupe' : l.league.type}</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{l.league.type === 'League' ? t("league.type_league", "Championnat") : l.league.type === 'Cup' ? t("league.type_cup", "Coupe") : l.league.type}</p>
                     </div>
                   </div>
                 </div>
@@ -687,6 +689,7 @@ function HistoriqueTab({ leagues, onLeagueClick, selectedSeason, profile }: { le
 }
 
 function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerClick, fixtures }: { team: any, players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void, fixtures: any[] }) {
+  const { t } = useLanguage();
   const nowMs = Date.now();
   const leagueFixtures = selectedLeagueId 
     ? fixtures.filter((f: any) => f.league?.id === selectedLeagueId)
@@ -713,10 +716,10 @@ function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerCli
               <h2 className="text-2xl sm:text-3xl font-black uppercase text-orange-500 tracking-tight">{team.name}</h2>
               <div className="flex justify-center sm:justify-start gap-4 flex-wrap text-xs sm:text-sm text-gray-300">
                 {team.country && <span className="font-bold flex items-center gap-1.5 opacity-80"><img src={`https://media.api-sports.io/flags/${team.country.toLowerCase()}.svg`} className="w-4 h-4 object-contain rounded-sm" onError={(e) => e.currentTarget.style.display='none'} alt="" /> {translateCountryName(team.country)}</span>}
-                {team.founded && <span className="font-bold opacity-80">Fondé en {team.founded}</span>}
-                {team.venue?.name && <span className="font-bold opacity-80">Stade: {team.venue.name}</span>}
-                {team.venue?.city && <span className="font-bold opacity-80">Ville: {team.venue.city}</span>}
-                {team.venue?.capacity && <span className="font-bold opacity-80">Capacité: {team.venue.capacity.toLocaleString()}</span>}
+                {team.founded && <span className="font-bold opacity-80">{t("team.founded", "Fondé en")} {team.founded}</span>}
+                {team.venue?.name && <span className="font-bold opacity-80">{t("team.venue", "Stade")}: {team.venue.name}</span>}
+                {team.venue?.city && <span className="font-bold opacity-80">{t("team.city", "Ville")}: {team.venue.city}</span>}
+                {team.venue?.capacity && <span className="font-bold opacity-80">{t("team.capacity", "Capacité")}: {team.venue.capacity.toLocaleString()}</span>}
               </div>
             </div>
           </div>
@@ -726,7 +729,7 @@ function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerCli
       {/* Show Rankings if available */}
       {players.length > 0 && (
         <div className="pt-2">
-          <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">Tops Joueurs</h3>
+          <h3 className="text-orange-500 font-black uppercase italic tracking-widest text-sm mb-3 pl-2 border-l-2 border-orange-500">{t("team.top_players", "Tops Joueurs")}</h3>
           <TeamRankingsTab players={players} selectedLeagueId={selectedLeagueId} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
         </div>
       )}
@@ -735,10 +738,11 @@ function InfosTab({ team, players, selectedLeagueId, selectedSeason, onPlayerCli
 }
 
 function TeamRankingsTab({ players, selectedLeagueId, selectedSeason, onPlayerClick, competitionNotStartedYet }: { players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void, competitionNotStartedYet: boolean }) {
+  const { t } = useLanguage();
   if (players.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Les données individuelles des joueurs ne sont malheureusement pas couvertes par notre fournisseur pour cette équipe.
+        {t("team.no_players_data", "Les données individuelles des joueurs ne sont malheureusement pas couvertes par notre fournisseur pour cette équipe.")}
       </Card>
     );
   }
@@ -772,15 +776,16 @@ function TeamRankingsTab({ players, selectedLeagueId, selectedSeason, onPlayerCl
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <TeamRankingList title="Buteurs" data={scorers} label="Buts" valKey="agg.goals" icon={<Goal className="w-3.5 h-3.5 text-green-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
-      <TeamRankingList title="Passeurs" data={assists} label="Passes" valKey="agg.assists" icon={<Activity className="w-3.5 h-3.5 text-blue-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
-      <TeamRankingList title="Cartons Jaunes" data={yellows} label="Jaunes" valKey="agg.yellow" icon={<Square className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
-      <TeamRankingList title="Cartons Rouges" data={reds} label="Rouges" valKey="agg.red" icon={<Square className="w-3.5 h-3.5 text-red-500 fill-red-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
+      <TeamRankingList title={t("team.scorers", "Buteurs")} data={scorers} label={t("team.title_goals", "Buts")} valKey="agg.goals" icon={<Goal className="w-3.5 h-3.5 text-green-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
+      <TeamRankingList title={t("team.assists", "Passeurs")} data={assists} label={t("league.rankings_assists_label", "Passes")} valKey="agg.assists" icon={<Activity className="w-3.5 h-3.5 text-blue-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
+      <TeamRankingList title={t("team.yellow_cards", "Cartons Jaunes")} data={yellows} label={t("league.rankings_yellow_label", "Jaunes")} valKey="agg.yellow" icon={<Square className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
+      <TeamRankingList title={t("team.red_cards", "Cartons Rouges")} data={reds} label={t("league.rankings_red_label", "Rouges")} valKey="agg.red" icon={<Square className="w-3.5 h-3.5 text-red-500 fill-red-500" />} selectedSeason={selectedSeason} onPlayerClick={onPlayerClick} competitionNotStartedYet={competitionNotStartedYet} />
     </div>
   );
 }
 
 function TeamRankingList({ title, data, label, valKey, icon, selectedSeason, onPlayerClick, competitionNotStartedYet }: { title: string; data: any[]; label: string; valKey: string; icon: React.ReactNode; selectedSeason: number; onPlayerClick?: (id: number, season: number) => void; competitionNotStartedYet: boolean }) {
+  const { t } = useLanguage();
   const getVal = (p: any) => {
     if (valKey === 'agg.goals') return p.agg.goals;
     if (valKey === 'agg.assists') return p.agg.assists;
@@ -801,10 +806,10 @@ function TeamRankingList({ title, data, label, valKey, icon, selectedSeason, onP
       {hasNoData ? (
         <Card className="py-6 px-4 bg-black/25 border border-white/5 flex flex-col items-center justify-center text-center gap-1">
           <span className="text-[10px] font-bold text-gray-400">
-            {competitionNotStartedYet ? "La compétition n'a pas encore commencé" : (
-              valKey === 'agg.goals' ? "L'équipe n'a pas marqué" :
-              valKey === 'agg.assists' ? "L'équipe n'a pas fait de passe décisive" :
-              "L'équipe n'a pas eu de carton"
+            {competitionNotStartedYet ? t("league.not_started_title", "La compétition n'a pas encore commencé") : (
+              valKey === 'agg.goals' ? t("team.has_not_marked", "L'équipe n'a pas marqué") :
+              valKey === 'agg.assists' ? t("team.has_not_assisted", "L'équipe n'a pas fait de passe décisive") :
+              t("team.has_not_carded", "L'équipe n'a pas eu de carton")
             )}
           </span>
         </Card>
@@ -1060,6 +1065,7 @@ function MatchesTab({ fixtures, onTeamClick, onLeagueClick, onMatchClick, select
 }
 
 function PlayersTab({ squad, players, selectedLeagueId, selectedSeason, onPlayerClick }: { squad?: any[], players: any[], selectedLeagueId: number | null, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
+  const { t } = useLanguage();
   const mergedPlayers = React.useMemo(() => {
     const map = new Map<number, any>();
     
@@ -1128,7 +1134,7 @@ function PlayersTab({ squad, players, selectedLeagueId, selectedSeason, onPlayer
   if (!mergedPlayers || mergedPlayers.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        L'effectif de l'équipe n'est malheureusement pas couvert par notre fournisseur de données.
+        {t("team.no_squad", "L'effectif de l'équipe n'est malheureusement pas couvert par notre fournisseur de données.")}
       </Card>
     );
   }
@@ -1149,7 +1155,7 @@ function PlayersTab({ squad, players, selectedLeagueId, selectedSeason, onPlayer
         return (
           <div key={pos} className="space-y-2">
             <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest pl-2">
-              {pos === 'Goalkeeper' ? 'Gardiens' : pos === 'Defender' ? 'Défenseurs' : pos === 'Midfielder' ? 'Milieux' : pos === 'Attacker' ? 'Attaquants' : 'Inconnu'}
+              {pos === 'Goalkeeper' ? t("team.goalkeepers", "Gardiens") : pos === 'Defender' ? t("team.defenders", "Défenseurs") : pos === 'Midfielder' ? t("team.midfielders", "Milieux") : pos === 'Attacker' ? t("team.attackers", "Attaquants") : t("team.unknown_position", "Inconnu")}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {groupedByPos[pos].map((p: any) => (
@@ -1171,17 +1177,17 @@ function PlayersTab({ squad, players, selectedLeagueId, selectedSeason, onPlayer
                        <h4 className="text-[11px] font-black uppercase italic truncate">{p.name}</h4>
                      </div>
                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                       {p.age && <span className="text-[8px] text-gray-500 font-bold uppercase">{p.age} ans</span>}
+                       {p.age && <span className="text-[8px] text-gray-500 font-bold uppercase">{p.age} {t("team.years_old", "ans")}</span>}
                        <div className="flex items-center gap-2 mt-0.5 ml-auto">
-                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title="Matches joués">
+                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title={t("team.title_played", "Matches joués")}>
                            <Activity className="w-2.5 h-2.5 text-blue-400" />
                            {p.stats.played}
                          </div>
-                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title="Minutes jouées">
+                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title={t("team.title_minutes", "Minutes jouées")}>
                            <Clock className="w-2.5 h-2.5 text-purple-400" />
                            {p.stats.minutes}'
                          </div>
-                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title="Buts">
+                         <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold" title={t("team.title_goals", "Buts")}>
                            <Goal className="w-2.5 h-2.5 text-green-400" />
                            {p.stats.goals}
                          </div>
@@ -1199,6 +1205,7 @@ function PlayersTab({ squad, players, selectedLeagueId, selectedSeason, onPlayer
 }
 
 function StandingsTab({ standings, teamId, onTeamClick, selectedSeason, fixtures, effectiveLeagueId }: { standings: any[]; teamId: number; onTeamClick: (id: number, season: number) => void; selectedSeason: number; fixtures?: any[]; effectiveLeagueId?: number | null }) {
+  const { t } = useLanguage();
   const nowMs = Date.now();
   const leagueFixtures = fixtures && effectiveLeagueId 
     ? fixtures.filter((f: any) => f.league?.id === effectiveLeagueId)
@@ -1230,7 +1237,19 @@ function StandingsTab({ standings, teamId, onTeamClick, selectedSeason, fixtures
     );
   }
 
-  if (standings.length === 0) {
+  // Deduplicate standings locally by team ID and group as an additional safeguard
+  const uniqueStandings = (() => {
+    const seen = new Set();
+    return standings.filter((s: any) => {
+      if (!s?.team?.id) return false;
+      const key = `${s.team.id}-${s.group || 'Default'}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
+
+  if (uniqueStandings.length === 0) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
         Le classement n'est malheureusement pas disponible chez notre fournisseur de données, ou la compétition se déroule sous forme de phase à élimination directe exclusive.
@@ -1238,44 +1257,99 @@ function StandingsTab({ standings, teamId, onTeamClick, selectedSeason, fixtures
     );
   }
 
+  const groupedStandings = uniqueStandings.reduce((acc: any, s: any) => {
+    const groupName = s.group || 'Classement';
+    if (!acc[groupName]) acc[groupName] = [];
+    acc[groupName].push(s);
+    return acc;
+  }, {});
+
   return (
-    <Card className="overflow-x-auto p-0 border border-white/10 bg-black/40 no-scrollbar">
-      <table className="w-full text-left border-collapse min-w-[320px] sm:min-w-full">
-        <thead>
-          <tr className="bg-white/5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-white/10">
-            <th className="px-2 py-2 sm:px-3 sm:py-3 w-8 sm:w-10 text-center text-orange-500">#</th>
-            <th className="px-2 py-2 sm:px-3 sm:py-3 text-white">Équipe</th>
-            <th className="px-1.5 py-2 sm:px-3 sm:py-3 text-center w-8 sm:w-10" title="Matchs Joués">J</th>
-            <th className="px-1.5 py-2 sm:px-3 sm:py-3 text-center w-8 sm:w-10 text-green-500" title="Gagnés">G</th>
-            <th className="px-1.5 py-2 sm:px-3 sm:py-3 text-center w-8 sm:w-10 text-gray-500" title="Nuls">N</th>
-            <th className="px-1.5 py-2 sm:px-3 sm:py-3 text-center w-8 sm:w-10 text-red-500" title="Perdus">P</th>
-            <th className="px-2 py-2 sm:px-3 sm:py-3 text-center w-10 sm:w-12 text-white">Pts</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-white/5">
-          {standings.map((s) => (
-            <tr key={s.team.id} className={`hover:bg-white/5 transition-colors cursor-pointer group ${s.team.id === teamId ? 'bg-orange-500/10' : ''}`} onClick={() => onTeamClick(s.team.id, selectedSeason)}>
-              <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-black italic text-xs text-orange-500">{s.rank}</td>
-              <td className="px-2 py-2.5 sm:px-3 sm:py-3">
-                <div className="flex items-center gap-1.5 sm:gap-2.5">
-                  <img src={s.team.logo} alt="" className="w-5 h-5 object-contain shrink-0" />
-                  <span className={`font-bold text-[10px] sm:text-xs uppercase italic transition-colors group-hover:text-orange-500 truncate max-w-[85px] xs:max-w-[120px] sm:max-w-none block sm:inline ${s.team.id === teamId ? 'text-orange-500' : ''}`}>{translateCountryName(s.team.name)}</span>
-                </div>
-              </td>
-              <td className="px-1.5 py-2.5 sm:px-3 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-400">{s.all.played}</td>
-              <td className="px-1.5 py-2.5 sm:px-3 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-green-600">{s.all.win}</td>
-              <td className="px-1.5 py-2.5 sm:px-3 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500">{s.all.draw}</td>
-              <td className="px-1.5 py-2.5 sm:px-3 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-red-600">{s.all.lose}</td>
-              <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-black text-xs sm:text-sm text-orange-400">{s.points}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
+    <div className="space-y-4">
+      {Object.entries(groupedStandings)
+        .sort(([a], [b]) => {
+          const isSubdivision = (str: string) => /group\s+[a-z]\b|groupe\s+[a-z]\b/i.test(str);
+          const isGeneralStage = (str: string) => {
+            const clean = str.toLowerCase();
+            const genericKeywords = ['group stage', 'groupe stage', 'classement', 'phase de groupes'];
+            return genericKeywords.some(keyword => clean.includes(keyword)) && !isSubdivision(str);
+          };
+
+          const isGeneralStageA = isGeneralStage(a);
+          const isGeneralStageB = isGeneralStage(b);
+
+          if (isGeneralStageA && !isGeneralStageB) return 1;
+          if (!isGeneralStageA && isGeneralStageB) return -1;
+
+          return a.localeCompare(b);
+        })
+        .map(([groupName, groupData]: [string, any]) => (
+        <Card key={groupName} className="overflow-x-auto p-0 border border-white/10 bg-black/40 no-scrollbar">
+          <div className="bg-white/10 px-4 py-2.5 border-b border-white/5">
+            <h3 className="text-sm font-black uppercase text-center text-orange-500 tracking-[0.2em] italic">
+              {groupName.replace(/Group /i, 'Groupe ')}
+            </h3>
+          </div>
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full text-left border-collapse min-w-[340px] sm:min-w-full">
+              <thead>
+                <tr className="border-b border-white/10 text-[9px] font-black uppercase tracking-widest text-gray-400 bg-white/5">
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 w-8 sm:w-10 text-center text-orange-500">#</th>
+                  <th className="px-2 py-2 sm:px-3 sm:py-3 text-white">{t("league.header_team", "Équipe")}</th>
+                  <th className="px-1 py-2 sm:px-2 sm:py-3 w-8 sm:w-10 text-center" title="Matchs Joués">{t("league.header_played", "J")}</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Gagnés">{t("league.header_win", "G")}</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Nuls">{t("league.header_draw", "N")}</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-6 sm:w-8 text-center" title="Perdus">{t("league.header_lose", "P")}</th>
+                  <th className="hidden sm:table-cell px-2 py-3 w-14 text-center" title="Buts Marqués : Encaissés">{t("league.header_goals", "Buts")}</th>
+                  <th className="px-1 py-2 sm:px-1 sm:py-3 w-8 sm:w-10 text-center" title="Différence de buts">+/-</th>
+                  <th className="px-2 py-2 sm:px-2 sm:py-3 w-10 sm:w-12 text-center text-white">PTS</th>
+                  <th className="hidden md:table-cell px-3 py-3 w-28 text-center">FORM</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {(groupData as any[]).sort((a,b) => a.rank - b.rank).map((s) => (
+                  <tr key={s.team.id} className={`hover:bg-white/5 transition-colors group cursor-pointer ${s.team.id === teamId ? 'bg-orange-500/10' : ''}`} onClick={() => onTeamClick(s.team.id, selectedSeason)}>
+                    <td className="px-2 py-2.5 sm:px-3 sm:py-3 text-center font-black italic text-xs text-white group-hover:text-orange-500">{s.rank}</td>
+                    <td className="px-2 py-2.5 sm:px-3 sm:py-3">
+                      <div className="flex items-center gap-1.5 sm:gap-3">
+                        <img src={s.team.logo} alt="" className="w-5 h-5 sm:w-6 h-6 object-contain shrink-0" referrerPolicy="no-referrer" />
+                        <span className={`font-bold text-[10px] sm:text-xs uppercase italic transition-colors group-hover:text-white truncate max-w-[85px] xs:max-w-[120px] sm:max-w-none block sm:inline ${s.team.id === teamId ? 'text-orange-500' : 'text-gray-200'}`}>{translateCountryName(s.team.name)}</span>
+                      </div>
+                    </td>
+                    <td className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-400">{s.all.played}</td>
+                    <td className="px-1 py-2.5 sm:px-1 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500">{s.all.win}</td>
+                    <td className="px-1 py-2.5 sm:px-1 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500">{s.all.draw}</td>
+                    <td className="px-1 py-2.5 sm:px-1 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500">{s.all.lose}</td>
+                    <td className="hidden sm:table-cell px-2 py-3 text-center text-[10px] font-bold text-gray-500 tabular-nums">{s.all.goals?.for || 0}:{s.all.goals?.against || 0}</td>
+                    <td className="px-1 py-2.5 sm:px-1 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-400 tabular-nums">{(s.goalsDiff !== undefined ? (s.goalsDiff > 0 ? `+${s.goalsDiff}` : s.goalsDiff) : '')}</td>
+                    <td className="px-2 py-2.5 sm:px-2 sm:py-3 text-center font-black text-xs sm:text-sm text-orange-400">{s.points}</td>
+                    <td className="hidden md:table-cell px-3 py-3">
+                      <div className="flex justify-center gap-1">
+                        {(s.form?.split('') || []).map((f: string, i: number) => (
+                          <span 
+                            key={i} 
+                            className={`w-4 h-4 rounded text-[8px] flex items-center justify-center font-black text-white/90 shadow-sm ${
+                              f === 'W' ? 'bg-green-600/80 shadow-green-900/20' : f === 'D' ? 'bg-gray-500/80 shadow-gray-900/20' : 'bg-red-600/80 shadow-red-900/20'
+                            }`}
+                          >
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ))}
+    </div>
   );
 }
 
 function StatsTab({ stats, teamId, selectedSeason, onPlayerClick }: { stats: any, teamId: number, selectedSeason: number, onPlayerClick?: (id: number, season: number) => void }) {
+  const { t } = useLanguage();
   const [tbfoStats, setTbfoStats] = useState({
     duelsCount: 0,
     duels1v1: 0,
@@ -1369,7 +1443,7 @@ function StatsTab({ stats, teamId, selectedSeason, onPlayerClick }: { stats: any
   if (!stats && tbfoStats.loading) {
     return (
       <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-        Les statistiques de cette équipe (réelles et en jeu) ne sont malheureusement pas couvertes par notre fournisseur de données.
+        {t("team.no_stats_all", "Les statistiques de cette équipe (réelles et en jeu) ne sont malheureusement pas couvertes par notre fournisseur de données.")}
       </Card>
     );
   }
@@ -1380,26 +1454,26 @@ function StatsTab({ stats, teamId, selectedSeason, onPlayerClick }: { stats: any
         <>
           <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mb-2">
             <Trophy className="w-4 h-4 text-orange-500" />
-            Stats Réelles (Football)
+            {t("league.stats_real", "Stats Réelles (Football)")}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Card className="space-y-2 p-3">
-              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">Attaque</h3>
+              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">{t("team.stats_attack", "Attaque")}</h3>
               <div className="grid grid-cols-2 gap-2">
-                <StatItem label="Buts" value={stats.goals?.for?.total?.total} />
-                <StatItem label="Moyenne" value={stats.goals?.for?.average?.total} />
-                <StatItem label="Clean Sheets" value={stats.clean_sheet?.total} />
-                <StatItem label="Failed to Score" value={stats.failed_to_score?.total} />
+                <StatItem label={t("team.stats_goals", "Buts")} value={stats.goals?.for?.total?.total} />
+                <StatItem label={t("team.stats_average", "Moyenne")} value={stats.goals?.for?.average?.total} />
+                <StatItem label={t("team.stats_clean_sheets", "Clean Sheets")} value={stats.clean_sheet?.total} />
+                <StatItem label={t("team.stats_failed_to_score", "Failed to Score")} value={stats.failed_to_score?.total} />
               </div>
             </Card>
             
             <Card className="space-y-2 p-3">
-              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">Séries</h3>
+              <h3 className="text-[10px] font-black italic uppercase text-gray-500 border-b border-white/10 pb-1 tracking-widest">{t("team.stats_streaks", "Séries")}</h3>
               <div className="grid grid-cols-2 gap-2">
-                <StatItem label="Victoires" value={stats.fixtures?.wins?.total} />
-                <StatItem label="Nuls" value={stats.fixtures?.draws?.total} />
-                <StatItem label="Défaites" value={stats.fixtures?.loses?.total} />
-                <StatItem label="Plus longue série" value={stats.biggest?.streak?.wins} />
+                <StatItem label={t("team.stats_wins", "Victoires")} value={stats.fixtures?.wins?.total} />
+                <StatItem label={t("team.stats_draws", "Nuls")} value={stats.fixtures?.draws?.total} />
+                <StatItem label={t("team.stats_loses", "Défaites")} value={stats.fixtures?.loses?.total} />
+                <StatItem label={t("team.stats_longest_streak", "Plus longue série")} value={stats.biggest?.streak?.wins} />
               </div>
             </Card>
           </div>
@@ -1408,10 +1482,10 @@ function StatsTab({ stats, teamId, selectedSeason, onPlayerClick }: { stats: any
         <>
           <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mb-2">
             <Trophy className="w-4 h-4 text-orange-500" />
-            Stats Réelles (Football)
+            {t("league.stats_real", "Stats Réelles (Football)")}
           </h3>
           <Card className="py-6 text-center text-gray-500 text-xs font-bold italic">
-            Les statistiques réelles de cette équipe ne sont malheureusement pas couvertes par notre fournisseur de données.
+            {t("team.no_stats_real", "Les statistiques réelles de cette équipe ne sont malheureusement pas couvertes par notre fournisseur de données.")}
           </Card>
         </>
       )}
@@ -1419,7 +1493,7 @@ function StatsTab({ stats, teamId, selectedSeason, onPlayerClick }: { stats: any
       {/* TBFO STATS */}
       <h3 className="text-sm font-black italic uppercase text-white flex items-center gap-2 mt-6 mb-2">
         <Shield className="w-4 h-4 text-orange-500" />
-        Stats TBFO (Jeu)
+        {t("league.stats_game", "Stats TBFO (Jeu)")}
       </h3>
       
       {tbfoStats.loading ? (
@@ -1431,31 +1505,31 @@ function StatsTab({ stats, teamId, selectedSeason, onPlayerClick }: { stats: any
           <Card className="flex flex-col items-center justify-center p-3 text-center space-y-1 bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/20">
             <Shield className="w-4 h-4 text-orange-500 mb-0.5" />
             <span className="text-xl font-black italic text-white">{tbfoStats.totalPoints.toLocaleString()}</span>
-            <span className="text-[7.5px] font-bold text-orange-500/80 uppercase tracking-widest">Points Gagnés</span>
+            <span className="text-[7.5px] font-bold text-orange-500/80 uppercase tracking-widest">{t("team.stats_points_won", "Points Gagnés")}</span>
           </Card>
           
           <Card className="flex flex-col items-center justify-center p-3 text-center space-y-1 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
             <Users className="w-4 h-4 text-blue-500 mb-0.5" />
             <span className="text-xl font-black italic text-white">{tbfoStats.duelsCount}</span>
-            <span className="text-[7.5px] font-bold text-blue-500/80 uppercase tracking-widest">Batailles Jouées</span>
+            <span className="text-[7.5px] font-bold text-blue-500/80 uppercase tracking-widest">{t("team.stats_battles_played", "Batailles Jouées")}</span>
             <div className="text-[8px] text-gray-400 mt-1 flex flex-wrap justify-center gap-1.5">
               <span>1v1: <strong className="text-white">{tbfoStats.duels1v1}</strong></span>
               <span>2v2: <strong className="text-white">{tbfoStats.duels2v2}</strong></span>
               <span>5v5: <strong className="text-white">{tbfoStats.duels5v5}</strong></span>
-              <span>Guerre des Kops: <strong className="text-white">{tbfoStats.duelsKop}</strong></span>
+              <span>{t("league.stats_kop_war", "Guerre des Kops")}: <strong className="text-white">{tbfoStats.duelsKop}</strong></span>
             </div>
           </Card>
 
           <Card className="flex flex-col items-center justify-center p-3 text-center space-y-1 bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20">
             <Medal className="w-4 h-4 text-yellow-500 mb-0.5" />
             <span className="text-xl font-black italic text-white">{tbfoStats.totalCards}</span>
-            <span className="text-[7.5px] font-bold text-yellow-500/80 uppercase tracking-widest">Cartes Jouées</span>
+            <span className="text-[7.5px] font-bold text-yellow-500/80 uppercase tracking-widest">{t("league.stats_cards_played", "Cartes Jouées")}</span>
           </Card>
 
           <Card className="flex flex-col items-center justify-center p-3 text-center space-y-1 bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20">
             <BarChart3 className="w-4 h-4 text-purple-500 mb-0.5" />
             <span className="text-xl font-black italic text-white">{tbfoStats.totalClicks.toLocaleString()}</span>
-            <span className="text-[7.5px] font-bold text-purple-500/80 uppercase tracking-widest">Clics (Ferveur)</span>
+            <span className="text-[7.5px] font-bold text-purple-500/80 uppercase tracking-widest">{t("league.stats_clicks", "Clics (Ferveur)")}</span>
           </Card>
         </div>
       )}

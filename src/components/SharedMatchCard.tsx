@@ -5,29 +5,42 @@ import { cn, getImageUrl } from '../lib/utils';
 import { translateCountryName, translateLeagueName } from '../utils/countryTranslations';
 import { Card } from './ui/card';
 import { FavoriteLeagueStar } from './FavoriteLeagueStar';
+import { useLanguage } from '../context/LanguageContext';
 
-const getMatchStatusLabel = (status: any) => {
+const getMatchStatusLabel = (status: any, t: any) => {
   if (!status) return '';
   const short = status.short;
+  
+  // Convert to lowercase for case-insensitive checks
+  const shortLower = (short || '').toLowerCase();
+  const longLower = (status.long || '').toLowerCase();
+  
+  if (shortLower === '1h' || shortLower === '1st half' || longLower === '1st half' || longLower === 'first half') {
+    return t("match.status_1h", "1ère Mi-temps");
+  }
+  if (shortLower === '2h' || shortLower === '2nd half' || longLower === '2nd half' || longLower === 'second half') {
+    return t("match.status_2h", "2ème Mi-temps");
+  }
+  if (shortLower === 'ht' || shortLower === 'halftime' || longLower === 'halftime') {
+    return t("match.status_ht", "Mi-temps");
+  }
+
   switch (short) {
-    case '1H': return '1ère Mi-temps';
-    case 'HT': return 'Mi-temps';
-    case '2H': return '2ème Mi-temps';
-    case 'ET': return 'Prolongations';
-    case 'BT': return 'Pause avant Prol.';
-    case 'P': return 'Tirs au But';
-    case 'FT': return 'Terminé';
-    case 'AET': return 'Terminé (A.P.)';
-    case 'PEN': return 'Terminé (T.A.B.)';
-    case 'SUSP': return 'Suspendu';
-    case 'INT': return 'Interrompu';
-    case 'PST': return 'Reporté';
-    case 'CANC': return 'Annulé';
-    case 'ABD': return 'Abandonné';
-    case 'AWD': return 'Par forfait';
-    case 'WO': return 'Forfait';
-    case 'NS': return 'Non démarré';
-    case 'TBD': return 'À définir';
+    case 'ET': return t("match.status_et", "Prolongations");
+    case 'BT': return t("match.status_bt", "Pause avant Prol.");
+    case 'P': return t("match.status_p", "Tirs au But");
+    case 'FT': return t("match.status_ft", "Terminé");
+    case 'AET': return t("match.status_aet", "Terminé (A.P.)");
+    case 'PEN': return t("match.status_pen", "Terminé (T.A.B.)");
+    case 'SUSP': return t("match.status_susp", "Suspendu");
+    case 'INT': return t("match.status_int", "Interrompu");
+    case 'PST': return t("match.status_pst", "Reporté");
+    case 'CANC': return t("match.status_canc", "Annulé");
+    case 'ABD': return t("match.status_abd", "Abandonné");
+    case 'AWD': return t("match.status_awd", "Par forfait");
+    case 'WO': return t("match.status_wo", "Forfait");
+    case 'NS': return t("match.status_ns", "Non démarré");
+    case 'TBD': return t("match.status_tbd", "À définir");
     default: return status.long || short;
   }
 };
@@ -57,6 +70,7 @@ export function SharedMatchCard({
   showLeagueHeader = false,
   showDate = true
 }: SharedMatchCardProps) {
+  const { t } = useLanguage();
   const isLive = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE'].includes(match.fixture.status.short);
   const isUpcoming = ['TBD', 'NS'].includes(match.fixture.status.short);
   const isFinished = ['FT', 'AET', 'PEN'].includes(match.fixture.status.short);
@@ -69,21 +83,21 @@ export function SharedMatchCard({
   const translateDetail = (type: string, detail: string, comments?: string) => {
     const combined = `${detail || ''} ${comments || ''}`.toLowerCase();
     if (type === 'Goal') {
-      if (combined.includes('missed penalty')) return 'Penalty manqué';
-      if (combined.includes('own goal') || combined.includes('csc')) return 'CSC';
-      if (combined.includes('penalty')) return 'Penalty';
-      if (combined.includes('cancelled')) return 'But annulé (VAR)';
+      if (combined.includes('missed penalty')) return t("match.missed_penalty", "Penalty manqué");
+      if (combined.includes('own goal') || combined.includes('csc')) return t("match.csc", "CSC");
+      if (combined.includes('penalty')) return t("match.penalty", "Penalty");
+      if (combined.includes('cancelled')) return t("match.cancelled_goal_var", "But annulé (VAR)");
       return null;
     }
     if (type === 'Card') {
-      if (combined.includes('second yellow')) return '2ème jaune';
-      if (combined.includes('red')) return 'Rouge';
+      if (combined.includes('second yellow')) return t("match.second_yellow_short", "2ème jaune");
+      if (combined.includes('red')) return t("match.red_card_short", "Rouge");
       return null;
     }
     if (type === 'Var') {
-      if (combined.includes('goal cancelled')) return 'But annulé';
-      if (combined.includes('penalty confirmed')) return 'Penalty conf.';
-      if (combined.includes('card review')) return 'Arbitre';
+      if (combined.includes('goal cancelled')) return t("match.cancelled_goal", "But annulé");
+      if (combined.includes('penalty confirmed')) return t("match.penalty_confirmed_short", "Penalty conf.");
+      if (combined.includes('card review')) return t("match.referee_short", "Arbitre");
       return detail;
     }
     return null;
@@ -208,7 +222,7 @@ export function SharedMatchCard({
             homeIsFav ? "text-orange-500" : "text-white",
             isHomeWinner && "text-orange-500 font-extrabold scale-105"
           )}>
-            {match.teams.home.name}
+            {translateCountryName(match.teams.home.name)}
           </span>
           {(isLive || isFinished) && (
             <div className={cn(
@@ -255,13 +269,13 @@ export function SharedMatchCard({
                       ? "bg-[#ef4444] text-white animate-pulse"
                       : "bg-[#2a2a2a] text-gray-400"
                   )}>
-                    {getMatchStatusLabel(match.fixture.status)}
+                    {getMatchStatusLabel(match.fixture.status, t)}
                   </span>
                 </>
               ) : (
                 <div className="mt-2 bg-orange-500/15 border border-orange-500/20 rounded-full px-3 py-1 flex items-center justify-center shadow-sm">
                   <span className="text-[10px] sm:text-xs font-black text-orange-400 uppercase tracking-widest">
-                    {getMatchStatusLabel(match.fixture.status)}
+                    {getMatchStatusLabel(match.fixture.status, t)}
                   </span>
                 </div>
               )}
@@ -272,7 +286,7 @@ export function SharedMatchCard({
                 {format(new Date(match.fixture.date), 'HH:mm')}
               </div>
               <span className="text-[7.5px] sm:text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 text-center">
-                {getMatchStatusLabel(match.fixture.status)}
+                {getMatchStatusLabel(match.fixture.status, t)}
               </span>
             </div>
           )}
@@ -312,7 +326,7 @@ export function SharedMatchCard({
             awayIsFav ? "text-blue-500" : "text-white",
             isAwayWinner && "text-blue-500 font-extrabold scale-105"
           )}>
-            {match.teams.away.name}
+            {translateCountryName(match.teams.away.name)}
           </span>
           {(isLive || isFinished) && (
             <div className={cn(
@@ -356,12 +370,12 @@ export function SharedMatchCard({
                   </div>
                   {showAssist && (
                     <span className="text-[7px] sm:text-[8px] text-gray-500 italic pl-5 leading-none shrink-0 truncate max-w-full">
-                      Passe: {e.assist.name}
+                      {t("match.assist", "Passe :")} {e.assist.name}
                     </span>
                   )}
                   {showSubst && (
                     <span className="text-[7px] sm:text-[8px] text-gray-500 italic pl-5 leading-none shrink-0 truncate max-w-full">
-                      Sortie: {e.assist.name}
+                      {t("match.out", "Sortie :")} {e.assist.name}
                     </span>
                   )}
                 </div>
@@ -391,12 +405,12 @@ export function SharedMatchCard({
                   </div>
                   {showAssist && (
                     <span className="text-[7px] sm:text-[8px] text-gray-500 italic pr-5 leading-none text-right shrink-0 truncate max-w-full">
-                      Passe: {e.assist.name}
+                      {t("match.assist", "Passe :")} {e.assist.name}
                     </span>
                   )}
                   {showSubst && (
                     <span className="text-[7px] sm:text-[8px] text-gray-500 italic pr-5 leading-none text-right shrink-0 truncate max-w-full">
-                      Sortie: {e.assist.name}
+                      {t("match.out", "Sortie :")} {e.assist.name}
                     </span>
                   )}
                 </div>
@@ -412,14 +426,14 @@ export function SharedMatchCard({
           {isFinished && totalScore === 0 ? (
             <div className="text-center py-2">
               <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
-                Aucun duel TBFO n'a été joué
+                {t("match.no_tbfo_duel_played", "Aucun duel TBFO n'a été joué")}
               </span>
             </div>
           ) : (
             <>
               <div className="flex justify-between items-center text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                 <span className="text-orange-500">{dominanceA}%</span>
-                <span>DOMINANCE MONDIALE</span>
+                <span>{t("match.global_dominance", "Dominance Mondiale")}</span>
                 <span className="text-blue-500">{dominanceB}%</span>
               </div>
               <div className="h-1.5 sm:h-2 w-full bg-black/60 rounded-full overflow-hidden flex relative">
@@ -438,7 +452,7 @@ export function SharedMatchCard({
           onClick={() => onClick()}
           className="flex-1 py-2.5 rounded-xl border border-white/20 bg-white/5 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider hover:bg-white/10 transition-colors"
         >
-          Détails
+          {t("match.details", "Détails")}
         </button>
         {isLive && (
           <button 
@@ -448,10 +462,10 @@ export function SharedMatchCard({
             {hasActiveDuel ? (
               <>
                 <Activity className="w-3 h-3 sm:w-4 sm:h-4 animate-pulse" />
-                REJOINDRE
+                {t("match.join", "Rejoindre")}
               </>
             ) : (
-              'CRÉER UN DUEL'
+              t("match.create_duel", "Créer un Duel")
             )}
           </button>
         )}

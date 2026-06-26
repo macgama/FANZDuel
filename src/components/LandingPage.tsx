@@ -37,6 +37,8 @@ import {
 } from "lucide-react";
 
 import { APP_VERSION } from "../version";
+import { LanguageSelector } from "./LanguageSelector";
+import { useLanguage } from "../context/LanguageContext";
 
 interface LandingPageProps {
   onShowLiveScores?: () => void;
@@ -86,6 +88,7 @@ export function LandingPage({
   onShowLiveScores,
   onMatchSelect,
 }: LandingPageProps) {
+  const { t, language } = useLanguage();
   const [showAuth, setShowAuth] = useState(false);
   const [fixtures, setFixtures] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
@@ -217,21 +220,21 @@ export function LandingPage({
 
   // 3. Decide which fixtures list and section header to show
   let displayedFixtures: any[] = [];
-  let sectionTitle = "Matchs du Jour (LIVE)";
+  let sectionTitle = t("menu.todays_matches", "Matchs du Jour") + " (LIVE)";
   let isDisplayingLive = true;
 
   if (liveFixtures.length > 0) {
     displayedFixtures = liveFixtures;
-    sectionTitle = "Matchs en Direct (LIVE)";
+    sectionTitle = t("home.live_matches", "Matchs en direct") + " (LIVE)";
     isDisplayingLive = true;
   } else if (upcomingFixtures.length > 0) {
     displayedFixtures = upcomingFixtures;
-    sectionTitle = "Matchs à Venir (Bientôt en direct)";
+    sectionTitle = t("home.upcoming_matches", "Matchs à venir") + " (" + t("landing.upcoming_live_ping", "Bientôt en direct") + ")";
     isDisplayingLive = false;
   } else {
     // Fallback: show any available match of the day if none are live or upcoming
     displayedFixtures = fixtures;
-    sectionTitle = "Matchs du Jour (Résultats)";
+    sectionTitle = t("menu.todays_matches", "Matchs du Jour") + " (" + t("matches.filter_finished", "Terminés") + ")";
     isDisplayingLive = false;
   }
 
@@ -248,7 +251,7 @@ export function LandingPage({
             id="auth-back-button"
           >
             <ChevronRight className="w-5 h-5 rotate-180 mr-1" />
-            Retour
+            {t("landing.back", "Retour")}
           </Button>
         </div>
         <Auth onAuthSuccess={() => {}} />
@@ -269,12 +272,9 @@ export function LandingPage({
               TBFO
             </div>
 
-            {/* GOOGLE TRANSLATE CONTAINER MOUNTED IN NAVBAR */}
+            {/* LANGUAGE SELECTOR IN NAVBAR */}
             <div className="flex items-center border-l border-white/10 pl-2 md:pl-6">
-              <div
-                id="google-translate-landing-container"
-                className="h-8 flex items-center min-w-[100px] sm:min-w-[120px] max-w-[160px] overflow-visible rounded-lg"
-              />
+              <LanguageSelector />
             </div>
           </div>
 
@@ -283,7 +283,7 @@ export function LandingPage({
             id="landing-connect-button"
             className="bg-orange-600 hover:bg-orange-500 text-white font-black uppercase text-[10px] md:text-xs px-3 py-2 md:px-6 md:py-2.5 rounded-lg transition-all shadow-lg shadow-orange-600/20 active:scale-95 whitespace-nowrap"
           >
-            Connexion
+            {t("landing.connect", "Connexion")}
           </button>
         </div>
       </header>
@@ -312,10 +312,7 @@ export function LandingPage({
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter leading-[0.9] mb-6"
           >
-            Devenez le <br />
-            <span className="text-orange-500 drop-shadow-[0_0_30px_rgba(249,115,22,0.3)]">
-              Meilleur Fan
-            </span>
+            {t("landing.become_best_fan", "Devenez le Meilleur Fan")}
           </motion.h1>
 
           <motion.p
@@ -324,8 +321,7 @@ export function LandingPage({
             transition={{ delay: 0.1 }}
             className="text-lg md:text-xl text-blue-400 font-bold max-w-2xl mx-auto mb-12 leading-relaxed"
           >
-            Suivez les scores en direct, soutenez votre club et affrontez
-            d'autres fans dans des duels stratégiques épiques.
+            {t("landing.hero_desc", "Suivez les scores en direct, soutenez votre club et affrontez d'autres fans dans des duels stratégiques épiques.")}
           </motion.p>
 
           <motion.div
@@ -339,14 +335,14 @@ export function LandingPage({
               className="w-full sm:w-auto bg-orange-600 hover:bg-orange-500 text-white font-black uppercase text-sm px-10 py-4 rounded-xl transition-all shadow-xl shadow-orange-600/25 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 duration-150"
             >
               <Activity className="w-5 h-5 text-white animate-pulse" />
-              Scores en direct
+              {t("landing.live_scores_btn", "Scores en direct")}
             </button>
             <button
               onClick={() => setShowAuth(true)}
               className="w-full sm:w-auto bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black uppercase text-sm px-10 py-4 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-95 duration-150"
             >
               <LogIn className="w-5 h-5" />
-              Se connecter
+              {t("landing.connect_btn", "Se connecter")}
             </button>
           </motion.div>
 
@@ -403,8 +399,8 @@ export function LandingPage({
                   className={`font-bold uppercase tracking-wider text-xs ${isDisplayingLive ? "text-red-500" : "text-orange-500"}`}
                 >
                   {isDisplayingLive
-                    ? "Mises à jour toutes les minutes"
-                    : "Prochainement en direct"}
+                    ? t("landing.live_updates_ping", "Mises à jour toutes les minutes")
+                    : t("landing.upcoming_live_ping", "Prochainement en direct")}
                 </span>
               </div>
               <h2 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter">
@@ -416,7 +412,7 @@ export function LandingPage({
               className="w-full md:w-auto bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs uppercase px-6 py-3 rounded-lg flex items-center justify-center gap-2"
             >
               <Tv className="w-4 h-4 text-orange-500" />
-              Tous les Scores en direct
+              {t("landing.all_live_scores_btn", "Tous les Scores en direct")}
             </button>
           </div>
 
@@ -435,11 +431,10 @@ export function LandingPage({
             <div className="p-12 text-center bg-[#0d0d0d] border border-white/5 rounded-2xl mx-4 sm:mx-6">
               <Activity className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 font-bold mb-2 uppercase tracking-wide text-sm">
-                Aucun match disponible pour aujourd'hui
+                {t("landing.no_matches", "Aucun match disponible pour aujourd'hui")}
               </p>
               <p className="text-xs text-gray-600">
-                Revenez plus tard pour voir les résultats des tournois ou
-                explorez d'autres zones.
+                {t("landing.no_matches_desc", "Revenez plus tard pour voir les résultats des tournois ou explorez d'autres zones.")}
               </p>
             </div>
           ) : (
@@ -472,22 +467,27 @@ export function LandingPage({
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-black uppercase italic mb-2 tracking-tighter">
-              Rencontrez les Fanz
+              {t("landing.meet_fanz_title", "Rencontrez les Fanz")}
             </h2>
             <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-xs">
-              Mascottes officielles de supporters
+              {t("landing.meet_fanz_subtitle", "Mascottes officielles de supporters")}
             </p>
           </div>
 
           <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-            {displayedFanz.map((f: any) => (
-              <FanzShowcaseCard
-                key={f.id}
-                id={f.id}
-                name={f.name}
-                description={f.description || f.shortDescription || ""}
-              />
-            ))}
+            {displayedFanz.map((f: any) => {
+              const cleanId = f.id.replace("fanz-", "");
+              const translatedName = t(`fanz.${cleanId}.name`, f.name);
+              const translatedDesc = t(`fanz.${cleanId}.desc`, f.description || f.shortDescription || "");
+              return (
+                <FanzShowcaseCard
+                  key={f.id}
+                  id={f.id}
+                  name={translatedName}
+                  description={translatedDesc}
+                />
+              );
+            })}
           </div>
         </div>
       </section>
@@ -497,10 +497,10 @@ export function LandingPage({
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-black uppercase italic mb-2 tracking-tighter">
-              L'expérience Ultime
+              {t("landing.ultimate_exp_title", "L'expérience Ultime")}
             </h2>
             <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-xs md:text-sm">
-              Vivez votre passion comme jamais
+              {t("landing.ultimate_exp_subtitle", "Vivez votre passion comme jamais")}
             </p>
           </div>
 
@@ -509,23 +509,23 @@ export function LandingPage({
               icon={
                 <Swords className="w-6 h-6 text-orange-500 animate-pulse" />
               }
-              title="Duels en direct"
-              description="Affrontez d'autres supporters pendant les matchs."
+              title={t("landing.ultimate_duels", "Duels en direct")}
+              description={t("landing.ultimate_duels_desc", "Affrontez d'autres supporters pendant les matchs.")}
             />
             <LandingCard
               icon={<Layers className="w-6 h-6 text-orange-500" />}
-              title="Arsenal Tactique"
-              description="Jouez des cartes pour influencer le score."
+              title={t("landing.ultimate_tactics", "Arsenal Tactique")}
+              description={t("landing.ultimate_tactics_desc", "Jouez des cartes pour influencer le score.")}
             />
             <LandingCard
               icon={<User className="w-6 h-6 text-orange-500" />}
-              title="Votre Fan"
-              description="Faites évoluer votre personnage et son look."
+              title={t("landing.ultimate_fan", "Votre Fan")}
+              description={t("landing.ultimate_fan_desc", "Faites évoluer votre personnage et son look.")}
             />
             <LandingCard
               icon={<LineChart className="w-6 h-6 text-orange-500" />}
-              title="Classements"
-              description="Portez votre club au sommet du monde."
+              title={t("landing.ultimate_leaderboards", "Classements")}
+              description={t("landing.ultimate_leaderboards_desc", "Portez votre club au sommet du monde.")}
             />
           </div>
         </div>
@@ -536,21 +536,21 @@ export function LandingPage({
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-black uppercase italic mb-2 tracking-tighter">
-              Le Guide MrFanz
+              {t("landing.guide_title", "Le Guide MrFanz")}
             </h2>
             <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-xs md:text-sm">
-              Apprenez les bases pour devenir le Meilleur Fan
+              {t("landing.guide_subtitle", "Apprenez les bases pour devenir le Meilleur Fan")}
             </p>
           </div>
 
           <div className="flex overflow-x-auto no-scrollbar gap-4 pb-8 snap-x snap-mandatory">
             {[
-              { id: 1, title: "Bienvenue dans The Best Fan" },
-              { id: 2, title: "Adopte ton Fanz" },
-              { id: 3, title: "Collectionne les Cartes" },
-              { id: 4, title: "Gagne tes Duels" },
-              { id: 5, title: "Progression & Stats" },
-              { id: 6, title: "Ferveur et Récompenses" },
+              { id: 1, titleKey: "landing.tuto_v1", fallbackTitle: "Bienvenue dans The Best Fan" },
+              { id: 2, titleKey: "landing.tuto_v2", fallbackTitle: "Adopte ton Fanz" },
+              { id: 3, titleKey: "landing.tuto_v3", fallbackTitle: "Collectionne les Cartes" },
+              { id: 4, titleKey: "landing.tuto_v4", fallbackTitle: "Gagne tes Duels" },
+              { id: 5, titleKey: "landing.tuto_v5", fallbackTitle: "Progression & Stats" },
+              { id: 6, titleKey: "landing.tuto_v6", fallbackTitle: "Ferveur et Récompenses" },
             ].map((video) => (
               <div
                 key={video.id}
@@ -558,7 +558,7 @@ export function LandingPage({
               >
                 <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-3 z-10">
                   <h3 className="text-white font-black italic uppercase text-xs md:text-sm drop-shadow-md">
-                    {video.title}
+                    {t(video.titleKey, video.fallbackTitle)}
                   </h3>
                 </div>
                 <video
@@ -579,33 +579,33 @@ export function LandingPage({
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-black uppercase italic mb-2 tracking-tighter">
-              L'arène en chiffres
+              {t("landing.stats_title", "L'arène en chiffres")}
             </h2>
             <p className="text-gray-500 font-bold tracking-widest text-xs">
-              Une communauté active et engagée à chaque seconde.
+              {t("landing.stats_subtitle", "Une communauté active et engagée à chaque seconde.")}
             </p>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
             <StatItem
               icon={<Users className="w-6 h-6 text-blue-500" />}
-              value={supportersCount.toLocaleString("fr-FR")}
-              label="Supporters"
+              value={supportersCount.toLocaleString(language === "en" ? "en-US" : language === "es" ? "es-ES" : "fr-FR")}
+              label={t("landing.stat_supporters", "Supporters")}
             />
             <StatItem
               icon={<Trophy className="w-6 h-6 text-yellow-500" />}
-              value={duelsTotalCount.toLocaleString("fr-FR")}
-              label="Duels Joués"
+              value={duelsTotalCount.toLocaleString(language === "en" ? "en-US" : language === "es" ? "es-ES" : "fr-FR")}
+              label={t("landing.stat_duels_played", "Duels Joués")}
             />
             <StatItem
               icon={<Activity className="w-6 h-6 animate-pulse text-red-500" />}
               value={formattedLiveCount.toString()}
-              label="Matchs Live"
+              label={t("landing.stat_live_matches", "Matchs Live")}
             />
             <StatItem
               icon={<Swords className="w-6 h-6 text-orange-500" />}
-              value={duelsActiveCount.toLocaleString("fr-FR")}
-              label="Duels Actifs"
+              value={duelsActiveCount.toLocaleString(language === "en" ? "en-US" : language === "es" ? "es-ES" : "fr-FR")}
+              label={t("landing.stat_active_duels", "Duels Actifs")}
             />
           </div>
         </div>
@@ -616,12 +616,10 @@ export function LandingPage({
         <div className="bg-orange-950/20 border border-orange-500/20 rounded-3xl overflow-hidden mb-12 shadow-2xl">
           <div className="bg-orange-500/10 px-4 py-3 flex items-center justify-center gap-2 border-b border-orange-500/20 font-black uppercase text-[10px] tracking-widest text-orange-500">
             <AlertCircle className="w-4 h-4 animate-bounce" />
-            Version Bêta
+            {t("landing.beta_title", "Version Bêta")}
           </div>
           <div className="p-8 italic font-bold text-gray-400 leading-relaxed md:text-lg">
-            "L'application est actuellement en phase de test. Des mises à jour
-            et des ajustements techniques peuvent avoir lieu avant la version
-            1.0."
+            {t("landing.beta_desc", "\"L'application est actuellement en phase de test. Des mises à jour et des ajustements techniques peuvent avoir lieu avant la version 1.0.\"")}
           </div>
         </div>
       </section>
@@ -630,24 +628,23 @@ export function LandingPage({
       <section className="py-24 px-6 bg-gradient-to-t from-orange-900/15 to-transparent border-t border-white/5">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-black uppercase italic mb-4 tracking-tighter leading-none">
-            Prêt pour le <br className="md:hidden" /> coup d'envoi ?
+            {t("landing.ready_kickoff", "Prêt pour le coup d'envoi ?")}
           </h2>
           <p className="text-blue-400 font-bold mb-12 px-8 uppercase italic tracking-wider text-sm md:text-base">
-            "Rejoignez des milliers de fans et montrez que votre ferveur n'a pas
-            de limite."
+            {t("landing.cta_desc", "\"Rejoignez des milliers de fans et montrez que votre ferveur n'a pas de limite.\"")}
           </p>
 
           <button
             onClick={() => setShowAuth(true)}
             className="bg-orange-600 hover:bg-orange-500 text-white font-black uppercase text-sm px-12 py-5 rounded-2xl transition-all shadow-2xl shadow-orange-600/30 hover:scale-105 active:scale-95 w-full md:w-auto"
           >
-            Créer mon compte
+            {t("landing.create_account_btn", "Créer mon compte")}
           </button>
         </div>
       </section>
 
       <footer className="py-12 border-t border-white/5 text-center flex flex-col items-center justify-center gap-2 text-[10px] text-gray-600 font-bold uppercase tracking-widest bg-black/20">
-        <div>© 2026 THEBESTFAN.ONLINE - Tous droits réservés</div>
+        <div>{t("landing.footer_rights", "© 2026 THEBESTFAN.ONLINE - Tous droits réservés")}</div>
         <div className="text-[8px] opacity-20 mt-2">v{APP_VERSION}</div>
       </footer>
     </div>
@@ -663,6 +660,7 @@ function FanzShowcaseCard({
   name: string;
   description: string;
 }) {
+  const { t } = useLanguage();
   const [hovered, setHovered] = useState(false);
   const cleanId = id.replace("fanz-", "");
   const videoPath = `/fanz/${cleanId}/videoFanz${cleanId}Skin000.mp4`;
@@ -697,7 +695,7 @@ function FanzShowcaseCard({
         {/* Interactive Play Loop indicator */}
         <div className="absolute bottom-2.5 right-2.5 bg-black/60 backdrop-blur-md text-[8px] font-black tracking-widest uppercase text-orange-500 px-2 py-1 rounded border border-white/5 flex items-center gap-1">
           <Play className="w-2.4 h-2.4 fill-orange-500 stroke-0 shrink-0" />
-          <span>{hovered ? "Animation active" : "Survoler"}</span>
+          <span>{hovered ? t("landing.animation_active", "Animation active") : t("landing.hover_me", "Survoler")}</span>
         </div>
       </div>
 
